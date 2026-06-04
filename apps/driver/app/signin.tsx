@@ -16,34 +16,20 @@ import { colors, font, radius, spacing } from '../src/theme';
 export default function SignIn() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { sendPhoneOtp, verifyPhoneOtp } = useAuth();
-  const [phase, setPhase] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('+20');
-  const [token, setToken] = useState('');
+  const { signInWithPassword } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send() {
+  async function submit() {
     setBusy(true);
     setError(null);
     try {
-      await sendPhoneOtp(phone.trim());
-      setPhase('otp');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send code');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function verify() {
-    setBusy(true);
-    setError(null);
-    try {
-      await verifyPhoneOtp(phone.trim(), token.trim());
+      await signInWithPassword(email, password);
       router.replace('/home');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Invalid code');
+      setError(e instanceof Error ? e.message : 'Could not sign in');
     } finally {
       setBusy(false);
     }
@@ -74,62 +60,42 @@ export default function SignIn() {
             gap: spacing.md,
           }}
         >
-          {phase === 'phone' ? (
-            <>
-              <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink }}>
-                Sign in
-              </Text>
-              <Text style={{ color: colors.ink2 }}>Enter your registered phone number.</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                placeholder="+20 10 1234 5678"
-                placeholderTextColor={colors.ink3}
-                style={inputStyle}
-              />
-              <Pressable
-                onPress={send}
-                disabled={busy || phone.length < 8}
-                style={[btnStyle, (busy || phone.length < 8) && { opacity: 0.5 }]}
-              >
-                {busy ? (
-                  <ActivityIndicator color={colors.white} />
-                ) : (
-                  <Text style={btnText}>Send code</Text>
-                )}
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink }}>
-                Enter code
-              </Text>
-              <Text style={{ color: colors.ink2 }}>Sent to {phone}</Text>
-              <TextInput
-                value={token}
-                onChangeText={setToken}
-                keyboardType="number-pad"
-                placeholder="123456"
-                placeholderTextColor={colors.ink3}
-                style={[inputStyle, { letterSpacing: 8, textAlign: 'center', fontSize: 22 }]}
-              />
-              <Pressable
-                onPress={verify}
-                disabled={busy || token.length < 6}
-                style={[btnStyle, (busy || token.length < 6) && { opacity: 0.5 }]}
-              >
-                {busy ? (
-                  <ActivityIndicator color={colors.white} />
-                ) : (
-                  <Text style={btnText}>Sign in</Text>
-                )}
-              </Pressable>
-              <Pressable onPress={() => setPhase('phone')} style={{ alignItems: 'center', padding: 8 }}>
-                <Text style={{ color: colors.ink3 }}>Change number</Text>
-              </Pressable>
-            </>
-          )}
+          <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink }}>
+            Sign in
+          </Text>
+          <Text style={{ color: colors.ink2 }}>Use the email and password from dispatch.</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="username"
+            placeholder="driver@sharmeats.eg"
+            placeholderTextColor={colors.ink3}
+            style={inputStyle}
+          />
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="password"
+            placeholder="Password"
+            placeholderTextColor={colors.ink3}
+            style={inputStyle}
+            onSubmitEditing={() => email && password && submit()}
+          />
+          <Pressable
+            onPress={submit}
+            disabled={busy || !email || !password}
+            style={[btnStyle, (busy || !email || !password) && { opacity: 0.5 }]}
+          >
+            {busy ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={btnText}>Sign in</Text>
+            )}
+          </Pressable>
 
           {error && (
             <View style={{ backgroundColor: colors.redSoft, borderRadius: radius.md, padding: spacing.md }}>

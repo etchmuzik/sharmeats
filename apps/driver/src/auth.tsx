@@ -5,8 +5,7 @@ import { getSupabase, isSupabaseConfigured } from './supabase';
 interface AuthState {
   session: Session | null;
   loading: boolean;
-  sendPhoneOtp: (phone: string) => Promise<void>;
-  verifyPhoneOtp: (phone: string, token: string) => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -35,12 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthState = {
     session,
     loading,
-    async sendPhoneOtp(phone) {
-      const { error } = await getSupabase().auth.signInWithOtp({ phone });
-      if (error) throw error;
-    },
-    async verifyPhoneOtp(phone, token) {
-      const { error } = await getSupabase().auth.verifyOtp({ phone, token, type: 'sms' });
+    async signInWithPassword(email, password) {
+      const { error } = await getSupabase().auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
       if (error) throw error;
     },
     async signOut() {
