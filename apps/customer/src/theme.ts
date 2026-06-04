@@ -1,0 +1,102 @@
+export const colors = {
+  bg: '#fafaf7',
+  bgSoft: '#f5f0e1',
+  bgSoft2: '#fbf6e8',
+  sand: '#f3ead7',
+  sand2: '#ebe0c5',
+  ink: '#0a0a0c',
+  ink2: '#5b5b66',
+  ink3: '#9494a0',
+  line: '#e8e3d4',
+  line2: '#dad3bf',
+  accent: '#ff5a3c',
+  accentDark: '#e8482b',
+  accentSoft: '#ffeae4',
+  sea: '#0e7c91',
+  seaSoft: '#dff0f3',
+  green: '#2e8a5d',
+  greenSoft: '#e2f1ea',
+  blue: '#0070f3',
+  blueSoft: '#e6f0ff',
+  red: '#c8412a',
+  redSoft: '#ffe2dc',
+  amber: '#b8791a',
+  amberSoft: '#fbf2dd',
+  star: '#e8a317',
+  white: '#ffffff',
+  black: '#000000',
+} as const;
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  huge: 48,
+} as const;
+
+export const radius = {
+  sm: 8,
+  md: 12,
+  lg: 14,
+  xl: 16,
+  xxl: 18,
+  xxxl: 24,
+  pill: 999,
+} as const;
+
+export const font = {
+  weights: {
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+    extrabold: '800' as const,
+    black: '900' as const,
+  },
+  sizes: {
+    xs: 10,
+    sm: 11,
+    md: 12,
+    base: 13,
+    lg: 14,
+    xl: 15,
+    '2xl': 16,
+    '3xl': 18,
+    '4xl': 20,
+    '5xl': 22,
+    '6xl': 24,
+    '7xl': 26,
+    '8xl': 28,
+    '9xl': 32,
+    '10xl': 38,
+    '11xl': 48,
+  },
+} as const;
+
+export const shadow = {
+  soft: {
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  card: {
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  accentGlow: {
+    shadowColor: '#ff5a3c',
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+} as const;

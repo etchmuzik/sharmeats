@@ -1,0 +1,461 @@
+import { useCallback, useEffect, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, font, radius, shadow } from '../../src/theme';
+import { CuisinePill } from '../../src/components/CuisinePill';
+import { RestaurantCard } from '../../src/components/RestaurantCard';
+import { db } from '../../src/data';
+import type { Cuisine, Restaurant, Address, Hotel, Order } from '../../src/data/types';
+import { useT } from '../../src/i18n';
+import { useSession } from '../../src/store/session';
+import { tap } from '../../src/haptics';
+
+const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
+  { key: 'all', tKey: 'cuisine.all', emoji: '' },
+  { key: 'breakfast', tKey: 'cuisine.breakfast', emoji: '🍳' },
+  { key: 'street_food', tKey: 'cuisine.street_food', emoji: '🥙' },
+  { key: 'egyptian', tKey: 'cuisine.egyptian', emoji: '🍲' },
+  { key: 'sweets', tKey: 'cuisine.sweets', emoji: '🍯' },
+  { key: 'grocery', tKey: 'cuisine.grocery', emoji: '🛒' },
+  { key: 'pharmacy', tKey: 'cuisine.pharmacy', emoji: '💊' },
+  { key: 'italian', tKey: 'cuisine.italian', emoji: '🍝' },
+  { key: 'seafood', tKey: 'cuisine.seafood', emoji: '🐟' },
+  { key: 'burgers', tKey: 'cuisine.burgers', emoji: '🍔' },
+];
+
+type TimeOfDay = 'morning' | 'lunch' | 'evening' | 'late_night' | 'iftar';
+
+/**
+ * Stub Ramadan window. Replace with a real Hijri calendar lookup before launch.
+ * Ramadan 1447 AH ≈ 2026-02-17 to 2026-03-18 (UTC). The check is intentionally
+ * imprecise — within ±1 day is fine for greeting purposes.
+ */
+function isRamadan(now: Date): boolean {
+  const t = now.getTime();
+  const start = Date.UTC(2026, 1, 17);
+  const end = Date.UTC(2026, 2, 19);
+  return t >= start && t <= end;
+}
+
+function timeOfDay(): TimeOfDay {
+  const now = new Date();
+  const h = now.getHours();
+  // Iftar window: sunset → 8pm during Ramadan. Sunset proxy = 18:00 in Sharm.
+  if (isRamadan(now) && h >= 18 && h < 20) return 'iftar';
+  if (h >= 5 && h < 11) return 'morning';
+  if (h >= 11 && h < 16) return 'lunch';
+  if (h >= 16 && h < 22) return 'evening';
+  return 'late_night';
+}
+
+export default function HomeTab() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const t = useT();
+  const phone = useSession((s) => s.phone);
+  const selectedAddressId = useSession((s) => s.selectedAddressId);
+  const allergyNudgeDismissed = useSession((s) => s.allergyNudgeDismissed);
+  const dismissAllergyNudge = useSession((s) => s.dismissAllergyNudge);
+  const [showAllergyNudge, setShowAllergyNudge] = useState(false);
+
+  useEffect(() => {
+    if (allergyNudgeDismissed) {
+      setShowAllergyNudge(false);
+      return;
+    }
+    db.user.getMe().then((u) => {
+      setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
+    });
+  }, [allergyNudgeDismissed]);
+
+  const [selectedCuisine, setSelectedCuisine] = useState<Cuisine | 'all'>('all');
+  const [featured, setFeatured] = useState<Restaurant[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [reorderRail, setReorderRail] = useState<Restaurant[]>([]);
+  const [address, setAddress] = useState<Address | null>(null);
+  const [hotel, setHotel] = useState<Hotel | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    const [feat, list] = await Promise.all([
+      db.restaurants.listFeatured(),
+      db.restaurants.list(selectedCuisine === 'all' ? undefined : { cuisine: selectedCuisine }),
+    ]);
+    setFeatured(feat);
+    setRestaurants(list);
+    setRefreshing(false);
+  }, [selectedCuisine]);
+
+  useEffect(() => {
+    db.restaurants.listFeatured().then(setFeatured);
+  }, []);
+
+  useEffect(() => {
+    db.orders.listPast().then(async (past: Order[]) => {
+      const seen = new Set<string>();
+      const ids: string[] = [];
+      for (const o of past) {
+        if (!seen.has(o.restaurantId)) {
+          seen.add(o.restaurantId);
+          ids.push(o.restaurantId);
+        }
+        if (ids.length >= 3) break;
+      }
+      const venues = (
+        await Promise.all(ids.map((id) => db.restaurants.get(id)))
+      ).filter((r): r is Restaurant => !!r);
+      setReorderRail(venues);
+    });
+  }, []);
+
+  useEffect(() => {
+    db.restaurants
+      .list(selectedCuisine === 'all' ? undefined : { cuisine: selectedCuisine })
+      .then(setRestaurants);
+  }, [selectedCuisine]);
+
+  useEffect(() => {
+    if (!selectedAddressId) {
+      setAddress(null);
+      return;
+    }
+    db.user.listAddresses().then((addrs) => {
+      const a = addrs.find((x) => x.id === selectedAddressId) ?? addrs[0] ?? null;
+      setAddress(a);
+      if (a?.hotelId) db.hotels.get(a.hotelId).then(setHotel);
+      else setHotel(null);
+    });
+  }, [selectedAddressId]);
+
+  const tod = timeOfDay();
+  const greetingKey =
+    tod === 'iftar'
+      ? 'home.greetingIftar'
+      : tod === 'morning'
+        ? 'home.greetingMorning'
+        : tod === 'lunch' || tod === 'evening'
+          ? 'home.greetingEvening'
+          : 'home.greetingLateNight';
+  const greetingSubKey = tod === 'iftar' ? 'home.greetingSubIftar' : 'home.greetingSub';
+  const featuredKey =
+    tod === 'iftar' || tod === 'evening'
+      ? 'home.featuredEvening'
+      : tod === 'morning'
+        ? 'home.featuredMorning'
+        : tod === 'lunch'
+          ? 'home.featuredLunch'
+          : 'home.featuredLateNight';
+
+  const addrText =
+    address?.kind === 'hotel'
+      ? `${hotel?.name ?? address.hotelName ?? 'Hotel'} · Room ${address.roomNumber ?? '-'}`
+      : address?.kind === 'street'
+        ? `${address.streetText ?? 'Address'} ${address.building ?? ''}`
+        : address?.kind === 'beach_pin'
+          ? `${address.beachName ?? 'Beach pin'}`
+          : 'Choose address';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <StatusBar style="dark" />
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
+        <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
+          <View style={styles.addrRow}>
+            <Pressable
+              onPress={() => {
+                tap();
+                router.push('/address/picker');
+              }}
+              style={styles.addrLeft}>
+              <View style={styles.addrIco}>
+                <Text style={{ color: colors.sea, fontSize: 18 }}>📍</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addrLbl}>{t('home.deliverTo')}</Text>
+                <Text style={styles.addrName} numberOfLines={1}>
+                  {addrText}{'  '}
+                  <Text style={{ color: colors.ink3 }}>▾</Text>
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(tabs)/profile')}
+              style={styles.avatar}
+              accessibilityLabel="Profile">
+              <Image source={{ uri: 'https://i.pravatar.cc/80?img=12' }} style={styles.avatarImg} />
+            </Pressable>
+          </View>
+
+          <View style={styles.greeting}>
+            <Text style={styles.greetTitle}>{t(greetingKey)}</Text>
+            <Text style={styles.greetSub}>{t(greetingSubKey)}</Text>
+          </View>
+
+          <Pressable
+            onPress={() => router.push('/(tabs)/browse')}
+            style={styles.search}>
+            <Text style={styles.searchIco}>🔍</Text>
+            <Text style={styles.searchText}>{t('home.searchHint')}</Text>
+          </Pressable>
+        </View>
+
+        {showAllergyNudge && (
+          <View style={styles.nudge}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nudgeTitle}>{t('home.allergyNudgeTitle')}</Text>
+              <Text style={styles.nudgeSub}>{t('home.allergyNudgeSub')}</Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                tap();
+                router.push('/settings/allergies');
+              }}
+              style={styles.nudgeCta}>
+              <Text style={styles.nudgeCtaText}>{t('home.allergyNudgeCta')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                tap();
+                dismissAllergyNudge();
+              }}
+              hitSlop={12}
+              style={styles.nudgeClose}>
+              <Text style={styles.nudgeCloseText}>✕</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.cuisineRow}>
+          {CUISINES.map((c) => (
+            <CuisinePill
+              key={c.key}
+              label={t(c.tKey)}
+              emoji={c.emoji}
+              active={selectedCuisine === c.key}
+              onPress={() => setSelectedCuisine(c.key as Cuisine | 'all')}
+            />
+          ))}
+        </ScrollView>
+
+        {reorderRail.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+            <View style={styles.secHead}>
+              <Text style={styles.secTitle}>{t('home.reorder')}</Text>
+            </View>
+            <FlatList
+              horizontal
+              data={reorderRail}
+              keyExtractor={(r) => r.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingRight: 20 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    router.push(`/restaurant/${item.id}` as never);
+                  }}
+                  style={styles.reorderChip}>
+                  <Image source={{ uri: item.coverImage }} style={styles.reorderImg} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.reorderName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.reorderSub} numberOfLines={1}>
+                      ★ {item.rating} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        )}
+
+        {featured.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+            <View style={styles.secHead}>
+              <Text style={styles.secTitle}>{t(featuredKey)}</Text>
+              <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
+            </View>
+            <FlatList
+              horizontal
+              data={featured}
+              keyExtractor={(r) => r.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingRight: 20 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    router.push(`/restaurant/${item.id}` as never);
+                  }}
+                  style={styles.feat}>
+                  <Image source={{ uri: item.coverImage }} style={styles.featImg} />
+                  <View style={styles.featOverlay} />
+                  <View style={styles.featMeta}>
+                    <Text style={styles.featEyebrow}>
+                      {item.touristSafe ? `★ ${t('home.featuredEyebrowTouristSafe')}` : `★ ${t('home.featuredEyebrowLocal')}`}
+                    </Text>
+                    <Text style={styles.featName}>{item.name}</Text>
+                    <Text style={styles.featSub}>
+                      {item.cuisineLabel} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')} · ★ {item.rating}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        )}
+
+        <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+          <View style={styles.secHead}>
+            <Text style={styles.secTitle}>{t('home.nearby')}</Text>
+            <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
+          </View>
+          <View style={{ gap: 12, marginTop: 12 }}>
+            {restaurants.map((r) => (
+              <RestaurantCard key={r.id} restaurant={r} />
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  top: {
+    backgroundColor: colors.sand,
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+  },
+  addrRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  addrLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  addrIco: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addrLbl: {
+    fontSize: 10,
+    color: colors.ink2,
+    fontWeight: font.weights.bold,
+    letterSpacing: 0.7,
+  },
+  addrName: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.semibold },
+  avatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.white },
+  avatarImg: { width: '100%', height: '100%' },
+  greeting: { marginTop: 18 },
+  greetTitle: {
+    fontSize: 30,
+    fontWeight: font.weights.extrabold,
+    color: colors.ink,
+    letterSpacing: -0.6,
+    lineHeight: 34,
+  },
+  greetSub: { color: colors.ink2, fontSize: font.sizes.lg, marginTop: 6 },
+  search: {
+    marginTop: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    ...shadow.soft,
+  },
+  searchIco: { fontSize: 16, color: colors.ink3 },
+  searchText: { flex: 1, color: colors.ink3, fontSize: font.sizes.lg },
+  cuisineRow: { gap: 8, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  secHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  secTitle: { fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.4 },
+  secMore: { fontSize: font.sizes.md, color: colors.sea, fontWeight: font.weights.bold },
+  feat: { width: 280, height: 170, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: '#222' },
+  featImg: { width: '100%', height: '100%' },
+  featOverlay: {
+    position: 'absolute',
+    inset: 0 as unknown as number,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  featMeta: { position: 'absolute', left: 14, right: 14, bottom: 12 },
+  featEyebrow: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: font.weights.bold,
+    letterSpacing: 0.6,
+    opacity: 0.9,
+  },
+  featName: {
+    color: colors.white,
+    fontSize: font.sizes['5xl'],
+    fontWeight: font.weights.extrabold,
+    marginTop: 4,
+    letterSpacing: -0.4,
+  },
+  featSub: { color: colors.white, fontSize: font.sizes.md, opacity: 0.9, marginTop: 4 },
+  reorderChip: {
+    width: 240,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 8,
+    ...shadow.soft,
+  },
+  reorderImg: { width: 52, height: 52, borderRadius: radius.md, backgroundColor: colors.bgSoft },
+  reorderName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
+  reorderSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
+  nudge: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.seaSoft,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.sea,
+  },
+  nudgeTitle: { fontSize: font.sizes.lg, color: colors.sea, fontWeight: font.weights.bold },
+  nudgeSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
+  nudgeCta: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.sea,
+    borderRadius: radius.pill,
+  },
+  nudgeCtaText: { color: colors.white, fontSize: font.sizes.md, fontWeight: font.weights.bold },
+  nudgeClose: { padding: 4 },
+  nudgeCloseText: { color: colors.ink3, fontSize: 16 },
+});

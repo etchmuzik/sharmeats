@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "sharmeats",
+    "slug": "sharmeats-customer",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "sharmeats",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "cover",
+      "backgroundColor": "#f3ead7"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "eg.sharmeats.customer",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#f3ead7"
+      },
+      "package": "eg.sharmeats.customer"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
