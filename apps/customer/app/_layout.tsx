@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useCart } from '../src/store/cart';
 import { useSession } from '../src/store/session';
+import { db, isBackendLive } from '../src/data';
 
 export default function RootLayout() {
   const hydrateCart = useCart((s) => s.hydrate);
@@ -12,6 +13,15 @@ export default function RootLayout() {
   useEffect(() => {
     hydrateCart();
     hydrateSession();
+    // In live mode, ensure a real Supabase session exists before any screen
+    // queries the backend (the server-authority RPCs require auth.uid()).
+    // Anonymous sign-in is the zero-friction guest path; failures are logged
+    // (not thrown) so the app still renders even if the provider is off.
+    if (isBackendLive) {
+      db.auth
+        .ensureSession()
+        .catch((e) => console.warn('[auth] ensureSession failed:', e?.message ?? e));
+    }
   }, [hydrateCart, hydrateSession]);
 
   return (

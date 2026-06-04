@@ -9,12 +9,14 @@
  * EXPO_PUBLIC_SUPABASE_ANON_KEY to flip to the live backend. The UI does not
  * change.
  */
+import { authRepo } from './repositories/auth';
 import { hotelsRepo } from './repositories/hotels';
 import { menusRepo } from './repositories/menus';
 import { ordersRepo } from './repositories/orders';
 import { restaurantsRepo } from './repositories/restaurants';
 import { userRepo } from './repositories/user';
 
+import { authRepoSupabase } from './supabase/auth';
 import { hotelsRepoSupabase } from './supabase/hotels';
 import { menusRepoSupabase } from './supabase/menus';
 import { ordersRepoSupabase } from './supabase/orders';
@@ -25,6 +27,7 @@ const useSupabase = process.env.EXPO_PUBLIC_USE_SUPABASE === 'true';
 
 export const db = useSupabase
   ? {
+      auth: authRepoSupabase,
       restaurants: restaurantsRepoSupabase,
       menus: menusRepoSupabase,
       hotels: hotelsRepoSupabase,
@@ -32,6 +35,7 @@ export const db = useSupabase
       orders: ordersRepoSupabase,
     }
   : {
+      auth: authRepo,
       restaurants: restaurantsRepo,
       menus: menusRepo,
       hotels: hotelsRepo,
