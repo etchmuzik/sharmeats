@@ -40,6 +40,12 @@ async function attachModifiers(items: MenuItem[]): Promise<MenuItem[]> {
       name: o.name,
       priceDeltaEgp: o.price_delta_egp,
       isDefault: o.is_default ?? undefined,
+      // Presentation extras (mig 016) — drive add-on cards / popular badge.
+      icon: o.icon ?? undefined,
+      subtitle: o.subtitle ?? undefined,
+      popular: o.popular ?? undefined,
+      image: o.image ?? undefined,
+      addsFlags: o.adds_flags ?? undefined,
     });
     optsByModifier.set(o.modifier_id, list);
   }
@@ -54,6 +60,10 @@ async function attachModifiers(items: MenuItem[]): Promise<MenuItem[]> {
       minSelect: m.min_select,
       maxSelect: m.max_select,
       options: optsByModifier.get(m.id) ?? [],
+      // Presentation hint (mig 016) — picks the right UI (size/ingredients/addons).
+      style: m.style ?? undefined,
+      subtitle: m.subtitle ?? undefined,
+      step: m.step ?? undefined,
     });
     modsByItem.set(m.item_id, list);
   }
