@@ -25,7 +25,7 @@ export default function Splash() {
       <View style={styles.mark}>
         <Text style={styles.markText}>s</Text>
       </View>
-      <Text style={styles.brand}>sharmeats</Text>
+      <Text style={styles.brand}>Sharm Eats</Text>
       <View style={{ marginTop: 28 }}>
         <ActivityIndicator color={colors.accent} />
       </View>
