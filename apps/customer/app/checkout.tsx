@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
@@ -41,6 +42,7 @@ export default function Checkout() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [kitchenNotes, setKitchenNotes] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Generate 8 half-hour slots starting at the next half hour, capped at ~4h.
   const scheduleSlots = useMemo<number[]>(() => {
@@ -86,10 +88,13 @@ export default function Checkout() {
   const tax = useMemo(() => Math.round(subtotal * 0.14), [subtotal]);
   const total = subtotal + deliveryFee + tax + tipEgp;
 
+  const isCard = payment?.kind === 'card' || payment?.kind === 'apple_pay';
+
   const place = async () => {
     if (!restaurant || !address || !payment || lines.length === 0) return;
     setPlacing(true);
     try {
+      // place_order (server-authoritative). Returns the created order.
       const order = await db.orders.create({
         restaurantId: restaurant.id,
         restaurantName: restaurant.name,
@@ -102,9 +107,25 @@ export default function Checkout() {
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
         scheduledFor: scheduledFor ?? undefined,
       });
+
+      // Card payment: open Paymob hosted checkout. The order stays 'pending'
+      // (and hidden from the merchant) until the HMAC-verified webhook flips it
+      // to 'paid'. COD orders skip this entirely and go straight to tracking.
+      if (isCard) {
+        const intent = await db.orders.startCardPayment(order.id);
+        if (intent?.checkoutUrl) {
+          // Opens the secure hosted checkout; card data never touches the app.
+          await WebBrowser.openBrowserAsync(intent.checkoutUrl);
+          // On return we route to tracking; the webhook confirms payment
+          // out-of-band, so the tracking screen reflects the real status.
+        }
+      }
+
       success();
       clear();
       router.replace(`/order/${order.id}`);
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : 'Could not place your order.');
     } finally {
       setPlacing(false);
     }
@@ -333,8 +354,26 @@ export default function Checkout() {
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
+        {paymentError && (
+          <View style={styles.payErr}>
+            <Text style={styles.payErrText}>{paymentError}</Text>
+          </View>
+        )}
+        {isCard && (
+          <Text style={styles.cardHint}>
+            {t('checkout.cardHint') !== 'checkout.cardHint'
+              ? t('checkout.cardHint')
+              : "You'll complete payment securely on the next screen."}
+          </Text>
+        )}
         <PrimaryButton
-          label={t('checkout.place', { amount: formatEgp(total) })}
+          label={
+            isCard
+              ? t('checkout.payCard', { amount: formatEgp(total) }) !== 'checkout.payCard'
+                ? t('checkout.payCard', { amount: formatEgp(total) })
+                : `Pay ${formatEgp(total)}`
+              : t('checkout.place', { amount: formatEgp(total) })
+          }
           onPress={place}
           disabled={placing || !address || !payment || lines.length === 0}
         />
@@ -481,5 +520,22 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
+  },
+  cardHint: {
+    fontSize: font.sizes.sm,
+    color: colors.ink3,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  payErr: {
+    backgroundColor: colors.redSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  payErrText: {
+    color: colors.red,
+    fontSize: font.sizes.sm,
   },
 });

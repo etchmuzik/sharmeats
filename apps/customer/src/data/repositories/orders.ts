@@ -121,6 +121,47 @@ export const ordersRepo = {
     return delay(o, 200);
   },
 
+  /**
+   * Mock has no real payment gateway — card "checkout" is a no-op (returns null
+   * so the caller skips opening a browser). Kept to mirror the Supabase adapter.
+   */
+  async startCardPayment(_orderId: string): Promise<{ checkoutUrl: string } | null> {
+    return delay(null);
+  },
+
+  /**
+   * Mock driver-location subscription. Emits a gently drifting fake position so
+   * the tracking map shows movement in mock mode. Mirrors the Supabase adapter's
+   * Realtime Broadcast subscription. Returns an unsubscribe fn.
+   */
+  subscribeDriverLocation(
+    _orderId: string,
+    cb: (loc: { lat: number; lng: number; heading?: number; at: number }) => void,
+  ): () => void {
+    let lat = 27.915;
+    let lng = 34.33;
+    const iv = setInterval(() => {
+      lat += (Math.random() - 0.5) * 0.0008;
+      lng += (Math.random() - 0.5) * 0.0008;
+      cb({ lat, lng, at: Date.now() });
+    }, 3000);
+    return () => clearInterval(iv);
+  },
+
+  /** Mock cancel — flips the order to cancelled locally. */
+  async cancel(orderId: string, _reason?: string): Promise<void> {
+    const o = orders.get(orderId);
+    if (o) {
+      orders.set(orderId, {
+        ...o,
+        status: 'cancelled',
+        history: [...o.history, { status: 'cancelled', at: Date.now() }],
+      });
+      notify(orderId);
+    }
+    return delay(undefined);
+  },
+
   async get(id: string): Promise<Order | null> {
     return delay(orders.get(id) ?? null);
   },

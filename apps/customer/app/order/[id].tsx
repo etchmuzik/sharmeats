@@ -29,6 +29,7 @@ export default function OrderTracking() {
   const [order, setOrder] = useState<Order | null>(null);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState(false);
+  const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
 
   const copyShortCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
@@ -47,6 +48,21 @@ export default function OrderTracking() {
       clearInterval(tick);
     };
   }, [id]);
+
+  // Live driver GPS — subscribe only while the order is actually moving
+  // (picked up / out for delivery). Cleans up when status changes or unmounts.
+  const trackingDriver =
+    order?.status === 'out_for_delivery' || order?.status === 'picked_up';
+  useEffect(() => {
+    if (!id || !trackingDriver) {
+      setDriverLoc(null);
+      return;
+    }
+    const unsub = db.orders.subscribeDriverLocation(id, (loc) =>
+      setDriverLoc({ lat: loc.lat, lng: loc.lng }),
+    );
+    return () => unsub();
+  }, [id, trackingDriver]);
 
   if (!order) {
     return (
@@ -73,7 +89,13 @@ export default function OrderTracking() {
         <View style={[styles.road, styles.r3]} />
         <View style={styles.routeLine} />
         <View style={styles.pinRider}>
-          <View style={styles.riderDot} />
+          <View style={[styles.riderDot, driverLoc && styles.riderDotLive]} />
+          {driverLoc && (
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>LIVE</Text>
+            </View>
+          )}
         </View>
         <View style={styles.pinDest}>
           <Text style={{ fontSize: 28 }}>📍</Text>
@@ -285,8 +307,21 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     transform: [{ rotate: '-22deg' }],
   },
-  pinRider: { position: 'absolute', left: '28%', top: '48%' },
+  pinRider: { position: 'absolute', left: '28%', top: '48%', alignItems: 'center' },
   riderDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, borderWidth: 3, borderColor: '#fff' },
+  riderDotLive: { backgroundColor: colors.green },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green },
+  liveText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   pinDest: { position: 'absolute', left: '72%', top: '30%' },
   mapNav: { position: 'absolute', left: 14 },
 

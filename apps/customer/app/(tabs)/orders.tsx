@@ -16,9 +16,11 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   accepted: 'status.accepted',
   preparing: 'status.preparing',
   ready: 'status.ready',
+  picked_up: 'status.out_for_delivery',
   out_for_delivery: 'status.out_for_delivery',
   delivered: 'status.delivered',
   cancelled: 'status.cancelled',
+  rejected: 'status.cancelled',
 };
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
@@ -26,9 +28,11 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   accepted: colors.sea,
   preparing: colors.sea,
   ready: colors.sea,
+  picked_up: colors.accent,
   out_for_delivery: colors.accent,
   delivered: colors.green,
   cancelled: colors.red,
+  rejected: colors.red,
 };
 
 export default function OrdersTab() {
