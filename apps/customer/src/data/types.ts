@@ -154,6 +154,12 @@ export interface Address {
   landmark?: string;
   beachName?: string;
   isDefault?: boolean;
+  /**
+   * GPS pin (WGS84). Captured for EVERY address kind — even hotels get a pin so
+   * the driver always has a map point. Maps to the PostGIS `geo` column.
+   */
+  lat?: number;
+  lng?: number;
 }
 
 export type PaymentMethodKind =
