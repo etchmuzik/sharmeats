@@ -15,3 +15,7 @@ coverage/
 .expo/
 web-build/
 expo-env.d.ts
+# Expo prebuild output — generated from app.json, not committed
+/apps/*/ios/
+/apps/*/android/
+.previews/
