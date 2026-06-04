@@ -1,0 +1,24 @@
+{
+  "name": "sharmeats",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sharm Eats — multi-category delivery super-app for Sharm el-Sheikh (food first). Monorepo: customer + driver apps (Expo), merchant + admin dashboards (Next.js), shared packages, Supabase backend.",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "landing"
+  ],
+  "scripts": {
+    "customer": "npm run start --workspace apps/customer",
+    "driver": "npm run start --workspace apps/driver",
+    "merchant": "npm run dev --workspace apps/merchant-web",
+    "admin": "npm run dev --workspace apps/admin-web",
+    "landing": "npm run dev --workspace landing",
+    "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_REF\" --schema public > packages/db-types/database.types.ts",
+    "db:diff": "supabase db diff",
+    "db:push": "supabase db push"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
