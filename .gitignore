@@ -19,3 +19,5 @@ expo-env.d.ts
 /apps/*/ios/
 /apps/*/android/
 .previews/
+# Supabase CLI scratch
+supabase/.temp/

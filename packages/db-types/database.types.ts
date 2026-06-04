@@ -1,12 +1,19 @@
 /**
- * Generated Supabase types — PLACEHOLDER.
+ * Generated Supabase types — PLACEHOLDER (live DB exists; not yet generated).
  *
- * Regenerate once the Supabase project exists and migrations are applied:
- *   SUPABASE_PROJECT_REF=<ref> npm run db:types
- * (from the monorepo root)
+ * The Supabase project (ref: ilqpsebcfbaoaogimhud) is LIVE with migrations
+ * 001–014 applied and seeded. This file is still the placeholder because
+ * `supabase gen types` needs a management access token (not the anon key).
  *
- * Until then this empty Database type lets TypeScript compile. Do not hand-edit;
- * it is overwritten by `supabase gen types typescript`.
+ * To generate the real types (one-time):
+ *   1. supabase login       # opens browser, stores access token
+ *   2. npm run db:types      # writes the real Database type here (ref baked in)
+ *
+ * Nothing imports this yet — the apps use hand-written types in
+ * apps/<app>/src/data/types.ts — so this placeholder blocks nothing.
+ * Wire @sharmeats/db-types into the Supabase adapters after generating.
+ *
+ * Do not hand-edit; it is overwritten by `supabase gen types typescript`.
  */
 export type Json =
   | string

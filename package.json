@@ -13,7 +13,7 @@
     "merchant": "npm run dev --workspace apps/merchant-web",
     "admin": "npm run dev --workspace apps/admin-web",
     "landing": "npm run dev --workspace landing",
-    "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_REF\" --schema public > packages/db-types/database.types.ts",
+    "db:types": "supabase gen types typescript --project-id ${SUPABASE_PROJECT_REF:-ilqpsebcfbaoaogimhud} --schema public > packages/db-types/database.types.ts",
     "db:diff": "supabase db diff",
     "db:push": "supabase db push"
   },
