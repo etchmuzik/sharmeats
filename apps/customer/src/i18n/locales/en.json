@@ -54,7 +54,8 @@
   "onboarding.title3": "Pay in your ",
   "onboarding.accent3": "home currency",
   "onboarding.desc3": "See prices in EUR, USD, GBP, or RUB. Paid in EGP at today's rate. No surprises.",
-  "onboarding.getStarted": "Get started",
+  "onboarding.getStarted": "Start ordering",
+  "onboarding.haveAccount": "I already have an account",
 
   "signin.title": "Enter your phone",
   "signin.subtitle": "We'll send a 6-digit code over WhatsApp or SMS.",

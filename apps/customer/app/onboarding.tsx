@@ -55,6 +55,7 @@ export default function Onboarding() {
   const t = useT();
   const locale = useSession((s) => s.locale);
   const setLocale = useSession((s) => s.setLocale);
+  const signIn = useSession((s) => s.signIn);
   const [index, setIndex] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
@@ -64,9 +65,17 @@ export default function Onboarding() {
     if (i !== index) setIndex(i);
   };
 
+  // Zero-friction guest entry: the app already holds an anonymous Supabase
+  // session (see _layout ensureSession), so a guest can browse + order right
+  // away. "Sign in" stays available for saving addresses/history across devices.
+  const startAsGuest = () => {
+    signIn('guest');
+    router.replace('/(tabs)/home');
+  };
+
   const next = (i: number) => {
     if (i >= SLIDES.length - 1) {
-      router.replace('/signin');
+      startAsGuest();
       return;
     }
     scrollRef.current?.scrollTo({ x: (i + 1) * width, animated: true });
@@ -93,7 +102,7 @@ export default function Onboarding() {
               />
               {i < SLIDES.length - 1 && (
                 <Pressable
-                  onPress={() => router.replace('/signin')}
+                  onPress={startAsGuest}
                   style={[styles.skip, { top: insets.top + 16 }]}>
                   <Text style={styles.skipText}>{t('common.skip')}</Text>
                 </Pressable>
@@ -137,6 +146,11 @@ export default function Onboarding() {
                   label={i === SLIDES.length - 1 ? t('onboarding.getStarted') : t('common.continue')}
                   onPress={() => next(i)}
                 />
+                {i === SLIDES.length - 1 && (
+                  <Pressable onPress={() => router.replace('/signin')} style={styles.haveAccount}>
+                    <Text style={styles.haveAccountText}>{t('onboarding.haveAccount')}</Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           </View>
@@ -196,4 +210,6 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.line },
   dotOn: { width: 24, backgroundColor: colors.accent },
+  haveAccount: { alignItems: 'center', paddingVertical: 14, marginTop: 2 },
+  haveAccountText: { fontSize: font.sizes.lg, color: colors.ink2, fontWeight: font.weights.semibold },
 });
