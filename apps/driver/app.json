@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Sharm Eats Driver",
+    "slug": "sharmeats-driver",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "sharmeatsdriver",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "cover",
+      "backgroundColor": "#0e7c91"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "eg.sharmeats.driver",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location to assign nearby deliveries and share your live position with customers while you deliver.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Sharm Eats shares your live location with the customer while a delivery is in progress, so they can track their order.",
+        "UIBackgroundModes": ["location"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0e7c91"
+      },
+      "package": "eg.sharmeats.driver",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Sharm Eats shares your live location with the customer while a delivery is in progress."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
