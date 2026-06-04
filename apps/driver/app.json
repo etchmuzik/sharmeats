@@ -18,7 +18,9 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location to assign nearby deliveries and share your live position with customers while you deliver.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Sharm Eats shares your live location with the customer while a delivery is in progress, so they can track their order.",
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {
@@ -42,7 +44,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Sharm Eats shares your live location with the customer while a delivery is in progress."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": false
