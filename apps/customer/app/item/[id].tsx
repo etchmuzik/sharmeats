@@ -16,6 +16,7 @@ import { FlagBadge } from '../../src/components/FlagBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { QuantityStepper } from '../../src/components/QuantityStepper';
 import { AllergyChipRow } from '../../src/components/AllergyChipRow';
+import { ModifierGroup } from '../../src/components/ModifierGroup';
 import { colors, font, radius } from '../../src/theme';
 import { db } from '../../src/data';
 import {
@@ -151,15 +152,33 @@ export default function ItemModal() {
   const hasConflict = conflicts.length > 0;
   const blocked = hasConflict && !bypassConflict;
 
-  // Compose the notes string sent to the kitchen: user note first, then a
-  // structured "⚠ Avoid: …" line so kitchens reading only the note still see it.
+  // Default ingredients (style 'ingredients') the user removed -> "No X" lines
+  // for the kitchen. A removed ingredient is an isDefault option that's no
+  // longer selected; these aren't priced choices, so they live in the note.
+  const removedIngredients: string[] = [];
+  for (const m of item.modifiers) {
+    if (m.style !== 'ingredients') continue;
+    const selectedOpts = sel[m.id] ?? new Set();
+    for (const o of m.options) {
+      if (o.isDefault && !selectedOpts.has(o.id)) removedIngredients.push(o.name);
+    }
+  }
+
+  // Compose the notes sent to the kitchen: removed ingredients, then an allergen
+  // line, then the user's free-text note.
   const composeNotes = (): string | undefined => {
+    const lines: string[] = [];
+    if (removedIngredients.length > 0) {
+      lines.push(`No: ${removedIngredients.join(', ')}`);
+    }
+    if (allergies.length > 0) {
+      lines.push(
+        `⚠ ${t('cart.allergensPrefix')}: ${allergies.map((a) => t(`allergy.${a}`)).join(', ')}`,
+      );
+    }
     const userNote = notes.trim();
-    if (allergies.length === 0) return userNote || undefined;
-    const allergenLine = `⚠ ${t('cart.allergensPrefix')}: ${allergies
-      .map((a) => t(`allergy.${a}`))
-      .join(', ')}`;
-    return userNote ? `${allergenLine}\n${userNote}` : allergenLine;
+    if (userNote) lines.push(userNote);
+    return lines.length > 0 ? lines.join('\n') : undefined;
   };
 
   const onSubmit = () => {
@@ -207,39 +226,12 @@ export default function ItemModal() {
           </View>
 
           {item.modifiers.map((m) => (
-            <View key={m.id} style={styles.modGroup}>
-              <View style={styles.modHead}>
-                <Text style={styles.modTitle}>{m.name}</Text>
-                <Text style={styles.modReq}>
-                  {m.required ? t('item.required') : t('item.optional')}{' '}
-                  {m.maxSelect > 1 ? `· up to ${m.maxSelect}` : ''}
-                </Text>
-              </View>
-              {m.options.map((o) => {
-                const selected = (sel[m.id] ?? new Set()).has(o.id);
-                return (
-                  <Pressable
-                    key={o.id}
-                    onPress={() => toggleOption(m.id, o.id, m.maxSelect)}
-                    style={({ pressed }) => [
-                      styles.opt,
-                      pressed && { backgroundColor: colors.bgSoft },
-                    ]}>
-                    <View
-                      style={[
-                        m.maxSelect === 1 ? styles.radio : styles.check,
-                        selected && { backgroundColor: colors.accent, borderColor: colors.accent },
-                      ]}>
-                      {selected && (m.maxSelect === 1 ? <View style={styles.radioDot} /> : <Text style={styles.checkMark}>✓</Text>)}
-                    </View>
-                    <Text style={styles.optLabel}>{o.name}</Text>
-                    {o.priceDeltaEgp > 0 && (
-                      <Text style={styles.optPrice}>+{formatEgp(o.priceDeltaEgp)}</Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
+            <ModifierGroup
+              key={m.id}
+              modifier={m}
+              selected={sel[m.id] ?? new Set()}
+              onToggle={(optionId) => toggleOption(m.id, optionId, m.maxSelect)}
+            />
           ))}
 
           <View style={styles.allergyWrap}>
