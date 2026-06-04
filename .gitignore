@@ -11,3 +11,7 @@ dist/
 build/
 .cache/
 coverage/
+*.tsbuildinfo
+.expo/
+web-build/
+expo-env.d.ts

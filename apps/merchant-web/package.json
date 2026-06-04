@@ -1,11 +1,11 @@
 {
-  "name": "sharmeats-landing",
+  "name": "sharmeats-merchant-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -14,7 +14,7 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "@supabase/supabase-js": "^2.45.4",
-    "zod": "^3.23.8"
+    "@supabase/ssr": "^0.5.2"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

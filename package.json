@@ -3,10 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Sharm Eats — multi-category delivery super-app for Sharm el-Sheikh (food first). Monorepo: customer + driver apps (Expo), merchant + admin dashboards (Next.js), shared packages, Supabase backend.",
+  "comment:workspaces": "Only shared pure-TS packages are workspaces. The apps (Expo customer/driver, Next.js merchant/admin) and the landing site each manage their OWN node_modules + lockfile, because Expo (React 18) and Next.js (React 19) need different, co-located React versions that npm hoisting would conflict over. Install each app from its own directory.",
   "workspaces": [
-    "apps/*",
-    "packages/*",
-    "landing"
+    "packages/*"
   ],
   "scripts": {
     "customer": "npm run start --workspace apps/customer",
