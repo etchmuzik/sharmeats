@@ -36,7 +36,7 @@ export const useSession = create<SessionState>((set, get) => ({
   // launch (see hydrate) and by the user's explicit choice thereafter.
   locale: 'en',
   currency: 'EGP',
-  selectedAddressId: 'a-default-street',
+  selectedAddressId: 'a-hotel-hilton',
   allergyNudgeDismissed: false,
   hydrated: false,
 
@@ -50,7 +50,7 @@ export const useSession = create<SessionState>((set, get) => ({
           phone: parsed.phone ?? null,
           locale: (parsed.locale as Locale) ?? detectDeviceLanguage(),
           currency: (parsed.currency as Currency) ?? 'EGP',
-          selectedAddressId: parsed.selectedAddressId ?? 'a-default-street',
+          selectedAddressId: parsed.selectedAddressId ?? 'a-hotel-hilton',
           allergyNudgeDismissed: parsed.allergyNudgeDismissed ?? false,
           hydrated: true,
         });

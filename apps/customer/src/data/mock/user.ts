@@ -1,46 +1,40 @@
 import type { Address, PaymentMethod, User } from '../types';
 
+// Tourist-first demo persona: a hotel guest paying by card. A resident
+// apartment address is still included (dual-market), but the default the app
+// opens with is the hotel — matching the English-first, tourist-led framing.
 export const DEFAULT_USER: User = {
-  id: 'u-ahmed-hassan',
+  id: 'u-guest',
   phone: '+20 100 555 1212',
-  displayName: 'أحمد',
-  email: 'ahmed@example.com',
-  defaultAddressId: 'a-default-street',
-  defaultPaymentMethodId: 'pm-cash',
+  displayName: 'Guest',
+  email: 'guest@example.com',
+  defaultAddressId: 'a-hotel-hilton',
+  defaultPaymentMethodId: 'pm-card-visa',
   preferredCurrency: 'EGP',
-  locale: 'ar',
+  locale: 'en',
   allergyProfile: [],
   createdAt: Date.now() - 86400000 * 4,
 };
 
 export const DEFAULT_ADDRESSES: Address[] = [
   {
-    id: 'a-default-street',
-    kind: 'street',
-    label: 'البيت',
-    streetText: 'السلام، شارع الإمام علي',
-    building: 'بلوك ١٤',
-    apartment: 'الدور ٣، شقة ٧',
-    landmark: 'جنب مسجد الرحمة',
-    isDefault: true,
-  },
-  {
-    id: 'a-work',
-    kind: 'street',
-    label: 'الشغل',
-    streetText: 'مبارك ٧، الشارع الرئيسي',
-    building: 'مبنى الإدارة',
-    apartment: 'الدور ٢',
-    landmark: 'مقابل بنك مصر',
-  },
-  {
     id: 'a-hotel-hilton',
     kind: 'hotel',
-    label: 'فندق ضيوف',
+    label: 'My hotel',
     hotelId: 'hotel-hilton-sharks-bay',
     hotelName: 'Hilton Sharks Bay Resort',
     roomNumber: '412',
     handoff: 'lobby',
+    isDefault: true,
+  },
+  {
+    id: 'a-home',
+    kind: 'street',
+    label: 'Home',
+    streetText: 'El-Salam, Imam Ali St.',
+    building: 'Block 14',
+    apartment: 'Floor 3, Apt 7',
+    landmark: 'Next to Al-Rahma Mosque',
   },
 ];
 
@@ -50,7 +44,6 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
     kind: 'cash',
     label: 'كاش عند الاستلام',
     subline: 'السائق معاه فكة',
-    isDefault: true,
   },
   {
     id: 'pm-vodafone',
@@ -73,8 +66,9 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: 'pm-card-visa',
     kind: 'card',
-    label: '·· 4242',
-    subline: 'Visa · تنتهي 09/27',
+    label: 'Visa ·· 4242',
+    subline: 'Expires 09/27',
+    isDefault: true,
   },
   {
     id: 'pm-apple',

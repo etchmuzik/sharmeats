@@ -68,14 +68,18 @@ export default function HomeTab() {
   const allergyNudgeDismissed = useSession((s) => s.allergyNudgeDismissed);
   const dismissAllergyNudge = useSession((s) => s.dismissAllergyNudge);
   const [showAllergyNudge, setShowAllergyNudge] = useState(false);
+  const [firstName, setFirstName] = useState<string>('');
 
   useEffect(() => {
-    if (allergyNudgeDismissed) {
-      setShowAllergyNudge(false);
-      return;
-    }
     db.user.getMe().then((u) => {
-      setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
+      // First name for the greeting (skip the placeholder "Guest").
+      const name = (u.displayName ?? '').trim().split(/\s+/)[0];
+      setFirstName(name && name.toLowerCase() !== 'guest' ? name : '');
+      if (!allergyNudgeDismissed) {
+        setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
+      } else {
+        setShowAllergyNudge(false);
+      }
     });
   }, [allergyNudgeDismissed]);
 
@@ -202,7 +206,11 @@ export default function HomeTab() {
           </View>
 
           <View style={styles.greeting}>
-            <Text style={styles.greetTitle}>{t(greetingKey)}</Text>
+            <Text style={styles.greetTitle}>
+              {firstName
+                ? `${t(greetingKey)} ${firstName}`
+                : t(greetingKey).replace(/[,،]\s*$/, '')}
+            </Text>
             <Text style={styles.greetSub}>{t(greetingSubKey)}</Text>
           </View>
 
@@ -393,7 +401,9 @@ const styles = StyleSheet.create({
   secHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   secTitle: { fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.4 },
   secMore: { fontSize: font.sizes.md, color: colors.sea, fontWeight: font.weights.bold },
-  feat: { width: 280, height: 170, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: '#222' },
+  // Brand sea-teal base so an unloaded/failed cover still reads as an intentional
+  // branded tile (white label + overlay stay legible) rather than a black void.
+  feat: { width: 280, height: 170, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.sea },
   featImg: { width: '100%', height: '100%' },
   featOverlay: {
     position: 'absolute',
