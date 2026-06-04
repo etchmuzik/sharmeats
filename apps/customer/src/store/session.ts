@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { detectDeviceLanguage } from '../lib/deviceLocale';
 
 const STORAGE_KEY = '@sharmeats:session:v1';
 
@@ -31,7 +32,9 @@ function persist(state: Omit<SessionState, 'hydrated' | 'hydrate' | 'signIn' | '
 export const useSession = create<SessionState>((set, get) => ({
   isSignedIn: false,
   phone: null,
-  locale: 'ar',
+  // Tourist-first: default English. Overridden by device language on first
+  // launch (see hydrate) and by the user's explicit choice thereafter.
+  locale: 'en',
   currency: 'EGP',
   selectedAddressId: 'a-default-street',
   allergyNudgeDismissed: false,
@@ -45,7 +48,7 @@ export const useSession = create<SessionState>((set, get) => ({
         set({
           isSignedIn: parsed.isSignedIn ?? false,
           phone: parsed.phone ?? null,
-          locale: (parsed.locale as Locale) ?? 'ar',
+          locale: (parsed.locale as Locale) ?? detectDeviceLanguage(),
           currency: (parsed.currency as Currency) ?? 'EGP',
           selectedAddressId: parsed.selectedAddressId ?? 'a-default-street',
           allergyNudgeDismissed: parsed.allergyNudgeDismissed ?? false,
@@ -56,7 +59,8 @@ export const useSession = create<SessionState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ hydrated: true });
+    // No stored session (first launch): pick the device language, tourist-first.
+    set({ locale: detectDeviceLanguage(), hydrated: true });
   },
 
   signIn: (phone) => {
