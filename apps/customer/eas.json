@@ -23,6 +23,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "./credentials/AuthKey_C4TFQQ5AAD.p8",
+        "ascApiKeyId": "C4TFQQ5AAD",
+        "ascApiKeyIssuerId": "ASC_ISSUER_ID_HERE"
+      }
+    }
   }
 }
