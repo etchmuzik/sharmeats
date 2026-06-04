@@ -1,0 +1,500 @@
+/* ============================================================
+   SHARM EATS — App Store Screenshots (page-scoped)
+   ------------------------------------------------------------
+   Faithful port of the Claude Design handoff
+   "Sharm Eats - App Store Screenshots.html".
+
+   DARK-FIRST tokens (from colors_and_type.css) + poster / device
+   / screen CSS (from the target file's <style> block) are scoped
+   under `.root` so this dark surface does NOT leak into the light
+   marketing homepage.
+
+   Fonts: the design's @import is dropped — Sora / Plus Jakarta
+   Sans / Cairo come from next/font (see page.tsx) and are wired
+   into --font-* below via the next/font CSS variables.
+
+   Structural class names that the screen JSX references by string
+   (foodslot, grill, s-card, row, pad, flag, price, btn-primary…)
+   are emitted with :global() but nested under `.root`, so they
+   stay confined to this page.
+   ============================================================ */
+
+.root {
+  /* ---------- BRAND CORE ---------- */
+  --coral: #ff5a3c;
+  --teal: #0e7c91;
+  --green: #2e8a5d;
+  --gold: #e8a317;
+  --ink: #0a0a0c;
+  --sand: #f3ead7;
+  --bg: #fafaf7;
+
+  /* ---------- CORAL SCALE ---------- */
+  --coral-50: #fff1ed;
+  --coral-100: #ffe0d6;
+  --coral-200: #ffc2b0;
+  --coral-300: #ff9a7d;
+  --coral-400: #ff7559;
+  --coral-500: #ff5a3c;
+  --coral-600: #ed3f20;
+  --coral-700: #c42f15;
+  --coral-800: #9a2814;
+  --coral-900: #7a2414;
+
+  /* ---------- TEAL SCALE ---------- */
+  --teal-50: #e9f6f8;
+  --teal-100: #c8e8ed;
+  --teal-200: #93d2dc;
+  --teal-300: #54b3c4;
+  --teal-400: #2496ab;
+  --teal-500: #0e7c91;
+  --teal-600: #0a6678;
+  --teal-700: #0a5260;
+  --teal-800: #0c424d;
+  --teal-900: #0c3640;
+
+  /* ---------- GREEN SCALE ---------- */
+  --green-50: #eaf6ef;
+  --green-100: #cdeada;
+  --green-200: #9ed5b6;
+  --green-300: #66ba8e;
+  --green-400: #3f9f6f;
+  --green-500: #2e8a5d;
+  --green-600: #23704a;
+  --green-700: #1d593c;
+  --green-800: #194831;
+  --green-900: #153b29;
+
+  /* ---------- GOLD SCALE ---------- */
+  --gold-50: #fdf6e6;
+  --gold-100: #fbe9bf;
+  --gold-200: #f6d480;
+  --gold-300: #f0bd47;
+  --gold-400: #eaad2a;
+  --gold-500: #e8a317;
+  --gold-600: #c4850c;
+  --gold-700: #9c6709;
+  --gold-800: #7d520c;
+  --gold-900: #66440e;
+
+  /* ---------- WARM NEUTRALS ---------- */
+  --sand-50: #fdfcf9;
+  --sand-100: #faf6ec;
+  --sand-200: #f3ead7;
+  --sand-300: #e7d9bd;
+  --sand-400: #d4c19c;
+  --sand-500: #b3a07c;
+
+  --ink-900: #0a0a0c;
+  --ink-800: #1c1c20;
+  --ink-700: #2e2e34;
+  --ink-600: #46464e;
+  --ink-500: #63636d;
+  --ink-400: #87878f;
+  --ink-300: #adadb4;
+  --ink-200: #d2d2d6;
+  --ink-100: #e8e8ea;
+  --ink-50: #f4f4f5;
+  --white: #ffffff;
+
+  /* ---------- SEMANTIC: SURFACES (DARK) ---------- */
+  --surface-app: #100e12;
+  --surface-raised: #1b1920;
+  --surface-raised-2: #232029;
+  --surface-sunken: #151319;
+  --surface-warm: #251d16;
+  --surface-inverse: #faf6ec;
+  --scrim: rgba(0, 0, 0, 0.62);
+
+  /* ---------- SEMANTIC: TEXT ---------- */
+  --fg1: #f7f4ee;
+  --fg2: #b6b2bd;
+  --fg3: #7d7a85;
+  --fg-on-coral: #ffffff;
+  --fg-on-teal: #ffffff;
+  --fg-on-dark: #f7f4ee;
+  --fg-link: var(--teal-300);
+
+  /* ---------- SEMANTIC: LINES ---------- */
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --hairline: rgba(255, 255, 255, 0.07);
+  --focus-ring: var(--coral-500);
+
+  /* ---------- SEMANTIC: STATUS (on dark) ---------- */
+  --positive: var(--green-400);
+  --positive-bg: rgba(46, 138, 93, 0.18);
+  --warning: var(--gold-400);
+  --warning-bg: rgba(232, 163, 23, 0.18);
+  --danger: var(--coral-400);
+  --danger-bg: rgba(255, 90, 60, 0.18);
+  --info: var(--teal-300);
+  --info-bg: rgba(14, 124, 145, 0.22);
+
+  /* ---------- DIETARY FLAGS (on dark) ---------- */
+  --flag-halal: #66ba8e;
+  --flag-halal-bg: rgba(46, 138, 93, 0.18);
+  --flag-vegan: #8fd06a;
+  --flag-vegan-bg: rgba(74, 156, 47, 0.18);
+  --flag-spicy: #ff8666;
+  --flag-spicy-bg: rgba(255, 90, 60, 0.18);
+  --flag-pork: #d39a78;
+  --flag-pork-bg: rgba(138, 74, 42, 0.26);
+  --flag-tourist: #54b3c4;
+  --flag-tourist-bg: rgba(14, 124, 145, 0.22);
+
+  /* ---------- TYPE FAMILIES (wired to next/font vars) ----------
+     The next/font loaders in page.tsx expose:
+       --font-sora  --font-jakarta  --font-cairo
+     Mapped here onto the design's semantic family names so every
+     var(--font-display|ui|ar|num) reference ports unchanged. */
+  --font-display: var(--font-sora), "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-ui: var(--font-jakarta), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ar: var(--font-cairo), "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-num: var(--font-sora), "Plus Jakarta Sans", sans-serif;
+
+  /* ---------- TYPE SCALE ---------- */
+  --t-largetitle: 34px;
+  --t-title1: 28px;
+  --t-title2: 22px;
+  --t-title3: 20px;
+  --t-headline: 17px;
+  --t-body: 17px;
+  --t-callout: 16px;
+  --t-subhead: 15px;
+  --t-footnote: 13px;
+  --t-caption: 12px;
+  --t-caption2: 11px;
+  --t-hero: clamp(40px, 7vw, 76px);
+  --t-display: clamp(28px, 4.5vw, 48px);
+
+  --lh-tight: 1.08;
+  --lh-snug: 1.22;
+  --lh-normal: 1.42;
+  --lh-relaxed: 1.6;
+
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-wide: 0.04em;
+
+  /* ---------- SPACING ---------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
+  --s-9: 48px;
+  --s-10: 64px;
+  --gutter: 16px;
+  --tap-min: 44px;
+
+  /* ---------- RADII ---------- */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-2xl: 32px;
+  --r-pill: 999px;
+
+  /* ---------- SHADOWS (DARK) ---------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-xl: 0 28px 64px rgba(0, 0, 0, 0.62);
+  --shadow-coral: 0 10px 30px rgba(255, 90, 60, 0.42);
+  --shadow-teal: 0 10px 30px rgba(14, 124, 145, 0.4);
+
+  /* ---------- MOTION ---------- */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+
+  /* ---------- LAYOUT ---------- */
+  --maxw-screen: 440px;
+  --header-h: 56px;
+  --tabbar-h: 84px;
+
+  /* ---------- POSTER CANVAS ---------- */
+  --shotW: 1320px;
+  --shotH: 2868px;
+
+  color-scheme: dark;
+  background: #0a090c;
+  font-family: var(--font-ui);
+  color: var(--fg1);
+  min-height: 100vh;
+}
+
+/* ============================================================
+   GALLERY + POSTER FRAME  (from target HTML <style>)
+   ============================================================ */
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  padding: 36px;
+  align-items: flex-start;
+  justify-content: center;
+}
+.frameScale {
+  width: calc(var(--shotW) * var(--z));
+  height: calc(var(--shotH) * var(--z));
+  flex: 0 0 auto;
+}
+.shot {
+  width: var(--shotW);
+  height: var(--shotH);
+  transform: scale(var(--z));
+  transform-origin: top left;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* gradient themes */
+.coral {
+  background: radial-gradient(120% 80% at 80% -10%, #ff7559 0%, #e23c1e 30%, #7a1f10 62%, #1a0d0b 100%);
+}
+.teal {
+  background: radial-gradient(120% 80% at 20% -10%, #36b0c4 0%, #0e7c91 32%, #0a4350 62%, #0c1416 100%);
+}
+.glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(60% 40% at 50% 120%, rgba(232, 163, 23, 0.22), transparent 70%);
+}
+.headlineWrap {
+  padding: 150px 110px 0;
+  text-align: center;
+  z-index: 3;
+}
+.eyebrow {
+  font: 800 30px/1 var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 26px;
+}
+.headline {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 98px;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-wrap: balance;
+}
+.headline :global(.accent) {
+  color: #ffd9b3;
+}
+.caption {
+  font: 500 38px/1.35 var(--font-ui);
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 30px;
+  text-wrap: pretty;
+}
+.ar .headline,
+.ar .caption {
+  font-family: var(--font-ar);
+}
+
+/* device */
+.device {
+  position: relative;
+  margin-top: 70px;
+  width: 1044px;
+  height: 2120px;
+  background: linear-gradient(160deg, #2b2b30, #171719);
+  border-radius: 132px;
+  padding: 22px;
+  box-shadow: 0 60px 120px rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+  z-index: 2;
+}
+.device::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 126px;
+  box-shadow: inset 0 0 0 6px rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+.screen {
+  position: absolute;
+  inset: 22px;
+  border-radius: 112px;
+  overflow: hidden;
+  background: var(--surface-app);
+}
+
+/* ============================================================
+   IN-SCREEN STRUCTURAL CLASSES
+   Emitted :global so the screen JSX (which references them as
+   plain strings) resolves, but nested under .root so they stay
+   confined to this page.
+   ============================================================ */
+.root :global(.notch) {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 330px;
+  height: 74px;
+  background: #000;
+  border-radius: 99px;
+  z-index: 20;
+}
+.root :global(.statusbar) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 70px;
+  z-index: 15;
+}
+.root :global(.statusbar .t) {
+  font: 700 36px/1 var(--font-num);
+  color: var(--fg1);
+  margin-top: 34px;
+}
+.root :global(.statusbar .r) {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 34px;
+  color: var(--fg1);
+  font-size: 36px;
+}
+
+.root :global(.app) {
+  position: absolute;
+  inset: 0;
+  padding-top: 132px;
+  overflow: hidden;
+}
+.root :global(.pad) {
+  padding: 0 56px;
+}
+.root :global(.row) {
+  display: flex;
+  align-items: center;
+}
+.root :global(.s-card) {
+  background: var(--surface-raised);
+  border-radius: 52px;
+  box-shadow: var(--shadow-md);
+}
+.root :global(.foodslot) {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.root :global(.foodslot img) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.root :global(.grill) {
+  background: radial-gradient(110% 90% at 70% 18%, rgba(255, 255, 255, 0.32), transparent 55%),
+    linear-gradient(140deg, #e8a317, #ff7559 52%, #9a2814);
+}
+.root :global(.seafood) {
+  background: radial-gradient(110% 90% at 65% 20%, rgba(255, 255, 255, 0.34), transparent 55%),
+    linear-gradient(140deg, #54b3c4, #0e7c91 58%, #0a3640);
+}
+.root :global(.egyptian) {
+  background: radial-gradient(110% 90% at 70% 18%, rgba(255, 255, 255, 0.34), transparent 55%),
+    linear-gradient(140deg, #f0bd47, #e8a317 55%, #9c6709);
+}
+.root :global(.healthy) {
+  background: radial-gradient(110% 90% at 65% 20%, rgba(255, 255, 255, 0.32), transparent 55%),
+    linear-gradient(140deg, #9ed5b6, #2e8a5d 58%, #194831);
+}
+.root :global(.pizza) {
+  background: radial-gradient(110% 90% at 68% 20%, rgba(255, 255, 255, 0.32), transparent 55%),
+    linear-gradient(140deg, #ffb259, #ff5a3c 55%, #c42f15);
+}
+
+.root :global(.flag) {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font: 700 30px/1 var(--font-ui);
+}
+.root :global(.flag svg) {
+  width: 38px;
+  height: 38px;
+}
+.root :global(.f-halal) {
+  background: var(--flag-halal-bg);
+  color: var(--flag-halal);
+}
+.root :global(.f-tourist) {
+  background: var(--flag-tourist-bg);
+  color: var(--flag-tourist);
+}
+.root :global(.f-spicy) {
+  background: var(--flag-spicy-bg);
+  color: var(--flag-spicy);
+}
+.root :global(.f-vegan) {
+  background: var(--flag-vegan-bg);
+  color: var(--flag-vegan);
+}
+.root :global(.price) {
+  font-family: var(--font-num);
+  font-weight: 800;
+}
+.root :global(.btn-primary) {
+  background: var(--coral);
+  color: #fff;
+  border: none;
+  border-radius: 40px;
+  font: 800 40px/1 var(--font-ui);
+  height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  box-shadow: var(--shadow-coral);
+}
+.root :global(.pill-coral) {
+  background: var(--coral);
+  color: #fff;
+}
+
+.footerNote {
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #555;
+  font-size: 12px;
+  z-index: 99;
+}
+@media print {
+  .footerNote {
+    display: none;
+  }
+}

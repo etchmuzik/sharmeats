@@ -28,9 +28,21 @@
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d3628b78-b35a-4d15-a48a-c12b9579b682"
+      }
+    },
+    "owner": "etchmuzik"
   }
 }

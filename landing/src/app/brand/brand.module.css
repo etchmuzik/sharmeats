@@ -1,0 +1,207 @@
+/* ============================================================
+   SHARM EATS — Brand / Logo showcase (page-scoped)
+   ------------------------------------------------------------
+   Faithful port of the Claude Design handoff "Sharm Eats Logo.html"
+   (the chosen Direction E — bold stacked wordmark).
+
+   Dark surface + section/artboard chrome are scoped under `.root`
+   so this dark page does NOT affect the light marketing homepage.
+   The logo proportions live in <SharmLogo>; this file only provides
+   the dark canvas, section headers, and artboard cards.
+   ============================================================ */
+
+.root {
+  --surface-app: #100e12;
+  --surface-raised: #1b1920;
+  --coral: #ff5a3c;
+  --coral-400: #ff7559;
+  --gold: #e8a317;
+  --teal: #0e7c91;
+  --sand: #f3ead7;
+  --ink: #0a0a0c;
+  --fg1: #f7f4ee;
+  --fg2: #b6b2bd;
+  --fg3: #7d7a85;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --font-display: var(--font-sora), "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-ui: var(--font-jakarta), system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  color-scheme: dark;
+  background: var(--surface-app);
+  color: var(--fg1);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  padding: 56px 40px 96px;
+}
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+/* ---- page heading ---- */
+.intro h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-size: 38px;
+  color: var(--fg1);
+  margin: 0 0 12px;
+}
+.intro p {
+  font: 400 16px/1.6 var(--font-ui);
+  color: var(--fg2);
+  margin: 0;
+  max-width: 64ch;
+}
+.intro strong {
+  color: var(--fg1);
+  font-weight: 700;
+}
+
+/* ---- section ---- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 14px;
+}
+.sectionTitle {
+  font: 700 13px/1 var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--coral-400);
+}
+.sectionSub {
+  font: 400 15px/1.5 var(--font-ui);
+  color: var(--fg3);
+}
+
+/* ---- artboard grid + card ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 22px;
+}
+.card {
+  background: var(--surface-raised);
+  border-radius: 24px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 48px 28px;
+}
+.cardWide {
+  grid-column: 1 / -1;
+}
+.lab {
+  position: absolute;
+  top: 18px;
+  left: 22px;
+  font: 700 11px/1 var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--coral-400);
+}
+
+.divider {
+  width: 80%;
+  height: 1px;
+  background: var(--hairline);
+}
+.concept {
+  font: 700 14px/1.4 var(--font-ui);
+  letter-spacing: 0.01em;
+  color: var(--fg2);
+  text-align: center;
+}
+.desc {
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--fg3);
+  margin: 4px auto 0;
+  max-width: 38ch;
+  text-align: center;
+}
+
+/* ---- icon/tile label stacks ---- */
+.tileRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 30px;
+}
+.iconwrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.iconwrap span {
+  font: 600 12px/1 var(--font-ui);
+  color: var(--fg3);
+  letter-spacing: 0.01em;
+}
+
+/* ---- in-use context cards ---- */
+.ctxcard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 28px 26px;
+  border-radius: 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ---- swatch row ---- */
+.swatchrow {
+  display: flex;
+  gap: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.sw {
+  width: 64px;
+  height: 64px;
+}
+
+/* ---- download links ---- */
+.assets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.assetLink {
+  font: 600 14px/1 var(--font-ui);
+  color: var(--fg1);
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 14px 22px;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.assetLink:hover {
+  border-color: var(--coral);
+  color: var(--coral-400);
+}

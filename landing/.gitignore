@@ -8,3 +8,6 @@ out/
 *.log
 .DS_Store
 next-env.d.ts
+
+# fetched font cache for scripts/generate-logo-assets.mjs
+.tmp-fonts/

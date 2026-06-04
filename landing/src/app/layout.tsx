@@ -11,6 +11,15 @@ export const metadata: Metadata = {
       'Five languages. Hotel-room delivery. Honest ETAs with credits when we miss them.',
     type: 'website',
   },
+  // Sharm Eats logo (bold stacked wordmark tile) — generated into public/brand.
+  icons: {
+    icon: [
+      { url: '/brand/favicon.ico', sizes: 'any' },
+      { url: '/brand/icon-32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/brand/icon-192.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: [{ url: '/brand/apple-touch-icon.png', sizes: '180x180' }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
