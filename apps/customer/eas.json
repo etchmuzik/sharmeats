@@ -21,7 +21,7 @@
         "EXPO_PUBLIC_USE_SUPABASE": "true"
       },
       "ios": {
-        "image": "latest"
+        "image": "macos-sequoia-15.6-xcode-26.2"
       }
     }
   },
