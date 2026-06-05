@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius } from '../../src/theme';
 import { CuisinePill } from '../../src/components/CuisinePill';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
+import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
 import type { Cuisine, MenuItem, Restaurant } from '../../src/data/types';
 import { useT } from '../../src/i18n';
@@ -149,13 +150,14 @@ export default function BrowseTab() {
       <View style={[styles.top, { paddingTop: insets.top + 14 }]}>
         <Text style={styles.title}>{t('browse.title')}</Text>
         <View style={styles.searchBox}>
-          <Text style={styles.searchIco}>🔍</Text>
+          <Icon name="search" size={16} color={colors.ink3} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder={t('home.searchHint')}
             placeholderTextColor={colors.ink3}
             style={styles.input}
+            accessibilityLabel={t('home.searchHint')}
           />
         </View>
         <ScrollView
@@ -267,7 +269,6 @@ const styles = StyleSheet.create({
     height: 46,
     marginTop: 14,
   },
-  searchIco: { fontSize: 16, color: colors.ink3 },
   input: { flex: 1, fontSize: font.sizes.lg, color: colors.ink, paddingVertical: 0 },
   cuisineRow: { gap: 8, paddingTop: 14, paddingBottom: 6 },
   flagRow: { gap: 8, paddingTop: 4, paddingBottom: 14 },

@@ -34,7 +34,13 @@ export type IconName =
   | 'compass'
   | 'phone'
   | 'chat'
-  | 'check';
+  | 'check'
+  | 'globe'
+  | 'currency'
+  | 'bell'
+  | 'help'
+  | 'signout'
+  | 'person';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -60,6 +66,12 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   phone: 'call',
   chat: 'chatbubble-ellipses',
   check: 'checkmark',
+  globe: 'globe-outline',
+  currency: 'cash-outline',
+  bell: 'notifications-outline',
+  help: 'help-circle-outline',
+  signout: 'log-out-outline',
+  person: 'person-outline',
 };
 
 type Props = {

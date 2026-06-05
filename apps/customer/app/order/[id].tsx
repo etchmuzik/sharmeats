@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { BackButton } from '../../src/components/BackButton';
+import { Icon } from '../../src/components/Icon';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
@@ -98,7 +99,7 @@ export default function OrderTracking() {
           )}
         </View>
         <View style={styles.pinDest}>
-          <Text style={{ fontSize: 28 }}>📍</Text>
+          <Icon name="location" size={28} color={colors.accent} accessibilityLabel="Your delivery location" />
         </View>
         <View style={[styles.mapNav, { top: insets.top + 6 }]}>
           <BackButton tint="light" onPress={() => router.replace('/(tabs)/orders')} />
@@ -227,13 +228,17 @@ export default function OrderTracking() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Pressable
                 onPress={() => tap()}
+                accessibilityRole="button"
+                accessibilityLabel={t('order.callDriver')}
                 style={[styles.actBtn, { backgroundColor: colors.green }]}>
-                <Text style={styles.actIcon}>📞</Text>
+                <Icon name="phone" size={20} color={colors.white} />
               </Pressable>
               <Pressable
                 onPress={() => tap()}
+                accessibilityRole="button"
+                accessibilityLabel={t('order.messageDriver')}
                 style={[styles.actBtn, { backgroundColor: '#25D366' }]}>
-                <Text style={styles.actIcon}>💬</Text>
+                <Icon name="chat" size={20} color={colors.white} />
               </Pressable>
             </View>
           </View>

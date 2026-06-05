@@ -226,6 +226,8 @@
   "order.viewReceipt": "View receipt",
   "order.reorder": "Reorder",
   "order.rateOrder": "Rate this order",
+  "order.callDriver": "Call driver",
+  "order.messageDriver": "Message driver",
 
   "review.title": "How was it?",
   "review.food": "Food",

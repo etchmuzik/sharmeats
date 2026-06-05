@@ -226,6 +226,8 @@
   "order.viewReceipt": "عرض الإيصال",
   "order.reorder": "إعادة الطلب",
   "order.rateOrder": "قيّم هذا الطلب",
+  "order.callDriver": "اتصل بالسائق",
+  "order.messageDriver": "راسل السائق",
 
   "review.title": "كيف كان؟",
   "review.food": "الطعام",
