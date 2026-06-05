@@ -16,6 +16,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "eg.sharmeats.customer",
+      "associatedDomains": [
+        "applinks:sharmeats.online"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location only when you add a delivery address, to drop a precise GPS pin so your driver can find your hotel, apartment, or beach spot. Location is never collected in the background or used for tracking."

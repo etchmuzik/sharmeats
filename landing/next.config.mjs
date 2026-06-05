@@ -11,6 +11,17 @@ const nextConfig = {
   // it breaks output tracing (doubled /vercel/path0 path) — only set it
   // off-Vercel. Matches apps/{admin,merchant}-web (commit 7e402c3).
   ...(process.env.VERCEL ? {} : { outputFileTracingRoot: __dirname }),
+  async headers() {
+    return [
+      {
+        // Apple requires the AASA file served as application/json (it has no
+        // .json extension, so Next would otherwise guess the wrong type).
+        // Universal links to sharmeats.online/order/* depend on this.
+        source: '/.well-known/apple-app-site-association',
+        headers: [{ key: 'Content-Type', value: 'application/json' }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
