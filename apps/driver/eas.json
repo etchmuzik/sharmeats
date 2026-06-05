@@ -18,6 +18,9 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co"
+      },
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
       }
     }
   },
