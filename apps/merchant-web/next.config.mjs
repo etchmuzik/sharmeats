@@ -3,16 +3,27 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// STATIC_EXPORT=1 builds a fully static SPA for Hostinger shared hosting (no
+// Node). The dashboard is now client-only (localStorage auth + Realtime), so it
+// exports cleanly. Default builds keep the dynamic server.
+const STATIC_EXPORT = process.env.STATIC_EXPORT === '1';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   // Locally, pin the workspace root so Next doesn't crawl up to ~/package-lock.json.
-  // On Vercel the project root IS this app dir, so escaping it with '../..' breaks
-  // output tracing (doubled /vercel/path0 path) — only set it off-Vercel.
   ...(process.env.VERCEL ? {} : { outputFileTracingRoot: path.join(__dirname, '../..') }),
-  images: {
-    remotePatterns: [{ protocol: 'https', hostname: '**' }],
-  },
+  ...(STATIC_EXPORT
+    ? {
+        output: 'export',
+        trailingSlash: true,
+        images: { unoptimized: true },
+      }
+    : {
+        images: {
+          remotePatterns: [{ protocol: 'https', hostname: '**' }],
+        },
+      }),
 };
 
 export default nextConfig;

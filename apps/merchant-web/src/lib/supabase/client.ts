@@ -1,21 +1,30 @@
 /**
- * Supabase browser client (merchant-web) — for Client Components.
+ * Supabase browser client (merchant-web).
  *
- * Used for Realtime subscriptions (live order queue) and client-side mutations
- * (accept/reject via advance_order_status RPC). Shares the cookie-based session
- * with the server client.
+ * This dashboard is a pure client-side SPA (static export on shared hosting),
+ * so there is no server to read cookies. We use the plain supabase-js client
+ * with its default localStorage session persistence — auth lives entirely in
+ * the browser. Used for the login flow, the live Realtime order queue, and
+ * advance_order_status RPC mutations.
  */
 'use client';
 
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-let cached: ReturnType<typeof createBrowserClient> | null = null;
+let cached: SupabaseClient | null = null;
 
-export function createSupabaseBrowserClient() {
+export function createSupabaseBrowserClient(): SupabaseClient {
   if (cached) return cached;
-  cached = createBrowserClient(
+  cached = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    },
   );
   return cached;
 }
