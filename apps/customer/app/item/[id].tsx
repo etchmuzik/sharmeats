@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
@@ -30,6 +30,7 @@ import { useCart } from '../../src/store/cart';
 import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
 import { success, tap } from '../../src/haptics';
+import { useGoBack } from '../../src/lib/navigation';
 
 interface SelectionMap {
   // modifierId → Set of optionIds
@@ -50,6 +51,11 @@ export default function ItemModal() {
 
   const [item, setItem] = useState<MenuItem | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  // Dismiss to the parent restaurant when there's no history (deep link / cold
+  // launch into the item modal); otherwise just pop the modal.
+  const goBack = useGoBack(
+    restaurant ? (`/restaurant/${restaurant.id}` as Href) : '/(tabs)/home',
+  );
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState('');
   const [sel, setSel] = useState<SelectionMap>({});
@@ -202,7 +208,7 @@ export default function ItemModal() {
       });
     }
     success();
-    router.back();
+    goBack();
   };
 
   return (
@@ -212,7 +218,7 @@ export default function ItemModal() {
         <View style={styles.hero}>
           <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} />
           <View style={[styles.navWrap, { top: insets.top + 6 }]}>
-            <BackButton tint="light" onPress={() => router.back()} />
+            <BackButton tint="light" onPress={goBack} />
           </View>
         </View>
         <View style={styles.body}>

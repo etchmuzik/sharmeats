@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,9 +21,10 @@ import { db } from '../../src/data';
 import type { Address, AddressKind, Hotel } from '../../src/data/types';
 import { useSession } from '../../src/store/session';
 import { selection, success } from '../../src/haptics';
+import { useGoBack } from '../../src/lib/navigation';
 
 export default function AddAddress() {
-  const router = useRouter();
+  const goBack = useGoBack('/address/picker');
   const insets = useSafeAreaInsets();
   const t = useT();
   const { kind: kindParam } = useLocalSearchParams<{ kind?: string }>();
@@ -128,7 +129,7 @@ export default function AddAddress() {
     await db.user.addAddress(a);
     setSelectedAddressId(a.id);
     success();
-    router.back();
+    goBack();
   };
 
   return (
@@ -137,7 +138,7 @@ export default function AddAddress() {
       style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="dark" />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
-        <BackButton />
+        <BackButton fallback="/address/picker" />
         <Text style={styles.title}>{t('address.add')}</Text>
         <View style={{ width: 38 }} />
       </View>

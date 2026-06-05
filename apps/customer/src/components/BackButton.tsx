@@ -1,23 +1,26 @@
 import { Pressable, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { colors } from '../theme';
 import { tap } from '../haptics';
+import { useGoBack } from '../lib/navigation';
 
 type Props = {
   size?: number;
   onPress?: () => void;
+  /** Where to land if there is no screen to pop back to (deep link / first route). */
+  fallback?: Href;
   accessibilityLabel?: string;
   tint?: 'dark' | 'light';
 };
 
-export function BackButton({ size = 38, onPress, accessibilityLabel = 'Go back', tint = 'dark' }: Props) {
-  const router = useRouter();
+export function BackButton({ size = 38, onPress, fallback, accessibilityLabel = 'Go back', tint = 'dark' }: Props) {
+  const goBack = useGoBack(fallback);
   return (
     <Pressable
       onPress={() => {
         tap();
         if (onPress) onPress();
-        else router.back();
+        else goBack();
       }}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
@@ -10,6 +9,7 @@ import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
 import type { PaymentMethod } from '../../src/data/types';
 import { selection } from '../../src/haptics';
+import { useGoBack } from '../../src/lib/navigation';
 
 const ICON: Record<PaymentMethod['kind'], string> = {
   cash: '💵',
@@ -21,7 +21,7 @@ const ICON: Record<PaymentMethod['kind'], string> = {
 };
 
 export default function PaymentPicker() {
-  const router = useRouter();
+  const goBack = useGoBack('/checkout');
   const insets = useSafeAreaInsets();
   const t = useT();
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -38,7 +38,7 @@ export default function PaymentPicker() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="dark" />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
-        <BackButton />
+        <BackButton fallback="/checkout" />
         <Text style={styles.title}>{t('payment.title')}</Text>
         <View style={{ width: 38 }} />
       </View>
@@ -76,7 +76,7 @@ export default function PaymentPicker() {
           label={t('common.save')}
           onPress={async () => {
             if (chosen) await db.user.setDefaultPaymentMethod(chosen);
-            router.back();
+            goBack();
           }}
         />
       </View>
