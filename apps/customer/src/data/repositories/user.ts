@@ -1,5 +1,6 @@
 import { DEFAULT_ADDRESSES, DEFAULT_PAYMENT_METHODS, DEFAULT_USER } from '../mock/user';
 import type { Address, PaymentMethod, User } from '../types';
+import { isPaymentMethodEnabled } from '../../lib/payments';
 
 const delay = <T>(value: T, ms = 40): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -40,7 +41,7 @@ export const userRepo = {
   },
 
   async listPaymentMethods(): Promise<PaymentMethod[]> {
-    return delay(paymentMethods);
+    return delay(paymentMethods.filter(isPaymentMethodEnabled));
   },
 
   async setDefaultPaymentMethod(id: string): Promise<PaymentMethod[]> {

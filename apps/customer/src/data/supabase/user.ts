@@ -1,6 +1,7 @@
 import { getSupabase } from './client';
 import { rowToAddress, rowToPaymentMethod, rowToUser } from './mappers';
 import type { Address, PaymentMethod, User } from '../types';
+import { isPaymentMethodEnabled } from '../../lib/payments';
 
 export const userRepoSupabase = {
   async getMe(): Promise<User> {
@@ -101,7 +102,7 @@ export const userRepoSupabase = {
       .select('*')
       .order('is_default', { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(rowToPaymentMethod);
+    return (data ?? []).map(rowToPaymentMethod).filter(isPaymentMethodEnabled);
   },
 
   async setDefaultPaymentMethod(id: string): Promise<PaymentMethod[]> {
