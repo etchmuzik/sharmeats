@@ -146,6 +146,66 @@ https://ilqpsebcfbaoaogimhud.supabase.co/functions/v1/paymob-webhook
 
 ---
 
+## 4. Driver app → TestFlight
+
+The driver app (`apps/driver`, bundle `eg.sharmeats.driver`) is now fully
+prepped: EAS project linked (`@etchmuzik/sharmeats-driver`), teal icon, fmt
+plugin + pinned Xcode 26.2, location purpose strings + background mode. It is
+code-complete (sign in → online → accept job → pickup → deliver → COD settle,
+all validated live). **Merchant + admin dashboards are already live; only the
+driver app still needs building/distributing.**
+
+### 4.1 First build — mint credentials (interactive, one time) — **YOU**
+The driver app has no signing credentials on EAS yet (the customer app already
+had its own). The FIRST build must run **interactively** so EAS can create the
+Distribution Certificate + provisioning profile and register the App ID via your
+Mac's Keychain Apple session (no 2FA on this trusted Mac):
+```bash
+cd /Users/etch/Projects/apps/sharmeats/apps/driver
+eas build --platform ios --profile production
+```
+- When prompted "Generate a new Apple Distribution Certificate?" → **Yes**.
+- "Register bundle identifier eg.sharmeats.driver?" → **Yes**.
+- It reuses Apple team `CHSAVJ5X6U`. After this once, future builds can run
+  `--non-interactive` like the customer app.
+- This build will survive the fmt/Xcode-26.4 compile (the fix is in place) — it
+  should take ~10–20 min, not die at ~90s.
+
+### 4.2 Create the App Store Connect app record — **YOU** (web UI)
+The ASC API key can't create apps (403) — use the web UI:
+1. <https://developer.apple.com/account/resources/identifiers> → the App ID
+   `eg.sharmeats.driver` should already exist from 4.1; if not, add it.
+2. <https://appstoreconnect.apple.com/apps> → **+ → New App**:
+   - Platform iOS, Name **“Sharm Eats Driver”**, primary language English,
+   - Bundle ID `eg.sharmeats.driver`, SKU `sharmeats-driver-001`.
+3. Copy the **Apple ID** (numeric `ascAppId`) ASC shows for the new app.
+
+### 4.3 Wire submit + push to TestFlight — **YOU**
+Add the ascAppId to `apps/driver/eas.json` submit profile (mirror the customer
+app), then submit:
+```jsonc
+// apps/driver/eas.json → "submit": { "production": { "ios": {
+"ascApiKeyPath": "../customer/credentials/AuthKey_C4TFQQ5AAD.p8",
+"ascApiKeyId": "C4TFQQ5AAD",
+"ascApiKeyIssuerId": "d19fd03e-1f5b-44b1-a3e9-519b25a39274",
+"ascAppId": "<the numeric id from 4.2>"
+// } } }
+```
+```bash
+cd apps/driver && eas submit -p ios --profile production --latest
+```
+Then in App Store Connect → Sharm Eats Driver → TestFlight, add your drivers as
+internal/external testers. (The driver app needs no marketing screenshots to go
+to TestFlight; full App Store listing is only needed if you later publicly list
+it — most delivery fleets keep the driver app TestFlight-only or unlisted.)
+
+### 4.4 Driver test login
+Use the seeded driver account (see project memory):
+`ahmed.driver@sharmeats.test` / `Driver#Test2026` (or create real driver
+accounts via the admin flow).
+
+---
+
 ## Quick status
 
 | Blocker | Code/repo | Live config |
@@ -159,3 +219,7 @@ https://ilqpsebcfbaoaogimhud.supabase.co/functions/v1/paymob-webhook
 | Functions deployed | ✅ written | ☐ YOU run (2.3) |
 | Secrets + callback set | — | ☐ YOU (2.4–2.5) |
 | Card flow tested | — | ☐ YOU (2.6) |
+| **Customer app** | ✅ build #10 (.ipa) | ☐ resubmit (TestFlight now) |
+| **Merchant dashboard** | ✅ | ✅ LIVE (vercel) |
+| **Admin dashboard** | ✅ | ✅ LIVE (vercel) |
+| **Driver app** | ✅ prepped + validated | ☐ YOU run 1st build (§4.1) |
