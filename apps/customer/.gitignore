@@ -15,3 +15,4 @@ expo-env.d.ts
 # App Store Connect API key (secret — never commit)
 credentials/
 *.p8
+store-screenshots-clean/raw/
