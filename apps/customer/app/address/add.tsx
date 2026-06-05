@@ -15,6 +15,7 @@ import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
+import { Icon } from '../../src/components/Icon';
 import { colors, font, radius } from '../../src/theme';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
@@ -261,8 +262,12 @@ export default function AddAddress() {
         {/* Universal GPS pin — hotels & apartments get a pin too, so the driver
             always has a precise map point regardless of the structured fields. */}
         {kind !== 'beach_pin' && (
-          <Pressable onPress={captureLocation} style={styles.pinRow}>
-            <Text style={{ fontSize: 18 }}>{coords ? '📍' : '🧭'}</Text>
+          <Pressable
+            onPress={captureLocation}
+            accessibilityRole="button"
+            accessibilityLabel={coords ? 'Update GPS pin' : 'Add a precise GPS pin'}
+            style={styles.pinRow}>
+            <Icon name={coords ? 'location' : 'compass'} size={18} color={colors.sea} />
             <Text style={styles.pinRowText}>
               {locating
                 ? 'Getting your location…'

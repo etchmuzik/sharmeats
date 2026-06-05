@@ -168,6 +168,8 @@
   "checkout.deliverTo": "Deliver to",
   "checkout.change": "Change",
   "checkout.payWith": "Pay with",
+  "checkout.choosePayment": "Choose payment",
+  "checkout.changeCurrency": "Change currency",
   "checkout.subtotal": "Subtotal",
   "checkout.delivery": "Delivery fee",
   "checkout.tax": "VAT",

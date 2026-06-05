@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { QuantityStepper } from '../../src/components/QuantityStepper';
+import { Icon } from '../../src/components/Icon';
 import { useCart } from '../../src/store/cart';
 import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
@@ -65,7 +66,9 @@ export default function CartTab() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         contentContainerStyle={[styles.emptyWrap, { paddingTop: insets.top + 40 }]}>
         <StatusBar style="dark" />
-        <Text style={styles.emptyIco}>🛒</Text>
+        <View style={styles.emptyIco}>
+          <Icon name="cart" size={44} color={colors.sea} />
+        </View>
         <Text style={styles.emptyTitle}>{t('cart.empty')}</Text>
         <Text style={styles.emptySub}>{t('cart.emptyDesc')}</Text>
         {nearby.length > 0 && (
@@ -106,7 +109,11 @@ export default function CartTab() {
       <StatusBar style="dark" />
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>{t('cart.title')}</Text>
-        <Pressable onPress={clear} hitSlop={10}>
+        <Pressable
+          onPress={clear}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={t('cart.clear')}>
           <Text style={styles.clear}>{t('cart.clear')}</Text>
         </Pressable>
       </View>
@@ -268,7 +275,15 @@ const styles = StyleSheet.create({
   nearbyImg: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.bgSoft },
   nearbyName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
   nearbySub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
-  emptyIco: { fontSize: 64, marginTop: 80 },
+  emptyIco: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.seaSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 80,
+  },
   emptyTitle: {
     fontSize: font.sizes['7xl'],
     fontWeight: font.weights.extrabold,
@@ -338,7 +353,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: radius.md,
-    backgroundColor: '#fde6c0',
+    backgroundColor: colors.amberSoft,
     marginBottom: 10,
   },
   minText: {

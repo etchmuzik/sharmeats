@@ -168,6 +168,8 @@
   "checkout.deliverTo": "توصيل إلى",
   "checkout.change": "تغيير",
   "checkout.payWith": "ادفع بـ",
+  "checkout.choosePayment": "اختر طريقة الدفع",
+  "checkout.changeCurrency": "تغيير العملة",
   "checkout.subtotal": "المجموع الفرعي",
   "checkout.delivery": "رسوم التوصيل",
   "checkout.tax": "ضريبة القيمة المضافة",

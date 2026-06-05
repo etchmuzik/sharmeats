@@ -39,6 +39,16 @@ export default function RestaurantDetail() {
   const cartRestaurantId = useCart((s) => s.restaurantId);
 
   const scrollY = useRef(new Animated.Value(0)).current;
+  // Scroll-to-section: the sticky tabs jump the list to a section's measured Y.
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionY = useRef<Record<string, number>>({});
+
+  const goToSection = (sectionId: string) => {
+    tap();
+    setActiveSection(sectionId);
+    const y = sectionY.current[sectionId];
+    if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -73,6 +83,7 @@ export default function RestaurantDetail() {
       <StatusBar style="light" />
 
       <Animated.ScrollView
+        ref={scrollRef as never}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: true,
@@ -114,10 +125,10 @@ export default function RestaurantDetail() {
             {sections.map((s) => (
               <Pressable
                 key={s.id}
-                onPress={() => {
-                  tap();
-                  setActiveSection(s.id);
-                }}
+                onPress={() => goToSection(s.id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeSection === s.id }}
+                accessibilityLabel={s.name}
                 style={styles.navTabWrap}>
                 <Text style={[styles.navTab, activeSection === s.id && styles.navTabActive]}>{s.name}</Text>
                 {activeSection === s.id && <View style={styles.navUnderline} />}
@@ -126,9 +137,21 @@ export default function RestaurantDetail() {
           </ScrollView>
         </View>
 
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        <View
+          style={{ paddingHorizontal: 20, paddingTop: 12 }}
+          onLayout={(e) => {
+            sectionY.current.__container = e.nativeEvent.layout.y;
+          }}>
           {sections.map((sec) => (
-            <View key={sec.id} style={{ marginBottom: 18 }}>
+            <View
+              key={sec.id}
+              onLayout={(e) => {
+                // Section Y is relative to its container; add the container's
+                // offset to get the absolute scroll position.
+                const containerTop = sectionY.current.__container ?? 0;
+                sectionY.current[sec.id] = containerTop + e.nativeEvent.layout.y;
+              }}
+              style={{ marginBottom: 18 }}>
               <Text style={styles.sectionH}>{sec.name}</Text>
               {(itemsBySection.get(sec.id) ?? []).map((it) => (
                 <Pressable
@@ -191,7 +214,9 @@ export default function RestaurantDetail() {
 
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  hero: { height: 240, backgroundColor: '#222', position: 'relative' },
+  // Branded teal base so an unloaded/failed cover reads as an intentional tile
+  // (the white BackButton + fade stay legible) rather than a dark void.
+  hero: { height: 240, backgroundColor: colors.sea, position: 'relative' },
   heroImg: { width: '100%', height: '100%' },
   heroFade: {
     position: 'absolute',
