@@ -24,11 +24,14 @@ import {
 } from '../src/jobs';
 import { pingOnce } from '../src/location';
 import { colors, font, radius, spacing } from '../src/theme';
+import { Icon } from '../src/components/Icon';
+import { useToast } from '../src/components/Toast';
 
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
+  const { toast } = useToast();
 
   const [driver, setDriver] = useState<Awaited<ReturnType<typeof getMyDriver>>>(null);
   const [online, setOnlineState] = useState(false);
@@ -70,6 +73,7 @@ export default function Home() {
       if (next) await pingOnce('online');
     } catch {
       setOnlineState(!next); // revert on failure
+      toast("Couldn't update your status. Check your connection.", 'error');
     }
   }
 
@@ -79,8 +83,8 @@ export default function Home() {
       await load();
       router.push(`/job/${a.order_id}`);
     } catch (e) {
-      // surfaced minimally; a toast lib would be nicer
-      console.warn(e);
+      // A silently-failed accept could cost the driver a job — always surface it.
+      toast(e instanceof Error ? e.message : "Couldn't accept the offer. Try again.", 'error');
     }
   }
 
@@ -89,7 +93,7 @@ export default function Home() {
       await respondToOffer(a.id, false);
       setOffers((prev) => prev.filter((o) => o.id !== a.id));
     } catch (e) {
-      console.warn(e);
+      toast(e instanceof Error ? e.message : "Couldn't decline the offer.", 'error');
     }
   }
 
@@ -138,12 +142,16 @@ export default function Home() {
           <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
             Hi, {driver.name?.split(' ')[0] ?? 'Driver'}
           </Text>
-          <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
-            {driver.vehicle} · ⭐ {driver.rating}
-            {!driver.is_verified && '  · pending verification'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+            <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>{driver.vehicle} ·</Text>
+            <Icon name="star" size={12} color={colors.star} />
+            <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
+              {driver.rating}
+              {!driver.is_verified && '  · pending verification'}
+            </Text>
+          </View>
         </View>
-        <Pressable onPress={signOut}>
+        <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Sign out">
           <Text style={{ color: colors.ink3, fontSize: font.sizes.sm }}>Sign out</Text>
         </Pressable>
       </View>

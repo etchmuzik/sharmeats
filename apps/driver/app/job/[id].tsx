@@ -13,11 +13,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { advance, collectCod, fetchJob, type Job } from '../../src/jobs';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { colors, font, radius, spacing } from '../../src/theme';
+import { Icon } from '../../src/components/Icon';
+import { useToast } from '../../src/components/Toast';
 
 export default function JobScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { toast } = useToast();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -55,7 +58,7 @@ export default function JobScreen() {
         await advance(id, next);
         await load();
       } catch (e) {
-        Alert.alert('Could not update', e instanceof Error ? e.message : 'Try again');
+        toast(e instanceof Error ? e.message : 'Could not update. Try again.', 'error');
       } finally {
         setBusy(false);
       }
@@ -82,7 +85,7 @@ export default function JobScreen() {
                 await stopStreaming();
                 router.replace('/home');
               } catch (e) {
-                Alert.alert('Error', e instanceof Error ? e.message : 'Try again');
+                toast(e instanceof Error ? e.message : 'Something went wrong. Try again.', 'error');
               } finally {
                 setBusy(false);
               }
@@ -99,7 +102,7 @@ export default function JobScreen() {
       await stopStreaming();
       router.replace('/home');
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Try again');
+      toast(e instanceof Error ? e.message : 'Something went wrong. Try again.', 'error');
     } finally {
       setBusy(false);
     }
@@ -133,8 +136,15 @@ export default function JobScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl }}>
-        <Pressable onPress={() => router.back()} style={{ marginBottom: spacing.md }}>
-          <Text style={{ color: colors.accent, fontWeight: '600' }}>‹ Back</Text>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={8}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: spacing.md }}
+        >
+          <Icon name="chevronBack" size={18} color={colors.accent} />
+          <Text style={{ color: colors.accent, fontWeight: '600' }}>Back</Text>
         </Pressable>
 
         <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
@@ -203,9 +213,12 @@ export default function JobScreen() {
           </Text>
         )}
         {['delivered', 'cancelled', 'rejected'].includes(job.status) && (
-          <Text style={{ textAlign: 'center', color: colors.green, fontWeight: '700' }}>
-            {job.status === 'delivered' ? 'Delivered ✓' : job.status}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            {job.status === 'delivered' && <Icon name="check" size={18} color={colors.green} />}
+            <Text style={{ textAlign: 'center', color: colors.green, fontWeight: '700' }}>
+              {job.status === 'delivered' ? 'Delivered' : job.status}
+            </Text>
+          </View>
         )}
       </View>
     </View>
