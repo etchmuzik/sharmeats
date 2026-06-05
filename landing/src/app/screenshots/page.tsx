@@ -37,21 +37,38 @@ export const metadata: Metadata = {
 // Preview scale: each poster is rendered at full 1320×2868 then scaled.
 const Z = 0.3;
 
-export default function ScreenshotsPage() {
+export default async function ScreenshotsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ export?: string }>;
+}) {
+  // `?export=N` renders only poster N at full 1320×2868 (z=1), no gallery
+  // chrome — used to capture native-resolution App Store screenshots.
+  const params = await searchParams;
+  const exportIdx = params.export != null ? Number(params.export) : null;
+  const isExport = exportIdx != null && Number.isInteger(exportIdx) && exportIdx >= 0 && exportIdx < SHOTS.length;
+
   return (
     <div className={`${styles.root} ${sora.variable} ${jakarta.variable} ${cairo.variable}`}>
       {/* Phosphor icon-font — every <i className="ph-* …"/> in the screens depends on it. */}
       <Script src="https://unpkg.com/@phosphor-icons/web@2.1.1" strategy="beforeInteractive" />
 
-      <div className={styles.wrap}>
-        {SHOTS.map((shot, i) => (
-          <Poster key={i} shot={shot} index={i} z={Z} />
-        ))}
-      </div>
-
-      <div className={styles.footerNote}>
-        Sharm Eats — App Store set · iPhone 6.9″ (1320 × 2868)
-      </div>
+      {isExport ? (
+        <div style={{ width: 1320, height: 2868, overflow: "hidden" }}>
+          <Poster shot={SHOTS[exportIdx]} index={exportIdx} z={1} />
+        </div>
+      ) : (
+        <>
+          <div className={styles.wrap}>
+            {SHOTS.map((shot, i) => (
+              <Poster key={i} shot={shot} index={i} z={Z} />
+            ))}
+          </div>
+          <div className={styles.footerNote}>
+            Sharm Eats — App Store set · iPhone 6.9″ (1320 × 2868)
+          </div>
+        </>
+      )}
     </div>
   );
 }
