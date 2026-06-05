@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
-import { WaitlistForm } from '@/components/WaitlistForm';
 import { dictionaries, type Locale, rtlLocales } from '@/i18n/dictionaries';
 
 function detectInitialLocale(): Locale {
@@ -78,13 +77,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="waitlist" className="bg-sand py-20">
-        <div className="mx-auto max-w-xl px-6">
-          <h2 className="text-center font-display text-3xl text-ink sm:text-4xl">
+      <section id="get-the-app" className="bg-sand py-20">
+        <div className="mx-auto max-w-xl px-6 text-center">
+          <h2 className="font-display text-3xl text-ink sm:text-4xl">
             {dict.waitlist.title}
           </h2>
-          <div className="mt-10">
-            <WaitlistForm locale={locale} dict={dict.waitlist} />
+          <p className="mx-auto mt-4 max-w-md text-ink2">{dict.hero.eyebrow}</p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <span className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white">
+              📱 App Store · Google Play
+            </span>
+            <a
+              href={`mailto:${dict.footer.contactEmail}`}
+              className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-6 py-3 text-sm font-semibold text-ink hover:border-ink/30"
+            >
+              {dict.footer.contact}
+            </a>
           </div>
         </div>
       </section>
