@@ -4,6 +4,38 @@ Single source of truth for what's done and what's left. Verified 2026-06-05.
 Code is 100% complete across all surfaces. The remaining items are mostly
 **external** (accounts, Apple review, your device) — not code.
 
+---
+
+## 🚀 LAUNCHING NOW: cash-only via TestFlight (Paymob later)
+
+Decision (2026-06-06): go live **cash-on-delivery only**; add card (Paymob) later.
+
+- **Card payment is hidden** behind `EXPO_PUBLIC_PAYMENTS_CARD_ENABLED=false`
+  (commit `6330143`) — card + Apple Pay don't appear, so no order can hit the
+  undeployed Paymob path. COD + local wallets remain. Re-enable: flip the flag
+  to `true` in `apps/customer/eas.json` (+ `.env`) and rebuild.
+- **Customer build #11** triggered → TestFlight (auto-submit). Carries
+  cash-only + location string + GO_BACK fix + fmt fix + full design pass +
+  universal links. Real users can take COD orders via TestFlight once it lands.
+- **Web surfaces are already live** (landing + both dashboards on Hostinger);
+  **backend live**; **COD pipeline verified end-to-end**.
+
+**Driver app → TestFlight (to dispatch the COD orders):** ☐ YOU
+1. Create the ASC app record "Sharm Eats Driver" (bundle `eg.sharmeats.driver`)
+   — App Store Connect web UI (the API key can't, 403). [LAUNCH-RUNBOOK §4.2]
+2. Put its Apple ID in `apps/driver/eas.json` (`REPLACE_WITH_DRIVER_ASC_APP_ID`).
+3. `cd apps/driver && eas build -p ios --profile production --auto-submit`
+   (build #3 — carries the driver design pass; first build minted credentials).
+4. Add drivers as TestFlight testers.
+
+**Operate cash-only:** customers order (COD) → merchant accepts on
+merchant.sharmeats.online → admin dispatches on admin.sharmeats.online → driver
+delivers + collects cash (the app's "Collect X EGP" confirm settles it).
+Logins: dashboards `beyondtech.eg@gmail.com / SharmEats2026!`; driver test
+`ahmed.driver@sharmeats.test / Driver#Test2026`.
+
+---
+
 Detailed how-to lives in [LAUNCH-RUNBOOK.md](./LAUNCH-RUNBOOK.md);
 App Review reply in
 [../apps/customer/store-screenshots-clean/APP-REVIEW-NOTES.md](../apps/customer/store-screenshots-clean/APP-REVIEW-NOTES.md).
