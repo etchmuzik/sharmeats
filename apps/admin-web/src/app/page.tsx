@@ -6,6 +6,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { OpsDriver, OpsOrder } from '@/lib/types';
 import { DispatchBoard } from './DispatchBoard';
 import { SignOutButton } from './SignOutButton';
+import { Skeleton, DispatchBoardSkeleton } from './Skeleton';
 
 type Phase =
   | { state: 'loading' }
@@ -82,8 +83,12 @@ export default function OpsPage() {
 
   if (phase.state === 'loading') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-bg">
-        <div className="text-ink3">Loading dispatch board…</div>
+      <main className="min-h-screen bg-bg">
+        <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-8 w-20" />
+        </header>
+        <DispatchBoardSkeleton />
       </main>
     );
   }

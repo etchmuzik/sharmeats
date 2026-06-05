@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import type { MerchantOrder } from '@/lib/types';
+import { Icon } from './Icon';
 
 interface PrimaryAction {
   label: string;
@@ -17,9 +19,13 @@ export function OrderCard({
   order: MerchantOrder;
   isNew?: boolean;
   onAccept?: () => void;
-  onReject?: () => void;
+  onReject?: (reason?: string) => void;
   onPrimary?: PrimaryAction;
 }) {
+  // Inline reject-reason (replaces a blocking window.prompt, which can be
+  // disabled in webviews and halts the whole queue).
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
   const addr = order.address_snapshot;
   const addrLine =
     addr?.kind === 'hotel'
@@ -81,40 +87,73 @@ export function OrderCard({
         </div>
       )}
 
-      <div className="mt-3 border-t border-line pt-2 text-xs text-ink2">
-        📍 {addrLine}
-        <span className="ml-2 rounded bg-sand px-1.5 py-0.5 text-[10px] uppercase">
+      <div className="mt-3 flex items-center gap-1.5 border-t border-line pt-2 text-xs text-ink2">
+        <Icon name="location" size={13} className="shrink-0 text-ink3" />
+        <span className="min-w-0 truncate">{addrLine}</span>
+        <span className="ml-auto shrink-0 rounded bg-sand px-1.5 py-0.5 text-[10px] uppercase">
           {order.fulfillment_type === 'self_delivery' ? 'self-delivery' : 'platform fleet'}
         </span>
       </div>
 
-      {(onAccept || onReject || onPrimary) && (
-        <div className="mt-3 flex gap-2">
-          {onReject && (
+      {/* Inline reject reason — progressive disclosure, no blocking prompt. */}
+      {rejecting && onReject ? (
+        <div className="mt-3 rounded-xl border border-red/40 bg-redsoft/40 p-3">
+          <label className="text-xs font-semibold text-red">Reason for rejecting (optional)</label>
+          <input
+            autoFocus
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onReject(reason.trim() || undefined)}
+            placeholder="e.g. out of stock, kitchen closing"
+            className="mt-2 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-red"
+          />
+          <div className="mt-2 flex gap-2">
             <button
-              onClick={onReject}
-              className="flex-1 rounded-xl border border-line py-2 text-sm font-semibold text-red"
+              onClick={() => {
+                setRejecting(false);
+                setReason('');
+              }}
+              className="flex-1 rounded-lg border border-line py-2 text-sm font-semibold text-ink2"
             >
-              Reject
+              Cancel
             </button>
-          )}
-          {onAccept && (
             <button
-              onClick={onAccept}
-              className="flex-1 rounded-xl bg-green py-2 text-sm font-semibold text-white"
+              onClick={() => onReject(reason.trim() || undefined)}
+              className="flex-1 rounded-lg bg-red py-2 text-sm font-semibold text-white"
             >
-              Accept
+              Confirm reject
             </button>
-          )}
-          {onPrimary && (
-            <button
-              onClick={onPrimary.run}
-              className="flex-1 rounded-xl bg-accent py-2 text-sm font-semibold text-white"
-            >
-              {onPrimary.label}
-            </button>
-          )}
+          </div>
         </div>
+      ) : (
+        (onAccept || onReject || onPrimary) && (
+          <div className="mt-3 flex gap-2">
+            {onReject && (
+              <button
+                onClick={() => setRejecting(true)}
+                className="flex-1 rounded-xl border border-line py-2 text-sm font-semibold text-red"
+              >
+                Reject
+              </button>
+            )}
+            {onAccept && (
+              <button
+                onClick={onAccept}
+                className="flex-1 rounded-xl bg-green py-2 text-sm font-semibold text-white"
+              >
+                Accept
+              </button>
+            )}
+            {onPrimary && (
+              <button
+                onClick={onPrimary.run}
+                className="flex-1 rounded-xl bg-accent py-2 text-sm font-semibold text-white"
+              >
+                {onPrimary.label}
+              </button>
+            )}
+          </div>
+        )
       )}
     </div>
   );

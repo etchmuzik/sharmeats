@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { MerchantContext, MerchantOrder, OrderStatus } from '@/lib/types';
 import { OrderCard } from './OrderCard';
+import { Icon } from './Icon';
+import { useToast } from './Toast';
 
 /**
  * Live order queue. Server-rendered initial orders are hydrated here, then a
@@ -21,6 +23,7 @@ export function OrderQueue({
   initialOrders: MerchantOrder[];
 }) {
   const supabase = createSupabaseBrowserClient();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<MerchantOrder[]>(initialOrders);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -97,7 +100,7 @@ export function OrderQueue({
         p_note: note ?? null,
       });
       if (error) {
-        alert(`Could not update order: ${error.message}`);
+        toast(`Could not update order: ${error.message}`, 'error');
       }
       // Optimistic: the Realtime event will also arrive and reconcile.
       setOrders((prev) =>
@@ -106,7 +109,7 @@ export function OrderQueue({
           .filter((o) => isActive(o.status)),
       );
     },
-    [supabase, isActive],
+    [supabase, isActive, toast],
   );
 
   const incoming = orders.filter((o) => o.status === 'placed');
@@ -123,8 +126,10 @@ export function OrderQueue({
       />
 
       {orders.length === 0 ? (
-        <div className="mt-24 text-center text-ink3">
-          <div className="text-5xl">🍽️</div>
+        <div className="mt-24 flex flex-col items-center text-center text-ink3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sand text-ink2">
+            <Icon name="utensils" size={28} />
+          </div>
           <p className="mt-4 text-lg">Waiting for orders…</p>
           <p className="text-sm">New orders appear here instantly with a sound alert.</p>
         </div>
@@ -137,10 +142,7 @@ export function OrderQueue({
                 order={o}
                 isNew={newIds.has(o.id)}
                 onAccept={() => advance(o.id, 'accepted')}
-                onReject={() => {
-                  const reason = prompt('Reason for rejecting (optional):') ?? undefined;
-                  advance(o.id, 'rejected', reason);
-                }}
+                onReject={(reason) => advance(o.id, 'rejected', reason)}
               />
             ))}
           </Column>

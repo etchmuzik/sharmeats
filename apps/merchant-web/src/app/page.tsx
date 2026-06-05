@@ -6,6 +6,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { MerchantContext, MerchantOrder } from '@/lib/types';
 import { OrderQueue } from './OrderQueue';
 import { SignOutButton } from './SignOutButton';
+import { Skeleton, OrderQueueSkeleton } from './Skeleton';
 
 type Phase =
   | { state: 'loading' }
@@ -84,8 +85,12 @@ export default function DashboardPage() {
 
   if (phase.state === 'loading') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-bg">
-        <div className="text-ink3">Loading dashboard…</div>
+      <main className="min-h-screen bg-bg">
+        <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-8 w-20" />
+        </header>
+        <OrderQueueSkeleton />
       </main>
     );
   }

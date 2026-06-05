@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { OpsDriver, OpsOrder } from '@/lib/types';
+import { Icon } from './Icon';
+import { useToast } from './Toast';
 
 /**
  * Manual dispatch board (+ live ops).
@@ -22,6 +24,7 @@ export function DispatchBoard({
   initialDrivers: OpsDriver[];
 }) {
   const supabase = createSupabaseBrowserClient();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<OpsOrder[]>(initialOrders);
   const [drivers, setDrivers] = useState<OpsDriver[]>(initialDrivers);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
@@ -82,16 +85,17 @@ export function DispatchBoard({
       });
       setBusy(false);
       if (error) {
-        alert(`Assign failed: ${error.message}`);
+        toast(`Assign failed: ${error.message}`, 'error');
         return;
       }
+      toast('Driver assigned', 'success');
       setSelectedOrder(null);
       // Optimistic — Realtime will reconcile.
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, assigned_driver_id: driverId } : o)),
       );
     },
-    [supabase],
+    [supabase, toast],
   );
 
   const driverName = (id: string | null) => drivers.find((d) => d.id === id)?.name ?? '—';
@@ -113,7 +117,7 @@ export function DispatchBoard({
             Needs a driver
           </h2>
           {needsDispatch.length === 0 ? (
-            <EmptyHint>No platform orders waiting for a driver. 🎉</EmptyHint>
+            <EmptyHint>All caught up — no platform orders waiting for a driver.</EmptyHint>
           ) : (
             <div className="space-y-3">
               {needsDispatch.map((o) => (
@@ -162,7 +166,10 @@ export function DispatchBoard({
                     <span className="font-semibold">{o.short_code}</span>
                     <span className="text-ink2">{o.restaurant_name}</span>
                     <span className="rounded bg-sand px-2 py-0.5 text-xs">{o.status}</span>
-                    <span className="text-xs text-sea">🛵 {driverName(o.assigned_driver_id)}</span>
+                    <span className="flex items-center gap-1 text-xs text-sea">
+                      <Icon name="scooter" size={13} />
+                      {driverName(o.assigned_driver_id)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -194,8 +201,10 @@ export function DispatchBoard({
                   >
                     <div>
                       <div className="text-sm font-semibold">{d.name}</div>
-                      <div className="text-xs text-ink3">
-                        {d.vehicle} · ⭐ {d.rating} · {d.home_zone ?? 'zone ?'}
+                      <div className="flex items-center gap-1 text-xs text-ink3">
+                        {d.vehicle} ·
+                        <Icon name="star" size={11} className="text-star" /> {d.rating} ·{' '}
+                        {d.home_zone ?? 'zone ?'}
                       </div>
                     </div>
                     <StatusDot status={d.status} />
