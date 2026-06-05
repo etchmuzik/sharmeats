@@ -92,7 +92,26 @@ user-supplied items are ready (see "Still needed from you").
    "Start as guest" → browse a restaurant → customize an item → add to cart →
    checkout. Upload it as an App Review attachment (or host + link in Notes).
    Apple explicitly asked for this (their item 1) and it must be a real device,
-   not the simulator.
-2. **App Review contact phone number** — App Store Connect requires a reachable
-   phone number in the App Review Information section. (Name/email already set
-   to the account holder.)
+   not the simulator. (Install build #9 from TestFlight on your iPhone, record
+   the flow there.)
+2. **App Review contact phone number** — `+971581232600` (provided). Enter it
+   in App Store Connect → App Review Information.
+
+## D. Exact resubmit steps (App Store Connect web UI)
+The version is currently in state **REJECTED** (confirmed via ASC API on
+2026-06-05). A rejected version is edited and resubmitted IN PLACE — no new
+version number, v1.0 stays. Steps:
+1. App Store Connect → Apps → Sharm Eats → the **1.0** version (it's editable
+   because it's Rejected).
+2. **Build:** select **build #9** (replaces #8) once it finishes EAS + Apple
+   processing and appears under the version's Build section.
+3. **Screenshots:** in the 6.9" and 6.5" iPhone slots, delete the marketing
+   posters and drag in the clean set from
+   `store-screenshots-clean/iphone69/` and `.../iphone65/`
+   (the `file_upload` tool can't do this — manual drag).
+4. **App Review Information:** paste the Notes text from section A; add the
+   phone number `+971581232600`; attach the real-device screen recording.
+5. Re-confirm **"Sign-in required" is UNCHECKED** (guest-first; it re-checks
+   itself on dialog reopen — verify before submitting).
+6. **Submit for Review.** (No "Remove from Review" needed — Rejected versions
+   submit directly.)
