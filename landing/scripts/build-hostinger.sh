@@ -45,11 +45,10 @@ STATIC_EXPORT=1 npx next build
 echo "→ Copying .htaccess into out/ …"
 cp public/.htaccess out/.htaccess 2>/dev/null || echo "  (no public/.htaccess found — skipping)"
 
-# Prune internal asset folders that Next copies verbatim from public/.
-# Keep out/brand/ — it holds the site favicons referenced by every page.
-# Drop out/screenshots/ — those are the App-Store poster photos, internal only.
-echo "→ Pruning internal asset folders…"
-rm -rf out/screenshots && echo "  • removed out/screenshots (poster photos)"
+# Note: public/screenshots/{home-1,item-hero,ar-1}.jpg + public/app/*.png are
+# load-bearing marketing imagery for the homepage now — do NOT prune them. The
+# internal /screenshots and /brand *routes* are excluded via the quarantine
+# step above; only the public asset folders ship.
 
 echo "✓ Static site built → ./out"
 echo "  Upload its contents to ~/domains/sharmeats.online/public_html/"
