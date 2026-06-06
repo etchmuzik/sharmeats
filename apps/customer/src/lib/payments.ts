@@ -16,3 +16,25 @@ export function isPaymentMethodEnabled(pm: PaymentMethod): boolean {
   if (CARD_PAYMENTS_ENABLED) return true;
   return !GATED_KINDS.has(pm.kind);
 }
+
+/**
+ * Cash on delivery is a universal option, not a stored instrument — it needs no
+ * saved card/row. A guest (or any user with no saved methods) must still be able
+ * to pay, so we always offer COD at checkout regardless of what's in the DB.
+ */
+export const CASH_ON_DELIVERY_METHOD: PaymentMethod = {
+  id: 'cod-default',
+  kind: 'cash',
+  label: 'Cash on delivery',
+  subline: 'Pay the driver when your order arrives',
+  isDefault: true,
+};
+
+/**
+ * Ensure a Cash-on-Delivery option is always present. Prepends the universal COD
+ * method unless the list already contains a `cash` method (e.g. a seeded row).
+ */
+export function withCashOnDelivery(methods: readonly PaymentMethod[]): PaymentMethod[] {
+  if (methods.some((m) => m.kind === 'cash')) return [...methods];
+  return [CASH_ON_DELIVERY_METHOD, ...methods];
+}

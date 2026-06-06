@@ -1,7 +1,7 @@
 import { getSupabase } from './client';
 import { rowToAddress, rowToPaymentMethod, rowToUser } from './mappers';
 import type { Address, PaymentMethod, User } from '../types';
-import { isPaymentMethodEnabled } from '../../lib/payments';
+import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
 
 export const userRepoSupabase = {
   async getMe(): Promise<User> {
@@ -102,7 +102,9 @@ export const userRepoSupabase = {
       .select('*')
       .order('is_default', { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(rowToPaymentMethod).filter(isPaymentMethodEnabled);
+    const saved = (data ?? []).map(rowToPaymentMethod).filter(isPaymentMethodEnabled);
+    // COD is always available — a guest with no saved methods must still be able to pay.
+    return withCashOnDelivery(saved);
   },
 
   async setDefaultPaymentMethod(id: string): Promise<PaymentMethod[]> {
