@@ -41,7 +41,6 @@
         "ascAppId": "6776864451"
       },
       "android": {
-        "//": "Set serviceAccountKeyPath once the Google Play service-account JSON exists (see Android track scoping). Then: eas submit -p android --profile production --latest",
         "track": "internal",
         "releaseStatus": "draft"
       }
