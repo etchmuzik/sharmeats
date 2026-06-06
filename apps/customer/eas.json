@@ -12,6 +12,9 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
@@ -23,6 +26,9 @@
       },
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
+      },
+      "android": {
+        "buildType": "app-bundle"
       }
     }
   },
@@ -33,6 +39,11 @@
         "ascApiKeyId": "C4TFQQ5AAD",
         "ascApiKeyIssuerId": "d19fd03e-1f5b-44b1-a3e9-519b25a39274",
         "ascAppId": "6776864451"
+      },
+      "android": {
+        "//": "Set serviceAccountKeyPath once the Google Play service-account JSON exists (see Android track scoping). Then: eas submit -p android --profile production --latest",
+        "track": "internal",
+        "releaseStatus": "draft"
       }
     }
   }
