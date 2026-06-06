@@ -1,0 +1,11 @@
+{
+  "name": "@sharmeats/db-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generated Supabase Postgres types (single source of truth for all four surfaces).",
+  "main": "database.types.ts",
+  "types": "database.types.ts",
+  "exports": {
+    ".": "./database.types.ts"
+  }
+}

@@ -109,7 +109,28 @@ export interface ModifierOption {
   name: string;
   priceDeltaEgp: number;
   isDefault?: boolean;
+  /** Optional emoji/icon for visual add-on cards (e.g. '🧀', '🥓'). */
+  icon?: string;
+  /** Optional thumbnail image URL for premium add-on cards. */
+  image?: string;
+  /** Short tagline shown under the option name (e.g. "double portion"). */
+  subtitle?: string;
+  /** Mark a popular/recommended option to highlight it. */
+  popular?: boolean;
+  /** Item flags this option adds (e.g. adding bacon → contains_pork). */
+  addsFlags?: ItemFlag[];
 }
+
+/**
+ * How a modifier group is presented. The data is the same set/min/max system;
+ * `style` just picks the right UI:
+ *  - 'list'        classic radio/checkbox rows (default)
+ *  - 'ingredients' tap-to-remove chips for included ingredients (no-onions etc.)
+ *  - 'addons'      visual add-on cards with icon/price (extra cheese, sauces)
+ *  - 'builder'     a labeled step in a build-your-own flow (bread→protein→…)
+ *  - 'size'        segmented size selector (Regular / Large / XL)
+ */
+export type ModifierStyle = 'list' | 'ingredients' | 'addons' | 'builder' | 'size';
 
 export interface Modifier {
   id: string;
@@ -118,6 +139,12 @@ export interface Modifier {
   minSelect: number;
   maxSelect: number;
   options: ModifierOption[];
+  /** Presentation hint (defaults to 'list'). */
+  style?: ModifierStyle;
+  /** Optional helper line under the group title. */
+  subtitle?: string;
+  /** For 'builder' steps: the step order within the build flow. */
+  step?: number;
 }
 
 export interface MenuSection {
@@ -154,6 +181,12 @@ export interface Address {
   landmark?: string;
   beachName?: string;
   isDefault?: boolean;
+  /**
+   * GPS pin (WGS84). Captured for EVERY address kind — even hotels get a pin so
+   * the driver always has a map point. Maps to the PostGIS `geo` column.
+   */
+  lat?: number;
+  lng?: number;
 }
 
 export type PaymentMethodKind =
@@ -198,9 +231,11 @@ export type OrderStatus =
   | 'accepted'
   | 'preparing'
   | 'ready'
+  | 'picked_up'
   | 'out_for_delivery'
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | 'rejected';
 
 export interface Rider {
   id: string;

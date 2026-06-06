@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
@@ -11,10 +10,11 @@ import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
 import type { AllergyKey, User } from '../../src/data/types';
 import { success } from '../../src/haptics';
+import { useGoBack } from '../../src/lib/navigation';
 
 export default function AllergiesSettings() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const goBack = useGoBack();
   const t = useT();
   const [user, setUser] = useState<User | null>(null);
   const [selected, setSelected] = useState<AllergyKey[]>([]);
@@ -30,7 +30,7 @@ export default function AllergiesSettings() {
     if (!user) return;
     await db.user.update({ allergyProfile: selected });
     success();
-    router.back();
+    goBack();
   };
 
   return (

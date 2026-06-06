@@ -10,14 +10,17 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { CuisinePill } from '../../src/components/CuisinePill';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
+import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
 import type { Cuisine, Restaurant, Address, Hotel, Order } from '../../src/data/types';
 import { useT } from '../../src/i18n';
+import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { tap } from '../../src/haptics';
 
@@ -63,19 +66,24 @@ export default function HomeTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
   const phone = useSession((s) => s.phone);
   const selectedAddressId = useSession((s) => s.selectedAddressId);
   const allergyNudgeDismissed = useSession((s) => s.allergyNudgeDismissed);
   const dismissAllergyNudge = useSession((s) => s.dismissAllergyNudge);
   const [showAllergyNudge, setShowAllergyNudge] = useState(false);
+  const [firstName, setFirstName] = useState<string>('');
 
   useEffect(() => {
-    if (allergyNudgeDismissed) {
-      setShowAllergyNudge(false);
-      return;
-    }
     db.user.getMe().then((u) => {
-      setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
+      // First name for the greeting (skip the placeholder "Guest").
+      const name = (u.displayName ?? '').trim().split(/\s+/)[0];
+      setFirstName(name && name.toLowerCase() !== 'guest' ? name : '');
+      if (!allergyNudgeDismissed) {
+        setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
+      } else {
+        setShowAllergyNudge(false);
+      }
     });
   }, [allergyNudgeDismissed]);
 
@@ -175,41 +183,56 @@ export default function HomeTab() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
         <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
-          <View style={styles.addrRow}>
+          <View style={[styles.addrRow, dir.row]}>
             <Pressable
               onPress={() => {
                 tap();
                 router.push('/address/picker');
               }}
-              style={styles.addrLeft}>
+              accessibilityRole="button"
+              accessibilityLabel={`${t('home.deliverTo')}: ${addrText}`}
+              style={[styles.addrLeft, dir.row]}>
               <View style={styles.addrIco}>
-                <Text style={{ color: colors.sea, fontSize: 18 }}>📍</Text>
+                <Icon name="location" size={18} color={colors.sea} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.addrLbl}>{t('home.deliverTo')}</Text>
-                <Text style={styles.addrName} numberOfLines={1}>
-                  {addrText}{'  '}
-                  <Text style={{ color: colors.ink3 }}>▾</Text>
-                </Text>
+                <View style={styles.addrNameRow}>
+                  <Text style={styles.addrName} numberOfLines={1}>
+                    {addrText}
+                  </Text>
+                  <Icon name="chevronDown" size={14} color={colors.ink3} />
+                </View>
               </View>
             </Pressable>
             <Pressable
               onPress={() => router.push('/(tabs)/profile')}
               style={styles.avatar}
-              accessibilityLabel="Profile">
-              <Image source={{ uri: 'https://i.pravatar.cc/80?img=12' }} style={styles.avatarImg} />
+              accessibilityRole="button"
+              accessibilityLabel={t('tabs.profile')}>
+              {firstName ? (
+                <Text style={styles.avatarInitial}>{firstName.charAt(0).toUpperCase()}</Text>
+              ) : (
+                <Ionicons name="person" size={18} color={colors.sea} />
+              )}
             </Pressable>
           </View>
 
-          <View style={styles.greeting}>
-            <Text style={styles.greetTitle}>{t(greetingKey)}</Text>
-            <Text style={styles.greetSub}>{t(greetingSubKey)}</Text>
+          <View style={[styles.greeting, { alignItems: dir.alignStart }]}>
+            <Text style={[styles.greetTitle, dir.text]}>
+              {firstName
+                ? `${t(greetingKey)} ${firstName}`
+                : t(greetingKey).replace(/[,،]\s*$/, '')}
+            </Text>
+            <Text style={[styles.greetSub, dir.text]}>{t(greetingSubKey)}</Text>
           </View>
 
           <Pressable
             onPress={() => router.push('/(tabs)/browse')}
-            style={styles.search}>
-            <Text style={styles.searchIco}>🔍</Text>
+            accessibilityRole="search"
+            accessibilityLabel={t('home.searchHint')}
+            style={[styles.search, dir.row]}>
+            <Icon name="search" size={16} color={colors.ink3} />
             <Text style={styles.searchText}>{t('home.searchHint')}</Text>
           </Pressable>
         </View>
@@ -257,7 +280,7 @@ export default function HomeTab() {
 
         {reorderRail.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
-            <View style={styles.secHead}>
+            <View style={[styles.secHead, dir.row]}>
               <Text style={styles.secTitle}>{t('home.reorder')}</Text>
             </View>
             <FlatList
@@ -288,7 +311,7 @@ export default function HomeTab() {
 
         {featured.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
-            <View style={styles.secHead}>
+            <View style={[styles.secHead, dir.row]}>
               <Text style={styles.secTitle}>{t(featuredKey)}</Text>
               <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
             </View>
@@ -323,7 +346,7 @@ export default function HomeTab() {
         )}
 
         <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
-          <View style={styles.secHead}>
+          <View style={[styles.secHead, dir.row]}>
             <Text style={styles.secTitle}>{t('home.nearby')}</Text>
             <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
           </View>
@@ -362,9 +385,20 @@ const styles = StyleSheet.create({
     fontWeight: font.weights.bold,
     letterSpacing: 0.7,
   },
-  addrName: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.semibold },
-  avatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.white },
-  avatarImg: { width: '100%', height: '100%' },
+  addrNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addrName: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.semibold, flexShrink: 1 },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: colors.seaSoft,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: { fontSize: font.sizes.xl, fontWeight: font.weights.extrabold, color: colors.sea },
   greeting: { marginTop: 18 },
   greetTitle: {
     fontSize: 30,
@@ -387,13 +421,14 @@ const styles = StyleSheet.create({
     gap: 10,
     ...shadow.soft,
   },
-  searchIco: { fontSize: 16, color: colors.ink3 },
   searchText: { flex: 1, color: colors.ink3, fontSize: font.sizes.lg },
   cuisineRow: { gap: 8, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
   secHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   secTitle: { fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.4 },
   secMore: { fontSize: font.sizes.md, color: colors.sea, fontWeight: font.weights.bold },
-  feat: { width: 280, height: 170, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: '#222' },
+  // Brand sea-teal base so an unloaded/failed cover still reads as an intentional
+  // branded tile (white label + overlay stay legible) rather than a black void.
+  feat: { width: 280, height: 170, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.sea },
   featImg: { width: '100%', height: '100%' },
   featOverlay: {
     position: 'absolute',

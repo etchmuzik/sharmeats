@@ -54,7 +54,8 @@
   "onboarding.title3": "ادفع بـ",
   "onboarding.accent3": "عملتك المحلية",
   "onboarding.desc3": "شوف الأسعار باليورو أو الدولار أو الجنيه الإسترليني أو الروبل.",
-  "onboarding.getStarted": "ابدأ",
+  "onboarding.getStarted": "ابدأ الطلب",
+  "onboarding.haveAccount": "لدي حساب بالفعل",
 
   "signin.title": "أدخل رقم هاتفك",
   "signin.subtitle": "هنبعتلك رمز من ٦ أرقام على واتساب أو SMS.",
@@ -167,6 +168,8 @@
   "checkout.deliverTo": "توصيل إلى",
   "checkout.change": "تغيير",
   "checkout.payWith": "ادفع بـ",
+  "checkout.choosePayment": "اختر طريقة الدفع",
+  "checkout.changeCurrency": "تغيير العملة",
   "checkout.subtotal": "المجموع الفرعي",
   "checkout.delivery": "رسوم التوصيل",
   "checkout.tax": "ضريبة القيمة المضافة",
@@ -223,6 +226,8 @@
   "order.viewReceipt": "عرض الإيصال",
   "order.reorder": "إعادة الطلب",
   "order.rateOrder": "قيّم هذا الطلب",
+  "order.callDriver": "اتصل بالسائق",
+  "order.messageDriver": "راسل السائق",
 
   "review.title": "كيف كان؟",
   "review.food": "الطعام",

@@ -9,20 +9,23 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
+import { Icon } from '../../src/components/Icon';
 import { colors, font, radius } from '../../src/theme';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
 import type { Address, AddressKind, Hotel } from '../../src/data/types';
 import { useSession } from '../../src/store/session';
 import { selection, success } from '../../src/haptics';
+import { useGoBack } from '../../src/lib/navigation';
 
 export default function AddAddress() {
-  const router = useRouter();
+  const goBack = useGoBack('/address/picker');
   const insets = useSafeAreaInsets();
   const t = useT();
   const { kind: kindParam } = useLocalSearchParams<{ kind?: string }>();
@@ -43,6 +46,30 @@ export default function AddAddress() {
 
   const [beachName, setBeachName] = useState('');
   const [pinPlaced, setPinPlaced] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  // Capture a real GPS pin so the driver always has a map point (every kind).
+  const captureLocation = async () => {
+    setLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocating(false);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setPinPlaced(true);
+      selection();
+    } catch {
+      // keep silent; user can still save without a pin
+    } finally {
+      setLocating(false);
+    }
+  };
 
   useEffect(() => {
     if (kind === 'hotel') db.hotels.search(hotelQuery).then(setHotels);
@@ -56,6 +83,7 @@ export default function AddAddress() {
         : beachName.trim().length > 0 && pinPlaced;
 
   const save = async () => {
+    const geo = coords ? { lat: coords.lat, lng: coords.lng } : {};
     let a: Address;
     if (kind === 'hotel' && pickedHotel) {
       a = {
@@ -66,6 +94,7 @@ export default function AddAddress() {
         hotelName: pickedHotel.name,
         roomNumber: room.trim(),
         handoff,
+        ...geo,
       };
     } else if (kind === 'street') {
       const blockTrim = block.trim();
@@ -87,6 +116,7 @@ export default function AddAddress() {
                 .join(' · ')
             : undefined,
         landmark: landmark.trim() || undefined,
+        ...geo,
       };
     } else {
       a = {
@@ -94,12 +124,13 @@ export default function AddAddress() {
         kind: 'beach_pin',
         label: 'Beach pin',
         beachName: beachName.trim(),
+        ...geo,
       };
     }
     await db.user.addAddress(a);
     setSelectedAddressId(a.id);
     success();
-    router.back();
+    goBack();
   };
 
   return (
@@ -108,7 +139,7 @@ export default function AddAddress() {
       style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="dark" />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
-        <BackButton />
+        <BackButton fallback="/address/picker" />
         <Text style={styles.title}>{t('address.add')}</Text>
         <View style={{ width: 38 }} />
       </View>
@@ -215,18 +246,36 @@ export default function AddAddress() {
               placeholderTextColor={colors.ink3}
             />
             <Text style={styles.label}>Location pin</Text>
-            <Pressable
-              onPress={() => {
-                selection();
-                setPinPlaced(true);
-              }}
-              style={styles.mapMock}>
-              <Text style={{ fontSize: 32 }}>🗺️</Text>
+            <Pressable onPress={captureLocation} style={styles.mapMock}>
+              <Text style={{ fontSize: 32 }}>{coords ? '📍' : '🗺️'}</Text>
               <Text style={styles.mapText}>
-                {pinPlaced ? t('address.beachPlaced') : t('address.beachHint')}
+                {locating
+                  ? 'Getting your location…'
+                  : coords
+                    ? `Pinned (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`
+                    : t('address.beachHint')}
               </Text>
             </Pressable>
           </>
+        )}
+
+        {/* Universal GPS pin — hotels & apartments get a pin too, so the driver
+            always has a precise map point regardless of the structured fields. */}
+        {kind !== 'beach_pin' && (
+          <Pressable
+            onPress={captureLocation}
+            accessibilityRole="button"
+            accessibilityLabel={coords ? 'Update GPS pin' : 'Add a precise GPS pin'}
+            style={styles.pinRow}>
+            <Icon name={coords ? 'location' : 'compass'} size={18} color={colors.sea} />
+            <Text style={styles.pinRowText}>
+              {locating
+                ? 'Getting your location…'
+                : coords
+                  ? `Location pinned (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`
+                  : 'Add a precise GPS pin (recommended)'}
+            </Text>
+          </Pressable>
         )}
       </ScrollView>
 
@@ -286,6 +335,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   mapText: { fontSize: font.sizes.lg, color: colors.sea, fontWeight: font.weights.semibold },
+  pinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.seaSoft,
+    borderRadius: radius.lg,
+  },
+  pinRowText: { flex: 1, fontSize: font.sizes.base, color: colors.sea, fontWeight: font.weights.medium },
   bottom: {
     position: 'absolute',
     left: 0,

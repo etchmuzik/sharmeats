@@ -11,9 +11,11 @@ import { useSession } from '../../src/store/session';
 import { db } from '../../src/data';
 import type { Address } from '../../src/data/types';
 import { tap, selection } from '../../src/haptics';
+import { useGoBack } from '../../src/lib/navigation';
 
 export default function AddressPicker() {
   const router = useRouter();
+  const goBack = useGoBack();
   const insets = useSafeAreaInsets();
   const t = useT();
   const selectedAddressId = useSession((s) => s.selectedAddressId);
@@ -99,7 +101,7 @@ export default function AddressPicker() {
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
-        <PrimaryButton label={t('address.useThis')} onPress={() => router.back()} />
+        <PrimaryButton label={t('address.useThis')} onPress={goBack} />
       </View>
     </View>
   );

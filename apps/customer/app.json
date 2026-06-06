@@ -1,26 +1,30 @@
 {
   "expo": {
-    "name": "sharmeats",
+    "name": "Sharm Eats",
     "slug": "sharmeats-customer",
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "sharmeats",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "splash": {
-      "resizeMode": "cover",
-      "backgroundColor": "#f3ead7"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#100e12"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "eg.sharmeats.customer",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location only when you add a delivery address, to drop a precise GPS pin so your driver can find your hotel, apartment, or beach spot. Location is never collected in the background or used for tracking."
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#f3ead7"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#100e12"
       },
       "package": "eg.sharmeats.customer"
     },
@@ -28,9 +32,22 @@
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "./plugins/withFmtConstevalFix.js"
+    ],
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d3628b78-b35a-4d15-a48a-c12b9579b682"
+      }
+    },
+    "owner": "etchmuzik"
   }
 }

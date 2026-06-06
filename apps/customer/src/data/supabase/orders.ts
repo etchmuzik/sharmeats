@@ -1,54 +1,97 @@
+/**
+ * Supabase orders adapter — RPC-backed (server authority).
+ *
+ * Order creation goes through the `place_order` RPC, NOT a direct insert. The
+ * server recomputes every price from DB values, validates the merchant/address/
+ * items, writes orders + order_items + the first status event atomically, and
+ * returns the authoritative total. The client total is never trusted.
+ *
+ * Payment:
+ *   - cash_on_delivery: place_order is the whole flow (settles on delivery).
+ *   - card: after place_order, call the paymob-create-intention edge function
+ *     and open the hosted checkout (caller uses startCardPayment + web browser).
+ *
+ * Live tracking:
+ *   - order status: Realtime postgres_changes on `orders` (subscribe()).
+ *   - driver GPS: Realtime BROADCAST on `order:{id}:driver_loc`
+ *     (subscribeDriverLocation()) — ephemeral, no DB writes.
+ */
 import { getSupabase } from './client';
 import { rowToOrder } from './mappers';
-import type { Order } from '../types';
+import type { Order, PaymentMethodKind } from '../types';
 import type { CreateOrderInput } from '../repositories/orders';
+
+/** Map the app's payment kind to the order's payment_method ('card' | 'cash_on_delivery'). */
+function toPaymentMethod(kind: PaymentMethodKind): 'card' | 'cash_on_delivery' {
+  // Card-like rails go through Paymob; everything else is cash-on-delivery at MVP.
+  return kind === 'card' || kind === 'apple_pay' ? 'card' : 'cash_on_delivery';
+}
+
+/** Build the RPC p_cart jsonb from the app's CartItem[]. */
+function toCartPayload(items: CreateOrderInput['items']) {
+  return items.map((ci) => ({
+    item_id: ci.itemId,
+    quantity: ci.quantity,
+    modifier_option_ids: ci.modifierChoices.map((c) => c.optionId),
+    notes: ci.notes ?? null,
+  }));
+}
+
+export interface DriverLocation {
+  lat: number;
+  lng: number;
+  heading?: number;
+  at: number;
+}
 
 export const ordersRepoSupabase = {
   async create(input: CreateOrderInput): Promise<Order> {
     const sb = getSupabase();
-    const { data: { user } } = await sb.auth.getUser();
+    const {
+      data: { user },
+    } = await sb.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const subtotal = input.items.reduce((acc, ci) => {
-      const mods = ci.modifierChoices.reduce((m, c) => m + c.priceDeltaEgp, 0);
-      return acc + (ci.basePriceEgp + mods) * ci.quantity;
-    }, 0);
-    const tax = Math.round(subtotal * (input.taxRate ?? 0.14));
-    const tip = input.tipEgp ?? 0;
-    const total = subtotal + input.deliveryFeeEgp + tax + tip;
-    const slaMinutes = 30;
-    const now = new Date();
-    const etaAt = new Date(now.getTime() + slaMinutes * 60_000);
+    // Server-authoritative creation. Client total/fee are IGNORED by the RPC.
+    const { data, error } = await sb.rpc('place_order', {
+      p_restaurant_id: input.restaurantId,
+      p_address_id: input.address.id,
+      p_cart: toCartPayload(input.items),
+      p_payment_method: toPaymentMethod(input.payment.kind),
+      p_tip: input.tipEgp ?? 0,
+      p_kitchen_notes: input.kitchenNotes ?? null,
+      p_promo_code: null,
+      p_scheduled_for: input.scheduledFor ? new Date(input.scheduledFor).toISOString() : null,
+    });
+    if (error) throw mapPlaceOrderError(error);
 
-    const { data, error } = await sb
-      .from('orders')
-      .insert({
-        user_id: user.id,
-        restaurant_id: input.restaurantId,
-        restaurant_name: input.restaurantName,
-        address_id: input.address.id,
-        address_snapshot: input.address,
-        items: input.items,
-        subtotal_egp: subtotal,
-        delivery_fee_egp: input.deliveryFeeEgp,
-        tax_egp: tax,
-        tip_egp: tip,
-        total_egp: total,
-        payment_method_kind: input.payment.kind,
-        payment_label: input.payment.label,
-        status: 'placed',
-        history: [{ status: 'placed', at: now.getTime() }],
-        placed_at: now.toISOString(),
-        eta_at: etaAt.toISOString(),
-        sla_minutes: slaMinutes,
-        kitchen_notes: input.kitchenNotes ?? null,
-        aggregate_allergens: input.aggregateAllergens ?? null,
-        scheduled_for: input.scheduledFor ? new Date(input.scheduledFor).toISOString() : null,
-      })
-      .select()
-      .single();
+    // place_order returns [{ id, short_code, total_egp }]. Re-read the full order.
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row?.id) throw new Error('place_order returned no order id');
+
+    const order = await this.get(row.id as string);
+    if (!order) throw new Error('Order created but could not be read back');
+    return order;
+  },
+
+  /**
+   * For card orders: create a Paymob intention and return the hosted checkout
+   * URL. The caller opens it with expo-web-browser. The paymob-webhook flips
+   * payment_status to 'paid' server-side. Returns null for COD orders.
+   */
+  async startCardPayment(orderId: string): Promise<{ checkoutUrl: string } | null> {
+    const sb = getSupabase();
+    const {
+      data: { session },
+    } = await sb.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await sb.functions.invoke('paymob-create-intention', {
+      body: { orderId },
+    });
     if (error) throw error;
-    return rowToOrder(data);
+    if (!data?.checkoutUrl) return null;
+    return { checkoutUrl: data.checkoutUrl as string };
   },
 
   async get(id: string): Promise<Order | null> {
@@ -74,7 +117,7 @@ export const ordersRepoSupabase = {
     const { data, error } = await getSupabase()
       .from('orders')
       .select('*')
-      .not('status', 'in', '(delivered,cancelled)')
+      .not('status', 'in', '(delivered,cancelled,rejected)')
       .order('placed_at', { ascending: false });
     if (error) throw error;
     return (data ?? []).map(rowToOrder);
@@ -84,16 +127,17 @@ export const ordersRepoSupabase = {
     const { data, error } = await getSupabase()
       .from('orders')
       .select('*')
-      .in('status', ['delivered', 'cancelled'])
+      .in('status', ['delivered', 'cancelled', 'rejected'])
       .order('placed_at', { ascending: false });
     if (error) throw error;
     return (data ?? []).map(rowToOrder);
   },
 
+  /** Subscribe to order status changes (Realtime postgres_changes). */
   subscribe(orderId: string, cb: (o: Order) => void): () => void {
     const sb = getSupabase();
     const channel = sb
-      .channel(`order:${orderId}`)
+      .channel(`order:${orderId}:status`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
@@ -107,22 +151,44 @@ export const ordersRepoSupabase = {
     };
   },
 
-  async forceDelivered(orderId: string): Promise<Order | null> {
+  /**
+   * Subscribe to the driver's live GPS for an order via Realtime BROADCAST.
+   * The driver app broadcasts {lat,lng,heading} on `order:{id}:driver_loc`.
+   * Ephemeral — no DB writes. Only subscribe while the tracking screen is open.
+   */
+  subscribeDriverLocation(orderId: string, cb: (loc: DriverLocation) => void): () => void {
     const sb = getSupabase();
-    const { data: existing } = await sb.from('orders').select('history').eq('id', orderId).single();
-    const hist = Array.isArray(existing?.history) ? existing.history : [];
-    const { data, error } = await sb
-      .from('orders')
-      .update({
-        status: 'delivered',
-        delivered_at: new Date().toISOString(),
-        history: [...hist, { status: 'delivered', at: Date.now() }],
+    const channel = sb
+      .channel(`order:${orderId}:driver_loc`, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'loc' }, (msg) => {
+        const p = msg.payload as DriverLocation;
+        if (p && typeof p.lat === 'number' && typeof p.lng === 'number') cb(p);
       })
-      .eq('id', orderId)
-      .select()
-      .single();
+      .subscribe();
+    return () => {
+      sb.removeChannel(channel);
+    };
+  },
+
+  /**
+   * Debug-only "mark delivered" from the customer screen. In the REAL flow the
+   * customer cannot force-deliver their own order (status advances via the
+   * driver/merchant through advance_order_status, gated by RLS). We keep the
+   * method to satisfy the shared repo interface, but it just re-reads the order
+   * unchanged so the debug button is a harmless no-op against live data.
+   */
+  async forceDelivered(orderId: string): Promise<Order | null> {
+    return this.get(orderId);
+  },
+
+  /** Customer-initiated cancel (only legal while 'placed' — enforced server-side). */
+  async cancel(orderId: string, reason?: string): Promise<void> {
+    const { error } = await getSupabase().rpc('advance_order_status', {
+      p_order_id: orderId,
+      p_new_status: 'cancelled',
+      p_note: reason ?? null,
+    });
     if (error) throw error;
-    return data ? rowToOrder(data) : null;
   },
 
   async submitReview(
@@ -131,13 +197,10 @@ export const ordersRepoSupabase = {
     ratingDelivery: number,
     comment: string,
   ): Promise<Order | null> {
+    // Ratings are owner-updatable (legacy orders_owner_update_rating policy).
     const { data, error } = await getSupabase()
       .from('orders')
-      .update({
-        rating_food: ratingFood,
-        rating_delivery: ratingDelivery,
-        rating_comment: comment,
-      })
+      .update({ rating_food: ratingFood, rating_delivery: ratingDelivery, rating_comment: comment })
       .eq('id', orderId)
       .select()
       .single();
@@ -145,3 +208,25 @@ export const ordersRepoSupabase = {
     return data ? rowToOrder(data) : null;
   },
 };
+
+/** Turn RPC check_violation codes into friendly, user-facing errors. */
+function mapPlaceOrderError(error: { message?: string }): Error {
+  const msg = error.message ?? '';
+  const map: Record<string, string> = {
+    EMPTY_CART: 'Your cart is empty.',
+    MERCHANT_CLOSED: 'This restaurant is currently closed.',
+    MERCHANT_NOT_FOUND: 'Restaurant not found.',
+    CASH_NOT_ACCEPTED: 'This restaurant does not accept cash on delivery.',
+    CARD_NOT_ACCEPTED: 'This restaurant does not accept card payments.',
+    ADDRESS_NOT_FOUND: 'Please choose a valid delivery address.',
+    ITEM_NOT_FOUND: 'One of your items is no longer available.',
+    ITEM_UNAVAILABLE: 'One of your items is currently unavailable.',
+    BELOW_MIN_ORDER: 'Your order is below the restaurant minimum.',
+    INVALID_QTY: 'Invalid item quantity.',
+    AUTH_REQUIRED: 'Please sign in to place your order.',
+  };
+  for (const key of Object.keys(map)) {
+    if (msg.includes(key)) return new Error(map[key]);
+  }
+  return new Error(msg || 'Could not place your order. Please try again.');
+}

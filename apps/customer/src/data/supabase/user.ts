@@ -1,6 +1,7 @@
 import { getSupabase } from './client';
 import { rowToAddress, rowToPaymentMethod, rowToUser } from './mappers';
 import type { Address, PaymentMethod, User } from '../types';
+import { isPaymentMethodEnabled } from '../../lib/payments';
 
 export const userRepoSupabase = {
   async getMe(): Promise<User> {
@@ -52,6 +53,10 @@ export const userRepoSupabase = {
     const sb = getSupabase();
     const { data: { user } } = await sb.auth.getUser();
     if (!user) throw new Error('Not authenticated');
+    // Write the GPS pin as PostGIS EWKT (geography column accepts this string).
+    // Captured for every kind so the driver always has a map point.
+    const geo =
+      a.lat != null && a.lng != null ? `SRID=4326;POINT(${a.lng} ${a.lat})` : null;
     const { data, error } = await sb
       .from('addresses')
       .insert({
@@ -68,6 +73,7 @@ export const userRepoSupabase = {
         landmark: a.landmark ?? null,
         beach_name: a.beachName ?? null,
         is_default: a.isDefault ?? false,
+        geo,
       })
       .select()
       .single();
@@ -96,7 +102,7 @@ export const userRepoSupabase = {
       .select('*')
       .order('is_default', { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(rowToPaymentMethod);
+    return (data ?? []).map(rowToPaymentMethod).filter(isPaymentMethodEnabled);
   },
 
   async setDefaultPaymentMethod(id: string): Promise<PaymentMethod[]> {

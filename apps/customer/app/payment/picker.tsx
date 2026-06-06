@@ -1,29 +1,32 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
+import { Icon, type IconName } from '../../src/components/Icon';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { useT } from '../../src/i18n';
+import { useDirection } from '../../src/lib/direction';
 import { db } from '../../src/data';
 import type { PaymentMethod } from '../../src/data/types';
 import { selection } from '../../src/haptics';
+import { useGoBack } from '../../src/lib/navigation';
 
-const ICON: Record<PaymentMethod['kind'], string> = {
-  cash: '💵',
-  vodafone_cash: '📱',
-  instapay: '💸',
-  fawry: '🟧',
-  card: '💳',
-  apple_pay: '',
+const ICON: Record<PaymentMethod['kind'], IconName> = {
+  cash: 'cash',
+  vodafone_cash: 'wallet',
+  instapay: 'transfer',
+  fawry: 'receipt',
+  card: 'card',
+  apple_pay: 'card',
 };
 
 export default function PaymentPicker() {
-  const router = useRouter();
+  const goBack = useGoBack('/checkout');
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [chosen, setChosen] = useState<string | null>(null);
 
@@ -38,7 +41,7 @@ export default function PaymentPicker() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="dark" />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
-        <BackButton />
+        <BackButton fallback="/checkout" />
         <Text style={styles.title}>{t('payment.title')}</Text>
         <View style={{ width: 38 }} />
       </View>
@@ -53,11 +56,16 @@ export default function PaymentPicker() {
                 selection();
                 setChosen(m.id);
               }}
-              style={[styles.card, isSel && styles.cardActive]}>
-              <Text style={styles.icon}>{ICON[m.kind] || '💳'}</Text>
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSel }}
+              accessibilityLabel={`${m.label}${m.subline ? `, ${m.subline}` : ''}`}
+              style={[styles.card, dir.row, isSel && styles.cardActive]}>
+              <View style={styles.icon}>
+                <Icon name={ICON[m.kind] ?? 'card'} size={24} color={colors.ink} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>{m.label}</Text>
-                <Text style={styles.sub}>{m.subline}</Text>
+                <Text style={[styles.label, dir.text]}>{m.label}</Text>
+                <Text style={[styles.sub, dir.text]}>{m.subline}</Text>
               </View>
               <View
                 style={[
@@ -76,7 +84,7 @@ export default function PaymentPicker() {
           label={t('common.save')}
           onPress={async () => {
             if (chosen) await db.user.setDefaultPaymentMethod(chosen);
-            router.back();
+            goBack();
           }}
         />
       </View>
@@ -106,7 +114,7 @@ const styles = StyleSheet.create({
     ...shadow.soft,
   },
   cardActive: { borderColor: colors.accent },
-  icon: { fontSize: 28, width: 38, textAlign: 'center' },
+  icon: { width: 38, alignItems: 'center' },
   label: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
   sub: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },
   radio: {

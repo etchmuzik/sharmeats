@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, Image } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, shadow } from '../../src/theme';
+import { Icon, type IconName } from '../../src/components/Icon';
 import { useT, LOCALE_LABELS } from '../../src/i18n';
+import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { tap } from '../../src/haptics';
 import { db } from '../../src/data';
 import type { User } from '../../src/data/types';
 
 interface Row {
-  icon: string;
+  icon: IconName;
   label: string;
   value?: string;
   onPress: () => void;
@@ -22,6 +24,7 @@ export default function ProfileTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
   const locale = useSession((s) => s.locale);
   const currency = useSession((s) => s.currency);
   const phone = useSession((s) => s.phone);
@@ -33,40 +36,19 @@ export default function ProfileTab() {
   }, []);
 
   const rows: Row[] = [
+    { icon: 'location', label: t('profile.addresses'), onPress: () => router.push('/address/picker') },
+    { icon: 'card', label: t('profile.payment'), onPress: () => router.push('/payment/picker') },
     {
-      icon: '📍',
-      label: t('profile.addresses'),
-      onPress: () => router.push('/address/picker'),
-    },
-    {
-      icon: '💳',
-      label: t('profile.payment'),
-      onPress: () => router.push('/payment/picker'),
-    },
-    {
-      icon: '🌐',
+      icon: 'globe',
       label: t('profile.language'),
       value: LOCALE_LABELS[locale],
       onPress: () => router.push('/settings'),
     },
+    { icon: 'currency', label: t('profile.currency'), value: currency, onPress: () => router.push('/settings') },
+    { icon: 'bell', label: t('profile.notifications'), onPress: () => router.push('/settings') },
+    { icon: 'help', label: t('profile.help'), onPress: () => router.push('/help') },
     {
-      icon: '💱',
-      label: t('profile.currency'),
-      value: currency,
-      onPress: () => router.push('/settings'),
-    },
-    {
-      icon: '🔔',
-      label: t('profile.notifications'),
-      onPress: () => router.push('/settings'),
-    },
-    {
-      icon: '❓',
-      label: t('profile.help'),
-      onPress: () => router.push('/help'),
-    },
-    {
-      icon: '🚪',
+      icon: 'signout',
       label: t('profile.signOut'),
       onPress: () => {
         signOut();
@@ -82,7 +64,11 @@ export default function ProfileTab() {
       <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}>
         <View style={[styles.head, { paddingTop: insets.top + 14 }]}>
           <View style={styles.avatar}>
-            <Image source={{ uri: 'https://i.pravatar.cc/120?img=12' }} style={styles.avatarImg} />
+            {me?.displayName && me.displayName.toLowerCase() !== 'guest' ? (
+              <Text style={styles.avatarInitial}>{me.displayName.charAt(0).toUpperCase()}</Text>
+            ) : (
+              <Icon name="person" size={40} color={colors.sea} />
+            )}
           </View>
           <Text style={styles.name}>{me?.displayName ?? 'Guest'}</Text>
           <Text style={styles.phone}>{phone ?? me?.phone}</Text>
@@ -96,21 +82,22 @@ export default function ProfileTab() {
                 tap();
                 r.onPress();
               }}
+              accessibilityRole="button"
+              accessibilityLabel={r.value ? `${r.label}, ${r.value}` : r.label}
               style={({ pressed }) => [
                 styles.row,
+                dir.row,
                 i < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.line },
                 pressed && { backgroundColor: colors.bgSoft },
               ]}>
-              <Text style={styles.rowIcon}>{r.icon}</Text>
-              <Text
-                style={[
-                  styles.rowLabel,
-                  r.destructive && { color: colors.red },
-                ]}>
+              <View style={styles.rowIcon}>
+                <Icon name={r.icon} size={20} color={r.destructive ? colors.red : colors.ink2} />
+              </View>
+              <Text style={[styles.rowLabel, dir.text, r.destructive && { color: colors.red }]}>
                 {r.label}
               </Text>
               {r.value && <Text style={styles.rowValue}>{r.value}</Text>}
-              <Text style={styles.chev}>›</Text>
+              <Icon name={dir.isRtl ? 'chevronBack' : 'chevronForward'} size={18} color={colors.ink3} />
             </Pressable>
           ))}
         </View>
@@ -126,12 +113,14 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: 44,
     overflow: 'hidden',
-    backgroundColor: colors.white,
+    backgroundColor: colors.seaSoft,
     borderWidth: 3,
     borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...shadow.card,
   },
-  avatarImg: { width: '100%', height: '100%' },
+  avatarInitial: { fontSize: 38, fontWeight: font.weights.extrabold, color: colors.sea },
   name: { fontSize: font.sizes['7xl'], fontWeight: font.weights.extrabold, color: colors.ink, marginTop: 12, letterSpacing: -0.4 },
   phone: { fontSize: font.sizes.lg, color: colors.ink2, marginTop: 4 },
   section: {
@@ -144,8 +133,7 @@ const styles = StyleSheet.create({
     ...shadow.soft,
   },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 },
-  rowIcon: { fontSize: 20, width: 26, textAlign: 'center' },
+  rowIcon: { width: 26, alignItems: 'center' },
   rowLabel: { flex: 1, fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.semibold },
-  rowValue: { fontSize: font.sizes.lg, color: colors.ink2, marginRight: 4 },
-  chev: { fontSize: 22, color: colors.ink3, lineHeight: 22 },
+  rowValue: { fontSize: font.sizes.lg, color: colors.ink2, marginHorizontal: 4 },
 });

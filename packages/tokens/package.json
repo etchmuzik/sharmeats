@@ -1,0 +1,12 @@
+{
+  "name": "@sharmeats/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-neutral design tokens (Sharm sand/sea palette). Consumed by RN StyleSheet (customer/driver) and as CSS variables (merchant/admin dashboards).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./css": "./src/css.ts"
+  }
+}

@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { KitchenBriefing } from '../src/components/KitchenBriefing';
+import { Icon, type IconName } from '../src/components/Icon';
 import { colors, font, radius, shadow } from '../src/theme';
 import { useT } from '../src/i18n';
+import { useDirection } from '../src/lib/direction';
 import { useCart } from '../src/store/cart';
 import { useSession, type Currency } from '../src/store/session';
 import { db } from '../src/data';
@@ -20,6 +23,7 @@ export default function Checkout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
   const lines = useCart((s) => s.lines);
   const restaurantId = useCart((s) => s.restaurantId);
   const restaurantName = useCart((s) => s.restaurantName);
@@ -41,6 +45,7 @@ export default function Checkout() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [kitchenNotes, setKitchenNotes] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Generate 8 half-hour slots starting at the next half hour, capped at ~4h.
   const scheduleSlots = useMemo<number[]>(() => {
@@ -86,10 +91,13 @@ export default function Checkout() {
   const tax = useMemo(() => Math.round(subtotal * 0.14), [subtotal]);
   const total = subtotal + deliveryFee + tax + tipEgp;
 
+  const isCard = payment?.kind === 'card' || payment?.kind === 'apple_pay';
+
   const place = async () => {
     if (!restaurant || !address || !payment || lines.length === 0) return;
     setPlacing(true);
     try {
+      // place_order (server-authoritative). Returns the created order.
       const order = await db.orders.create({
         restaurantId: restaurant.id,
         restaurantName: restaurant.name,
@@ -102,9 +110,25 @@ export default function Checkout() {
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
         scheduledFor: scheduledFor ?? undefined,
       });
+
+      // Card payment: open Paymob hosted checkout. The order stays 'pending'
+      // (and hidden from the merchant) until the HMAC-verified webhook flips it
+      // to 'paid'. COD orders skip this entirely and go straight to tracking.
+      if (isCard) {
+        const intent = await db.orders.startCardPayment(order.id);
+        if (intent?.checkoutUrl) {
+          // Opens the secure hosted checkout; card data never touches the app.
+          await WebBrowser.openBrowserAsync(intent.checkoutUrl);
+          // On return we route to tracking; the webhook confirms payment
+          // out-of-band, so the tracking screen reflects the real status.
+        }
+      }
+
       success();
       clear();
       router.replace(`/order/${order.id}`);
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : 'Could not place your order.');
     } finally {
       setPlacing(false);
     }
@@ -144,15 +168,15 @@ export default function Checkout() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 200 }}>
         {/* Address card */}
         <View style={styles.card}>
-          <View style={styles.cardHead}>
+          <View style={[styles.cardHead, dir.row]}>
             <Text style={styles.cardTitle}>{t('checkout.deliverTo')}</Text>
             <Pressable onPress={() => router.push('/address/picker')}>
               <Text style={styles.edit}>{t('checkout.change')}</Text>
             </Pressable>
           </View>
-          <View style={styles.addr}>
+          <View style={[styles.addr, dir.row]}>
             <View style={styles.pin}>
-              <Text style={{ color: colors.white, fontSize: 18 }}>📍</Text>
+              <Icon name="location" size={18} color={colors.white} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.hotelName}>{addrText}</Text>
@@ -203,9 +227,10 @@ export default function Checkout() {
                 selection();
                 setScheduledFor(null);
               }}
-              style={[styles.timingChip, scheduledFor === null && styles.timingChipActive]}>
+              style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
+              <Icon name="bolt" size={14} color={scheduledFor === null ? colors.white : colors.accent} />
               <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.white }]}>
-                ⚡ {t('checkout.timingAsap')}
+                {t('checkout.timingAsap')}
               </Text>
             </Pressable>
             {scheduleSlots.map((slot) => {
@@ -226,9 +251,12 @@ export default function Checkout() {
             })}
           </View>
           {scheduledFor !== null && (
-            <Text style={styles.scheduledLine}>
-              📅 {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor)) })}
-            </Text>
+            <View style={styles.scheduledLineRow}>
+              <Icon name="calendar" size={15} color={colors.sea} />
+              <Text style={styles.scheduledLine}>
+                {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor)) })}
+              </Text>
+            </View>
           )}
         </View>
 
@@ -241,12 +269,16 @@ export default function Checkout() {
 
         {/* Payment card */}
         <View style={styles.card}>
-          <View style={styles.cardHead}>
+          <View style={[styles.cardHead, dir.row]}>
             <Text style={styles.cardTitle}>{t('checkout.payWith')}</Text>
             {showCurrencyPicker && (
-              <Pressable onPress={() => setCurrencyOpen((o) => !o)}>
+              <Pressable
+                onPress={() => setCurrencyOpen((o) => !o)}
+                accessibilityRole="button"
+                accessibilityLabel={t('checkout.changeCurrency')}>
                 <View style={styles.currencyChip}>
-                  <Text style={styles.currencyText}>{currency} ⇄</Text>
+                  <Text style={styles.currencyText}>{currency}</Text>
+                  <Icon name="transfer" size={13} color={colors.sea} />
                 </View>
               </Pressable>
             )}
@@ -267,13 +299,19 @@ export default function Checkout() {
               ))}
             </View>
           )}
-          <Pressable onPress={() => router.push('/payment/picker')} style={styles.payChosen}>
-            <Text style={styles.payIcon}>{paymentIcon(payment?.kind)}</Text>
+          <Pressable
+            onPress={() => router.push('/payment/picker')}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('checkout.payWith')}: ${payment?.label ?? t('checkout.choosePayment')}`}
+            style={styles.payChosen}>
+            <View style={styles.payIcon}>
+              <Icon name={paymentIconName(payment?.kind)} size={22} color={colors.ink} />
+            </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.payLabel}>{payment?.label ?? 'Choose payment'}</Text>
+              <Text style={styles.payLabel}>{payment?.label ?? t('checkout.choosePayment')}</Text>
               <Text style={styles.paySub}>{payment?.subline ?? ''}</Text>
             </View>
-            <Text style={styles.chev}>›</Text>
+            <Icon name="chevronForward" size={20} color={colors.ink3} />
           </Pressable>
         </View>
 
@@ -299,25 +337,25 @@ export default function Checkout() {
 
         {/* Totals */}
         <View style={styles.card}>
-          <View style={styles.totRow}>
+          <View style={[styles.totRow, dir.row]}>
             <Text style={styles.totLabel}>{t('checkout.subtotal')}</Text>
             <Text style={styles.totVal}>{formatEgp(subtotal)}</Text>
           </View>
-          <View style={styles.totRow}>
+          <View style={[styles.totRow, dir.row]}>
             <Text style={styles.totLabel}>{t('checkout.delivery')}</Text>
             <Text style={styles.totVal}>{formatEgp(deliveryFee)}</Text>
           </View>
-          <View style={styles.totRow}>
+          <View style={[styles.totRow, dir.row]}>
             <Text style={styles.totLabel}>{t('checkout.tax')}</Text>
             <Text style={styles.totVal}>{formatEgp(tax)}</Text>
           </View>
           {tipEgp > 0 && (
-            <View style={styles.totRow}>
+            <View style={[styles.totRow, dir.row]}>
               <Text style={styles.totLabel}>{t('checkout.tip')}</Text>
               <Text style={styles.totVal}>{formatEgp(tipEgp)}</Text>
             </View>
           )}
-          <View style={[styles.totRow, styles.totTotal]}>
+          <View style={[styles.totRow, styles.totTotal, dir.row]}>
             <Text style={styles.totTotalLabel}>{t('checkout.total')}</Text>
             <Text style={styles.totTotalVal}>{formatEgp(total)}</Text>
           </View>
@@ -333,8 +371,26 @@ export default function Checkout() {
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
+        {paymentError && (
+          <View style={styles.payErr}>
+            <Text style={styles.payErrText}>{paymentError}</Text>
+          </View>
+        )}
+        {isCard && (
+          <Text style={styles.cardHint}>
+            {t('checkout.cardHint') !== 'checkout.cardHint'
+              ? t('checkout.cardHint')
+              : "You'll complete payment securely on the next screen."}
+          </Text>
+        )}
         <PrimaryButton
-          label={t('checkout.place', { amount: formatEgp(total) })}
+          label={
+            isCard
+              ? t('checkout.payCard', { amount: formatEgp(total) }) !== 'checkout.payCard'
+                ? t('checkout.payCard', { amount: formatEgp(total) })
+                : `Pay ${formatEgp(total)}`
+              : t('checkout.place', { amount: formatEgp(total) })
+          }
           onPress={place}
           disabled={placing || !address || !payment || lines.length === 0}
         />
@@ -343,22 +399,21 @@ export default function Checkout() {
   );
 }
 
-function paymentIcon(kind?: PaymentMethod['kind']): string {
+function paymentIconName(kind?: PaymentMethod['kind']): IconName {
   switch (kind) {
     case 'cash':
-      return '💵';
+      return 'cash';
     case 'vodafone_cash':
-      return '📱';
+      return 'wallet';
     case 'instapay':
-      return '💸';
+      return 'transfer';
     case 'fawry':
-      return '🟧';
+      return 'receipt';
     case 'card':
-      return '💳';
     case 'apple_pay':
-      return '';
+      return 'card';
     default:
-      return '➜';
+      return 'chevronForward';
   }
 }
 
@@ -411,7 +466,15 @@ const styles = StyleSheet.create({
   cartName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.semibold },
   cartMods: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
   cartPrice: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.ink },
-  currencyChip: { backgroundColor: colors.seaSoft, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5 },
+  currencyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.seaSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
   currencyText: { color: colors.sea, fontSize: font.sizes.md, fontWeight: font.weights.bold },
   currencyRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
   curBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.bgSoft },
@@ -426,7 +489,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.bgSoft,
   },
-  payIcon: { fontSize: 22, width: 28, textAlign: 'center' },
+  payIcon: { width: 28, alignItems: 'center' },
   payLabel: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
   paySub: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },
   chev: { fontSize: 22, color: colors.ink3 },
@@ -439,10 +502,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
+  timingChipAsap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bgSoft,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
   timingChipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   timingChipText: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
+  scheduledLineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   scheduledLine: {
-    marginTop: 10,
     fontSize: font.sizes.lg,
     color: colors.sea,
     fontWeight: font.weights.bold,
@@ -481,5 +555,22 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
+  },
+  cardHint: {
+    fontSize: font.sizes.sm,
+    color: colors.ink3,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  payErr: {
+    backgroundColor: colors.redSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  payErrText: {
+    color: colors.red,
+    fontSize: font.sizes.sm,
   },
 });

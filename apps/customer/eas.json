@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 19.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co",
+        "EXPO_PUBLIC_USE_SUPABASE": "true",
+        "EXPO_PUBLIC_PAYMENTS_CARD_ENABLED": "false"
+      },
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "./credentials/AuthKey_C4TFQQ5AAD.p8",
+        "ascApiKeyId": "C4TFQQ5AAD",
+        "ascApiKeyIssuerId": "d19fd03e-1f5b-44b1-a3e9-519b25a39274",
+        "ascAppId": "6776864451"
+      }
+    }
+  }
+}
