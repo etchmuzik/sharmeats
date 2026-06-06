@@ -35,6 +35,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      "react-native-maps",
       "./plugins/withFmtConstevalFix.js"
     ],
     "experiments": {

@@ -11,11 +11,10 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
-import { Icon } from '../../src/components/Icon';
+import { MapPinPicker, type LatLng } from '../../src/components/MapPinPicker';
 import { colors, font, radius } from '../../src/theme';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
@@ -45,44 +44,35 @@ export default function AddAddress() {
   const [landmark, setLandmark] = useState('');
 
   const [beachName, setBeachName] = useState('');
-  const [pinPlaced, setPinPlaced] = useState(false);
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [locating, setLocating] = useState(false);
+  const [coords, setCoords] = useState<LatLng | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Capture a real GPS pin so the driver always has a map point (every kind).
-  const captureLocation = async () => {
-    setLocating(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocating(false);
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      setPinPlaced(true);
-      selection();
-    } catch {
-      // keep silent; user can still save without a pin
-    } finally {
-      setLocating(false);
-    }
+  const pinLabels = {
+    hint: t('address.pinHint'),
+    pinned: coords
+      ? `${t('address.pinned')} (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`
+      : t('address.pinned'),
+    locateMe: t('address.locateMe'),
+    locating: t('address.locating'),
+    denied: t('address.locationDenied'),
   };
 
   useEffect(() => {
     if (kind === 'hotel') db.hotels.search(hotelQuery).then(setHotels);
   }, [hotelQuery, kind]);
 
+  // A beach pin must have a location; hotels/street are saveable without one
+  // (the pin is recommended, not required, since they have structured fields).
   const canSave =
     kind === 'hotel'
       ? !!pickedHotel && room.trim().length > 0
       : kind === 'street'
         ? street.trim().length > 0
-        : beachName.trim().length > 0 && pinPlaced;
+        : beachName.trim().length > 0 && !!coords;
 
   const save = async () => {
+    if (saving) return; // guard against double-tap → duplicate insert
     const geo = coords ? { lat: coords.lat, lng: coords.lng } : {};
     let a: Address;
     if (kind === 'hotel' && pickedHotel) {
@@ -122,15 +112,27 @@ export default function AddAddress() {
       a = {
         id: `a-${Date.now()}`,
         kind: 'beach_pin',
-        label: 'Beach pin',
+        label: t('address.beachPin'),
         beachName: beachName.trim(),
         ...geo,
       };
     }
-    await db.user.addAddress(a);
-    setSelectedAddressId(a.id);
-    success();
-    goBack();
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Persist and use the SERVER-returned id (the DB assigns a real UUID;
+      // the local `a-${Date.now()}` id is not the row's id). Selecting the
+      // returned id ensures checkout points at the address that was just saved.
+      const saved = await db.user.addAddress(a);
+      setSelectedAddressId(saved.id);
+      success();
+      goBack();
+    } catch {
+      setSaveError(t('address.saveError'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -245,42 +247,26 @@ export default function AddAddress() {
               placeholder="Sharks Bay Beach Club"
               placeholderTextColor={colors.ink3}
             />
-            <Text style={styles.label}>Location pin</Text>
-            <Pressable onPress={captureLocation} style={styles.mapMock}>
-              <Text style={{ fontSize: 32 }}>{coords ? '📍' : '🗺️'}</Text>
-              <Text style={styles.mapText}>
-                {locating
-                  ? 'Getting your location…'
-                  : coords
-                    ? `Pinned (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`
-                    : t('address.beachHint')}
-              </Text>
-            </Pressable>
           </>
         )}
 
-        {/* Universal GPS pin — hotels & apartments get a pin too, so the driver
-            always has a precise map point regardless of the structured fields. */}
-        {kind !== 'beach_pin' && (
-          <Pressable
-            onPress={captureLocation}
-            accessibilityRole="button"
-            accessibilityLabel={coords ? 'Update GPS pin' : 'Add a precise GPS pin'}
-            style={styles.pinRow}>
-            <Icon name={coords ? 'location' : 'compass'} size={18} color={colors.sea} />
-            <Text style={styles.pinRowText}>
-              {locating
-                ? 'Getting your location…'
-                : coords
-                  ? `Location pinned (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`
-                  : 'Add a precise GPS pin (recommended)'}
-            </Text>
-          </Pressable>
+        {/* Interactive map pin — every address kind gets one so the driver always
+            has a precise point. Required for a beach pin (no structured fields);
+            recommended (but optional) for hotels & apartments. */}
+        <Text style={styles.label}>{t('address.pinTitle')}</Text>
+        {kind !== 'beach_pin' && !coords && (
+          <Text style={styles.pinNudge}>{t('address.pinRecommended')}</Text>
         )}
+        <MapPinPicker value={coords} onChange={setCoords} labels={pinLabels} />
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
-        <PrimaryButton label={t('common.save')} onPress={save} disabled={!canSave} />
+        {saveError && <Text style={styles.saveError}>{saveError}</Text>}
+        <PrimaryButton
+          label={saving ? t('address.saving') : t('common.save')}
+          onPress={save}
+          disabled={!canSave || saving}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -326,26 +312,8 @@ const styles = StyleSheet.create({
   segBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: colors.bgSoft },
   segBtnActive: { backgroundColor: colors.ink },
   segText: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
-  mapMock: {
-    height: 180,
-    backgroundColor: colors.seaSoft,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  mapText: { fontSize: font.sizes.lg, color: colors.sea, fontWeight: font.weights.semibold },
-  pinRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: colors.seaSoft,
-    borderRadius: radius.lg,
-  },
-  pinRowText: { flex: 1, fontSize: font.sizes.base, color: colors.sea, fontWeight: font.weights.medium },
+  pinNudge: { fontSize: font.sizes.base, color: colors.ink2, marginTop: -6 },
+  saveError: { fontSize: font.sizes.base, color: colors.accentDark, fontWeight: font.weights.medium, marginBottom: 10, textAlign: 'center' },
   bottom: {
     position: 'absolute',
     left: 0,
