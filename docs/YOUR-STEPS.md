@@ -92,7 +92,45 @@ and resubmits in place.
 
 ---
 
-## 4. Housekeeping (low priority)
+## 4. Android → Google Play (optional second platform)
+
+The code is already cross-platform (Expo SDK 52 / RN 0.76; no iOS-only deps, no
+maps key needed, no broken `Platform.OS` branches). Android **build + submit
+profiles are wired** in both `apps/*/eas.json` (preview = sideloadable APK,
+production = Play `.aab`). EAS already minted the Android **release keystores**
+on first build. What's left is Google's accounts + listings — only you can do
+the account parts.
+
+1. ☐ **Create a Google Play Developer account** — **one-time $25** at
+   <https://play.google.com/console/signup>. Complete identity verification
+   (personal or org; org needs a D-U-N-S and can take a few days).
+2. ☐ **Create a Google Cloud service-account JSON** and link it to Play
+   (Play Console → Setup → API access), so `eas submit` can upload headlessly —
+   the Android equivalent of the iOS ASC API key. Save the JSON outside git
+   (e.g. `apps/<app>/credentials/play-service-account.json`, gitignored) and add
+   `"serviceAccountKeyPath"` to the `submit.production.android` block in each
+   `eas.json`.
+3. ☐ **Create two app listings** in Play Console: "Sharm Eats" (`eg.sharmeats.customer`)
+   and "Sharm Eats Driver" (`eg.sharmeats.driver`). Reuse the existing icon +
+   screenshots + descriptions from the iOS listings. Fill the **content rating**
+   questionnaire, the **data-safety** form (mirror `/privacy`), and target audience.
+4. ☐ **Build + submit** (assistant can run once the account + key exist):
+   ```bash
+   cd apps/customer && eas build -p android --profile production --auto-submit
+   cd apps/driver   && eas build -p android --profile production --auto-submit
+   ```
+   These upload `.aab`s to the Play **internal testing** track (`releaseStatus:
+   draft`). Promote to production in Play Console when ready.
+
+> A sideloadable **APK** preview build of each app is available now (EAS →
+> sharmeats-customer / sharmeats-driver → latest Android build) to test on a real
+> Android phone before you pay Google anything. Note: push notifications aren't
+> wired on **either** platform yet — if added later, Android needs an FCM
+> `google-services.json`.
+
+---
+
+## 5. Housekeeping (low priority)
 
 - **Rotate the Hostinger API token** pasted in chat earlier (hPanel → Account →
   API → revoke, regenerate).
