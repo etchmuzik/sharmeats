@@ -142,6 +142,10 @@ export default function PrivacyPage() {
               >
                 privacy@sharmeats.online
               </a>
+              . See also our{' '}
+              <Link href="/terms" className="font-medium text-accent hover:underline">
+                Terms of Service
+              </Link>
               .
             </p>
           </section>
