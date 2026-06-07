@@ -32,6 +32,8 @@ export type IconName =
   | 'hotel'
   | 'beach'
   | 'compass'
+  | 'navigate'
+  | 'restaurant'
   | 'phone'
   | 'chat'
   | 'check'
@@ -63,6 +65,8 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   hotel: 'business-outline',
   beach: 'umbrella-outline',
   compass: 'compass-outline',
+  navigate: 'navigate',
+  restaurant: 'restaurant-outline',
   phone: 'call',
   chat: 'chatbubble-ellipses',
   check: 'checkmark',

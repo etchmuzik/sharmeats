@@ -12,6 +12,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { advance, collectCod, fetchJob, type Job } from '../../src/jobs';
 import { startStreaming, stopStreaming } from '../../src/location';
+import { parseWkbPoint } from '../../src/geo';
+import { openDirections } from '../../src/navigation';
 import { colors, font, radius, spacing } from '../../src/theme';
 import { Icon } from '../../src/components/Icon';
 import { useToast } from '../../src/components/Toast';
@@ -106,7 +108,21 @@ export default function JobScreen() {
     } finally {
       setBusy(false);
     }
-  }, [id, job, router]);
+  }, [id, job, router, toast]);
+
+  const navigateTo = useCallback(
+    async (kind: 'restaurant' | 'dropoff') => {
+      if (!job) return;
+      const point =
+        kind === 'restaurant'
+          ? parseWkbPoint(job.restaurant_geo)
+          : parseWkbPoint(job.dropoff_geo);
+      const label = kind === 'restaurant' ? job.restaurant_name : addrLineForNav(job);
+      const ok = await openDirections({ point, label });
+      if (!ok) toast('Could not open maps. Is a maps app installed?', 'error');
+    },
+    [job, toast],
+  );
 
   if (loading) {
     return (
@@ -175,8 +191,28 @@ export default function JobScreen() {
           })}
         </View>
 
+        {/* Navigate — destination depends on whether we've picked up yet.
+            Before pickup: head to the restaurant. After: head to the customer. */}
+        {!['delivered', 'cancelled', 'rejected'].includes(job.status) && (
+          <View style={{ marginTop: spacing.xl, flexDirection: 'row', gap: spacing.md }}>
+            {beforePickup(job.status) ? (
+              <NavButton
+                icon="restaurant"
+                label="Navigate to restaurant"
+                onPress={() => navigateTo('restaurant')}
+              />
+            ) : (
+              <NavButton
+                icon="navigate"
+                label="Navigate to customer"
+                onPress={() => navigateTo('dropoff')}
+              />
+            )}
+          </View>
+        )}
+
         {/* Drop-off */}
-        <View style={{ marginTop: spacing.xl, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
+        <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
           <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
             Deliver to
           </Text>
@@ -185,6 +221,30 @@ export default function JobScreen() {
             <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, marginTop: 2 }}>Landmark: {addr.landmark}</Text>
           ) : null}
         </View>
+
+        {/* Order items — so the driver can verify the bag before leaving the restaurant. */}
+        {job.items.length > 0 && (
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
+              {job.items.length} {job.items.length === 1 ? 'item' : 'items'} in the bag
+            </Text>
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+              {job.items.map((it, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+                  <Text style={{ color: colors.accent, fontWeight: '800', fontSize: font.sizes.base, minWidth: 22 }}>
+                    {it.quantity ?? 1}×
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.ink, fontSize: font.sizes.base }}>{it.name}</Text>
+                    {it.notes ? (
+                      <Text style={{ color: colors.ink3, fontSize: font.sizes.sm }}>{it.notes}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Payment */}
         <View style={{ marginTop: spacing.md, backgroundColor: job.payment_method === 'cash_on_delivery' ? colors.amberSoft : colors.greenSoft, borderRadius: radius.xl, padding: spacing.lg }}>
@@ -235,6 +295,51 @@ function Action({ label, busy, onPress }: { label: string; busy: boolean; onPres
       {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ color: colors.white, fontSize: font.sizes.lg, fontWeight: '700' }}>{label}</Text>}
     </Pressable>
   );
+}
+
+function NavButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: 'restaurant' | 'navigate';
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={{
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        backgroundColor: colors.ink,
+        borderRadius: radius.lg,
+        paddingVertical: spacing.lg,
+      }}
+    >
+      <Icon name={icon} size={18} color={colors.white} />
+      <Text style={{ color: colors.white, fontWeight: '700', fontSize: font.sizes.base }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** True while the order is still at/awaiting the restaurant (pre-pickup). */
+function beforePickup(status: Job['status']): boolean {
+  return ['accepted', 'preparing', 'ready'].includes(status);
+}
+
+/** Compact one-line address for a maps free-text fallback (no exact pin). */
+function addrLineForNav(job: Job): string {
+  const a = job.address_snapshot;
+  if (a?.kind === 'hotel') return [a.hotelName, a.roomNumber && `Room ${a.roomNumber}`].filter(Boolean).join(' ');
+  if (a?.kind === 'street') return [a.streetText, a.building && `Bldg ${a.building}`].filter(Boolean).join(', ');
+  if (a?.kind === 'beach_pin') return a.beachName ?? 'Beach';
+  return a?.label ?? job.restaurant_name;
 }
 
 function stepLabel(s: 'ready' | 'picked_up' | 'out_for_delivery' | 'delivered'): string {

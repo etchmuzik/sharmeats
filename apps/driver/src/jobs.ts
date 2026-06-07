@@ -15,6 +15,12 @@ export type OrderStatus =
   | 'cancelled'
   | 'rejected';
 
+export interface JobItem {
+  name: string;
+  quantity?: number;
+  notes?: string | null;
+}
+
 export interface Job {
   id: string;
   short_code: string;
@@ -23,8 +29,15 @@ export interface Job {
   payment_method: 'card' | 'cash_on_delivery';
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
   total_egp: number;
+  subtotal_egp: number;
   delivery_fee_egp: number;
   tip_egp: number;
+  /** Line items in the bag — lets the driver verify pickup. */
+  items: JobItem[];
+  /** Drop-off point as PostGIS EWKB hex (decode with parseWkbPoint). */
+  dropoff_geo: string | null;
+  /** Pickup point (restaurant) EWKB hex, joined from restaurants.geo. */
+  restaurant_geo: string | null;
   address_snapshot: {
     kind?: string;
     label?: string;
@@ -38,6 +51,43 @@ export interface Job {
     handoff?: string;
   };
   assigned_driver_id: string | null;
+}
+
+// Columns selected for a job. restaurants(geo) is a foreign-table join — the
+// driver has RLS read access to their assigned order's restaurant.
+const JOB_SELECT =
+  'id, short_code, restaurant_name, status, payment_method, payment_status, ' +
+  'total_egp, subtotal_egp, delivery_fee_egp, tip_egp, items, dropoff_geo, ' +
+  'address_snapshot, assigned_driver_id, restaurants(geo)';
+
+/** Normalize a raw order row (with nested restaurants) into a Job. */
+function toJob(row: Record<string, unknown> | null): Job | null {
+  if (!row) return null;
+  const rest = row.restaurants as { geo?: string } | { geo?: string }[] | null;
+  const restaurant_geo = Array.isArray(rest) ? (rest[0]?.geo ?? null) : (rest?.geo ?? null);
+  const rawItems = Array.isArray(row.items) ? row.items : [];
+  const items: JobItem[] = rawItems.map((it: Record<string, unknown>) => ({
+    name: String(it.name ?? 'Item'),
+    quantity: typeof it.quantity === 'number' ? it.quantity : (it.qty as number | undefined),
+    notes: (it.notes as string | null) ?? null,
+  }));
+  return {
+    id: row.id as string,
+    short_code: row.short_code as string,
+    restaurant_name: row.restaurant_name as string,
+    status: row.status as OrderStatus,
+    payment_method: row.payment_method as Job['payment_method'],
+    payment_status: row.payment_status as Job['payment_status'],
+    total_egp: (row.total_egp as number) ?? 0,
+    subtotal_egp: (row.subtotal_egp as number) ?? 0,
+    delivery_fee_egp: (row.delivery_fee_egp as number) ?? 0,
+    tip_egp: (row.tip_egp as number) ?? 0,
+    items,
+    dropoff_geo: (row.dropoff_geo as string | null) ?? null,
+    restaurant_geo,
+    address_snapshot: (row.address_snapshot as Job['address_snapshot']) ?? {},
+    assigned_driver_id: (row.assigned_driver_id as string | null) ?? null,
+  };
 }
 
 export interface Assignment {
@@ -90,28 +140,24 @@ export async function getOffers(driverId: string): Promise<Assignment[]> {
 export async function getActiveJob(driverId: string): Promise<Job | null> {
   const { data, error } = await getSupabase()
     .from('orders')
-    .select(
-      'id, short_code, restaurant_name, status, payment_method, payment_status, total_egp, delivery_fee_egp, tip_egp, address_snapshot, assigned_driver_id',
-    )
+    .select(JOB_SELECT)
     .eq('assigned_driver_id', driverId)
     .not('status', 'in', '(delivered,cancelled,rejected)')
     .order('placed_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return (data as Job) ?? null;
+  return toJob(data as Record<string, unknown> | null);
 }
 
 export async function fetchJob(orderId: string): Promise<Job | null> {
   const { data, error } = await getSupabase()
     .from('orders')
-    .select(
-      'id, short_code, restaurant_name, status, payment_method, payment_status, total_egp, delivery_fee_egp, tip_egp, address_snapshot, assigned_driver_id',
-    )
+    .select(JOB_SELECT)
     .eq('id', orderId)
     .maybeSingle();
   if (error) throw error;
-  return (data as Job) ?? null;
+  return toJob(data as Record<string, unknown> | null);
 }
 
 export async function respondToOffer(assignmentId: string, accept: boolean): Promise<void> {
