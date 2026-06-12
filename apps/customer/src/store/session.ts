@@ -14,6 +14,8 @@ interface SessionState {
   currency: Currency;
   selectedAddressId: string | null;
   allergyNudgeDismissed: boolean;
+  /** Saved restaurant ids. Local-first; synced with the backend in live mode. */
+  favoriteIds: string[];
   hydrated: boolean;
 
   hydrate: () => Promise<void>;
@@ -23,9 +25,34 @@ interface SessionState {
   setCurrency: (c: Currency) => void;
   setSelectedAddressId: (id: string | null) => void;
   dismissAllergyNudge: () => void;
+  toggleFavorite: (restaurantId: string) => void;
+  setFavorites: (ids: string[]) => void;
 }
 
-function persist(state: Omit<SessionState, 'hydrated' | 'hydrate' | 'signIn' | 'signOut' | 'setLocale' | 'setCurrency' | 'setSelectedAddressId' | 'dismissAllergyNudge'>) {
+type PersistedSession = Pick<
+  SessionState,
+  | 'isSignedIn'
+  | 'phone'
+  | 'locale'
+  | 'currency'
+  | 'selectedAddressId'
+  | 'allergyNudgeDismissed'
+  | 'favoriteIds'
+>;
+
+function snapshot(s: SessionState): PersistedSession {
+  return {
+    isSignedIn: s.isSignedIn,
+    phone: s.phone,
+    locale: s.locale,
+    currency: s.currency,
+    selectedAddressId: s.selectedAddressId,
+    allergyNudgeDismissed: s.allergyNudgeDismissed,
+    favoriteIds: s.favoriteIds,
+  };
+}
+
+function persist(state: PersistedSession) {
   AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
 }
 
@@ -38,6 +65,7 @@ export const useSession = create<SessionState>((set, get) => ({
   currency: 'EGP',
   selectedAddressId: 'a-hotel-hilton',
   allergyNudgeDismissed: false,
+  favoriteIds: [],
   hydrated: false,
 
   hydrate: async () => {
@@ -52,6 +80,7 @@ export const useSession = create<SessionState>((set, get) => ({
           currency: (parsed.currency as Currency) ?? 'EGP',
           selectedAddressId: parsed.selectedAddressId ?? 'a-hotel-hilton',
           allergyNudgeDismissed: parsed.allergyNudgeDismissed ?? false,
+          favoriteIds: Array.isArray(parsed.favoriteIds) ? parsed.favoriteIds : [],
           hydrated: true,
         });
         return;
@@ -65,71 +94,46 @@ export const useSession = create<SessionState>((set, get) => ({
 
   signIn: (phone) => {
     set({ isSignedIn: true, phone });
-    const s = get();
-    persist({
-      isSignedIn: true,
-      phone,
-      locale: s.locale,
-      currency: s.currency,
-      selectedAddressId: s.selectedAddressId,
-      allergyNudgeDismissed: s.allergyNudgeDismissed,
-    });
+    persist(snapshot(get()));
   },
 
   signOut: () => {
-    set({ isSignedIn: false, phone: null });
+    set({ isSignedIn: false, phone: null, favoriteIds: [] });
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
   },
 
   setLocale: (locale) => {
     set({ locale });
-    const s = get();
-    persist({
-      isSignedIn: s.isSignedIn,
-      phone: s.phone,
-      locale,
-      currency: s.currency,
-      selectedAddressId: s.selectedAddressId,
-      allergyNudgeDismissed: s.allergyNudgeDismissed,
-    });
+    persist(snapshot(get()));
   },
 
   setCurrency: (currency) => {
     set({ currency });
-    const s = get();
-    persist({
-      isSignedIn: s.isSignedIn,
-      phone: s.phone,
-      locale: s.locale,
-      currency,
-      selectedAddressId: s.selectedAddressId,
-      allergyNudgeDismissed: s.allergyNudgeDismissed,
-    });
+    persist(snapshot(get()));
   },
 
   setSelectedAddressId: (id) => {
     set({ selectedAddressId: id });
-    const s = get();
-    persist({
-      isSignedIn: s.isSignedIn,
-      phone: s.phone,
-      locale: s.locale,
-      currency: s.currency,
-      selectedAddressId: id,
-      allergyNudgeDismissed: s.allergyNudgeDismissed,
-    });
+    persist(snapshot(get()));
   },
 
   dismissAllergyNudge: () => {
     set({ allergyNudgeDismissed: true });
-    const s = get();
-    persist({
-      isSignedIn: s.isSignedIn,
-      phone: s.phone,
-      locale: s.locale,
-      currency: s.currency,
-      selectedAddressId: s.selectedAddressId,
-      allergyNudgeDismissed: true,
-    });
+    persist(snapshot(get()));
+  },
+
+  toggleFavorite: (restaurantId) => {
+    const current = get().favoriteIds;
+    const favoriteIds = current.includes(restaurantId)
+      ? current.filter((id) => id !== restaurantId)
+      : [restaurantId, ...current];
+    set({ favoriteIds });
+    persist(snapshot(get()));
+  },
+
+  /** Replace local favorites with the server's list (live-mode sync on start). */
+  setFavorites: (ids) => {
+    set({ favoriteIds: ids });
+    persist(snapshot(get()));
   },
 }));

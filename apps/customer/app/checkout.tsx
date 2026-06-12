@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
@@ -18,6 +18,7 @@ import type { Address, AllergyKey, PaymentMethod, Restaurant } from '../src/data
 import { formatEgp, formatTime } from '../src/lib/format';
 import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
 import { success, selection } from '../src/haptics';
+import { captureError, track } from '../src/lib/analytics';
 
 export default function Checkout() {
   const router = useRouter();
@@ -46,6 +47,16 @@ export default function Checkout() {
   const [kitchenNotes, setKitchenNotes] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [quotedFee, setQuotedFee] = useState<number | null>(null);
+  const [promoInput, setPromoInput] = useState('');
+  const [promoApplied, setPromoApplied] = useState<{ code: string; discount: number } | null>(null);
+  const [promoError, setPromoError] = useState(false);
+  const [promoChecking, setPromoChecking] = useState(false);
+
+  useEffect(() => {
+    track('checkout_opened', { subtotal, itemCount: lines.length });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Generate 8 half-hour slots starting at the next half hour, capped at ~4h.
   const scheduleSlots = useMemo<number[]>(() => {
@@ -87,9 +98,55 @@ export default function Checkout() {
     db.restaurants.get(restaurantId).then(setRestaurant);
   }, [restaurantId]);
 
-  const deliveryFee = restaurant?.deliveryFeeEgp ?? 30;
-  const tax = useMemo(() => Math.round(subtotal * 0.14), [subtotal]);
-  const total = subtotal + deliveryFee + tax + tipEgp;
+  // Ask the backend what it will actually charge (zone rule + free-over
+  // threshold) so the button total always matches place_order's math. Falls
+  // back to the restaurant's flat fee while loading or on error.
+  useEffect(() => {
+    if (!restaurantId || !address) return;
+    let cancelled = false;
+    db.orders
+      .quoteDeliveryFee(restaurantId, address.id, subtotal)
+      .then((fee) => {
+        if (!cancelled) setQuotedFee(fee);
+      })
+      .catch(() => {
+        if (!cancelled) setQuotedFee(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId, address, subtotal]);
+
+  const deliveryFee = quotedFee ?? restaurant?.deliveryFeeEgp ?? 30;
+  // Tax-inclusive at launch — mirrors place_order (v_tax := 0). The VAT row
+  // stays hidden until the platform setting flips on.
+  const tax: number = 0;
+  const discount = promoApplied?.discount ?? 0;
+  const total = Math.max(0, subtotal + deliveryFee + tax + tipEgp - discount);
+
+  const applyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code || promoChecking) return;
+    setPromoChecking(true);
+    setPromoError(false);
+    try {
+      const value = await db.orders.validatePromo(code, subtotal);
+      if (value > 0) {
+        success();
+        setPromoApplied({ code: code.toUpperCase(), discount: value });
+        track('promo_applied', { code: code.toUpperCase(), discount: value });
+      } else {
+        setPromoApplied(null);
+        setPromoError(true);
+        track('promo_rejected', { code: code.toUpperCase() });
+      }
+    } catch {
+      setPromoApplied(null);
+      setPromoError(true);
+    } finally {
+      setPromoChecking(false);
+    }
+  };
 
   const isCard = payment?.kind === 'card' || payment?.kind === 'apple_pay';
 
@@ -106,9 +163,18 @@ export default function Checkout() {
         payment: { kind: payment.kind, label: payment.label },
         tipEgp,
         deliveryFeeEgp: deliveryFee,
+        taxRate: 0,
         kitchenNotes: kitchenNotes.trim() || undefined,
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
         scheduledFor: scheduledFor ?? undefined,
+        promoCode: promoApplied?.code,
+      });
+      track('order_placed', {
+        orderId: order.id,
+        total: order.totalEgp,
+        payment: payment.kind,
+        scheduled: !!scheduledFor,
+        promo: promoApplied?.code ?? null,
       });
 
       // Card payment: open Paymob hosted checkout. The order stays 'pending'
@@ -128,6 +194,7 @@ export default function Checkout() {
       clear();
       router.replace(`/order/${order.id}`);
     } catch (e) {
+      captureError(e, { where: 'checkout.place' });
       setPaymentError(e instanceof Error ? e.message : 'Could not place your order.');
     } finally {
       setPlacing(false);
@@ -335,6 +402,63 @@ export default function Checkout() {
           </View>
         </View>
 
+        {/* Promo code */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('checkout.promoTitle')}</Text>
+          {promoApplied ? (
+            <View style={[styles.promoApplied, dir.row]}>
+              <Text style={styles.promoAppliedText}>
+                ✓ {promoApplied.code} · −{formatEgp(promoApplied.discount)}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  selection();
+                  setPromoApplied(null);
+                  setPromoInput('');
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('checkout.promoRemove')}>
+                <Text style={styles.promoRemove}>{t('checkout.promoRemove')}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <View style={[styles.promoRow, dir.row]}>
+                <TextInput
+                  value={promoInput}
+                  onChangeText={(v) => {
+                    setPromoInput(v);
+                    setPromoError(false);
+                  }}
+                  placeholder={t('checkout.promoPlaceholder')}
+                  placeholderTextColor={colors.ink3}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  style={[styles.promoInput, dir.text]}
+                  accessibilityLabel={t('checkout.promoTitle')}
+                  onSubmitEditing={applyPromo}
+                  returnKeyType="done"
+                />
+                <Pressable
+                  onPress={applyPromo}
+                  disabled={!promoInput.trim() || promoChecking}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('checkout.promoApply')}
+                  style={[
+                    styles.promoBtn,
+                    (!promoInput.trim() || promoChecking) && { opacity: 0.4 },
+                  ]}>
+                  <Text style={styles.promoBtnText}>
+                    {promoChecking ? '…' : t('checkout.promoApply')}
+                  </Text>
+                </Pressable>
+              </View>
+              {promoError && <Text style={styles.promoErr}>{t('checkout.promoInvalid')}</Text>}
+            </>
+          )}
+        </View>
+
         {/* Totals */}
         <View style={styles.card}>
           <View style={[styles.totRow, dir.row]}>
@@ -343,12 +467,24 @@ export default function Checkout() {
           </View>
           <View style={[styles.totRow, dir.row]}>
             <Text style={styles.totLabel}>{t('checkout.delivery')}</Text>
-            <Text style={styles.totVal}>{formatEgp(deliveryFee)}</Text>
+            <Text style={[styles.totVal, deliveryFee === 0 && { color: colors.green }]}>
+              {deliveryFee === 0 ? t('checkout.deliveryFree') : formatEgp(deliveryFee)}
+            </Text>
           </View>
-          <View style={[styles.totRow, dir.row]}>
-            <Text style={styles.totLabel}>{t('checkout.tax')}</Text>
-            <Text style={styles.totVal}>{formatEgp(tax)}</Text>
-          </View>
+          {tax > 0 && (
+            <View style={[styles.totRow, dir.row]}>
+              <Text style={styles.totLabel}>{t('checkout.tax')}</Text>
+              <Text style={styles.totVal}>{formatEgp(tax)}</Text>
+            </View>
+          )}
+          {discount > 0 && (
+            <View style={[styles.totRow, dir.row]}>
+              <Text style={[styles.totLabel, { color: colors.green }]}>
+                {t('checkout.discount', { code: promoApplied?.code ?? '' })}
+              </Text>
+              <Text style={[styles.totVal, { color: colors.green }]}>−{formatEgp(discount)}</Text>
+            </View>
+          )}
           {tipEgp > 0 && (
             <View style={[styles.totRow, dir.row]}>
               <Text style={styles.totLabel}>{t('checkout.tip')}</Text>
@@ -573,4 +709,39 @@ const styles = StyleSheet.create({
     color: colors.red,
     fontSize: font.sizes.sm,
   },
+  promoRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  promoInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: font.sizes.lg,
+    color: colors.ink,
+  },
+  promoBtn: {
+    paddingHorizontal: 16,
+    height: 44,
+    borderRadius: radius.lg,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoBtnText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  promoErr: { marginTop: 8, color: colors.red, fontSize: font.sizes.md },
+  promoApplied: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#eef9f1',
+    borderWidth: 1,
+    borderColor: colors.green,
+    borderRadius: radius.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  promoAppliedText: { color: colors.green, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  promoRemove: { color: colors.ink2, fontSize: font.sizes.md, fontWeight: font.weights.semibold },
 });

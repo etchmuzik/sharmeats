@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -91,6 +91,8 @@ export default function HomeTab() {
   const [featured, setFeatured] = useState<Restaurant[]>([]);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [reorderRail, setReorderRail] = useState<Restaurant[]>([]);
+  const [allForRails, setAllForRails] = useState<Restaurant[]>([]);
+  const favoriteIds = useSession((s) => s.favoriteIds);
   const [address, setAddress] = useState<Address | null>(null);
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,7 +110,16 @@ export default function HomeTab() {
 
   useEffect(() => {
     db.restaurants.listFeatured().then(setFeatured);
+    // Unfiltered catalog backs the offers + favourites rails — deals and saved
+    // venues stay visible regardless of the cuisine filter.
+    db.restaurants.list().then(setAllForRails);
   }, []);
+
+  const offers = useMemo(() => allForRails.filter((r) => !!r.promo), [allForRails]);
+  const favoriteRail = useMemo(
+    () => allForRails.filter((r) => favoriteIds.includes(r.id)),
+    [allForRails, favoriteIds],
+  );
 
   useEffect(() => {
     db.orders.listPast().then(async (past: Order[]) => {
@@ -309,6 +320,71 @@ export default function HomeTab() {
           </View>
         )}
 
+        {favoriteRail.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+            <View style={[styles.secHead, dir.row]}>
+              <Text style={styles.secTitle}>{t('home.favorites')}</Text>
+            </View>
+            <FlatList
+              horizontal
+              data={favoriteRail}
+              keyExtractor={(r) => r.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingRight: 20 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    router.push(`/restaurant/${item.id}` as never);
+                  }}
+                  style={styles.reorderChip}>
+                  <Image source={{ uri: item.coverImage }} style={styles.reorderImg} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.reorderName} numberOfLines={1}>♥ {item.name}</Text>
+                    <Text style={styles.reorderSub} numberOfLines={1}>
+                      ★ {item.rating} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        )}
+
+        {offers.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+            <View style={[styles.secHead, dir.row]}>
+              <Text style={styles.secTitle}>{t('home.offers')}</Text>
+            </View>
+            <FlatList
+              horizontal
+              data={offers}
+              keyExtractor={(r) => r.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingRight: 20 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    router.push(`/restaurant/${item.id}` as never);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name}: ${item.promo}`}
+                  style={styles.offerChip}>
+                  <Image source={{ uri: item.coverImage }} style={styles.reorderImg} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.offerPromo} numberOfLines={1}>🏷 {item.promo}</Text>
+                    <Text style={styles.reorderName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.reorderSub} numberOfLines={1}>
+                      ★ {item.rating} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        )}
+
         {featured.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
             <View style={[styles.secHead, dir.row]}>
@@ -470,6 +546,24 @@ const styles = StyleSheet.create({
   reorderImg: { width: 52, height: 52, borderRadius: radius.md, backgroundColor: colors.bgSoft },
   reorderName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
   reorderSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
+  offerChip: {
+    width: 260,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: 8,
+    ...shadow.soft,
+  },
+  offerPromo: {
+    fontSize: font.sizes.sm,
+    color: colors.accent,
+    fontWeight: font.weights.extrabold,
+    marginBottom: 2,
+  },
   nudge: {
     marginHorizontal: 16,
     marginTop: 14,

@@ -21,6 +21,7 @@ import { db } from '../../src/data';
 import type { Cuisine, MenuItem, Restaurant } from '../../src/data/types';
 import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
+import { effectiveIsOpen } from '../../src/lib/openHours';
 import { tap } from '../../src/haptics';
 
 const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
@@ -50,6 +51,16 @@ const FLAG_FILTERS: { key: 'vegetarian' | 'glutenfree'; tKey: string; emoji: str
   { key: 'glutenfree', tKey: 'flag.glutenfree', emoji: '🌾' },
 ];
 
+type SortKey = 'recommended' | 'rating' | 'fee' | 'fastest';
+
+// 'recommended' keeps the backend's default ordering (rating-weighted).
+const SORTS: { key: SortKey; tKey: string; emoji: string }[] = [
+  { key: 'recommended', tKey: 'browse.sortRecommended', emoji: '' },
+  { key: 'rating', tKey: 'browse.sortRating', emoji: '⭐' },
+  { key: 'fee', tKey: 'browse.sortFee', emoji: '🛵' },
+  { key: 'fastest', tKey: 'browse.sortFastest', emoji: '⏱' },
+];
+
 export default function BrowseTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -60,6 +71,8 @@ export default function BrowseTab() {
   const [menuMatches, setMenuMatches] = useState<MenuMatch[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFlags, setActiveFlags] = useState<Set<'vegetarian' | 'glutenfree'>>(new Set());
+  const [sort, setSort] = useState<SortKey>('recommended');
+  const [openNow, setOpenNow] = useState(false);
   // Map restaurant id → set of item flags present in that restaurant's menu.
   const [flagsByRestaurant, setFlagsByRestaurant] = useState<Map<string, Set<string>>>(new Map());
 
@@ -130,7 +143,8 @@ export default function BrowseTab() {
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return all.filter((r) => {
+    const result = all.filter((r) => {
+      if (openNow && !effectiveIsOpen(r)) return false;
       if (cuisine !== 'all' && !r.cuisines.includes(cuisine as Cuisine)) return false;
       if (activeFlags.size > 0) {
         const rflags = flagsByRestaurant.get(r.id);
@@ -142,7 +156,13 @@ export default function BrowseTab() {
       if (!q) return true;
       return r.name.toLowerCase().includes(q) || r.cuisineLabel.toLowerCase().includes(q);
     });
-  }, [all, cuisine, query, activeFlags, flagsByRestaurant]);
+    // filter() already copied, so in-place sort is safe. Catalog is small
+    // (curated ~20 merchants) — client-side sorting is fine.
+    if (sort === 'rating') result.sort((a, b) => b.rating - a.rating);
+    else if (sort === 'fee') result.sort((a, b) => a.deliveryFeeEgp - b.deliveryFeeEgp);
+    else if (sort === 'fastest') result.sort((a, b) => a.prepTimeLow - b.prepTimeLow);
+    return result;
+  }, [all, cuisine, query, activeFlags, flagsByRestaurant, openNow, sort]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -178,6 +198,12 @@ export default function BrowseTab() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.flagRow}>
+          <CuisinePill
+            label={t('browse.openNow')}
+            emoji="🟢"
+            active={openNow}
+            onPress={() => setOpenNow((v) => !v)}
+          />
           {FLAG_FILTERS.map((f) => (
             <CuisinePill
               key={f.key}
@@ -192,6 +218,16 @@ export default function BrowseTab() {
                   return next;
                 });
               }}
+            />
+          ))}
+          <View style={styles.sortDivider} />
+          {SORTS.map((s) => (
+            <CuisinePill
+              key={s.key}
+              label={t(s.tKey)}
+              emoji={s.emoji}
+              active={sort === s.key}
+              onPress={() => setSort(s.key)}
             />
           ))}
         </ScrollView>
@@ -271,7 +307,8 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: font.sizes.lg, color: colors.ink, paddingVertical: 0 },
   cuisineRow: { gap: 8, paddingTop: 14, paddingBottom: 6 },
-  flagRow: { gap: 8, paddingTop: 4, paddingBottom: 14 },
+  flagRow: { gap: 8, paddingTop: 4, paddingBottom: 14, alignItems: 'center' },
+  sortDivider: { width: 1, height: 22, backgroundColor: colors.line2, marginHorizontal: 4 },
   menuMatchWrap: { gap: 6, marginBottom: 14 },
   menuMatchTitle: {
     fontSize: font.sizes.sm,

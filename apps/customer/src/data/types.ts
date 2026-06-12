@@ -237,6 +237,8 @@ export type OrderStatus =
   | 'cancelled'
   | 'rejected';
 
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+
 export interface Rider {
   id: string;
   name: string;
@@ -265,9 +267,15 @@ export interface Order {
   deliveryFeeEgp: number;
   taxEgp: number;
   tipEgp: number;
+  /** Promo discount already subtracted from totalEgp (0/absent when no promo). */
+  discountEgp?: number;
+  /** Normalized promo code that produced discountEgp. */
+  promoCode?: string;
   totalEgp: number;
   paymentMethodKind: PaymentMethodKind;
   paymentLabel: string;
+  /** Server-side settlement state. Card orders stay 'pending' until the Paymob webhook flips them. */
+  paymentStatus?: PaymentStatus;
   status: OrderStatus;
   history: OrderStatusEntry[];
   placedAt: number;
@@ -281,6 +289,18 @@ export interface Order {
   kitchenNotes?: string;
   aggregateAllergens?: AllergyKey[];
   scheduledFor?: number;
+}
+
+/**
+ * Anonymized public review of a restaurant (sourced from order ratings).
+ * The reviewer is a masked display name ("Ahmed K." / "Guest") — never an id.
+ */
+export interface Review {
+  ratingFood: number;
+  ratingDelivery: number;
+  comment?: string;
+  reviewer: string;
+  reviewedAt: number;
 }
 
 export interface User {

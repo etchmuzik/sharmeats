@@ -1,5 +1,6 @@
 import { DEFAULT_USER } from '../mock/user';
 import { pickRandomRider } from '../mock/riders';
+import { restaurantsRepo } from './restaurants';
 import type {
   Address,
   AllergyKey,
@@ -8,6 +9,16 @@ import type {
   OrderStatus,
   PaymentMethodKind,
 } from '../types';
+
+/**
+ * Mock promo rules — mirrors the live validate_promo RPC shape so the checkout
+ * flow can be exercised offline. WELCOME10: 10% off, capped at EGP 50.
+ */
+function mockPromoDiscount(code: string | undefined, subtotal: number): number {
+  if (!code) return 0;
+  if (code.trim().toUpperCase() !== 'WELCOME10') return 0;
+  return Math.min(Math.round(subtotal * 0.1), 50);
+}
 
 const delay = <T>(value: T, ms = 80): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -76,6 +87,8 @@ export interface CreateOrderInput {
   kitchenNotes?: string;
   aggregateAllergens?: AllergyKey[];
   scheduledFor?: number;
+  /** Optional promo code — the server (or mock rules) revalidates it. */
+  promoCode?: string;
 }
 
 export const ordersRepo = {
@@ -84,9 +97,11 @@ export const ordersRepo = {
       const mods = ci.modifierChoices.reduce((m, c) => m + c.priceDeltaEgp, 0);
       return acc + (ci.basePriceEgp + mods) * ci.quantity;
     }, 0);
-    const tax = Math.round(subtotal * (input.taxRate ?? 0.14));
+    // Tax-inclusive at launch (mirrors place_order's v_tax := 0).
+    const tax = Math.round(subtotal * (input.taxRate ?? 0));
     const tip = input.tipEgp ?? 0;
-    const total = subtotal + input.deliveryFeeEgp + tax + tip;
+    const discount = mockPromoDiscount(input.promoCode, subtotal);
+    const total = Math.max(0, subtotal + input.deliveryFeeEgp + tax + tip - discount);
     const id = makeId();
     const placedAt = Date.now();
     const slaMinutes = 30;
@@ -106,6 +121,7 @@ export const ordersRepo = {
       totalEgp: total,
       paymentMethodKind: input.payment.kind,
       paymentLabel: input.payment.label,
+      paymentStatus: 'pending',
       status: 'placed',
       history: [{ status: 'placed', at: placedAt }],
       placedAt,
@@ -115,6 +131,8 @@ export const ordersRepo = {
       kitchenNotes: input.kitchenNotes,
       aggregateAllergens: input.aggregateAllergens,
       scheduledFor: input.scheduledFor,
+      discountEgp: discount > 0 ? discount : undefined,
+      promoCode: discount > 0 ? input.promoCode?.trim().toUpperCase() : undefined,
     };
     orders.set(id, o);
     scheduleStatusProgression(id);
@@ -127,6 +145,21 @@ export const ordersRepo = {
    */
   async startCardPayment(_orderId: string): Promise<{ checkoutUrl: string } | null> {
     return delay(null);
+  },
+
+  /** Mock fee quote — the restaurant's flat fee (live mode asks quote_delivery_fee). */
+  async quoteDeliveryFee(
+    restaurantId: string,
+    _addressId: string,
+    _subtotalEgp: number,
+  ): Promise<number> {
+    const r = await restaurantsRepo.get(restaurantId);
+    return delay(r?.deliveryFeeEgp ?? 30);
+  },
+
+  /** Mock promo validation — mirrors the validate_promo RPC contract (0 = invalid). */
+  async validatePromo(code: string, subtotalEgp: number): Promise<number> {
+    return delay(mockPromoDiscount(code, subtotalEgp));
   },
 
   /**
@@ -173,7 +206,10 @@ export const ordersRepo = {
   async listActive(): Promise<Order[]> {
     return delay(
       Array.from(orders.values())
-        .filter((o) => o.status !== 'delivered' && o.status !== 'cancelled')
+        .filter(
+          (o) =>
+            o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'rejected',
+        )
         .sort((a, b) => b.placedAt - a.placedAt),
     );
   },

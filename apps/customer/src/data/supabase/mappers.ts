@@ -229,9 +229,12 @@ interface OrderRow {
   delivery_fee_egp: number;
   tax_egp: number;
   tip_egp: number;
+  discount_egp?: number | null;
+  promo_code?: string | null;
   total_egp: number;
   payment_method_kind: string;
   payment_label: string;
+  payment_status: string | null;
   status: Order['status'];
   history: Order['history'];
   placed_at: string;
@@ -261,9 +264,12 @@ export function rowToOrder(o: OrderRow): Order {
     deliveryFeeEgp: o.delivery_fee_egp,
     taxEgp: o.tax_egp,
     tipEgp: o.tip_egp,
+    discountEgp: o.discount_egp ?? undefined,
+    promoCode: o.promo_code ?? undefined,
     totalEgp: o.total_egp,
     paymentMethodKind: o.payment_method_kind as Order['paymentMethodKind'],
     paymentLabel: o.payment_label,
+    paymentStatus: (o.payment_status ?? undefined) as Order['paymentStatus'],
     status: o.status,
     history: o.history,
     placedAt: new Date(o.placed_at).getTime(),

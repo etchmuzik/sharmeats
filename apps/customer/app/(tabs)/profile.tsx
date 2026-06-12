@@ -11,6 +11,8 @@ import { useSession } from '../../src/store/session';
 import { tap } from '../../src/haptics';
 import { db } from '../../src/data';
 import type { User } from '../../src/data/types';
+import { unregisterPush } from '../../src/lib/push';
+import { resetAnalyticsUser } from '../../src/lib/analytics';
 
 interface Row {
   icon: IconName;
@@ -51,9 +53,21 @@ export default function ProfileTab() {
       icon: 'signout',
       label: t('profile.signOut'),
       onPress: () => {
+        // Remove this device's push token first so the next account on this
+        // phone doesn't receive the previous user's order updates.
+        unregisterPush();
+        resetAnalyticsUser();
         signOut();
         router.replace('/onboarding');
       },
+      destructive: true,
+    },
+    {
+      // Apple Guideline 5.1.1(v): apps with account creation must offer
+      // in-app account deletion. Routes to a dedicated confirmation screen.
+      icon: 'trash',
+      label: t('profile.deleteAccount'),
+      onPress: () => router.push('/delete-account'),
       destructive: true,
     },
   ];

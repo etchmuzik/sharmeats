@@ -5,6 +5,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useCart } from '../src/store/cart';
 import { useSession } from '../src/store/session';
 import { db, isBackendLive } from '../src/data';
+import { initAnalytics } from '../src/lib/analytics';
+import { configureNotificationHandler, registerForPush } from '../src/lib/push';
+import { syncFavoritesFromServer } from '../src/lib/favorites';
+
+initAnalytics();
+configureNotificationHandler();
 
 export default function RootLayout() {
   const hydrateCart = useCart((s) => s.hydrate);
@@ -20,6 +26,10 @@ export default function RootLayout() {
     if (isBackendLive) {
       db.auth
         .ensureSession()
+        .then(() => {
+          registerForPush();
+          syncFavoritesFromServer();
+        })
         .catch((e) => console.warn('[auth] ensureSession failed:', e?.message ?? e));
     }
   }, [hydrateCart, hydrateSession]);
@@ -44,6 +54,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings" />
           <Stack.Screen name="settings/allergies" />
           <Stack.Screen name="help" />
+          <Stack.Screen name="delete-account" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
