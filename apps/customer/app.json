@@ -36,6 +36,7 @@
       "expo-router",
       "expo-font",
       "./plugins/withFmtConstevalFix.js",
+      "./plugins/withLocalizationXcode26Fix.js",
       "@sentry/react-native",
       "expo-localization",
       "expo-notifications"
