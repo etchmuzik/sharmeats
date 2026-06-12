@@ -45,6 +45,9 @@ export default function AddAddress() {
 
   const [beachName, setBeachName] = useState('');
   const [coords, setCoords] = useState<LatLng | null>(null);
+  // While a finger is on the map, the page must not scroll — otherwise map
+  // panning / pin dragging scrolls the form instead.
+  const [mapActive, setMapActive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -56,6 +59,7 @@ export default function AddAddress() {
     locateMe: t('address.locateMe'),
     locating: t('address.locating'),
     denied: t('address.locationDenied'),
+    failed: t('address.locationFailed'),
   };
 
   useEffect(() => {
@@ -146,7 +150,9 @@ export default function AddAddress() {
         <View style={{ width: 38 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 140 + insets.bottom, gap: 16 }}>
+      <ScrollView
+        scrollEnabled={!mapActive}
+        contentContainerStyle={{ padding: 20, paddingBottom: 140 + insets.bottom, gap: 16 }}>
         {kind === 'hotel' && (
           <>
             <Text style={styles.label}>{t('address.searchHotel')}</Text>
@@ -257,7 +263,12 @@ export default function AddAddress() {
         {kind !== 'beach_pin' && !coords && (
           <Text style={styles.pinNudge}>{t('address.pinRecommended')}</Text>
         )}
-        <MapPinPicker value={coords} onChange={setCoords} labels={pinLabels} />
+        <MapPinPicker
+          value={coords}
+          onChange={setCoords}
+          onInteractionChange={setMapActive}
+          labels={pinLabels}
+        />
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
