@@ -1,9 +1,10 @@
 import { Image, Pressable, Text, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radius, font, shadow } from '../theme';
-import { tap } from '../haptics';
+import { tap, selection } from '../haptics';
 import { formatEgp, formatKm, formatPrepTime } from '../lib/format';
 import { closedReasonKey, effectiveIsOpen } from '../lib/openHours';
+import { useFavorite } from '../lib/favorites';
 import type { Restaurant } from '../data/types';
 import { TouristSafeBadge } from './TouristSafeBadge';
 import { useT } from '../i18n';
@@ -13,6 +14,7 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
   const t = useT();
   const open = effectiveIsOpen(restaurant);
   const closedReason = closedReasonKey(restaurant);
+  const { isFav, toggle } = useFavorite(restaurant.id);
   return (
     <Pressable
       onPress={() => {
@@ -33,6 +35,20 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
               </Text>
             </View>
           )}
+          <Pressable
+            onPress={() => {
+              selection();
+              toggle();
+            }}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isFav }}
+            accessibilityLabel={isFav ? t('fav.remove') : t('fav.add')}
+            style={styles.heartBtn}>
+            <Text style={[styles.heart, isFav && { color: colors.accent }]}>
+              {isFav ? '♥' : '♡'}
+            </Text>
+          </Pressable>
         </View>
         <Text style={styles.cuisine}>{restaurant.cuisineLabel}</Text>
         <View style={styles.badgeRow}>
@@ -91,6 +107,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   closedText: { fontSize: font.sizes.xs, color: colors.ink2, fontWeight: font.weights.bold },
+  heartBtn: { paddingLeft: 6 },
+  heart: { fontSize: 19, color: colors.ink3, lineHeight: 21 },
   promoPill: {
     backgroundColor: colors.accentSoft,
     paddingHorizontal: 7,

@@ -18,11 +18,13 @@ import { TouristSafeBadge } from '../../src/components/TouristSafeBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { db } from '../../src/data';
-import type { MenuItem, MenuSection, Restaurant } from '../../src/data/types';
+import type { MenuItem, MenuSection, Restaurant, Review } from '../../src/data/types';
 import { formatEgp } from '../../src/lib/format';
 import { useT } from '../../src/i18n';
 import { useCart } from '../../src/store/cart';
-import { tap } from '../../src/haptics';
+import { tap, selection } from '../../src/haptics';
+import { useFavorite } from '../../src/lib/favorites';
+import { track } from '../../src/lib/analytics';
 
 export default function RestaurantDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,6 +35,8 @@ export default function RestaurantDetail() {
   const [sections, setSections] = useState<MenuSection[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [activeSection, setActiveSection] = useState<string>('');
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const { isFav, toggle: toggleFav } = useFavorite(id ?? '');
 
   const cartCount = useCart((s) => s.count());
   const cartSubtotal = useCart((s) => s.subtotal());
@@ -52,12 +56,17 @@ export default function RestaurantDetail() {
 
   useEffect(() => {
     if (!id) return;
+    track('restaurant_viewed', { restaurantId: id });
     db.restaurants.get(id).then(setRestaurant);
     db.menus.forRestaurant(id).then((m) => {
       setSections(m.sections);
       setItems(m.items);
       setActiveSection(m.sections[0]?.id ?? '');
     });
+    db.restaurants
+      .reviews(id, 10)
+      .then(setReviews)
+      .catch(() => setReviews([]));
   }, [id]);
 
   const itemsBySection = useMemo(() => {
@@ -117,7 +126,45 @@ export default function RestaurantDetail() {
             </View>
           </View>
 
+          {restaurant.promo && (
+            <View style={styles.promoBanner}>
+              <Text style={styles.promoText} numberOfLines={2}>🏷 {restaurant.promo}</Text>
+            </View>
+          )}
+
           <Text style={styles.descr}>{restaurant.description}</Text>
+
+          {reviews.length > 0 && (
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.reviewsTitle}>{t('restaurant.reviews')}</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingTop: 10 }}>
+                {reviews.map((rv, i) => (
+                  <View key={`${rv.reviewer}-${rv.reviewedAt}-${i}`} style={styles.reviewCard}>
+                    <View style={styles.reviewHead}>
+                      <Text style={styles.reviewStars}>
+                        {'★'.repeat(Math.max(1, Math.min(5, rv.ratingFood)))}
+                      </Text>
+                      <Text style={styles.reviewName} numberOfLines={1}>
+                        {rv.reviewer}
+                      </Text>
+                    </View>
+                    {rv.comment ? (
+                      <Text style={styles.reviewBody} numberOfLines={3}>
+                        {rv.comment}
+                      </Text>
+                    ) : (
+                      <Text style={[styles.reviewBody, { color: colors.ink3 }]}>
+                        ★ {rv.ratingFood}/5
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         <View style={styles.menuNav}>
@@ -186,6 +233,19 @@ export default function RestaurantDetail() {
       <View style={[styles.heroNav, { top: insets.top + 6 }]}>
         <BackButton tint="light" />
       </View>
+      <Pressable
+        onPress={() => {
+          selection();
+          toggleFav();
+        }}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isFav }}
+        accessibilityLabel={isFav ? t('fav.remove') : t('fav.add')}
+        style={[styles.heroFav, { top: insets.top + 6 }]}>
+        <Text style={[styles.heroFavIcon, isFav && { color: colors.accent }]}>
+          {isFav ? '♥' : '♡'}
+        </Text>
+      </Pressable>
 
       {showCartBar && (() => {
         const shortBy = Math.max(0, (restaurant?.minOrderEgp ?? 0) - cartSubtotal);
@@ -227,6 +287,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
   heroNav: { position: 'absolute', left: 14, zIndex: 10 },
+  heroFav: {
+    position: 'absolute',
+    right: 14,
+    zIndex: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.soft,
+  },
+  heroFavIcon: { fontSize: 20, color: colors.ink2, lineHeight: 22 },
+  reviewsTitle: {
+    fontSize: font.sizes.sm,
+    color: colors.ink2,
+    fontWeight: font.weights.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  reviewCard: {
+    width: 230,
+    padding: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bgSoft,
+  },
+  reviewHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  reviewStars: { color: colors.star, fontSize: font.sizes.md, fontWeight: font.weights.bold },
+  reviewName: { color: colors.ink2, fontSize: font.sizes.sm, fontWeight: font.weights.semibold, flexShrink: 1 },
+  reviewBody: { marginTop: 6, color: colors.ink, fontSize: font.sizes.md, lineHeight: 18 },
   info: { padding: 20, paddingTop: 18 },
   name: { fontSize: 28, fontWeight: font.weights.extrabold, letterSpacing: -0.5, color: colors.ink },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
@@ -245,6 +337,16 @@ const styles = StyleSheet.create({
   statV: { fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.ink },
   statL: { fontSize: 10.5, color: colors.ink2, marginTop: 2, textTransform: 'uppercase', fontWeight: font.weights.bold, letterSpacing: 0.5 },
   descr: { fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 20, marginTop: 14 },
+  promoBanner: {
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radius.lg,
+    backgroundColor: '#fff4ee',
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  promoText: { color: colors.accent, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   menuNav: {
     borderTopWidth: 1,
     borderBottomWidth: 1,

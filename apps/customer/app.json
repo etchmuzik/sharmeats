@@ -35,7 +35,10 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "./plugins/withFmtConstevalFix.js"
+      "./plugins/withFmtConstevalFix.js",
+      "@sentry/react-native",
+      "expo-localization",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": false

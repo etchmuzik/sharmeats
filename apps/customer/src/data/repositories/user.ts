@@ -9,6 +9,7 @@ const delay = <T>(value: T, ms = 40): Promise<T> =>
 let currentUser: User = { ...DEFAULT_USER };
 let addresses: Address[] = [...DEFAULT_ADDRESSES];
 let paymentMethods: PaymentMethod[] = [...DEFAULT_PAYMENT_METHODS];
+const favoriteIds = new Set<string>();
 
 export const userRepo = {
   async getMe(): Promise<User> {
@@ -48,5 +49,39 @@ export const userRepo = {
     paymentMethods = paymentMethods.map((p) => ({ ...p, isDefault: p.id === id }));
     currentUser = { ...currentUser, defaultPaymentMethodId: id };
     return delay(paymentMethods);
+  },
+
+  /** Mock push registration — no backend to deliver to, so these are no-ops. */
+  async registerPushToken(_token: string, _platform: 'ios' | 'android' | 'web'): Promise<void> {
+    return delay(undefined);
+  },
+
+  async unregisterPushToken(_token: string): Promise<void> {
+    return delay(undefined);
+  },
+
+  // Mock favorites — the session store (AsyncStorage) is the offline source of
+  // truth; this in-memory set just mirrors the live adapter's contract.
+  async listFavorites(): Promise<string[]> {
+    return delay(Array.from(favoriteIds));
+  },
+
+  async setFavorite(restaurantId: string, on: boolean): Promise<void> {
+    if (on) favoriteIds.add(restaurantId);
+    else favoriteIds.delete(restaurantId);
+    return delay(undefined);
+  },
+
+  /**
+   * Mock account deletion. There's no backend, so this just resets the
+   * in-memory user state. Mirrors the live adapter's contract so the UI can
+   * call `db.user.deleteAccount()` in either mode.
+   */
+  async deleteAccount(): Promise<void> {
+    currentUser = { ...DEFAULT_USER };
+    addresses = [...DEFAULT_ADDRESSES];
+    paymentMethods = [...DEFAULT_PAYMENT_METHODS];
+    favoriteIds.clear();
+    return delay(undefined);
   },
 };

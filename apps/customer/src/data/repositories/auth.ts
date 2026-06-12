@@ -19,4 +19,7 @@ export const authRepo = {
   async signOut(): Promise<void> {
     /* no-op in mock mode */
   },
+  async deleteAccount(): Promise<void> {
+    /* no-op in mock mode — nothing to delete server-side */
+  },
 };

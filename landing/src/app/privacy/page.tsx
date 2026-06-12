@@ -117,7 +117,18 @@ export default function PrivacyPage() {
             <p className="mt-3">
               You can use the app as a guest without creating an account. You may
               decline the location permission and still enter an address manually.
-              You can request access to, correction of, or deletion of your personal
+            </p>
+            <p className="mt-3">
+              You can delete your account at any time directly in the app:
+              open <strong>Profile → Delete account</strong> and confirm. This
+              permanently removes your profile, saved addresses, payment methods,
+              favourites, and notification settings, and signs you out. For legal
+              and tax reasons we retain a record of completed orders, but we remove
+              your name, phone, address, and location from them so they can no
+              longer be linked to you.
+            </p>
+            <p className="mt-3">
+              You can also request access to or correction of your personal
               information by contacting us at the address below; we will respond as
               required by applicable law.
             </p>

@@ -17,6 +17,7 @@ import { colors, font, radius } from '../src/theme';
 import { useT } from '../src/i18n';
 import { useSession } from '../src/store/session';
 import { success } from '../src/haptics';
+import { registerForPush } from '../src/lib/push';
 
 const LEN = 6;
 
@@ -43,6 +44,9 @@ export default function Otp() {
   const verify = () => {
     success();
     signIn(phoneDisplay);
+    // Best-effort, fire-and-forget: ask for push permission now that the user
+    // has an account worth notifying (order status updates).
+    registerForPush();
     router.replace('/(tabs)/home');
   };
 

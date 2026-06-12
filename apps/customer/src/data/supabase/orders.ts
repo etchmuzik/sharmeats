@@ -60,7 +60,7 @@ export const ordersRepoSupabase = {
       p_payment_method: toPaymentMethod(input.payment.kind),
       p_tip: input.tipEgp ?? 0,
       p_kitchen_notes: input.kitchenNotes ?? null,
-      p_promo_code: null,
+      p_promo_code: input.promoCode?.trim() || null,
       p_scheduled_for: input.scheduledFor ? new Date(input.scheduledFor).toISOString() : null,
     });
     if (error) throw mapPlaceOrderError(error);
@@ -92,6 +92,44 @@ export const ordersRepoSupabase = {
     if (error) throw error;
     if (!data?.checkoutUrl) return null;
     return { checkoutUrl: data.checkoutUrl as string };
+  },
+
+  /**
+   * Authoritative delivery-fee quote for the checkout display. Mirrors exactly
+   * what place_order will charge (zone rule + free-over threshold), so the
+   * "Place order · X" button never disagrees with the server total.
+   */
+  async quoteDeliveryFee(
+    restaurantId: string,
+    addressId: string,
+    subtotalEgp: number,
+  ): Promise<number> {
+    const sb = getSupabase();
+    // The RPC wants the dropoff geography; read it off the caller's address row
+    // (RLS scopes addresses to the owner). PostGIS accepts the WKB/EWKT string back.
+    const { data: addr, error: addrErr } = await sb
+      .from('addresses')
+      .select('geo')
+      .eq('id', addressId)
+      .maybeSingle();
+    if (addrErr) throw addrErr;
+    const { data, error } = await sb.rpc('quote_delivery_fee', {
+      p_restaurant_id: restaurantId,
+      p_dropoff: addr?.geo ?? null,
+      p_subtotal: subtotalEgp,
+    });
+    if (error) throw error;
+    return typeof data === 'number' ? data : 30;
+  },
+
+  /** Live promo validation (server authority). Returns the discount in EGP; 0 = invalid. */
+  async validatePromo(code: string, subtotalEgp: number): Promise<number> {
+    const { data, error } = await getSupabase().rpc('validate_promo', {
+      p_code: code.trim(),
+      p_subtotal: subtotalEgp,
+    });
+    if (error) throw error;
+    return typeof data === 'number' ? data : 0;
   },
 
   async get(id: string): Promise<Order | null> {

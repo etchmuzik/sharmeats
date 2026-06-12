@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { db } from '../../src/data';
 import type { Order, OrderStatus } from '../../src/data/types';
 import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
+import { track } from '../../src/lib/analytics';
 
 const STEPS: { key: OrderStatus; tKey: string }[] = [
   { key: 'placed', tKey: 'order.statusPlaced' },
@@ -30,6 +31,7 @@ export default function OrderTracking() {
   const [order, setOrder] = useState<Order | null>(null);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
 
   const copyShortCode = async (code: string) => {
@@ -78,6 +80,34 @@ export default function OrderTracking() {
   const remainingMs = order.etaAt - now;
   const remainingMin = Math.max(0, Math.ceil(remainingMs / 60_000));
   const slaCreditEgp = Math.round(order.totalEgp * 0.1);
+  const isCancelled = order.status === 'cancelled' || order.status === 'rejected';
+  // Customers may only cancel before the restaurant accepts; once a card order
+  // is paid, cancellation implies a refund flow we don't have yet — hide it.
+  const canCancel = order.status === 'placed' && order.paymentStatus !== 'paid';
+
+  const confirmCancel = () => {
+    tap();
+    Alert.alert(t('order.cancelConfirmTitle'), t('order.cancelConfirmBody'), [
+      { text: t('order.cancelKeep'), style: 'cancel' },
+      {
+        text: t('order.cancelConfirmYes'),
+        style: 'destructive',
+        onPress: async () => {
+          setCancelling(true);
+          try {
+            await db.orders.cancel(order.id);
+            track('order_cancelled', { orderId: order.id, total: order.totalEgp });
+            const fresh = await db.orders.get(order.id);
+            if (fresh) setOrder(fresh);
+          } catch {
+            Alert.alert(t('order.cancelFailed'));
+          } finally {
+            setCancelling(false);
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -113,7 +143,14 @@ export default function OrderTracking() {
 
         <View style={styles.etaRow}>
           <View style={{ flex: 1 }}>
-            {order.scheduledFor ? (
+            {isCancelled ? (
+              <>
+                <Text style={styles.etaLbl}>{t('order.tracking')}</Text>
+                <Text style={[styles.etaBig, { color: colors.red }]}>
+                  {t(order.status === 'rejected' ? 'status.rejected' : 'status.cancelled')}
+                </Text>
+              </>
+            ) : order.scheduledFor ? (
               <>
                 <Text style={styles.etaLbl}>{t('order.scheduledFor')}</Text>
                 <Text style={styles.etaBig}>
@@ -133,9 +170,11 @@ export default function OrderTracking() {
             )}
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <View style={styles.slaChip}>
-              <Text style={styles.slaText}>{t('order.slaChip')}</Text>
-            </View>
+            {!isCancelled && (
+              <View style={styles.slaChip}>
+                <Text style={styles.slaText}>{t('order.slaChip')}</Text>
+              </View>
+            )}
             <Pressable onPress={() => copyShortCode(order.shortCode)} hitSlop={8}>
               <Text style={styles.orderRef}>
                 #{order.shortCode}{' '}
@@ -147,14 +186,27 @@ export default function OrderTracking() {
           </View>
         </View>
 
-        <Text style={styles.slaLine}>
-          {t('order.slaLine', {
-            time: formatTime(new Date(order.etaAt)),
-            credit: formatEgp(slaCreditEgp),
-          })}
-        </Text>
+        {!isCancelled && (
+          <Text style={styles.slaLine}>
+            {t('order.slaLine', {
+              time: formatTime(new Date(order.etaAt)),
+              credit: formatEgp(slaCreditEgp),
+            })}
+          </Text>
+        )}
+
+        {/* Cancelled / rejected terminal state replaces the step timeline. */}
+        {isCancelled && (
+          <View style={styles.cancelledCard}>
+            <Text style={styles.cancelledTitle}>{t('order.cancelledTitle')}</Text>
+            <Text style={styles.cancelledBody}>
+              {t(order.status === 'rejected' ? 'order.rejectedBody' : 'order.cancelledBody')}
+            </Text>
+          </View>
+        )}
 
         {/* Timeline */}
+        {!isCancelled && (
         <View style={styles.timeline}>
           {STEPS.map((s, i) => {
             const status = i < stepIndex ? 'done' : i === stepIndex ? 'now' : 'pending';
@@ -191,6 +243,7 @@ export default function OrderTracking() {
             );
           })}
         </View>
+        )}
 
         {/* Kitchen briefing echo */}
         {((order.aggregateAllergens && order.aggregateAllergens.length > 0) || order.kitchenNotes) && (
@@ -207,7 +260,7 @@ export default function OrderTracking() {
         )}
 
         {/* Rider card */}
-        {order.rider && (
+        {!isCancelled && order.rider && (
           <View style={styles.riderCard}>
             <Image source={{ uri: order.rider.photo }} style={styles.riderPh} />
             <View style={{ flex: 1 }}>
@@ -274,7 +327,18 @@ export default function OrderTracking() {
           </Pressable>
         )}
 
-        {order.status !== 'delivered' && (
+        {canCancel && (
+          <Pressable
+            onPress={confirmCancel}
+            disabled={cancelling}
+            accessibilityRole="button"
+            accessibilityLabel={t('order.cancelOrder')}
+            style={[styles.cancelBtn, cancelling && { opacity: 0.5 }]}>
+            <Text style={styles.cancelBtnText}>{t('order.cancelOrder')}</Text>
+          </Pressable>
+        )}
+
+        {order.status !== 'delivered' && !isCancelled && (
           <Pressable
             onPress={async () => {
               const o = await db.orders.forceDelivered(order.id);
@@ -433,6 +497,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reviewBtnText: { color: colors.white, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
+
+  cancelledCard: {
+    marginTop: 18,
+    padding: 14,
+    borderRadius: radius.xl,
+    backgroundColor: '#fdeeee',
+    borderWidth: 1,
+    borderColor: '#f3c8c8',
+  },
+  cancelledTitle: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.red },
+  cancelledBody: { marginTop: 6, fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 22 },
+
+  cancelBtn: {
+    marginTop: 18,
+    padding: 14,
+    borderRadius: radius.xl,
+    borderWidth: 1.5,
+    borderColor: colors.red,
+    alignItems: 'center',
+  },
+  cancelBtnText: { color: colors.red, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
 
   debugBtn: {
     marginTop: 18,

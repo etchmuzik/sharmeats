@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
@@ -13,7 +13,8 @@ import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
 import { success, tap } from '../../src/haptics';
 import { db } from '../../src/data';
-import type { CartItem, Restaurant } from '../../src/data/types';
+import type { CartItem, MenuItem, Restaurant } from '../../src/data/types';
+import { track } from '../../src/lib/analytics';
 
 export default function CartTab() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function CartTab() {
   const setQuantity = useCart((s) => s.setQuantity);
   const remove = useCart((s) => s.remove);
   const clear = useCart((s) => s.clear);
+  const addLine = useCart((s) => s.add);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
 
   useEffect(() => {
@@ -39,6 +41,54 @@ export default function CartTab() {
   const minOrder = restaurant?.minOrderEgp ?? 0;
   const shortBy = Math.max(0, minOrder - subtotal);
   const belowMin = shortBy > 0;
+
+  // Cross-sell rail: cheap, one-tap-addable items from the same restaurant.
+  // Only items with no required modifier group can be added without the modal.
+  const cartItemIds = useMemo(() => new Set(lines.map((l) => l.itemId)), [lines]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  useEffect(() => {
+    if (!restaurantId || lines.length === 0) {
+      setMenuItems([]);
+      return;
+    }
+    let cancelled = false;
+    db.menus.forRestaurant(restaurantId).then((m) => {
+      if (!cancelled) setMenuItems(m.items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId, lines.length > 0]);
+
+  const suggestions = useMemo(
+    () =>
+      menuItems
+        .filter(
+          (i) =>
+            i.isAvailable &&
+            !cartItemIds.has(i.id) &&
+            i.modifiers.every((m) => !m.required),
+        )
+        .sort((a, b) => a.priceEgp - b.priceEgp)
+        .slice(0, 6),
+    [menuItems, cartItemIds],
+  );
+
+  const addSuggestion = (item: MenuItem) => {
+    if (!restaurantId) return;
+    success();
+    addLine({
+      itemId: item.id,
+      restaurantId,
+      restaurantName: restaurantName ?? restaurant?.name ?? '',
+      name: item.name,
+      basePriceEgp: item.priceEgp,
+      image: item.image,
+      quantity: 1,
+      modifierChoices: [],
+    });
+    track('cross_sell_added', { itemId: item.id, price: item.priceEgp });
+  };
 
   // Empty-cart "near you" suggestions, filtered to the user's default address zone.
   const [nearby, setNearby] = useState<Restaurant[]>([]);
@@ -143,6 +193,36 @@ export default function CartTab() {
             ))}
           </View>
         </View>
+
+        {suggestions.length > 0 && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.nearbyTitle}>{t('cart.alsoAdd')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingTop: 10 }}>
+              {suggestions.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => addSuggestion(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('cart.alsoAdd')}: ${item.name}`}
+                  style={styles.suggestCard}>
+                  <Image source={{ uri: item.image }} style={styles.suggestImg} />
+                  <Text style={styles.suggestName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <View style={styles.suggestRow}>
+                    <Text style={styles.suggestPrice}>{formatEgp(item.priceEgp)}</Text>
+                    <View style={styles.suggestPlus}>
+                      <Text style={styles.suggestPlusText}>+</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
@@ -349,6 +429,33 @@ const styles = StyleSheet.create({
   },
   swipeIcon: { fontSize: 22 },
   swipeLabel: { color: colors.white, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
+  suggestCard: {
+    width: 132,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    padding: 8,
+    ...shadow.soft,
+  },
+  suggestImg: { width: '100%', height: 78, borderRadius: radius.md, backgroundColor: colors.bgSoft },
+  suggestName: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold, marginTop: 6 },
+  suggestRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  suggestPrice: { fontSize: font.sizes.md, color: colors.ink2, fontWeight: font.weights.semibold },
+  suggestPlus: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.seaSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestPlusText: { fontSize: 16, color: colors.sea, lineHeight: 18, fontWeight: '800' as const },
   minBanner: {
     paddingVertical: 8,
     paddingHorizontal: 12,
