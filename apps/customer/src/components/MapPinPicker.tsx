@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Icon } from './Icon';
@@ -15,18 +15,29 @@ export interface LatLng {
 const SHARM_CENTER: LatLng = { lat: 27.9158, lng: 34.3299 };
 const DEFAULT_DELTA = 0.04;
 
+/** Give a fresh GPS fix this long before falling back (simulators with no
+ *  simulated location and deep-indoor devices otherwise hang forever). */
+const FIX_TIMEOUT_MS = 8000;
+
 interface MapPinPickerProps {
   /** Current pin, or null if none placed yet. */
   value: LatLng | null;
   /** Called whenever the pin moves (drag, tap, or locate-me). */
   onChange: (coord: LatLng) => void;
+  /**
+   * Fires with `true` while a touch is on the map, `false` when it ends. The
+   * parent screen must disable its ScrollView during interaction, otherwise
+   * the page scrolls when the user tries to pan the map or drag the pin.
+   */
+  onInteractionChange?: (active: boolean) => void;
   /** Localized strings (so the component stays i18n-agnostic). */
   labels: {
     hint: string; // shown before a pin exists
     pinned: string; // shown after, with coords appended by the parent if desired
     locateMe: string;
     locating: string;
-    denied: string; // permission denied message
+    denied: string; // permission denied — tappable, deep-links to Settings
+    failed: string; // permission granted but no GPS fix (timeout / no signal)
   };
   /** Map height. */
   height?: number;
@@ -40,10 +51,16 @@ interface MapPinPickerProps {
  * The pin is the single source of truth for delivery-zone resolution + fees, so
  * letting the user place it manually (not just GPS) matters for order-ahead.
  */
-export function MapPinPicker({ value, onChange, labels, height = 240 }: MapPinPickerProps) {
+export function MapPinPicker({
+  value,
+  onChange,
+  onInteractionChange,
+  labels,
+  height = 240,
+}: MapPinPickerProps) {
   const mapRef = useRef<MapView | null>(null);
   const [locating, setLocating] = useState(false);
-  const [denied, setDenied] = useState(false);
+  const [error, setError] = useState<'denied' | 'failed' | null>(null);
 
   const region: Region = {
     latitude: value?.lat ?? SHARM_CENTER.lat,
@@ -56,26 +73,51 @@ export function MapPinPicker({ value, onChange, labels, height = 240 }: MapPinPi
     onChange(coord);
     if (recenter) {
       mapRef.current?.animateToRegion(
-        { ...coord, latitude: coord.lat, longitude: coord.lng, latitudeDelta: DEFAULT_DELTA, longitudeDelta: DEFAULT_DELTA },
+        {
+          latitude: coord.lat,
+          longitude: coord.lng,
+          latitudeDelta: DEFAULT_DELTA,
+          longitudeDelta: DEFAULT_DELTA,
+        },
         350,
       );
     }
   };
 
   const locateMe = async () => {
-    setDenied(false);
+    setError(null);
     setLocating(true);
+    let placed = false;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setDenied(true);
+        setError('denied');
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      moveTo({ lat: pos.coords.latitude, lng: pos.coords.longitude }, true);
+
+      // 1. Cached fix first: instant, good enough to center the map while the
+      //    fresh fix comes in (or when it never does).
+      const last = await Location.getLastKnownPositionAsync().catch(() => null);
+      if (last) {
+        placed = true;
+        moveTo({ lat: last.coords.latitude, lng: last.coords.longitude }, true);
+      }
+
+      // 2. Fresh fix, but never hang: race against a timeout. Balanced accuracy
+      //    is plenty for a delivery pin and much faster than High indoors.
+      const fresh = await Promise.race<Location.LocationObject>([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('gps-timeout')), FIX_TIMEOUT_MS),
+        ),
+      ]);
+      placed = true;
+      moveTo({ lat: fresh.coords.latitude, lng: fresh.coords.longitude }, true);
       success();
     } catch {
-      setDenied(true);
+      // Permission was granted but we couldn't get a fix. If the cached
+      // position already placed the pin, that's a fine outcome — stay quiet.
+      if (!placed) setError('failed');
     } finally {
       setLocating(false);
     }
@@ -83,7 +125,13 @@ export function MapPinPicker({ value, onChange, labels, height = 240 }: MapPinPi
 
   return (
     <View style={{ gap: 8 }}>
-      <View style={[styles.mapWrap, { height }]}>
+      <View
+        style={[styles.mapWrap, { height }]}
+        // Claim the gesture while a finger is on the map so the parent
+        // ScrollView doesn't scroll the page mid-pan / mid-pin-drag.
+        onTouchStart={() => onInteractionChange?.(true)}
+        onTouchEnd={() => onInteractionChange?.(false)}
+        onTouchCancel={() => onInteractionChange?.(false)}>
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
@@ -110,6 +158,7 @@ export function MapPinPicker({ value, onChange, labels, height = 240 }: MapPinPi
         {/* Locate-me button overlaid on the map */}
         <Pressable
           onPress={locateMe}
+          disabled={locating}
           accessibilityRole="button"
           accessibilityLabel={labels.locateMe}
           style={styles.locateBtn}>
@@ -124,7 +173,15 @@ export function MapPinPicker({ value, onChange, labels, height = 240 }: MapPinPi
       <Text style={styles.hint}>
         {locating ? labels.locating : value ? labels.pinned : labels.hint}
       </Text>
-      {denied && <Text style={styles.denied}>{labels.denied}</Text>}
+      {error === 'denied' && (
+        <Pressable
+          onPress={() => Linking.openSettings()}
+          accessibilityRole="button"
+          accessibilityLabel={labels.denied}>
+          <Text style={[styles.error, styles.errorLink]}>{labels.denied}</Text>
+        </Pressable>
+      )}
+      {error === 'failed' && <Text style={styles.error}>{labels.failed}</Text>}
     </View>
   );
 }
@@ -153,5 +210,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   hint: { fontSize: font.sizes.base, color: colors.ink2, fontWeight: font.weights.medium },
-  denied: { fontSize: font.sizes.base, color: colors.accentDark, fontWeight: font.weights.medium },
+  error: { fontSize: font.sizes.base, color: colors.accentDark, fontWeight: font.weights.medium },
+  errorLink: { textDecorationLine: 'underline' },
 });
