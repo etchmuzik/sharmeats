@@ -113,6 +113,8 @@
   "restaurant.minOrder": "الحد الأدنى {amount}",
   "restaurant.toYourHotel": "إلى فندقك",
   "restaurant.delivery": "توصيل",
+  "restaurant.callRestaurant": "اتصال",
+  "restaurant.viewOnMap": "الخريطة",
   "restaurant.viewCart": "عرض السلة",
   "restaurant.closed": "مغلق حاليًا",
   "restaurant.open24h": "٢٤ ساعة",

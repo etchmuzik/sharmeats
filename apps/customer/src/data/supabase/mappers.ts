@@ -32,6 +32,9 @@ interface RestaurantRow {
   promo: string | null;
   featured: boolean | null;
   description: string;
+  phone: string | null;
+  address: string | null;
+  website: string | null;
 }
 
 export function rowToRestaurant(r: RestaurantRow): Restaurant {
@@ -57,6 +60,9 @@ export function rowToRestaurant(r: RestaurantRow): Restaurant {
     promo: r.promo ?? undefined,
     featured: r.featured ?? undefined,
     description: r.description,
+    phone: r.phone ?? undefined,
+    address: r.address ?? undefined,
+    website: r.website ?? undefined,
   };
 }
 

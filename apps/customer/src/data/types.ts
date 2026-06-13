@@ -102,6 +102,10 @@ export interface Restaurant {
   promo?: string;
   featured?: boolean;
   description: string;
+  /** Public contact/location metadata (present for real directory-sourced venues). */
+  phone?: string;
+  address?: string;
+  website?: string;
 }
 
 export interface ModifierOption {

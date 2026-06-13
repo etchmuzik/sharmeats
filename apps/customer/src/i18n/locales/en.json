@@ -113,6 +113,8 @@
   "restaurant.minOrder": "Min order {amount}",
   "restaurant.toYourHotel": "to your hotel",
   "restaurant.delivery": "delivery",
+  "restaurant.callRestaurant": "Call",
+  "restaurant.viewOnMap": "Map",
   "restaurant.viewCart": "View cart",
   "restaurant.closed": "Closed for now",
   "restaurant.open24h": "24/7",
