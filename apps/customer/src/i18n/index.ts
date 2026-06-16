@@ -2,6 +2,8 @@ import { useSession, type Locale } from '../store/session';
 import en from './locales/en.json';
 import ar from './locales/ar.json';
 import ru from './locales/ru.json';
+import it from './locales/it.json';
+import de from './locales/de.json';
 
 type Dict = Record<string, string>;
 
@@ -9,6 +11,8 @@ const DICTS: Partial<Record<Locale, Dict>> = {
   en: en as Dict,
   ar: ar as Dict,
   ru: ru as Dict,
+  it: it as Dict,
+  de: de as Dict,
 };
 
 /**
