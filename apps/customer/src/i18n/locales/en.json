@@ -242,6 +242,8 @@
   "payment.cash": "Cash on delivery",
 
   "order.tracking": "Order tracking",
+  "order.deliveringToRoom": "Delivering to your room",
+  "order.noCallNeeded": "No phone call needed · we have your room details",
   "order.kitchenSees": "Kitchen sees",
   "order.copy": "Copy",
   "order.copied": "✓ Copied",
@@ -303,9 +305,23 @@
   "profile.allergies": "Allergies",
   "profile.notificationsOrderUpdates": "Order updates",
   "profile.notificationsPromotions": "Promotions",
+  "profile.invite": "Invite friends",
   "profile.help": "Help & support",
   "profile.signOut": "Sign out",
   "profile.deleteAccount": "Delete account",
+
+  "invite.title": "Invite friends",
+  "invite.heroTitle": "Give EGP 50, get EGP 50",
+  "invite.heroSub": "Share your code. Your friend gets EGP 50 off their first order — you get EGP 50 once it's delivered.",
+  "invite.yourCode": "Your referral code",
+  "invite.shareCta": "Share code",
+  "invite.shareMessage": "Order from Sharm's best kitchens with Sharm Eats. Use my code {code} for EGP 50 off your first order: {url}",
+  "invite.step1": "Share your code with a friend",
+  "invite.step2": "They enter it at checkout and get EGP 50 off their first order (min EGP 150)",
+  "invite.step3": "Once their order is delivered, you get EGP 50 off your next one",
+  "invite.terms": "Reward applies after your friend's first order is delivered. One referral per new customer.",
+  "invite.loadError": "Couldn't load your code.",
+  "invite.shareError": "Couldn't open sharing. Please try again.",
 
   "settings.title": "Settings",
 

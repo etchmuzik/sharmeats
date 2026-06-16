@@ -72,6 +72,11 @@ export const userRepo = {
     return delay(undefined);
   },
 
+  /** Mock referral code — stable stub so the invite screen renders offline. */
+  async myReferralCode(): Promise<string> {
+    return delay('SHARM-DEMO42');
+  },
+
   /**
    * Mock account deletion. There's no backend, so this just resets the
    * in-memory user state. Mirrors the live adapter's contract so the UI can

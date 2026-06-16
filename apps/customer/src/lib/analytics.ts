@@ -46,7 +46,8 @@ export type AnalyticsEvent =
   | 'reorder_tapped'
   | 'cross_sell_added'
   | 'push_permission'
-  | 'search_performed';
+  | 'search_performed'
+  | 'referral_shared';
 
 export function track(
   event: AnalyticsEvent,

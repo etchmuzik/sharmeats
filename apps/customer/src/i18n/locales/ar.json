@@ -242,6 +242,8 @@
   "payment.cash": "كاش عند الاستلام",
 
   "order.tracking": "تتبع الطلب",
+  "order.deliveringToRoom": "التوصيل إلى غرفتك",
+  "order.noCallNeeded": "لا حاجة لمكالمة هاتفية · لدينا تفاصيل غرفتك",
   "order.kitchenSees": "المطبخ شايف",
   "order.copy": "انسخ",
   "order.copied": "✓ تم",
@@ -303,9 +305,23 @@
   "profile.allergies": "الحساسية",
   "profile.notificationsOrderUpdates": "تحديثات الطلب",
   "profile.notificationsPromotions": "العروض",
+  "profile.invite": "دعوة الأصدقاء",
   "profile.help": "المساعدة والدعم",
   "profile.signOut": "تسجيل الخروج",
   "profile.deleteAccount": "حذف الحساب",
+
+  "invite.title": "دعوة الأصدقاء",
+  "invite.heroTitle": "امنح 50 ج.م، واحصل على 50 ج.م",
+  "invite.heroSub": "شارك رمزك. يحصل صديقك على خصم 50 ج.م على أول طلب — وتحصل أنت على 50 ج.م بعد توصيله.",
+  "invite.yourCode": "رمز الإحالة الخاص بك",
+  "invite.shareCta": "مشاركة الرمز",
+  "invite.shareMessage": "اطلب من أفضل مطابخ شرم مع Sharm Eats. استخدم رمزي {code} للحصول على خصم 50 ج.م على أول طلب: {url}",
+  "invite.step1": "شارك رمزك مع صديق",
+  "invite.step2": "يُدخله عند الدفع ويحصل على خصم 50 ج.م على أول طلب (حد أدنى 150 ج.م)",
+  "invite.step3": "بمجرد توصيل طلبه، تحصل أنت على خصم 50 ج.م على طلبك التالي",
+  "invite.terms": "يُمنح المكافأة بعد توصيل أول طلب لصديقك. إحالة واحدة لكل عميل جديد.",
+  "invite.loadError": "تعذّر تحميل رمزك.",
+  "invite.shareError": "تعذّر فتح المشاركة. حاول مرة أخرى.",
 
   "settings.title": "الإعدادات",
 

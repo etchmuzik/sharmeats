@@ -259,6 +259,28 @@ export default function OrderTracking() {
           </View>
         )}
 
+        {/* Hotel handoff reassurance — for tourists, confirm the order is going
+            to their room with no phone call needed (the core trust promise). */}
+        {!isCancelled && order.addressSnapshot?.kind === 'hotel' && (
+          <View style={styles.handoffCard}>
+            <View style={styles.handoffHead}>
+              <Icon name="hotel" size={16} color={colors.sea} />
+              <Text style={styles.handoffTitle}>
+                {order.addressSnapshot.hotelName ?? t('address.hotel')}
+                {order.addressSnapshot.roomNumber
+                  ? ` · ${t('address.room')} ${order.addressSnapshot.roomNumber}`
+                  : ''}
+              </Text>
+            </View>
+            <Text style={styles.handoffLine}>
+              {handoffLabel(order.addressSnapshot.handoff, t)}
+            </Text>
+            <View style={styles.handoffBadge}>
+              <Text style={styles.handoffBadgeText}>{t('order.noCallNeeded')}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Rider card */}
         {!isCancelled && order.rider && (
           <View style={styles.riderCard}>
@@ -351,6 +373,23 @@ export default function OrderTracking() {
       </ScrollView>
     </View>
   );
+}
+
+/** Plain-language handoff line for the customer, reusing the address.* labels. */
+function handoffLabel(
+  handoff: 'lobby' | 'reception' | 'poolside' | undefined,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  switch (handoff) {
+    case 'lobby':
+      return t('address.lobby');
+    case 'reception':
+      return t('address.reception');
+    case 'poolside':
+      return t('address.poolside');
+    default:
+      return t('order.deliveringToRoom');
+  }
 }
 
 const styles = StyleSheet.create({
@@ -446,6 +485,26 @@ const styles = StyleSheet.create({
     fontWeight: font.weights.bold,
   },
   briefingNotes: { marginTop: 6, fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 22 },
+  handoffCard: {
+    marginTop: 18,
+    padding: 14,
+    borderRadius: radius.xl,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.seaSoft,
+  },
+  handoffHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  handoffTitle: { flex: 1, fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
+  handoffLine: { marginTop: 6, fontSize: font.sizes.lg, color: colors.ink2 },
+  handoffBadge: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.seaSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  handoffBadgeText: { color: colors.sea, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
   riderCard: {
     marginTop: 18,
     padding: 14,
