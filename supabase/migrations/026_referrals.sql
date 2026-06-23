@@ -101,6 +101,11 @@ begin
 end;
 $$;
 grant execute on function public.my_referral_code() to authenticated;
+-- generate_referral_code is an internal helper for my_referral_code — never a
+-- direct RPC. Lock it (and the first-order gate below) from client roles so the
+-- Supabase advisor's "anon can execute SECURITY DEFINER fn" warning doesn't fire
+-- on internals that are not meant to be called over the API.
+revoke all on function public.generate_referral_code() from public, anon, authenticated;
 
 -- ============================================================================
 -- referrals — one row per (referred user, code). Tracks reward payout.
@@ -145,6 +150,8 @@ as $$
      where user_id = p_user and status = 'delivered'
   );
 $$;
+-- Internal gate used inside validate_promo — not a direct RPC. Lock from clients.
+revoke all on function public.has_completed_order(uuid) from public, anon, authenticated;
 
 -- ============================================================================
 -- validate_promo — now referral-aware. A referral code:
@@ -253,6 +260,9 @@ exception when others then
 end;
 $$;
 
+-- Trigger-only function — never a direct RPC. Lock from client roles.
+revoke all on function public.link_referral_on_order() from public, anon, authenticated;
+
 drop trigger if exists orders_link_referral on public.orders;
 create trigger orders_link_referral
   after insert on public.orders
@@ -321,6 +331,9 @@ exception when others then
   return new;  -- never block the delivery transition on reward bookkeeping
 end;
 $$;
+
+-- Trigger-only function — never a direct RPC. Lock from client roles.
+revoke all on function public.reward_referrer_on_delivery() from public, anon, authenticated;
 
 drop trigger if exists orders_reward_referrer on public.orders;
 create trigger orders_reward_referrer
