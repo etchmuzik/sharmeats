@@ -339,6 +339,46 @@
 }
 
 /* ============================================================
+   iPad 13" VARIANT (2064 × 2752)
+   Applied when the export route adds the `.ipad` class to .root
+   (?ipad=1). Overrides the poster canvas + device frame to an iPad
+   aspect: uniform thin bezels, gentle radius, no notch. The screen
+   content is the same components — the StatusBar hides its notch via
+   the .ipad scope below (iPads have no notch).
+   ============================================================ */
+.ipad {
+  --shotW: 2064px;
+  --shotH: 2752px;
+}
+.ipad .device {
+  margin-top: 96px;
+  width: 1660px;
+  height: 2214px;
+  border-radius: 64px;
+  padding: 26px;
+}
+.ipad .device::before {
+  inset: 10px;
+  border-radius: 58px;
+}
+.ipad .screen {
+  inset: 26px;
+  border-radius: 40px;
+}
+/* iPads have no notch; hide the pill and re-center the status bar row. */
+.ipad :global(.notch) {
+  display: none;
+}
+.ipad :global(.statusbar) {
+  height: 96px;
+  padding: 0 56px;
+}
+.ipad :global(.statusbar .t),
+.ipad :global(.statusbar .r) {
+  margin-top: 18px;
+}
+
+/* ============================================================
    IN-SCREEN STRUCTURAL CLASSES
    Emitted :global so the screen JSX (which references them as
    plain strings) resolves, but nested under .root so they stay

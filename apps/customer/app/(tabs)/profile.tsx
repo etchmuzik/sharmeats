@@ -48,6 +48,7 @@ export default function ProfileTab() {
     },
     { icon: 'currency', label: t('profile.currency'), value: currency, onPress: () => router.push('/settings') },
     { icon: 'bell', label: t('profile.notifications'), onPress: () => router.push('/settings') },
+    { icon: 'gift', label: t('profile.invite'), onPress: () => router.push('/invite') },
     { icon: 'help', label: t('profile.help'), onPress: () => router.push('/help') },
     {
       icon: 'signout',

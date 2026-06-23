@@ -16,6 +16,7 @@ import { parseWkbPoint } from '../../src/geo';
 import { openDirections } from '../../src/navigation';
 import { colors, font, radius, spacing } from '../../src/theme';
 import { Icon } from '../../src/components/Icon';
+import { HotelHandoffCard } from '../../src/components/HotelHandoffCard';
 import { useToast } from '../../src/components/Toast';
 
 export default function JobScreen() {
@@ -211,16 +212,27 @@ export default function JobScreen() {
           </View>
         )}
 
-        {/* Drop-off */}
-        <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
-            Deliver to
-          </Text>
-          <Text style={{ fontSize: font.sizes.lg, color: colors.ink, marginTop: 4 }}>{addrLine}</Text>
-          {addr?.landmark ? (
-            <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, marginTop: 2 }}>Landmark: {addr.landmark}</Text>
-          ) : null}
-        </View>
+        {/* Drop-off. Hotel deliveries get a dedicated handoff card (room number
+            big, plain-language handoff) so the order lands with no phone call —
+            the core Sharm tourist promise. Street/beach keep the compact line. */}
+        {addr?.kind === 'hotel' ? (
+          <HotelHandoffCard
+            hotelName={addr.hotelName}
+            roomNumber={addr.roomNumber}
+            handoff={addr.handoff}
+            landmark={addr.landmark}
+          />
+        ) : (
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
+              Deliver to
+            </Text>
+            <Text style={{ fontSize: font.sizes.lg, color: colors.ink, marginTop: 4 }}>{addrLine}</Text>
+            {addr?.landmark ? (
+              <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, marginTop: 2 }}>Landmark: {addr.landmark}</Text>
+            ) : null}
+          </View>
+        )}
 
         {/* Order items — so the driver can verify the bag before leaving the restaurant. */}
         {job.items.length > 0 && (

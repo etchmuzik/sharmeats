@@ -40,6 +40,8 @@ export type IconName =
   | 'bell'
   | 'help'
   | 'signout'
+  | 'gift' // invite friends / referrals
+  | 'share'
   | 'person';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
@@ -71,6 +73,8 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   bell: 'notifications-outline',
   help: 'help-circle-outline',
   signout: 'log-out-outline',
+  gift: 'gift-outline',
+  share: 'share-social-outline',
   person: 'person-outline',
 };
 

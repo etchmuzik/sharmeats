@@ -1,12 +1,18 @@
 import { useSession, type Locale } from '../store/session';
 import en from './locales/en.json';
 import ar from './locales/ar.json';
+import ru from './locales/ru.json';
+import it from './locales/it.json';
+import de from './locales/de.json';
 
 type Dict = Record<string, string>;
 
 const DICTS: Partial<Record<Locale, Dict>> = {
   en: en as Dict,
   ar: ar as Dict,
+  ru: ru as Dict,
+  it: it as Dict,
+  de: de as Dict,
 };
 
 /**
@@ -37,4 +43,11 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   de: 'Deutsch',
 };
 
-export const ALL_LOCALES: Locale[] = ['en', 'ar', 'ru', 'it', 'de'];
+// Only offer languages we actually ship translations for. it/de are declared in
+// the Locale type + LOCALE_LABELS (so they're ready to enable) but have no JSON
+// yet — listing them in the switcher would let a user pick a language that
+// silently renders English. Derive the picker list from DICTS so adding
+// it.json/de.json to DICTS later auto-enables them, with no drift here.
+export const ALL_LOCALES: Locale[] = (Object.keys(DICTS) as Locale[]).filter(
+  (l) => DICTS[l] != null,
+);

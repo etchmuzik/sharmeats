@@ -149,6 +149,20 @@ export const userRepoSupabase = {
     if (error) throw error;
   },
 
+  /**
+   * The caller's shareable referral code (e.g. SHARM-ABC123). The RPC lazily
+   * generates one on first call, so this is safe to call from the invite screen
+   * without any setup. RLS-safe: the SECURITY DEFINER fn scopes to auth.uid().
+   */
+  async myReferralCode(): Promise<string> {
+    const { data, error } = await getSupabase().rpc('my_referral_code');
+    if (error) throw error;
+    if (typeof data !== 'string' || data.length === 0) {
+      throw new Error('Could not load referral code');
+    }
+    return data;
+  },
+
   /** Saved restaurants (owner-scoped by RLS). Returns restaurant ids, newest first. */
   async listFavorites(): Promise<string[]> {
     const { data, error } = await getSupabase()

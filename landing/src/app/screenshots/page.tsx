@@ -40,21 +40,29 @@ const Z = 0.3;
 export default async function ScreenshotsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ export?: string }>;
+  searchParams: Promise<{ export?: string; ipad?: string }>;
 }) {
-  // `?export=N` renders only poster N at full 1320×2868 (z=1), no gallery
-  // chrome — used to capture native-resolution App Store screenshots.
+  // `?export=N` renders only poster N at full size (z=1), no gallery chrome —
+  // used to capture native-resolution App Store screenshots.
+  // `?ipad=1` switches the canvas + device frame to iPad 13″ (2064×2752); the
+  // app is universal (supportsTablet) so the iPad listing needs its own set.
   const params = await searchParams;
   const exportIdx = params.export != null ? Number(params.export) : null;
   const isExport = exportIdx != null && Number.isInteger(exportIdx) && exportIdx >= 0 && exportIdx < SHOTS.length;
+  const isIpad = params.ipad === "1" || params.ipad === "true";
+
+  const rootClass = [styles.root, isIpad ? styles.ipad : "", sora.variable, jakarta.variable, cairo.variable]
+    .filter(Boolean)
+    .join(" ");
+  const exportDims = isIpad ? { width: 2064, height: 2752 } : { width: 1320, height: 2868 };
 
   return (
-    <div className={`${styles.root} ${sora.variable} ${jakarta.variable} ${cairo.variable}`}>
+    <div className={rootClass}>
       {/* Phosphor icon-font — every <i className="ph-* …"/> in the screens depends on it. */}
       <Script src="https://unpkg.com/@phosphor-icons/web@2.1.1" strategy="beforeInteractive" />
 
       {isExport ? (
-        <div style={{ width: 1320, height: 2868, overflow: "hidden" }}>
+        <div style={{ width: exportDims.width, height: exportDims.height, overflow: "hidden" }}>
           <Poster shot={SHOTS[exportIdx]} index={exportIdx} z={1} />
         </div>
       ) : (
