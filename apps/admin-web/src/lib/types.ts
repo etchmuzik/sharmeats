@@ -59,8 +59,12 @@ export const ZONES = [
 ] as const;
 export type Zone = (typeof ZONES)[number];
 
+// 'halal' is intentionally omitted from the editor: in Egypt halal is the
+// default, so tagging dishes with it is noise. The customer app already hides
+// the halal badge (FlagBadge), and the DB enum still allows the value for any
+// historical rows — we just don't offer it as a selectable flag here.
 export const ITEM_FLAGS = [
-  'halal', 'vegetarian', 'vegan', 'contains_pork', 'contains_alcohol',
+  'vegetarian', 'vegan', 'contains_pork', 'contains_alcohol',
   'contains_nuts', 'spicy', 'glutenfree',
 ] as const;
 export type ItemFlag = (typeof ITEM_FLAGS)[number];
