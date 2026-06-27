@@ -32,6 +32,7 @@ export default function Checkout() {
   const clear = useCart((s) => s.clear);
 
   const selectedAddressId = useSession((s) => s.selectedAddressId);
+  const sessionPhone = useSession((s) => s.phone);
   const currency = useSession((s) => s.currency);
   const setCurrency = useSession((s) => s.setCurrency);
   const locale = useSession((s) => s.locale);
@@ -45,6 +46,7 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [kitchenNotes, setKitchenNotes] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
@@ -55,8 +57,14 @@ export default function Checkout() {
 
   useEffect(() => {
     track('checkout_opened', { subtotal, itemCount: lines.length });
+    // Prefill the contact number from the phone the user entered at sign-in
+    // (if any) so most users don't retype it.
+    if (sessionPhone) setContactPhone(sessionPhone);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A usable contact number needs at least 8 digits (handles +20 / spaces).
+  const phoneValid = contactPhone.replace(/\D/g, '').length >= 8;
 
   // Generate 8 half-hour slots starting at the next half hour, capped at ~4h.
   const scheduleSlots = useMemo<number[]>(() => {
@@ -151,7 +159,7 @@ export default function Checkout() {
   const isCard = payment?.kind === 'card' || payment?.kind === 'apple_pay';
 
   const place = async () => {
-    if (!restaurant || !address || !payment || lines.length === 0) return;
+    if (!restaurant || !address || !payment || lines.length === 0 || !phoneValid) return;
     setPlacing(true);
     try {
       // place_order (server-authoritative). Returns the created order.
@@ -168,6 +176,7 @@ export default function Checkout() {
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
         scheduledFor: scheduledFor ?? undefined,
         promoCode: promoApplied?.code,
+        customerPhone: contactPhone.trim(),
       });
       track('order_placed', {
         orderId: order.id,
@@ -272,6 +281,23 @@ export default function Checkout() {
               <Icon name="chevronForward" size={20} color={colors.ink3} />
             </Pressable>
           )}
+        </View>
+
+        {/* Contact number — the driver calls this. Required to place the order. */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('checkout.contactTitle')}</Text>
+          <TextInput
+            value={contactPhone}
+            onChangeText={setContactPhone}
+            placeholder={t('checkout.contactPlaceholder')}
+            placeholderTextColor={colors.ink3}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            style={[styles.phoneInput, dir.text]}
+            accessibilityLabel={t('checkout.contactTitle')}
+          />
+          <Text style={styles.phoneHint}>{t('checkout.contactHint')}</Text>
         </View>
 
         {/* Cart preview */}
@@ -529,6 +555,10 @@ export default function Checkout() {
             <Text style={styles.payErrText}>{paymentError}</Text>
           </View>
         )}
+        {/* Tell the customer why Place order is disabled when contact is missing. */}
+        {address && payment && lines.length > 0 && !phoneValid && (
+          <Text style={styles.cardHint}>{t('checkout.needPhone')}</Text>
+        )}
         {isCard && (
           <Text style={styles.cardHint}>
             {t('checkout.cardHint') !== 'checkout.cardHint'
@@ -545,7 +575,7 @@ export default function Checkout() {
               : t('checkout.place', { amount: formatEgp(total) })
           }
           onPress={place}
-          disabled={placing || !address || !payment || lines.length === 0}
+          disabled={placing || !address || !payment || lines.length === 0 || !phoneValid}
         />
       </View>
     </View>
@@ -748,6 +778,18 @@ const styles = StyleSheet.create({
     fontSize: font.sizes.lg,
     color: colors.ink,
   },
+  phoneInput: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+    paddingHorizontal: 12,
+    height: 46,
+    fontSize: font.sizes.lg,
+    color: colors.ink,
+  },
+  phoneHint: { marginTop: 8, fontSize: font.sizes.sm, color: colors.ink3 },
   promoBtn: {
     paddingHorizontal: 16,
     height: 44,

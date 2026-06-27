@@ -321,5 +321,9 @@
   "order.paid": "Bezahlt",
   "order.payOnDelivery": "Zahlung bei Lieferung",
   "common.error": "Etwas ist schiefgelaufen. Prüfe deine Verbindung und versuche es erneut.",
-  "menu.empty": "Gerade ist nichts verfügbar — bitte schau später noch einmal vorbei."
+  "menu.empty": "Gerade ist nichts verfügbar — bitte schau später noch einmal vorbei.",
+  "checkout.contactTitle": "Kontaktnummer",
+  "checkout.contactHint": "Dein Fahrer ruft diese Nummer bei Bedarf an",
+  "checkout.contactPlaceholder": "z. B. 010 1234 5678",
+  "checkout.needPhone": "Füge eine Kontaktnummer hinzu, um zu bestellen"
 }

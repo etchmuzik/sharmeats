@@ -3,7 +3,6 @@ import {
   Animated,
   FlatList,
   Image,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -173,42 +172,10 @@ export default function RestaurantDetail() {
 
           <Text style={styles.descr}>{restaurant.description}</Text>
 
-          {(restaurant.address || restaurant.phone) && (
-            <View style={styles.contact}>
-              {restaurant.address && (
-                <Text style={styles.contactAddr} numberOfLines={2}>
-                  📍 {restaurant.address}
-                </Text>
-              )}
-              <View style={styles.contactActions}>
-                {restaurant.phone && (
-                  <Pressable
-                    onPress={() => {
-                      tap();
-                      Linking.openURL(`tel:${restaurant.phone}`).catch(() => {});
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('restaurant.callRestaurant')}
-                    style={styles.contactBtn}>
-                    <Text style={styles.contactBtnText}>📞 {t('restaurant.callRestaurant')}</Text>
-                  </Pressable>
-                )}
-                {restaurant.address && (
-                  <Pressable
-                    onPress={() => {
-                      tap();
-                      const q = encodeURIComponent(`${restaurant.name} ${restaurant.address ?? ''}`.trim());
-                      Linking.openURL(`https://maps.google.com/?q=${q}`).catch(() => {});
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('restaurant.viewOnMap')}
-                    style={styles.contactBtn}>
-                    <Text style={styles.contactBtnText}>🗺 {t('restaurant.viewOnMap')}</Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-          )}
+          {/* Restaurant contact (phone/address) is intentionally NOT shown here:
+              customers should order through the platform, not call the venue
+              directly while browsing. The contact card lives on the order
+              tracking screen, available only once an order has been placed. */}
 
           {reviews.length > 0 && (
             <View style={{ marginTop: 16 }}>
@@ -427,18 +394,6 @@ const styles = StyleSheet.create({
   statV: { fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.ink },
   statL: { fontSize: 10.5, color: colors.ink2, marginTop: 2, textTransform: 'uppercase', fontWeight: font.weights.bold, letterSpacing: 0.5 },
   descr: { fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 20, marginTop: 14 },
-  contact: { marginTop: 14, gap: 10 },
-  contactAddr: { fontSize: font.sizes.md, color: colors.ink2, lineHeight: 19 },
-  contactActions: { flexDirection: 'row', gap: 10 },
-  contactBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radius.xxl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bgSoft,
-  },
-  contactBtnText: { fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.ink },
   promoBanner: {
     marginTop: 12,
     paddingHorizontal: 14,

@@ -321,5 +321,9 @@
   "order.paid": "Paid",
   "order.payOnDelivery": "Pay on delivery",
   "common.error": "Something went wrong. Check your connection and try again.",
-  "menu.empty": "Nothing available right now — please check back soon."
+  "menu.empty": "Nothing available right now — please check back soon.",
+  "checkout.contactTitle": "Contact number",
+  "checkout.contactHint": "Your driver will call this number if needed",
+  "checkout.contactPlaceholder": "e.g. 010 1234 5678",
+  "checkout.needPhone": "Add a contact number to place your order"
 }

@@ -9,7 +9,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
-import type { Order, OrderStatus } from '../../src/data/types';
+import type { Order, OrderStatus, Restaurant } from '../../src/data/types';
 import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
@@ -34,6 +34,7 @@ export default function OrderTracking() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const [order, setOrder] = useState<Order | null>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -56,6 +57,17 @@ export default function OrderTracking() {
       clearInterval(tick);
     };
   }, [id]);
+
+  // Fetch the restaurant once we know which one, to show its contact card
+  // (phone/address) HERE — contact info is gated behind a placed order, not
+  // exposed while browsing. Best-effort: a failure just hides the card.
+  useEffect(() => {
+    if (!order?.restaurantId) return;
+    db.restaurants
+      .get(order.restaurantId)
+      .then(setRestaurant)
+      .catch(() => setRestaurant(null));
+  }, [order?.restaurantId]);
 
   // Live driver GPS — subscribe only while the order is actually moving
   // (picked up / out for delivery). Cleans up when status changes or unmounts.
@@ -347,6 +359,47 @@ export default function OrderTracking() {
           </Text>
         </View>
 
+        {/* Restaurant contact — shown only here (post-order), never while
+            browsing. Lets the customer reach the venue about THIS order. */}
+        {!isCancelled && restaurant && (restaurant.address || restaurant.phone) && (
+          <View style={styles.contactCard}>
+            {restaurant.address && (
+              <Text style={styles.contactAddr} numberOfLines={2}>
+                📍 {restaurant.address}
+              </Text>
+            )}
+            <View style={styles.contactActions}>
+              {restaurant.phone && (
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    Linking.openURL(`tel:${restaurant.phone}`).catch(() => {});
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('restaurant.callRestaurant')}
+                  style={styles.contactBtn}>
+                  <Text style={styles.contactBtnText}>📞 {t('restaurant.callRestaurant')}</Text>
+                </Pressable>
+              )}
+              {restaurant.address && (
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    const q = encodeURIComponent(
+                      `${restaurant.name} ${restaurant.address ?? ''}`.trim(),
+                    );
+                    Linking.openURL(`https://maps.google.com/?q=${q}`).catch(() => {});
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('restaurant.viewOnMap')}
+                  style={styles.contactBtn}>
+                  <Text style={styles.contactBtnText}>🗺 {t('restaurant.viewOnMap')}</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
+
         {order.status === 'delivered' && (
           <Pressable
             onPress={() => router.push(`/order/${order.id}/review`)}
@@ -581,6 +634,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   summarySub: { marginTop: 4, color: colors.ink2, fontSize: font.sizes.md },
+  contactCard: {
+    marginTop: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.xl,
+    backgroundColor: colors.white,
+    gap: 10,
+  },
+  contactAddr: { fontSize: font.sizes.md, color: colors.ink2, lineHeight: 19 },
+  contactActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  contactBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bgSoft,
+  },
+  contactBtnText: { fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.ink },
 
   reviewBtn: {
     marginTop: 18,

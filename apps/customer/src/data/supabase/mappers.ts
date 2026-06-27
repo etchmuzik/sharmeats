@@ -335,6 +335,7 @@ export function rowToOrder(o: OrderRow): Order {
     deliveredAt: tsToMs(o.delivered_at),
     etaAt: tsToMs(o.eta_at) ?? Date.now(),
     slaMinutes: o.sla_minutes,
+    customerPhone: (o as { customer_phone?: string | null }).customer_phone ?? undefined,
     rider: o.rider ?? undefined,
     ratingFood: o.rating_food ?? undefined,
     ratingDelivery: o.rating_delivery ?? undefined,

@@ -321,5 +321,9 @@
   "order.paid": "مدفوع",
   "order.payOnDelivery": "الدفع عند الاستلام",
   "common.error": "حدث خطأ ما. تحقق من اتصالك وحاول مرة أخرى.",
-  "menu.empty": "لا يوجد شيء متاح الآن — يرجى المحاولة لاحقًا."
+  "menu.empty": "لا يوجد شيء متاح الآن — يرجى المحاولة لاحقًا.",
+  "checkout.contactTitle": "رقم التواصل",
+  "checkout.contactHint": "سيتصل بك السائق على هذا الرقم عند الحاجة",
+  "checkout.contactPlaceholder": "مثال: 010 1234 5678",
+  "checkout.needPhone": "أضف رقم تواصل لإتمام الطلب"
 }
