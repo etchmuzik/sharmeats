@@ -40,3 +40,72 @@ export interface OpsDriver {
   home_zone: string | null;
   last_ping_at: string | null;
 }
+
+// ============================================================================
+// CATALOG — restaurants, menu sections, menu items (admin menu manager)
+// Mirrors the public.* schema in supabase/migrations/002_app_schema.sql.
+// ============================================================================
+
+export const CUISINES = [
+  'italian', 'seafood', 'egyptian', 'sushi', 'healthy', 'burgers', 'cafe',
+  'asian', 'pizza', 'breakfast', 'late_night', 'street_food', 'sweets',
+  'grocery', 'pharmacy',
+] as const;
+export type Cuisine = (typeof CUISINES)[number];
+
+export const ZONES = [
+  'naama', 'hadaba', 'nabq', 'old_market', 'soho', 'sharks_bay', 'el_salam',
+  'mubarak_7', 'el_rowaisat', 'hay_el_nour', 'el_hadaba_residential',
+] as const;
+export type Zone = (typeof ZONES)[number];
+
+export const ITEM_FLAGS = [
+  'halal', 'vegetarian', 'vegan', 'contains_pork', 'contains_alcohol',
+  'contains_nuts', 'spicy', 'glutenfree',
+] as const;
+export type ItemFlag = (typeof ITEM_FLAGS)[number];
+
+/** A restaurant row (catalog). Editable fields the admin manages. */
+export interface Restaurant {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  cuisines: Cuisine[];
+  cuisine_label: string;
+  cover_image: string;
+  logo: string | null;
+  zone: Zone;
+  rating: number;
+  rating_count: number;
+  prep_time_low: number;
+  prep_time_high: number;
+  delivery_fee_egp: number;
+  min_order_egp: number;
+  tourist_safe: boolean;
+  is_open: boolean;
+  is_open_24h: boolean | null;
+  featured: boolean | null;
+  promo: string | null;
+  is_active: boolean;
+}
+
+export interface MenuSection {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  sort_order: number;
+}
+
+export interface MenuItem {
+  id: string;
+  restaurant_id: string;
+  section_id: string;
+  name: string;
+  description: string;
+  price_egp: number;
+  image: string;
+  flags: ItemFlag[];
+  is_available: boolean;
+  sort_order: number;
+}
