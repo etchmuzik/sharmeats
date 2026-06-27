@@ -289,6 +289,8 @@ export interface Order {
   deliveredAt?: number;
   etaAt: number;
   slaMinutes: number;
+  /** Customer contact phone captured at checkout; the driver calls this. */
+  customerPhone?: string;
   rider?: Rider;
   ratingFood?: number;
   ratingDelivery?: number;

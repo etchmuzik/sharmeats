@@ -10,6 +10,11 @@ import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
 import { initAnalytics } from '../src/lib/analytics';
 import { configureNotificationHandler, registerForPush } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
+import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
+
+// App-wide safety net: any uncaught render error in any route degrades to a
+// friendly retry screen (and is reported) instead of white-screening the app.
+export { ScreenErrorBoundary as ErrorBoundary };
 
 initAnalytics();
 configureNotificationHandler();

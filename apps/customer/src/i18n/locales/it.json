@@ -321,5 +321,9 @@
   "order.paid": "Pagato",
   "order.payOnDelivery": "Paga alla consegna",
   "common.error": "Qualcosa è andato storto. Controlla la connessione e riprova.",
-  "menu.empty": "Al momento non c’è nulla disponibile — riprova più tardi."
+  "menu.empty": "Al momento non c’è nulla disponibile — riprova più tardi.",
+  "checkout.contactTitle": "Numero di contatto",
+  "checkout.contactHint": "Il corriere chiamerà questo numero se necessario",
+  "checkout.contactPlaceholder": "es. 010 1234 5678",
+  "checkout.needPhone": "Aggiungi un numero di contatto per ordinare"
 }

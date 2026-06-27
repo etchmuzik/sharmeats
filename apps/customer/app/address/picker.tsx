@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
@@ -23,9 +23,26 @@ export default function AddressPicker() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [active, setActive] = useState<'hotel' | 'street' | 'beach_pin'>('street');
 
-  useEffect(() => {
-    db.user.listAddresses().then(setAddresses);
-  }, []);
+  // Re-fetch on every focus (incl. returning from Add) so a just-saved address
+  // appears immediately. A plain mount-only effect left the list stale because
+  // popping back from Add reveals this already-mounted screen without remount.
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      db.user.listAddresses().then((all) => {
+        if (!alive) return;
+        setAddresses(all);
+        // Land on the tab of the currently-selected address so a freshly-saved
+        // one (selectedAddressId set by Add) is on a visible tab, not hidden
+        // under the default 'street' tab.
+        const sel = all.find((a) => a.id === selectedAddressId);
+        if (sel) setActive(sel.kind);
+      });
+      return () => {
+        alive = false;
+      };
+    }, [selectedAddressId]),
+  );
 
   const filtered = addresses.filter((a) => a.kind === active);
 

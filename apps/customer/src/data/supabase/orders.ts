@@ -62,6 +62,7 @@ export const ordersRepoSupabase = {
       p_kitchen_notes: input.kitchenNotes ?? null,
       p_promo_code: input.promoCode?.trim() || null,
       p_scheduled_for: input.scheduledFor ? new Date(input.scheduledFor).toISOString() : null,
+      p_customer_phone: input.customerPhone?.trim() || null,
     });
     if (error) throw mapPlaceOrderError(error);
 

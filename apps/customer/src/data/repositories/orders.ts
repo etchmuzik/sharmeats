@@ -89,6 +89,8 @@ export interface CreateOrderInput {
   scheduledFor?: number;
   /** Optional promo code — the server (or mock rules) revalidates it. */
   promoCode?: string;
+  /** Customer contact phone for THIS order — the driver calls this number. */
+  customerPhone?: string;
 }
 
 export const ordersRepo = {
