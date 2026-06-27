@@ -32,10 +32,13 @@ cat app.json | grep -A1 '"version"'        # should show "version": "1.0.0"
 eas build:configure --platform all          # only if not already configured
 ```
 
-`eas.json` production env is already set:
-- `EXPO_PUBLIC_SUPABASE_URL` = the prod project
-- `EXPO_PUBLIC_USE_SUPABASE` = true
-- `EXPO_PUBLIC_PAYMENTS_CARD_ENABLED` = **false** (cash-only until Paymob KYC is done — leave false for this release)
+Production env comes from two places — `eas.json` build.production.env **and**
+EAS-managed environment variables. Confirm all of these before building
+(`eas env:list --environment production`):
+- `EXPO_PUBLIC_SUPABASE_URL` = the prod project — *(in eas.json)*
+- `EXPO_PUBLIC_USE_SUPABASE` = true — *(in eas.json)*
+- `EXPO_PUBLIC_PAYMENTS_CARD_ENABLED` = **false** (cash-only until Paymob KYC is done — leave false for this release) — *(in eas.json)*
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` = the prod project's anon/publishable key — **EAS-managed env var, NOT in eas.json.** This one is required: with `USE_SUPABASE=true` and the URL set but the anon key missing, the app throws on launch. Verified present in EAS production (June 2026).
 
 ## 2. Build
 

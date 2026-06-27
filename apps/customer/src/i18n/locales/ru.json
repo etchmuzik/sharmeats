@@ -9,7 +9,6 @@
   "common.retry": "Повторить",
   "common.signOut": "Выйти",
   "common.minShort": "мин",
-
   "cuisine.all": "Все",
   "cuisine.breakfast": "Завтрак",
   "cuisine.street_food": "Уличная еда",
@@ -24,7 +23,6 @@
   "cuisine.burgers": "Бургеры",
   "cuisine.pizza": "Пицца",
   "cuisine.late_night": "Ночная еда",
-
   "status.placed": "Оформлен",
   "status.accepted": "Принят",
   "status.preparing": "Готовится",
@@ -34,10 +32,8 @@
   "status.delivered": "Доставлен",
   "status.cancelled": "Отменён",
   "status.rejected": "Отклонён",
-
   "banner.etaMin": "~{n} мин",
   "banner.track": "Отследить",
-
   "address.room": "Номер",
   "address.beachPin": "Точка на пляже",
   "address.chooseAddress": "Выберите адрес",
@@ -47,9 +43,7 @@
   "address.block": "Корпус",
   "address.floor": "Этаж",
   "address.apt": "Кв.",
-
   "checkout.title": "Оформление заказа",
-
   "onboarding.title1": "Доставка еды, созданная для ",
   "onboarding.accent1": "Шарма",
   "onboarding.desc1": "От гостиничных номеров до квартир и пляжных клубов — мы доставляем из лучших кухонь Шарма.",
@@ -61,19 +55,16 @@
   "onboarding.desc3": "Смотрите цены в EUR, USD, GBP или RUB. Оплата в EGP по сегодняшнему курсу. Без сюрпризов.",
   "onboarding.getStarted": "Начать заказ",
   "onboarding.haveAccount": "У меня уже есть аккаунт",
-
   "signin.title": "Введите номер телефона",
   "signin.subtitle": "Мы отправим 6-значный код в WhatsApp или по SMS.",
   "signin.cta": "Отправить код",
   "signin.terms": "Продолжая, вы соглашаетесь с Условиями и Политикой конфиденциальности.",
-
   "otp.title": "Введите код",
   "otp.subtitle": "Мы отправили 6-значный код на номер",
   "otp.edit": "Изменить",
   "otp.resendCountdown": "Отправить повторно через 0:{seconds}",
   "otp.resendNow": "Отправить ещё раз",
   "otp.cta": "Подтвердить и продолжить",
-
   "home.greetingMorning": "Доброе утро,",
   "home.greetingEvening": "Добрый вечер,",
   "home.greetingLateNight": "Не спится?",
@@ -95,10 +86,8 @@
   "home.seeAll": "Все",
   "home.offers": "Предложения для вас",
   "home.favorites": "Ваши избранные",
-
   "fav.add": "В избранное",
   "fav.remove": "Убрать из избранного",
-
   "browse.title": "Обзор",
   "browse.allCuisines": "Все",
   "browse.empty": "Нет ресторанов по этому запросу.",
@@ -109,7 +98,6 @@
   "browse.sortRating": "По рейтингу",
   "browse.sortFee": "Дешевле доставка",
   "browse.sortFastest": "Быстрее всего",
-
   "restaurant.minOrder": "Мин. заказ {amount}",
   "restaurant.toYourHotel": "до вашего отеля",
   "restaurant.delivery": "доставка",
@@ -121,7 +109,6 @@
   "restaurant.fridayPrayer": "Пятничная молитва · вернёмся в 14:30",
   "restaurant.reviews": "Отзывы клиентов",
   "home.reorder": "Заказать снова",
-
   "item.addToCart": "В корзину · {amount}",
   "item.updateLine": "Обновить · {amount}",
   "item.required": "Обязательно",
@@ -158,7 +145,6 @@
   "flag.contains_nuts": "Орехи",
   "flag.spicy": "Острое",
   "flag.glutenfree": "Без глютена",
-
   "cart.title": "Ваш заказ",
   "cart.empty": "Корзина пуста",
   "cart.emptyDesc": "Выберите ресторан, чтобы начать заказ.",
@@ -172,7 +158,6 @@
   "cart.tapToEdit": "Нажмите, чтобы изменить",
   "cart.remove": "Убрать",
   "cart.alsoAdd": "Добавить к заказу",
-
   "checkout.timing": "Когда",
   "checkout.timingAsap": "Как можно скорее",
   "checkout.timingSchedule": "Запланировать",
@@ -203,7 +188,6 @@
   "checkout.total": "Итого",
   "checkout.place": "Оформить заказ · {amount}",
   "checkout.conversion": "≈ {amount} спишется с карты · курс на сегодня {rate}",
-
   "address.title": "Адрес доставки",
   "address.hotel": "Отель",
   "address.street": "Квартира",
@@ -233,13 +217,11 @@
   "address.pinRecommended": "Укажите точное место, чтобы курьер вас нашёл.",
   "address.saveError": "Не удалось сохранить адрес. Проверьте подключение и попробуйте снова.",
   "address.saving": "Сохранение…",
-
   "payment.title": "Способ оплаты",
   "payment.card": "Карта",
   "payment.applePay": "Apple Pay",
   "payment.fawry": "Fawry",
   "payment.cash": "Оплата при получении",
-
   "order.tracking": "Отслеживание заказа",
   "order.deliveringToRoom": "Доставка в ваш номер",
   "order.noCallNeeded": "Звонок не нужен · у нас есть данные вашего номера",
@@ -275,26 +257,22 @@
   "order.cancelledTitle": "Заказ отменён",
   "order.cancelledBody": "Этот заказ был отменён. Деньги не списаны.",
   "order.rejectedBody": "Ресторан не смог принять этот заказ. Деньги не списаны — приносим извинения.",
-
   "review.title": "Как всё прошло?",
   "review.food": "Еда",
   "review.delivery": "Доставка",
   "review.placeholder": "Что-нибудь ещё? (необязательно)",
   "review.submit": "Отправить",
   "review.thanks": "Спасибо за отзыв!",
-
   "tabs.home": "Главная",
   "tabs.browse": "Обзор",
   "tabs.cart": "Корзина",
   "tabs.orders": "Заказы",
   "tabs.profile": "Профиль",
-
   "orders.titleActive": "В процессе",
   "orders.titlePast": "Прошлые заказы",
   "orders.empty": "Заказов пока нет.",
   "orders.reorder": "Заказать снова",
   "orders.itemsCount": "{n} поз.",
-
   "profile.title": "Профиль",
   "profile.addresses": "Адреса",
   "profile.payment": "Способы оплаты",
@@ -308,7 +286,6 @@
   "profile.help": "Помощь и поддержка",
   "profile.signOut": "Выйти",
   "profile.deleteAccount": "Удалить аккаунт",
-
   "invite.title": "Пригласить друзей",
   "invite.heroTitle": "Дарите 50 EGP, получайте 50 EGP",
   "invite.heroSub": "Поделитесь своим кодом. Друг получит скидку 50 EGP на первый заказ — а вы 50 EGP после его доставки.",
@@ -321,9 +298,7 @@
   "invite.terms": "Бонус начисляется после доставки первого заказа вашего друга. Один реферал на нового клиента.",
   "invite.loadError": "Не удалось загрузить ваш код.",
   "invite.shareError": "Не удалось открыть меню «Поделиться». Попробуйте ещё раз.",
-
   "settings.title": "Настройки",
-
   "deleteAccount.title": "Удалить аккаунт",
   "deleteAccount.heading": "Безвозвратно удалить ваш аккаунт",
   "deleteAccount.intro": "Это безвозвратно удалит ваш аккаунт Sharm Eats и личные данные — профиль, сохранённые адреса, способы оплаты, избранное и настройки уведомлений.",
@@ -339,9 +314,12 @@
   "deleteAccount.error": "Не удалось удалить аккаунт. Проверьте подключение и попробуйте снова или свяжитесь с поддержкой.",
   "deleteAccount.successTitle": "Аккаунт удалён",
   "deleteAccount.successBody": "Ваш аккаунт и личные данные удалены. Спасибо, что пользовались Sharm Eats.",
-
   "help.title": "Помощь",
   "help.faq": "Частые вопросы",
   "help.contact": "Связаться с нами",
-  "help.openWhatsApp": "Чат в WhatsApp"
+  "help.openWhatsApp": "Чат в WhatsApp",
+  "order.paid": "Оплачено",
+  "order.payOnDelivery": "Оплата при доставке",
+  "common.error": "Что-то пошло не так. Проверьте соединение и повторите попытку.",
+  "menu.empty": "Сейчас ничего нет в наличии — загляните позже."
 }

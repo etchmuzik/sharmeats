@@ -63,7 +63,11 @@ export const useSession = create<SessionState>((set, get) => ({
   // launch (see hydrate) and by the user's explicit choice thereafter.
   locale: 'en',
   currency: 'EGP',
-  selectedAddressId: 'a-hotel-hilton',
+  // No fake default: a real (esp. anonymous) user has no saved address until
+  // they add one. The old mock id 'a-hotel-hilton' never matches a live row, so
+  // it made checkout silently unresolvable. null is the honest empty state and
+  // lets checkout show an explicit "add address" CTA.
+  selectedAddressId: null,
   allergyNudgeDismissed: false,
   favoriteIds: [],
   hydrated: false,
@@ -78,7 +82,7 @@ export const useSession = create<SessionState>((set, get) => ({
           phone: parsed.phone ?? null,
           locale: (parsed.locale as Locale) ?? detectDeviceLanguage(),
           currency: (parsed.currency as Currency) ?? 'EGP',
-          selectedAddressId: parsed.selectedAddressId ?? 'a-hotel-hilton',
+          selectedAddressId: parsed.selectedAddressId ?? null,
           allergyNudgeDismissed: parsed.allergyNudgeDismissed ?? false,
           favoriteIds: Array.isArray(parsed.favoriteIds) ? parsed.favoriteIds : [],
           hydrated: true,

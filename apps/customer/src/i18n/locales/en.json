@@ -9,7 +9,6 @@
   "common.retry": "Try again",
   "common.signOut": "Sign out",
   "common.minShort": "min",
-
   "cuisine.all": "All",
   "cuisine.breakfast": "Breakfast",
   "cuisine.street_food": "Street food",
@@ -24,7 +23,6 @@
   "cuisine.burgers": "Burgers",
   "cuisine.pizza": "Pizza",
   "cuisine.late_night": "Late night",
-
   "status.placed": "Placed",
   "status.accepted": "Accepted",
   "status.preparing": "Preparing",
@@ -34,10 +32,8 @@
   "status.delivered": "Delivered",
   "status.cancelled": "Cancelled",
   "status.rejected": "Declined",
-
   "banner.etaMin": "~{n} min",
   "banner.track": "Track",
-
   "address.room": "Room",
   "address.beachPin": "Beach pin",
   "address.chooseAddress": "Choose an address",
@@ -47,9 +43,7 @@
   "address.block": "Block",
   "address.floor": "Floor",
   "address.apt": "Apt",
-
   "checkout.title": "Checkout",
-
   "onboarding.title1": "Food delivery built for ",
   "onboarding.accent1": "Sharm",
   "onboarding.desc1": "From hotel rooms to apartments and beach clubs — we deliver from Sharm's best kitchens.",
@@ -61,19 +55,16 @@
   "onboarding.desc3": "See prices in EUR, USD, GBP, or RUB. Paid in EGP at today's rate. No surprises.",
   "onboarding.getStarted": "Start ordering",
   "onboarding.haveAccount": "I already have an account",
-
   "signin.title": "Enter your phone",
   "signin.subtitle": "We'll send a 6-digit code over WhatsApp or SMS.",
   "signin.cta": "Send code",
   "signin.terms": "By continuing you agree to the Terms & Privacy Policy.",
-
   "otp.title": "Enter the code",
   "otp.subtitle": "We sent a 6-digit code to",
   "otp.edit": "Edit",
   "otp.resendCountdown": "Resend in 0:{seconds}",
   "otp.resendNow": "Resend now",
   "otp.cta": "Verify & Continue",
-
   "home.greetingMorning": "Good morning,",
   "home.greetingEvening": "Good evening,",
   "home.greetingLateNight": "Up late?",
@@ -95,10 +86,8 @@
   "home.seeAll": "See all",
   "home.offers": "Offers for you",
   "home.favorites": "Your favourites",
-
   "fav.add": "Add to favourites",
   "fav.remove": "Remove from favourites",
-
   "browse.title": "Browse",
   "browse.allCuisines": "All",
   "browse.empty": "No restaurants match that.",
@@ -109,7 +98,6 @@
   "browse.sortRating": "Top rated",
   "browse.sortFee": "Lowest fee",
   "browse.sortFastest": "Fastest",
-
   "restaurant.minOrder": "Min order {amount}",
   "restaurant.toYourHotel": "to your hotel",
   "restaurant.delivery": "delivery",
@@ -121,7 +109,6 @@
   "restaurant.fridayPrayer": "Friday prayer · back at 14:30",
   "restaurant.reviews": "What customers say",
   "home.reorder": "Order again",
-
   "item.addToCart": "Add to cart · {amount}",
   "item.updateLine": "Update · {amount}",
   "item.required": "Required",
@@ -158,7 +145,6 @@
   "flag.contains_nuts": "Nuts",
   "flag.spicy": "Spicy",
   "flag.glutenfree": "GF",
-
   "cart.title": "Your order",
   "cart.empty": "Your cart is empty",
   "cart.emptyDesc": "Pick a restaurant to start an order.",
@@ -172,7 +158,6 @@
   "cart.tapToEdit": "Tap to edit",
   "cart.remove": "Remove",
   "cart.alsoAdd": "Add to your order",
-
   "checkout.timing": "When",
   "checkout.timingAsap": "ASAP",
   "checkout.timingSchedule": "Schedule",
@@ -203,7 +188,6 @@
   "checkout.total": "Total",
   "checkout.place": "Place order · {amount}",
   "checkout.conversion": "≈ {amount} charged to your card · today's rate {rate}",
-
   "address.title": "Delivery address",
   "address.hotel": "Hotel",
   "address.street": "Apartment",
@@ -231,16 +215,13 @@
   "address.locationDenied": "Location permission is off. Drag the pin on the map, or tap here to enable location in Settings.",
   "address.locationFailed": "Couldn't get a GPS fix. Tap the map or drag the pin to set your spot manually.",
   "address.pinRecommended": "Pin your exact spot so your driver finds you.",
-  "address.beachPin": "Beach pin",
   "address.saveError": "Couldn't save your address. Please check your connection and try again.",
   "address.saving": "Saving…",
-
   "payment.title": "Payment method",
   "payment.card": "Card",
   "payment.applePay": "Apple Pay",
   "payment.fawry": "Fawry",
   "payment.cash": "Cash on delivery",
-
   "order.tracking": "Order tracking",
   "order.deliveringToRoom": "Delivering to your room",
   "order.noCallNeeded": "No phone call needed · we have your room details",
@@ -276,26 +257,22 @@
   "order.cancelledTitle": "Order cancelled",
   "order.cancelledBody": "This order was cancelled. You haven't been charged.",
   "order.rejectedBody": "The restaurant couldn't take this order. You haven't been charged — sorry about that.",
-
   "review.title": "How was it?",
   "review.food": "Food",
   "review.delivery": "Delivery",
   "review.placeholder": "Anything else? (optional)",
   "review.submit": "Submit",
   "review.thanks": "Thanks for the feedback!",
-
   "tabs.home": "Home",
   "tabs.browse": "Browse",
   "tabs.cart": "Cart",
   "tabs.orders": "Orders",
   "tabs.profile": "Profile",
-
   "orders.titleActive": "In progress",
   "orders.titlePast": "Past orders",
   "orders.empty": "No orders yet.",
   "orders.reorder": "Order again",
   "orders.itemsCount": "{n} items",
-
   "profile.title": "Profile",
   "profile.addresses": "Addresses",
   "profile.payment": "Payment methods",
@@ -309,7 +286,6 @@
   "profile.help": "Help & support",
   "profile.signOut": "Sign out",
   "profile.deleteAccount": "Delete account",
-
   "invite.title": "Invite friends",
   "invite.heroTitle": "Give EGP 50, get EGP 50",
   "invite.heroSub": "Share your code. Your friend gets EGP 50 off their first order — you get EGP 50 once it's delivered.",
@@ -322,9 +298,7 @@
   "invite.terms": "Reward applies after your friend's first order is delivered. One referral per new customer.",
   "invite.loadError": "Couldn't load your code.",
   "invite.shareError": "Couldn't open sharing. Please try again.",
-
   "settings.title": "Settings",
-
   "deleteAccount.title": "Delete account",
   "deleteAccount.heading": "Permanently delete your account",
   "deleteAccount.intro": "This permanently deletes your Sharm Eats account and your personal data — your profile, saved addresses, payment methods, favourites, and notification settings.",
@@ -340,9 +314,12 @@
   "deleteAccount.error": "We couldn't delete your account. Please check your connection and try again, or contact support.",
   "deleteAccount.successTitle": "Account deleted",
   "deleteAccount.successBody": "Your account and personal data have been deleted. Thank you for using Sharm Eats.",
-
   "help.title": "Help",
   "help.faq": "Frequently asked",
   "help.contact": "Contact us",
-  "help.openWhatsApp": "Chat on WhatsApp"
+  "help.openWhatsApp": "Chat on WhatsApp",
+  "order.paid": "Paid",
+  "order.payOnDelivery": "Pay on delivery",
+  "common.error": "Something went wrong. Check your connection and try again.",
+  "menu.empty": "Nothing available right now — please check back soon."
 }

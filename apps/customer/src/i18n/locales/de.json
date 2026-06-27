@@ -9,7 +9,6 @@
   "common.retry": "Erneut versuchen",
   "common.signOut": "Abmelden",
   "common.minShort": "Min.",
-
   "cuisine.all": "Alle",
   "cuisine.breakfast": "Frühstück",
   "cuisine.street_food": "Street Food",
@@ -24,7 +23,6 @@
   "cuisine.burgers": "Burger",
   "cuisine.pizza": "Pizza",
   "cuisine.late_night": "Spätabends",
-
   "status.placed": "Aufgegeben",
   "status.accepted": "Angenommen",
   "status.preparing": "In Zubereitung",
@@ -34,10 +32,8 @@
   "status.delivered": "Geliefert",
   "status.cancelled": "Storniert",
   "status.rejected": "Abgelehnt",
-
   "banner.etaMin": "~{n} Min.",
   "banner.track": "Verfolgen",
-
   "address.room": "Zimmer",
   "address.beachPin": "Strand-Pin",
   "address.chooseAddress": "Adresse wählen",
@@ -47,9 +43,7 @@
   "address.block": "Block",
   "address.floor": "Etage",
   "address.apt": "Whg.",
-
   "checkout.title": "Zur Kasse",
-
   "onboarding.title1": "Essenslieferung gemacht für ",
   "onboarding.accent1": "Sharm",
   "onboarding.desc1": "Von Hotelzimmern über Apartments bis zu Beachclubs — wir liefern aus Sharms besten Küchen.",
@@ -61,19 +55,16 @@
   "onboarding.desc3": "Sieh Preise in EUR, USD, GBP oder RUB. Bezahlung in EGP zum heutigen Kurs. Keine Überraschungen.",
   "onboarding.getStarted": "Jetzt bestellen",
   "onboarding.haveAccount": "Ich habe bereits ein Konto",
-
   "signin.title": "Telefonnummer eingeben",
   "signin.subtitle": "Wir senden dir einen 6-stelligen Code per WhatsApp oder SMS.",
   "signin.cta": "Code senden",
   "signin.terms": "Mit dem Fortfahren stimmst du den AGB und der Datenschutzerklärung zu.",
-
   "otp.title": "Code eingeben",
   "otp.subtitle": "Wir haben einen 6-stelligen Code gesendet an",
   "otp.edit": "Bearbeiten",
   "otp.resendCountdown": "Erneut senden in 0:{seconds}",
   "otp.resendNow": "Jetzt erneut senden",
   "otp.cta": "Bestätigen & fortfahren",
-
   "home.greetingMorning": "Guten Morgen,",
   "home.greetingEvening": "Guten Abend,",
   "home.greetingLateNight": "Noch wach?",
@@ -95,10 +86,8 @@
   "home.seeAll": "Alle anzeigen",
   "home.offers": "Angebote für dich",
   "home.favorites": "Deine Favoriten",
-
   "fav.add": "Zu Favoriten hinzufügen",
   "fav.remove": "Aus Favoriten entfernen",
-
   "browse.title": "Entdecken",
   "browse.allCuisines": "Alle",
   "browse.empty": "Keine passenden Restaurants.",
@@ -109,7 +98,6 @@
   "browse.sortRating": "Top bewertet",
   "browse.sortFee": "Niedrigste Gebühr",
   "browse.sortFastest": "Am schnellsten",
-
   "restaurant.minOrder": "Mindestbestellung {amount}",
   "restaurant.toYourHotel": "zu deinem Hotel",
   "restaurant.delivery": "Lieferung",
@@ -121,7 +109,6 @@
   "restaurant.fridayPrayer": "Freitagsgebet · zurück um 14:30",
   "restaurant.reviews": "Das sagen Kunden",
   "home.reorder": "Erneut bestellen",
-
   "item.addToCart": "Hinzufügen · {amount}",
   "item.updateLine": "Aktualisieren · {amount}",
   "item.required": "Erforderlich",
@@ -158,7 +145,6 @@
   "flag.contains_nuts": "Nüsse",
   "flag.spicy": "Scharf",
   "flag.glutenfree": "Glutenfrei",
-
   "cart.title": "Deine Bestellung",
   "cart.empty": "Dein Warenkorb ist leer",
   "cart.emptyDesc": "Wähle ein Restaurant, um eine Bestellung zu starten.",
@@ -172,7 +158,6 @@
   "cart.tapToEdit": "Zum Bearbeiten tippen",
   "cart.remove": "Entfernen",
   "cart.alsoAdd": "Zur Bestellung hinzufügen",
-
   "checkout.timing": "Wann",
   "checkout.timingAsap": "So bald wie möglich",
   "checkout.timingSchedule": "Planen",
@@ -203,7 +188,6 @@
   "checkout.total": "Gesamt",
   "checkout.place": "Bestellen · {amount}",
   "checkout.conversion": "≈ {amount} von deiner Karte abgebucht · Kurs heute {rate}",
-
   "address.title": "Lieferadresse",
   "address.hotel": "Hotel",
   "address.street": "Apartment",
@@ -231,16 +215,13 @@
   "address.locationDenied": "Standortberechtigung ist aus. Ziehe den Pin auf der Karte oder tippe hier, um den Standort in den Einstellungen zu aktivieren.",
   "address.locationFailed": "GPS konnte nicht ermittelt werden. Tippe auf die Karte oder ziehe den Pin, um den Ort manuell festzulegen.",
   "address.pinRecommended": "Lege deinen genauen Standort fest, damit dich der Fahrer findet.",
-  "address.beachPin": "Strand-Pin",
   "address.saveError": "Adresse konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
   "address.saving": "Wird gespeichert…",
-
   "payment.title": "Zahlungsmethode",
   "payment.card": "Karte",
   "payment.applePay": "Apple Pay",
   "payment.fawry": "Fawry",
   "payment.cash": "Barzahlung bei Lieferung",
-
   "order.tracking": "Bestellverfolgung",
   "order.deliveringToRoom": "Lieferung auf dein Zimmer",
   "order.noCallNeeded": "Kein Anruf nötig · wir haben deine Zimmerdaten",
@@ -276,26 +257,22 @@
   "order.cancelledTitle": "Bestellung storniert",
   "order.cancelledBody": "Diese Bestellung wurde storniert. Es wurde nichts berechnet.",
   "order.rejectedBody": "Das Restaurant konnte diese Bestellung nicht annehmen. Es wurde nichts berechnet — wir bitten um Entschuldigung.",
-
   "review.title": "Wie war es?",
   "review.food": "Essen",
   "review.delivery": "Lieferung",
   "review.placeholder": "Noch etwas? (optional)",
   "review.submit": "Senden",
   "review.thanks": "Danke für dein Feedback!",
-
   "tabs.home": "Start",
   "tabs.browse": "Entdecken",
   "tabs.cart": "Warenkorb",
   "tabs.orders": "Bestellungen",
   "tabs.profile": "Profil",
-
   "orders.titleActive": "Laufend",
   "orders.titlePast": "Frühere Bestellungen",
   "orders.empty": "Noch keine Bestellungen.",
   "orders.reorder": "Erneut bestellen",
   "orders.itemsCount": "{n} Artikel",
-
   "profile.title": "Profil",
   "profile.addresses": "Adressen",
   "profile.payment": "Zahlungsmethoden",
@@ -309,7 +286,6 @@
   "profile.help": "Hilfe & Support",
   "profile.signOut": "Abmelden",
   "profile.deleteAccount": "Konto löschen",
-
   "invite.title": "Freunde einladen",
   "invite.heroTitle": "Schenke 50 EGP, erhalte 50 EGP",
   "invite.heroSub": "Teile deinen Code. Dein Freund bekommt 50 EGP Rabatt auf seine erste Bestellung — du bekommst 50 EGP, sobald sie geliefert ist.",
@@ -322,9 +298,7 @@
   "invite.terms": "Die Belohnung gilt nach Lieferung der ersten Bestellung deines Freundes. Eine Einladung pro Neukunde.",
   "invite.loadError": "Code konnte nicht geladen werden.",
   "invite.shareError": "Teilen konnte nicht geöffnet werden. Bitte versuche es erneut.",
-
   "settings.title": "Einstellungen",
-
   "deleteAccount.title": "Konto löschen",
   "deleteAccount.heading": "Dein Konto dauerhaft löschen",
   "deleteAccount.intro": "Dies löscht dein Sharm-Eats-Konto und deine persönlichen Daten dauerhaft — Profil, gespeicherte Adressen, Zahlungsmethoden, Favoriten und Benachrichtigungseinstellungen.",
@@ -340,9 +314,12 @@
   "deleteAccount.error": "Wir konnten dein Konto nicht löschen. Prüfe deine Verbindung und versuche es erneut, oder kontaktiere den Support.",
   "deleteAccount.successTitle": "Konto gelöscht",
   "deleteAccount.successBody": "Dein Konto und deine persönlichen Daten wurden gelöscht. Danke, dass du Sharm Eats genutzt hast.",
-
   "help.title": "Hilfe",
   "help.faq": "Häufige Fragen",
   "help.contact": "Kontakt",
-  "help.openWhatsApp": "Auf WhatsApp chatten"
+  "help.openWhatsApp": "Auf WhatsApp chatten",
+  "order.paid": "Bezahlt",
+  "order.payOnDelivery": "Zahlung bei Lieferung",
+  "common.error": "Etwas ist schiefgelaufen. Prüfe deine Verbindung und versuche es erneut.",
+  "menu.empty": "Gerade ist nichts verfügbar — bitte schau später noch einmal vorbei."
 }

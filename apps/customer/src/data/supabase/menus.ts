@@ -89,10 +89,18 @@ export const menusRepoSupabase = {
     if (itemsRes.error) throw itemsRes.error;
 
     const items = await attachModifiers((itemsRes.data ?? []).map(rowToMenuItem));
-    return {
-      sections: (sectionsRes.data ?? []).map(rowToMenuSection),
-      items,
-    };
+
+    // Drop sections that have no available items. menu_items is filtered to
+    // is_available=true above but menu_sections is not, so a section whose
+    // items are all sold out would otherwise render as an orphan header (and a
+    // dead nav tab). Filtering here keeps the section list and the items in
+    // sync for both the menu body and the sticky section tabs.
+    const sectionIdsWithItems = new Set(items.map((i) => i.sectionId));
+    const sections = (sectionsRes.data ?? [])
+      .map(rowToMenuSection)
+      .filter((s) => sectionIdsWithItems.has(s.id));
+
+    return { sections, items };
   },
 
   async getItem(itemId: string): Promise<MenuItem | null> {
