@@ -13,6 +13,11 @@ import type { Order, OrderStatus } from '../../src/data/types';
 import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
+import { ScreenErrorBoundary } from '../../src/components/ScreenErrorBoundary';
+
+// Expo Router renders this instead of crashing if anything throws while the
+// tracking screen renders — the user gets a retry screen and we report the error.
+export { ScreenErrorBoundary as ErrorBoundary };
 
 const STEPS: { key: OrderStatus; tKey: string }[] = [
   { key: 'placed', tKey: 'order.statusPlaced' },

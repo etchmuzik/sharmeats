@@ -10,6 +10,52 @@ import type {
   User,
 } from '../types';
 
+/**
+ * Parse a Postgres timestamp to epoch ms, safely on Hermes (the on-device JS
+ * engine). PostgREST returns ISO-8601 ("...T...+00:00") which Hermes parses, but
+ * Realtime postgres_changes delivers the raw WAL form ("2026-06-27 23:36:59+00":
+ * space separator, no colon in the offset) which Hermes' Date parser REJECTS
+ * (returns NaN) — Node/V8 is lenient and hides this. A NaN etaAt then renders as
+ * "NaN min" on the tracking screen the moment a status update arrives. Normalize
+ * the space→T and the "+00"→"+00:00" offset so both forms parse to the real instant.
+ */
+function tsToMs(s: string | number | null | undefined): number | undefined {
+  if (s == null) return undefined;
+  if (typeof s === 'number') return s;
+  const iso = s.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+  let ms = new Date(iso).getTime();
+  if (Number.isNaN(ms)) ms = new Date(s).getTime(); // last resort for already-ISO strings
+  return Number.isNaN(ms) ? undefined : ms;
+}
+
+/**
+ * The order's address_snapshot jsonb is a verbatim copy of the snake_case
+ * `addresses` row (place_order does to_jsonb(v_addr)). The UI reads the camelCase
+ * Address shape (hotelName, roomNumber, handoff, …), so a raw passthrough makes
+ * hotel name/room/handoff render blank on tracking. Normalize keys here. Accepts
+ * an already-camelCase object too (idempotent) so it's safe for any caller.
+ */
+function normalizeAddressSnapshot(raw: unknown): Address | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const a = raw as Record<string, unknown>;
+  const pick = (camel: string, snake: string) => a[camel] ?? a[snake];
+  return {
+    id: (pick('id', 'id') as string) ?? '',
+    kind: (pick('kind', 'kind') as Address['kind']) ?? 'street',
+    label: (pick('label', 'label') as string) ?? '',
+    hotelId: (pick('hotelId', 'hotel_id') as string) ?? undefined,
+    hotelName: (pick('hotelName', 'hotel_name') as string) ?? undefined,
+    roomNumber: (pick('roomNumber', 'room_number') as string) ?? undefined,
+    handoff: (pick('handoff', 'handoff') as Address['handoff']) ?? undefined,
+    streetText: (pick('streetText', 'street_text') as string) ?? undefined,
+    building: (pick('building', 'building') as string) ?? undefined,
+    apartment: (pick('apartment', 'apartment') as string) ?? undefined,
+    landmark: (pick('landmark', 'landmark') as string) ?? undefined,
+    beachName: (pick('beachName', 'beach_name') as string) ?? undefined,
+    isDefault: Boolean(pick('isDefault', 'is_default')),
+  };
+}
+
 interface RestaurantRow {
   id: string;
   slug: string;
@@ -264,8 +310,15 @@ export function rowToOrder(o: OrderRow): Order {
     restaurantId: o.restaurant_id,
     restaurantName: o.restaurant_name,
     addressId: o.address_id,
-    addressSnapshot: o.address_snapshot,
-    items: o.items,
+    addressSnapshot: normalizeAddressSnapshot(o.address_snapshot) ?? o.address_snapshot,
+    // Server item lines have no lineId (place_order omits it); synthesize a stable
+    // one so React keys + any line-keyed UI work. Other fields pass through.
+    items: Array.isArray(o.items)
+      ? o.items.map((it, i) => ({
+          ...it,
+          lineId: (it as { lineId?: string }).lineId ?? `${o.id}-${i}`,
+        }))
+      : o.items,
     subtotalEgp: o.subtotal_egp,
     deliveryFeeEgp: o.delivery_fee_egp,
     taxEgp: o.tax_egp,
@@ -277,10 +330,10 @@ export function rowToOrder(o: OrderRow): Order {
     paymentLabel: o.payment_label,
     paymentStatus: (o.payment_status ?? undefined) as Order['paymentStatus'],
     status: o.status,
-    history: o.history,
-    placedAt: new Date(o.placed_at).getTime(),
-    deliveredAt: o.delivered_at ? new Date(o.delivered_at).getTime() : undefined,
-    etaAt: new Date(o.eta_at).getTime(),
+    history: Array.isArray(o.history) ? o.history : [],
+    placedAt: tsToMs(o.placed_at) ?? Date.now(),
+    deliveredAt: tsToMs(o.delivered_at),
+    etaAt: tsToMs(o.eta_at) ?? Date.now(),
     slaMinutes: o.sla_minutes,
     rider: o.rider ?? undefined,
     ratingFood: o.rating_food ?? undefined,
@@ -288,6 +341,6 @@ export function rowToOrder(o: OrderRow): Order {
     ratingComment: o.rating_comment ?? undefined,
     kitchenNotes: o.kitchen_notes ?? undefined,
     aggregateAllergens: (o.aggregate_allergens ?? undefined) as Order['aggregateAllergens'],
-    scheduledFor: o.scheduled_for ? new Date(o.scheduled_for).getTime() : undefined,
+    scheduledFor: tsToMs(o.scheduled_for),
   };
 }
