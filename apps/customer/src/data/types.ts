@@ -250,6 +250,9 @@ export interface Rider {
   plate: string;
   vehicle: 'scooter' | 'motorbike' | 'bicycle' | 'car';
   rating: number;
+  /** Driver phone for the call/message buttons. Filled by the rider_snapshot
+   *  RPC (mig 027); optional because legacy/empty snapshots may omit it. */
+  phone?: string;
 }
 
 export interface OrderStatusEntry {

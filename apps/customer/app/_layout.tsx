@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useCart } from '../src/store/cart';
 import { useSession } from '../src/store/session';
 import { db, isBackendLive } from '../src/data';
+import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
 import { initAnalytics } from '../src/lib/analytics';
 import { configureNotificationHandler, registerForPush } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
@@ -33,6 +35,25 @@ export default function RootLayout() {
         .catch((e) => console.warn('[auth] ensureSession failed:', e?.message ?? e));
     }
   }, [hydrateCart, hydrateSession]);
+
+  // Keep the Supabase access token fresh while the app is in the foreground and
+  // pause refresh in the background (Supabase's recommended React Native pattern).
+  // Pairs with the AsyncStorage adapter in client.ts so the persisted session is
+  // both kept and continuously refreshed instead of silently expiring.
+  useEffect(() => {
+    // Match the ensureSession() effect's resilience: if the backend is off or
+    // the Supabase env is incomplete, no-op instead of letting getSupabase()
+    // throw synchronously out of this effect (which, with no error boundary
+    // above the root layout, would crash the app on launch).
+    if (!isBackendLive || !isSupabaseConfigured()) return;
+    const sb = getSupabase();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') sb.auth.startAutoRefresh();
+      else sb.auth.stopAutoRefresh();
+    });
+    if (AppState.currentState === 'active') sb.auth.startAutoRefresh();
+    return () => sub.remove();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

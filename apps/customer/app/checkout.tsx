@@ -241,20 +241,37 @@ export default function Checkout() {
               <Text style={styles.edit}>{t('checkout.change')}</Text>
             </Pressable>
           </View>
-          <View style={[styles.addr, dir.row]}>
-            <View style={styles.pin}>
-              <Icon name="location" size={18} color={colors.white} />
+          {address ? (
+            <View style={[styles.addr, dir.row]}>
+              <View style={styles.pin}>
+                <Icon name="location" size={18} color={colors.white} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.hotelName}>{addrText}</Text>
+                {!!handoffText && <Text style={styles.handoff}>{handoffText}</Text>}
+                {address?.kind === 'hotel' && (
+                  <View style={styles.tagWrap}>
+                    <Text style={styles.tag}>{t('address.verifiedHotelTag')}</Text>
+                  </View>
+                )}
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.hotelName}>{addrText}</Text>
-              {!!handoffText && <Text style={styles.handoff}>{handoffText}</Text>}
-              {address?.kind === 'hotel' && (
-                <View style={styles.tagWrap}>
-                  <Text style={styles.tag}>{t('address.verifiedHotelTag')}</Text>
-                </View>
-              )}
-            </View>
-          </View>
+          ) : (
+            // No saved address yet (typical for a brand-new tourist): give an
+            // explicit add-address CTA instead of the inert "Choose an address"
+            // text, so the disabled Place-order button is never the only signal.
+            <Pressable
+              onPress={() => router.push('/address/add')}
+              accessibilityRole="button"
+              accessibilityLabel={t('address.add')}
+              style={[styles.addAddr, dir.row]}>
+              <View style={styles.pin}>
+                <Icon name="location" size={18} color={colors.white} />
+              </View>
+              <Text style={styles.addAddrText}>{t('address.add')}</Text>
+              <Icon name="chevronForward" size={20} color={colors.ink3} />
+            </Pressable>
+          )}
         </View>
 
         {/* Cart preview */}
@@ -583,6 +600,16 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
   edit: { fontSize: font.sizes.md, color: colors.sea, fontWeight: font.weights.bold },
   addr: { flexDirection: 'row', gap: 12 },
+  addAddr: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+  },
+  addAddrText: { flex: 1, fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
   pin: { width: 38, height: 38, borderRadius: 11, backgroundColor: colors.sea, alignItems: 'center', justifyContent: 'center' },
   hotelName: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
   handoff: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },

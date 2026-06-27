@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -302,14 +302,14 @@ export default function OrderTracking() {
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Pressable
-                onPress={() => tap()}
+                onPress={() => contactRider('call', order.rider?.phone)}
                 accessibilityRole="button"
                 accessibilityLabel={t('order.callDriver')}
                 style={[styles.actBtn, { backgroundColor: colors.green }]}>
                 <Icon name="phone" size={20} color={colors.white} />
               </Pressable>
               <Pressable
-                onPress={() => tap()}
+                onPress={() => contactRider('whatsapp', order.rider?.phone)}
                 accessibilityRole="button"
                 accessibilityLabel={t('order.messageDriver')}
                 style={[styles.actBtn, { backgroundColor: '#25D366' }]}>
@@ -337,7 +337,8 @@ export default function OrderTracking() {
             </Text>
           </View>
           <Text style={styles.summarySub}>
-            Paid · {order.paymentLabel}
+            {(order.paymentStatus === 'paid' ? t('order.paid') : t('order.payOnDelivery'))} ·{' '}
+            {order.paymentLabel}
           </Text>
         </View>
 
@@ -360,7 +361,10 @@ export default function OrderTracking() {
           </Pressable>
         )}
 
-        {order.status !== 'delivered' && !isCancelled && (
+        {/* Dev-only shortcut to fast-forward an order to delivered. __DEV__ is
+            false in production builds, so a real customer never sees this — in
+            the live (Supabase) backend forceDelivered is a no-op anyway. */}
+        {__DEV__ && order.status !== 'delivered' && !isCancelled && (
           <Pressable
             onPress={async () => {
               const o = await db.orders.forceDelivered(order.id);
@@ -373,6 +377,31 @@ export default function OrderTracking() {
       </ScrollView>
     </View>
   );
+}
+
+/**
+ * Open the device dialer (tel:) or WhatsApp (with SMS fallback) to reach the
+ * driver. No-ops with light haptic feedback if we have no phone number yet
+ * (e.g. before a driver has accepted and the rider snapshot is filled).
+ */
+async function contactRider(mode: 'call' | 'whatsapp', phone?: string): Promise<void> {
+  tap();
+  const num = (phone ?? '').replace(/[^\d+]/g, '');
+  if (!num) return;
+  const candidates =
+    mode === 'call'
+      ? [`tel:${num}`]
+      : [`whatsapp://send?phone=${num.replace(/^\+/, '')}`, `sms:${num}`];
+  for (const url of candidates) {
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+        return;
+      }
+    } catch {
+      // try the next candidate
+    }
+  }
 }
 
 /** Plain-language handoff line for the customer, reusing the address.* labels. */

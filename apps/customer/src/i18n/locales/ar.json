@@ -9,7 +9,6 @@
   "common.retry": "حاول مرة أخرى",
   "common.signOut": "تسجيل خروج",
   "common.minShort": "دقيقة",
-
   "cuisine.all": "الكل",
   "cuisine.breakfast": "فطار",
   "cuisine.street_food": "أكل شارع",
@@ -24,7 +23,6 @@
   "cuisine.burgers": "برجر",
   "cuisine.pizza": "بيتزا",
   "cuisine.late_night": "متأخر",
-
   "status.placed": "تم الطلب",
   "status.accepted": "اتقبل",
   "status.preparing": "جاري التحضير",
@@ -34,12 +32,10 @@
   "status.delivered": "تم التسليم",
   "status.cancelled": "ملغي",
   "status.rejected": "مرفوض",
-
   "banner.etaMin": "~{n} دقيقة",
   "banner.track": "تتبع",
-
   "address.room": "غرفة",
-  "address.beachPin": "نقطة شاطئ",
+  "address.beachPin": "نقطة الشاطئ",
   "address.chooseAddress": "اختر عنوان",
   "address.tapToPin": "اضغط لوضع نقطة",
   "address.verifiedHotelTag": "فندق موثّق · بدون رقم تليفون",
@@ -47,9 +43,7 @@
   "address.block": "بلوك",
   "address.floor": "الدور",
   "address.apt": "شقة",
-
   "checkout.title": "إتمام الطلب",
-
   "onboarding.title1": "توصيل طعام مصمم لـ",
   "onboarding.accent1": "شرم",
   "onboarding.desc1": "من غرف الفنادق إلى الشقق وأندية الشاطئ — نوصل من أفضل مطابخ شرم.",
@@ -61,19 +55,16 @@
   "onboarding.desc3": "شوف الأسعار باليورو أو الدولار أو الجنيه الإسترليني أو الروبل.",
   "onboarding.getStarted": "ابدأ الطلب",
   "onboarding.haveAccount": "لدي حساب بالفعل",
-
   "signin.title": "أدخل رقم هاتفك",
   "signin.subtitle": "هنبعتلك رمز من ٦ أرقام على واتساب أو SMS.",
   "signin.cta": "أرسل الرمز",
   "signin.terms": "بمواصلتك توافق على شروط الخدمة وسياسة الخصوصية.",
-
   "otp.title": "أدخل الرمز",
   "otp.subtitle": "بعتنا رمز من ٦ أرقام إلى",
   "otp.edit": "تعديل",
   "otp.resendCountdown": "إعادة الإرسال خلال ٠:{seconds}",
   "otp.resendNow": "إعادة الإرسال",
   "otp.cta": "تحقق ومتابعة",
-
   "home.greetingMorning": "صباح الخير،",
   "home.greetingEvening": "مساء الخير،",
   "home.greetingLateNight": "سهران؟",
@@ -95,10 +86,8 @@
   "home.seeAll": "عرض الكل",
   "home.offers": "عروض ليك",
   "home.favorites": "مفضلاتك",
-
   "fav.add": "أضف إلى المفضلة",
   "fav.remove": "أزل من المفضلة",
-
   "browse.title": "تصفّح",
   "browse.allCuisines": "الكل",
   "browse.empty": "لا توجد مطاعم مطابقة.",
@@ -109,7 +98,6 @@
   "browse.sortRating": "الأعلى تقييمًا",
   "browse.sortFee": "أقل رسوم",
   "browse.sortFastest": "الأسرع",
-
   "restaurant.minOrder": "الحد الأدنى {amount}",
   "restaurant.toYourHotel": "إلى فندقك",
   "restaurant.delivery": "توصيل",
@@ -121,7 +109,6 @@
   "restaurant.fridayPrayer": "صلاة الجمعة · بنرجع ٢:٣٠",
   "restaurant.reviews": "آراء العملاء",
   "home.reorder": "اطلب تاني",
-
   "item.addToCart": "أضف إلى السلة · {amount}",
   "item.updateLine": "تحديث · {amount}",
   "item.required": "مطلوب",
@@ -158,7 +145,6 @@
   "flag.contains_nuts": "مكسرات",
   "flag.spicy": "حار",
   "flag.glutenfree": "خالي جلوتين",
-
   "cart.title": "طلبك",
   "cart.empty": "سلتك فارغة",
   "cart.emptyDesc": "اختر مطعمًا لبدء الطلب.",
@@ -172,7 +158,6 @@
   "cart.tapToEdit": "اضغط للتعديل",
   "cart.remove": "احذف",
   "cart.alsoAdd": "زوّد على طلبك",
-
   "checkout.timing": "إمتى",
   "checkout.timingAsap": "في أقرب وقت",
   "checkout.timingSchedule": "حدّد وقت",
@@ -203,7 +188,6 @@
   "checkout.total": "الإجمالي",
   "checkout.place": "تأكيد الطلب · {amount}",
   "checkout.conversion": "≈ {amount} يخصم من بطاقتك · سعر اليوم {rate}",
-
   "address.title": "عنوان التوصيل",
   "address.hotel": "فندق",
   "address.street": "شقة",
@@ -231,16 +215,13 @@
   "address.locationDenied": "إذن الموقع متوقف. اسحب الدبوس على الخريطة، أو اضغط هنا لتفعيل الموقع من الإعدادات.",
   "address.locationFailed": "تعذّر تحديد موقعك عبر GPS. اضغط على الخريطة أو اسحب الدبوس لتحديد مكانك يدويًا.",
   "address.pinRecommended": "حدّد مكانك بدقة ليجدك السائق بسهولة.",
-  "address.beachPin": "نقطة الشاطئ",
   "address.saveError": "تعذّر حفظ العنوان. تحقّق من اتصالك وحاول مرة أخرى.",
   "address.saving": "جارٍ الحفظ…",
-
   "payment.title": "وسيلة الدفع",
   "payment.card": "بطاقة",
   "payment.applePay": "Apple Pay",
   "payment.fawry": "فوري",
   "payment.cash": "كاش عند الاستلام",
-
   "order.tracking": "تتبع الطلب",
   "order.deliveringToRoom": "التوصيل إلى غرفتك",
   "order.noCallNeeded": "لا حاجة لمكالمة هاتفية · لدينا تفاصيل غرفتك",
@@ -276,26 +257,22 @@
   "order.cancelledTitle": "تم إلغاء الطلب",
   "order.cancelledBody": "تم إلغاء هذا الطلب ولم يُخصم منك أي مبلغ.",
   "order.rejectedBody": "لم يستطع المطعم قبول هذا الطلب. لم يُخصم منك أي مبلغ — نعتذر عن ذلك.",
-
   "review.title": "كيف كان؟",
   "review.food": "الطعام",
   "review.delivery": "التوصيل",
   "review.placeholder": "أي شيء آخر؟ (اختياري)",
   "review.submit": "إرسال",
   "review.thanks": "شكرًا على رأيك!",
-
   "tabs.home": "الرئيسية",
   "tabs.browse": "تصفّح",
   "tabs.cart": "السلة",
   "tabs.orders": "الطلبات",
   "tabs.profile": "الحساب",
-
   "orders.titleActive": "قيد التنفيذ",
   "orders.titlePast": "الطلبات السابقة",
   "orders.empty": "لا توجد طلبات بعد.",
   "orders.reorder": "اطلب تاني",
   "orders.itemsCount": "{n} صنف",
-
   "profile.title": "الحساب",
   "profile.addresses": "العناوين",
   "profile.payment": "وسائل الدفع",
@@ -309,7 +286,6 @@
   "profile.help": "المساعدة والدعم",
   "profile.signOut": "تسجيل الخروج",
   "profile.deleteAccount": "حذف الحساب",
-
   "invite.title": "دعوة الأصدقاء",
   "invite.heroTitle": "امنح 50 ج.م، واحصل على 50 ج.م",
   "invite.heroSub": "شارك رمزك. يحصل صديقك على خصم 50 ج.م على أول طلب — وتحصل أنت على 50 ج.م بعد توصيله.",
@@ -322,9 +298,7 @@
   "invite.terms": "يُمنح المكافأة بعد توصيل أول طلب لصديقك. إحالة واحدة لكل عميل جديد.",
   "invite.loadError": "تعذّر تحميل رمزك.",
   "invite.shareError": "تعذّر فتح المشاركة. حاول مرة أخرى.",
-
   "settings.title": "الإعدادات",
-
   "deleteAccount.title": "حذف الحساب",
   "deleteAccount.heading": "حذف حسابك نهائيًا",
   "deleteAccount.intro": "سيؤدي هذا إلى حذف حسابك في شارم إيتس وبياناتك الشخصية نهائيًا — ملفك الشخصي، والعناوين المحفوظة، ووسائل الدفع، والمفضلة، وإعدادات الإشعارات.",
@@ -340,9 +314,12 @@
   "deleteAccount.error": "تعذّر حذف حسابك. يُرجى التحقق من اتصالك والمحاولة مرة أخرى، أو التواصل مع الدعم.",
   "deleteAccount.successTitle": "تم حذف الحساب",
   "deleteAccount.successBody": "تم حذف حسابك وبياناتك الشخصية. شكرًا لاستخدامك شارم إيتس.",
-
   "help.title": "المساعدة",
   "help.faq": "الأسئلة الشائعة",
   "help.contact": "اتصل بنا",
-  "help.openWhatsApp": "كلّمنا على واتساب"
+  "help.openWhatsApp": "كلّمنا على واتساب",
+  "order.paid": "مدفوع",
+  "order.payOnDelivery": "الدفع عند الاستلام",
+  "common.error": "حدث خطأ ما. تحقق من اتصالك وحاول مرة أخرى.",
+  "menu.empty": "لا يوجد شيء متاح الآن — يرجى المحاولة لاحقًا."
 }

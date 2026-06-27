@@ -37,6 +37,8 @@ export default function RestaurantDetail() {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [activeSection, setActiveSection] = useState<string>('');
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const { isFav, toggle: toggleFav } = useFavorite(id ?? '');
 
   const cartCount = useCart((s) => s.count());
@@ -58,17 +60,27 @@ export default function RestaurantDetail() {
   useEffect(() => {
     if (!id) return;
     track('restaurant_viewed', { restaurantId: id });
-    db.restaurants.get(id).then(setRestaurant);
-    db.menus.forRestaurant(id).then((m) => {
-      setSections(m.sections);
-      setItems(m.items);
-      setActiveSection(m.sections[0]?.id ?? '');
-    });
+    setLoadError(false);
+    // The two load-bearing calls MUST .catch: on flaky hotel wifi a rejection
+    // otherwise leaves `restaurant` null forever and freezes the screen on
+    // "Loading…" with no way out. On failure we show a retry view instead.
+    db.restaurants
+      .get(id)
+      .then(setRestaurant)
+      .catch(() => setLoadError(true));
+    db.menus
+      .forRestaurant(id)
+      .then((m) => {
+        setSections(m.sections);
+        setItems(m.items);
+        setActiveSection(m.sections[0]?.id ?? '');
+      })
+      .catch(() => setLoadError(true));
     db.restaurants
       .reviews(id, 10)
       .then(setReviews)
       .catch(() => setReviews([]));
-  }, [id]);
+  }, [id, reloadKey]);
 
   const itemsBySection = useMemo(() => {
     const map = new Map<string, MenuItem[]>();
@@ -77,10 +89,36 @@ export default function RestaurantDetail() {
     return map;
   }, [sections, items]);
 
+  if (loadError && !restaurant) {
+    return (
+      <View style={styles.loading}>
+        <StatusBar style="dark" />
+        <View style={styles.loadNav}>
+          <BackButton />
+        </View>
+        <Text style={styles.loadErrText}>{t('common.error')}</Text>
+        <Pressable
+          onPress={() => {
+            tap();
+            setLoadError(false);
+            setReloadKey((k) => k + 1);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.retry')}
+          style={styles.retryBtn}>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!restaurant) {
     return (
       <View style={styles.loading}>
         <StatusBar style="dark" />
+        <View style={styles.loadNav}>
+          <BackButton />
+        </View>
         <Text style={{ color: colors.ink3 }}>{t('common.loading')}</Text>
       </View>
     );
@@ -227,6 +265,11 @@ export default function RestaurantDetail() {
           onLayout={(e) => {
             sectionY.current.__container = e.nativeEvent.layout.y;
           }}>
+          {items.length === 0 && (
+            <View style={styles.menuEmpty}>
+              <Text style={styles.menuEmptyText}>{t('menu.empty')}</Text>
+            </View>
+          )}
           {sections.map((sec) => (
             <View
               key={sec.id}
@@ -311,7 +354,16 @@ export default function RestaurantDetail() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, gap: 16, paddingHorizontal: 32 },
+  loadNav: { position: 'absolute', top: 56, left: 14 },
+  loadErrText: { color: colors.ink2, fontSize: font.sizes.lg, textAlign: 'center', lineHeight: 24 },
+  retryBtn: {
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: radius.pill,
+    backgroundColor: colors.ink,
+  },
+  retryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   // Branded teal base so an unloaded/failed cover reads as an intentional tile
   // (the white BackButton + fade stay legible) rather than a dark void.
   hero: { height: 240, backgroundColor: colors.sea, position: 'relative' },
@@ -409,6 +461,8 @@ const styles = StyleSheet.create({
   navTabActive: { color: colors.ink },
   navUnderline: { height: 2, backgroundColor: colors.accent, marginTop: 6, borderRadius: 1 },
   sectionH: { fontSize: font.sizes['3xl'], fontWeight: font.weights.extrabold, color: colors.ink, marginBottom: 8, marginTop: 6, letterSpacing: -0.3 },
+  menuEmpty: { paddingVertical: 48, alignItems: 'center', justifyContent: 'center' },
+  menuEmptyText: { fontSize: font.sizes.lg, color: colors.ink3, textAlign: 'center', lineHeight: 24 },
   item: {
     flexDirection: 'row',
     paddingVertical: 12,
