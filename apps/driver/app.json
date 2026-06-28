@@ -18,11 +18,7 @@
       "bundleIdentifier": "eg.sharmeats.driver",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location to assign nearby deliveries and share your live position with customers while you deliver.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Sharm Eats shares your live location with the customer while a delivery is in progress, so they can track their order.",
-        "UIBackgroundModes": [
-          "location"
-        ]
+        "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location to assign nearby deliveries and share your live position with customers while you deliver."
       }
     },
     "android": {
@@ -34,7 +30,6 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -47,7 +42,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Sharm Eats shares your live location with the customer while a delivery is in progress."
+          "locationWhenInUsePermission": "Sharm Eats shares your live location with the customer while a delivery is in progress."
         }
       ],
       "expo-asset",
