@@ -22,9 +22,24 @@ interface ActiveStream {
   watcher: Location.LocationSubscription;
   channel: ReturnType<ReturnType<typeof getSupabase>['channel']>;
   lastPingAt: number;
+  /** Whether the Realtime channel is currently live (drives the live dot). */
+  connected: boolean;
 }
 
 let active: ActiveStream | null = null;
+
+/** Connection-health states the caller (UI) can react to. */
+export type StreamHealth = 'connected' | 'reconnecting' | 'disconnected';
+let healthListener: ((h: StreamHealth) => void) | null = null;
+
+/** Subscribe to live-stream connection health so the UI can warn the driver. */
+export function onStreamHealth(cb: ((h: StreamHealth) => void) | null): void {
+  healthListener = cb;
+}
+function emitHealth(h: StreamHealth): void {
+  if (active) active.connected = h === 'connected';
+  healthListener?.(h);
+}
 
 export async function requestLocationPermission(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -44,9 +59,41 @@ export async function startStreaming(orderId: string): Promise<void> {
 
   const sb = getSupabase();
   const channel = sb.channel(`order:${orderId}:driver_loc`);
-  await new Promise<void>((resolve) => {
+
+  // Resolve on first SUBSCRIBED; reject if the initial connect errors or times
+  // out (so the caller surfaces a real failure instead of hanging forever).
+  // After the initial connect, later CHANNEL_ERROR/CLOSED/TIMED_OUT events while
+  // we're still the active stream trigger a re-subscribe so the customer's live
+  // dot self-heals. The authoritative driver_ping write is a direct RPC and
+  // keeps working regardless, so dispatch never loses the driver.
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error('Live-tracking channel timed out'));
+      }
+    }, 10_000);
+
     channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') resolve();
+      if (status === 'SUBSCRIBED') {
+        emitHealth('connected');
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve();
+        }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        if (!settled) {
+          // Initial connect failed.
+          settled = true;
+          clearTimeout(timer);
+          reject(new Error(`Live-tracking channel failed: ${status}`));
+        } else if (active && active.orderId === orderId) {
+          // Mid-stream drop — surface it and let supabase-js auto-rejoin.
+          emitHealth('reconnecting');
+        }
+      }
     });
   });
 
@@ -81,7 +128,7 @@ export async function startStreaming(orderId: string): Promise<void> {
     },
   );
 
-  active = { orderId, watcher, channel, lastPingAt: 0 };
+  active = { orderId, watcher, channel, lastPingAt: 0, connected: true };
 }
 
 /** Stop streaming (on delivery handoff or going offline). */
@@ -98,6 +145,7 @@ export async function stopStreaming(): Promise<void> {
     /* ignore */
   }
   active = null;
+  emitHealth('disconnected');
 }
 
 /** One-shot position push (e.g. when going online, to seed current_geo). */
