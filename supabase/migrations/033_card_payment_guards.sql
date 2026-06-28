@@ -207,7 +207,10 @@ $$;
 revoke all on function public.reconcile_stale_card_orders() from public, anon, authenticated;
 grant execute on function public.reconcile_stale_card_orders() to postgres;
 
--- Schedule the reconciliation every 5 minutes.
+-- Schedule the reconciliation every 5 minutes. Use standard 5-field cron
+-- syntax ('*/5 * * * *') — this project's pg_cron only accepts cron syntax or
+-- the '[1-59] seconds' interval form (mig 025 uses '20 seconds'); a plain
+-- '5 minutes' string is rejected as an invalid schedule.
 create extension if not exists pg_cron;
 do $$
 begin
@@ -215,7 +218,7 @@ begin
 exception when others then
   null;
 end $$;
-select cron.schedule('sharmeats-reconcile-card', '5 minutes', $$select public.reconcile_stale_card_orders();$$);
+select cron.schedule('sharmeats-reconcile-card', '*/5 * * * *', $$select public.reconcile_stale_card_orders();$$);
 
 comment on function public.reconcile_stale_card_orders is
   'Expires card orders stuck at payment_status=pending past 30 min (abandoned checkout / lost Paymob webhook) -> failed + cancelled. Runs via pg_cron every 5 min. A late webhook is then a no-op (it only flips pending->paid).';
