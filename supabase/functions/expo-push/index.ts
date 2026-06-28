@@ -10,7 +10,16 @@
 //
 // Deploy:
 //   supabase functions deploy expo-push --no-verify-jwt --project-ref <REF>
-// (Called server-to-server with the service-role bearer; not from clients.)
+// (Called server-to-server; not from clients.)
+//
+// Caller auth (audit M4): the function runs with --no-verify-jwt (so internal
+// pg_net/RPC callers don't need a user JWT), which means without a check ANY
+// caller who knows the URL could trigger push fan-out. We require a shared
+// secret in the `x-internal-secret` header matching the PUSH_INTERNAL_SECRET
+// env var. Set it once: `supabase secrets set PUSH_INTERNAL_SECRET=<random>`
+// and pass the same header from every internal caller (net.http_post headers).
+// If the secret is NOT configured we fail OPEN with a logged warning, so an
+// un-provisioned environment never silently drops order notifications.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -37,6 +46,18 @@ const COPY: Record<string, { title: string; body: string }> = {
 
 Deno.serve(async (req: Request) => {
   try {
+    // [M4] Authenticate the internal caller via a shared secret. Fail open
+    // (with a warning) only when the secret is unconfigured, so notifications
+    // aren't lost in an environment that hasn't set it yet.
+    const expectedSecret = Deno.env.get('PUSH_INTERNAL_SECRET');
+    if (expectedSecret) {
+      if (req.headers.get('x-internal-secret') !== expectedSecret) {
+        return new Response('unauthorized', { status: 401 });
+      }
+    } else {
+      console.warn('PUSH_INTERNAL_SECRET not set — expo-push is unauthenticated. Set it via `supabase secrets set`.');
+    }
+
     let body: PushBody;
     try {
       body = await req.json();

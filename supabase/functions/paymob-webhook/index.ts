@@ -114,13 +114,17 @@ Deno.serve(async (req: Request) => {
         .catch(() => {});
 
       // Notify the merchant their (now paid) order is live, via expo-push fn.
+      // [M4] Send the internal shared secret so expo-push accepts the call.
       const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/expo-push`;
+      const pushHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      };
+      const pushSecret = Deno.env.get('PUSH_INTERNAL_SECRET');
+      if (pushSecret) pushHeaders['x-internal-secret'] = pushSecret;
       fetch(fnUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
+        headers: pushHeaders,
         body: JSON.stringify({ event: 'order_paid', orderId: ord.id }),
       }).catch(() => {});
     }

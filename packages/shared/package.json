@@ -9,5 +9,12 @@
     ".": "./src/index.ts",
     "./order-status": "./src/order-status.ts",
     "./fees": "./src/fees.ts"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
   }
 }

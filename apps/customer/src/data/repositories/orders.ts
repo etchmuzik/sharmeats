@@ -91,6 +91,12 @@ export interface CreateOrderInput {
   promoCode?: string;
   /** Customer contact phone for THIS order — the driver calls this number. */
   customerPhone?: string;
+  /**
+   * Per-checkout idempotency key (uuid). Stable across retries of the SAME
+   * checkout attempt so a double-tap or network retry returns the existing
+   * order instead of creating a duplicate. Generated once per checkout screen.
+   */
+  idempotencyKey?: string;
 }
 
 export const ordersRepo = {

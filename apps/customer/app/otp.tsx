@@ -18,6 +18,8 @@ import { useT } from '../src/i18n';
 import { useSession } from '../src/store/session';
 import { success } from '../src/haptics';
 import { registerForPush } from '../src/lib/push';
+import { db } from '../src/data';
+import { captureError } from '../src/lib/analytics';
 
 const LEN = 6;
 
@@ -31,6 +33,8 @@ export default function Otp() {
   const [code, setCode] = useState('');
   const input = useRef<TextInput>(null);
   const [seconds, setSeconds] = useState(42);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -41,13 +45,38 @@ export default function Otp() {
   const focusedIdx = code.length;
   const digits = Array.from({ length: LEN }, (_, i) => code[i] ?? '');
 
-  const verify = () => {
-    success();
-    signIn(phoneDisplay);
-    // Best-effort, fire-and-forget: ask for push permission now that the user
-    // has an account worth notifying (order status updates).
-    registerForPush();
-    router.replace('/(tabs)/home');
+  const verify = async () => {
+    if (verifying || code.length !== LEN) return;
+    setVerifying(true);
+    setError(null);
+    try {
+      // Real verification: links the phone to the (anonymous) session, so order
+      // history is preserved. Only on success do we flip the local UI flag.
+      const { phone } = await db.auth.verifyOtp(phoneDisplay, code);
+      success();
+      signIn(phone);
+      // Best-effort: ask for push permission now there's an account to notify.
+      registerForPush();
+      router.replace('/(tabs)/home');
+    } catch (e) {
+      captureError(e, { where: 'otp.verify' });
+      setError(e instanceof Error ? e.message : 'Invalid or expired code.');
+      setCode('');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const resend = async () => {
+    if (seconds > 0) return;
+    setError(null);
+    try {
+      await db.auth.sendOtp(phoneDisplay);
+      setSeconds(42);
+    } catch (e) {
+      captureError(e, { where: 'otp.resend' });
+      setError(e instanceof Error ? e.message : 'Could not resend the code.');
+    }
   };
 
   return (

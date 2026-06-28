@@ -1,0 +1,6 @@
+# Credentials — never commit signing keys or service-account secrets.
+# (Mirrors apps/customer/.gitignore.)
+credentials/
+*.p8
+google-service-account*.json
+play-service-account*.json

@@ -58,6 +58,46 @@ export const authRepoSupabase = {
     return { userId: user.id, isAnonymous: true };
   },
 
+  /**
+   * Send an SMS OTP to `phone` (E.164, e.g. +201001234567). Called from the
+   * sign-in screen. Requires a Phone provider (Twilio/MessageBird/Vonage) to be
+   * enabled in the Supabase dashboard (Authentication → Providers → Phone). If
+   * it isn't configured, Supabase returns an error which we surface clearly.
+   */
+  async sendOtp(phone: string): Promise<void> {
+    const sb = getSupabase();
+    const { error } = await sb.auth.signInWithOtp({ phone });
+    if (error) {
+      const hint = /provider|not enabled|disabled|sms/i.test(error.message)
+        ? ' — enable a Phone provider in Supabase → Authentication → Providers → Phone.'
+        : '';
+      throw new Error(`Could not send the code${hint} (${error.message})`);
+    }
+  },
+
+  /**
+   * Verify the SMS OTP. On success Supabase LINKS the phone to the CURRENT
+   * (anonymous) session — same auth.uid(), so order history is preserved — and
+   * returns the upgraded user. We mirror the verified phone into public.users so
+   * checkout can prefill a trusted number. Returns the user id + phone.
+   */
+  async verifyOtp(phone: string, code: string): Promise<{ userId: string; phone: string }> {
+    const sb = getSupabase();
+    const { data, error } = await sb.auth.verifyOtp({ phone, token: code, type: 'sms' });
+    if (error) throw new Error(`Invalid or expired code (${error.message})`);
+    const user = data.user;
+    if (!user) throw new Error('Verification returned no user.');
+
+    // Mirror the verified number onto the profile row (best-effort; the order
+    // flow doesn't depend on it succeeding).
+    try {
+      await sb.from('users').update({ phone: user.phone ?? phone }).eq('id', user.id);
+    } catch {
+      /* non-fatal */
+    }
+    return { userId: user.id, phone: user.phone ?? phone };
+  },
+
   async signOut(): Promise<void> {
     await getSupabase().auth.signOut();
   },
