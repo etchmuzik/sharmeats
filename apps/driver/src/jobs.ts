@@ -50,7 +50,34 @@ export interface Job {
     beachName?: string;
     handoff?: string;
   };
+  /** Customer contact phone (mig 028) — the driver calls this to complete delivery. */
+  customer_phone: string | null;
+  /** Per-order delivery/prep note from the customer. */
+  kitchen_notes: string | null;
   assigned_driver_id: string | null;
+}
+
+/**
+ * The order's address_snapshot is a verbatim copy of the snake_case `addresses`
+ * row (place_order does to_jsonb), but the app reads camelCase. Without this the
+ * driver's hotel name/room/street all render BLANK. Idempotent (reads camel first).
+ */
+function normalizeAddressSnapshot(raw: unknown): Job['address_snapshot'] {
+  if (!raw || typeof raw !== 'object') return {};
+  const a = raw as Record<string, unknown>;
+  const pick = (camel: string, snake: string) => (a[camel] ?? a[snake]) as string | undefined;
+  return {
+    kind: pick('kind', 'kind'),
+    label: pick('label', 'label'),
+    hotelName: pick('hotelName', 'hotel_name'),
+    roomNumber: pick('roomNumber', 'room_number'),
+    streetText: pick('streetText', 'street_text'),
+    building: pick('building', 'building'),
+    apartment: pick('apartment', 'apartment'),
+    landmark: pick('landmark', 'landmark'),
+    beachName: pick('beachName', 'beach_name'),
+    handoff: pick('handoff', 'handoff'),
+  };
 }
 
 // Columns selected for a job. restaurants(geo) is a foreign-table join — the
@@ -58,7 +85,7 @@ export interface Job {
 const JOB_SELECT =
   'id, short_code, restaurant_name, status, payment_method, payment_status, ' +
   'total_egp, subtotal_egp, delivery_fee_egp, tip_egp, items, dropoff_geo, ' +
-  'address_snapshot, assigned_driver_id, restaurants(geo)';
+  'address_snapshot, customer_phone, kitchen_notes, assigned_driver_id, restaurants(geo)';
 
 /** Normalize a raw order row (with nested restaurants) into a Job. */
 function toJob(row: Record<string, unknown> | null): Job | null {
@@ -85,7 +112,9 @@ function toJob(row: Record<string, unknown> | null): Job | null {
     items,
     dropoff_geo: (row.dropoff_geo as string | null) ?? null,
     restaurant_geo,
-    address_snapshot: (row.address_snapshot as Job['address_snapshot']) ?? {},
+    address_snapshot: normalizeAddressSnapshot(row.address_snapshot),
+    customer_phone: (row.customer_phone as string | null) ?? null,
+    kitchen_notes: (row.kitchen_notes as string | null) ?? null,
     assigned_driver_id: (row.assigned_driver_id as string | null) ?? null,
   };
 }
