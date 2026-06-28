@@ -51,7 +51,17 @@
         }
       ],
       "expo-asset",
-      "./plugins/withFmtConstevalFix.js"
+      "./plugins/withFmtConstevalFix.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false
