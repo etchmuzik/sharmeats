@@ -14,13 +14,38 @@ import { PrimaryButton } from '../src/components/PrimaryButton';
 import { StatusBarSpacer } from '../src/components/StatusBarSpacer';
 import { colors, font, radius } from '../src/theme';
 import { useT } from '../src/i18n';
+import { db } from '../src/data';
+import { captureError } from '../src/lib/analytics';
+
+/** Normalize a typed phone to E.164-ish: keep a leading +, strip everything else. */
+function toE164(input: string): string {
+  const digits = input.replace(/[^\d]/g, '');
+  return input.trim().startsWith('+') ? `+${digits}` : `+${digits}`;
+}
 
 export default function SignIn() {
   const router = useRouter();
   const t = useT();
-  const [phone, setPhone] = useState('+39 333 ');
+  const [phone, setPhone] = useState('+20 100 ');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canSend = phone.replace(/\D/g, '').length >= 8;
+  const canSend = phone.replace(/\D/g, '').length >= 8 && !sending;
+
+  const send = async () => {
+    const e164 = toE164(phone);
+    setSending(true);
+    setError(null);
+    try {
+      await db.auth.sendOtp(e164);
+      router.replace(`/otp?phone=${encodeURIComponent(e164)}`);
+    } catch (e) {
+      captureError(e, { where: 'signin.sendOtp' });
+      setError(e instanceof Error ? e.message : 'Could not send the code. Try again.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -51,12 +76,18 @@ export default function SignIn() {
 
       <Text style={styles.terms}>{t('signin.terms')}</Text>
 
+      {error ? (
+        <Text style={{ paddingHorizontal: 24, marginTop: 12, color: colors.red, fontSize: font.sizes.md }}>
+          {error}
+        </Text>
+      ) : null}
+
       <View style={{ flex: 1 }} />
 
       <View style={{ paddingHorizontal: 24, paddingBottom: 36 }}>
         <PrimaryButton
-          label={t('signin.cta')}
-          onPress={() => router.replace(`/otp?phone=${encodeURIComponent(phone)}`)}
+          label={sending ? t('common.loading') : t('signin.cta')}
+          onPress={send}
           disabled={!canSend}
         />
       </View>

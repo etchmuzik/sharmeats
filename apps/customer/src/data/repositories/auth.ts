@@ -16,6 +16,12 @@ export const authRepo = {
   async ensureSession(): Promise<SessionInfo> {
     return { userId: MOCK_USER_ID, isAnonymous: true };
   },
+  async sendOtp(_phone: string): Promise<void> {
+    /* mock mode: pretend the SMS was sent. Any 6-digit code verifies. */
+  },
+  async verifyOtp(phone: string, _code: string): Promise<{ userId: string; phone: string }> {
+    return { userId: MOCK_USER_ID, phone };
+  },
   async signOut(): Promise<void> {
     /* no-op in mock mode */
   },
