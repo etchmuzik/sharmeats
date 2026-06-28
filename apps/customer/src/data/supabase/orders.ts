@@ -63,6 +63,9 @@ export const ordersRepoSupabase = {
       p_promo_code: input.promoCode?.trim() || null,
       p_scheduled_for: input.scheduledFor ? new Date(input.scheduledFor).toISOString() : null,
       p_customer_phone: input.customerPhone?.trim() || null,
+      // [031] Idempotency: a retried/duplicated checkout with the same key
+      // returns the existing order instead of creating a second one.
+      p_idempotency_key: input.idempotencyKey ?? null,
     });
     if (error) throw mapPlaceOrderError(error);
 

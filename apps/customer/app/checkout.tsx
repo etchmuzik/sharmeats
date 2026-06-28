@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
+import { randomUUID } from 'expo-crypto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
@@ -30,6 +31,12 @@ export default function Checkout() {
   const restaurantName = useCart((s) => s.restaurantName);
   const subtotal = useCart((s) => s.subtotal());
   const clear = useCart((s) => s.clear);
+
+  // [031] Idempotency key for this checkout attempt. Stable across retries
+  // (double-tap, network retry) so place_order returns the existing order
+  // instead of creating a duplicate. Reset after a successful placement so a
+  // subsequent order gets a fresh key.
+  const idempotencyKey = useRef(randomUUID());
 
   const selectedAddressId = useSession((s) => s.selectedAddressId);
   const sessionPhone = useSession((s) => s.phone);
@@ -177,6 +184,7 @@ export default function Checkout() {
         scheduledFor: scheduledFor ?? undefined,
         promoCode: promoApplied?.code,
         customerPhone: contactPhone.trim(),
+        idempotencyKey: idempotencyKey.current,
       });
       track('order_placed', {
         orderId: order.id,
