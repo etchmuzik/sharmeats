@@ -39,7 +39,17 @@
       "./plugins/withLocalizationXcode26Fix.js",
       "@sentry/react-native",
       "expo-localization",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false
