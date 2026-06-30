@@ -91,6 +91,37 @@ Deno.serve(async (req: Request) => {
       return new Response('ok', { status: 200 });
     }
 
+    // SECURITY: locate the pending order BEFORE any state change so we can
+    // assert the SIGNED amount matches what this order owes. The order selector
+    // (special_reference / merchant_order_id / extras.order_id) is derived from
+    // UNSIGNED webhook fields, so without this check an attacker could replay a
+    // valid {signed-fields, hmac} pair against a victim's order id. amount_cents
+    // IS in HMAC_FIELDS, so it is trustworthy; total_egp is read from our DB.
+    const { data: pendingRows, error: selErr } = await admin
+      .from('orders')
+      .select('id, user_id, total_egp')
+      .eq('id', orderId)
+      .eq('payment_status', 'pending');
+
+    if (selErr) {
+      return new Response(`db error: ${selErr.message}`, { status: 500 });
+    }
+
+    // Not found or not pending → graceful no-op (preserves Paymob retry
+    // idempotency: a second delivery for an already-paid order does nothing).
+    const pending = pendingRows && pendingRows.length > 0 ? pendingRows[0] : null;
+    if (!pending) {
+      return new Response('ok', { status: 200 });
+    }
+
+    // AMOUNT ASSERTION (decisive control): signed piastres must equal what the
+    // located order owes. total_egp is integer EGP; piastres = total_egp * 100.
+    const signedAmountCents = Number(obj.amount_cents);
+    const expectedAmountCents = pending.total_egp * 100;
+    if (!Number.isFinite(signedAmountCents) || signedAmountCents !== expectedAmountCents) {
+      return new Response('amount mismatch', { status: 400 });
+    }
+
     // IDEMPOTENT transition: only pending → paid. Returned rows tell us whether
     // THIS call did the work. Paymob retries update 0 rows → side-effects once.
     const { data: transitioned, error: updErr } = await admin
