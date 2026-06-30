@@ -18,8 +18,9 @@
 // secret in the `x-internal-secret` header matching the PUSH_INTERNAL_SECRET
 // env var. Set it once: `supabase secrets set PUSH_INTERNAL_SECRET=<random>`
 // and pass the same header from every internal caller (net.http_post headers).
-// If the secret is NOT configured we fail OPEN with a logged warning, so an
-// un-provisioned environment never silently drops order notifications.
+// We fail CLOSED: if the secret is NOT configured the function returns 503 and
+// refuses to process, so an un-provisioned environment can never be driven
+// unauthenticated. If the secret IS set, a missing/mismatched header is 401.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -46,16 +47,16 @@ const COPY: Record<string, { title: string; body: string }> = {
 
 Deno.serve(async (req: Request) => {
   try {
-    // [M4] Authenticate the internal caller via a shared secret. Fail open
-    // (with a warning) only when the secret is unconfigured, so notifications
-    // aren't lost in an environment that hasn't set it yet.
+    // [M4] Authenticate the internal caller via a shared secret. Fail closed:
+    // refuse to process (503) when the secret is unconfigured, so the function
+    // can never be driven unauthenticated by a remote caller.
     const expectedSecret = Deno.env.get('PUSH_INTERNAL_SECRET');
-    if (expectedSecret) {
-      if (req.headers.get('x-internal-secret') !== expectedSecret) {
-        return new Response('unauthorized', { status: 401 });
-      }
-    } else {
-      console.warn('PUSH_INTERNAL_SECRET not set — expo-push is unauthenticated. Set it via `supabase secrets set`.');
+    if (!expectedSecret) {
+      console.error('PUSH_INTERNAL_SECRET not set — refusing to process. Set it via `supabase secrets set`.');
+      return new Response('not configured', { status: 503 });
+    }
+    if (req.headers.get('x-internal-secret') !== expectedSecret) {
+      return new Response('unauthorized', { status: 401 });
     }
 
     let body: PushBody;
