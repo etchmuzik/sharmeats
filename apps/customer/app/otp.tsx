@@ -131,13 +131,19 @@ export default function Otp() {
       <Text style={styles.resend}>
         Didn't receive?{' '}
         <Text
-          onPress={() => seconds <= 0 && setSeconds(42)}
+          onPress={resend}
           style={{ color: colors.accent, fontWeight: font.weights.bold }}>
           {seconds > 0
             ? t('otp.resendCountdown', { seconds: seconds.toString().padStart(2, '0') })
             : t('otp.resendNow')}
         </Text>
       </Text>
+
+      {error ? (
+        <Text style={{ color: colors.red, textAlign: 'center', paddingHorizontal: 24, marginTop: 8 }}>
+          {error}
+        </Text>
+      ) : null}
 
       <View style={{ flex: 1 }} />
 
