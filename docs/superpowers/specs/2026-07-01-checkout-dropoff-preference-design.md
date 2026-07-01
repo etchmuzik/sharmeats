@@ -27,11 +27,12 @@ progress) and the user wants a visual refresh alongside the new feature.
 
 ## Data model
 
-New enum + column on `public.orders`, migration `039` is already taken
-(auto-advance-kitchen, uncommitted) — this feature gets `040`.
+New enum + column on `public.orders`. Migrations 039 (auto-advance-kitchen)
+and 040 (merchant-new-order-push) are already on disk from other in-progress
+work — this feature gets `041`.
 
 ```sql
--- 040_dropoff_preference.sql
+-- 041_dropoff_preference.sql
 create type public.dropoff_preference as enum (
   'hand_to_me',
   'leave_at_door',
