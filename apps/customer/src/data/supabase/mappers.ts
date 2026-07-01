@@ -298,6 +298,8 @@ interface OrderRow {
   rating_delivery: number | null;
   rating_comment: string | null;
   kitchen_notes: string | null;
+  dropoff_preference: Order['dropoffPreference'] | null;
+  dropoff_note: string | null;
   aggregate_allergens: string[] | null;
   scheduled_for: string | null;
 }
@@ -344,6 +346,8 @@ export function rowToOrder(o: OrderRow): Order {
     ratingDelivery: o.rating_delivery ?? undefined,
     ratingComment: o.rating_comment ?? undefined,
     kitchenNotes: o.kitchen_notes ?? undefined,
+    dropoffPreference: o.dropoff_preference ?? undefined,
+    dropoffNote: o.dropoff_note ?? undefined,
     aggregateAllergens: (o.aggregate_allergens ?? undefined) as Order['aggregateAllergens'],
     scheduledFor: tsToMs(o.scheduled_for),
   };

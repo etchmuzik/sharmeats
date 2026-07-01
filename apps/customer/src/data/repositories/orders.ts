@@ -142,6 +142,8 @@ export const ordersRepo = {
       slaMinutes,
       rider: pickRandomRider(),
       kitchenNotes: input.kitchenNotes,
+      dropoffPreference: input.dropoffPreference,
+      dropoffNote: input.dropoffNote,
       aggregateAllergens: input.aggregateAllergens,
       scheduledFor: input.scheduledFor,
       discountEgp: discount > 0 ? discount : undefined,

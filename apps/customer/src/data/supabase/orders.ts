@@ -66,6 +66,8 @@ export const ordersRepoSupabase = {
       // [031] Idempotency: a retried/duplicated checkout with the same key
       // returns the existing order instead of creating a second one.
       p_idempotency_key: input.idempotencyKey ?? null,
+      p_dropoff_preference: input.dropoffPreference ?? null,
+      p_dropoff_note: input.dropoffNote?.trim() || null,
     });
     if (error) throw mapPlaceOrderError(error);
 
