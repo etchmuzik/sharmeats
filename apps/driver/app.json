@@ -46,6 +46,7 @@
         }
       ],
       "expo-asset",
+      "expo-notifications",
       "./plugins/withFmtConstevalFix.js",
       [
         "expo-build-properties",
