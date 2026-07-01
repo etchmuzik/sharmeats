@@ -42,6 +42,7 @@
         "ascAppId": "6776864451"
       },
       "android": {
+        "serviceAccountKeyPath": "./credentials/play-service-account.json",
         "track": "internal",
         "releaseStatus": "draft"
       }
