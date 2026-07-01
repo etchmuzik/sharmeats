@@ -88,22 +88,25 @@ export default function OrderTracking() {
     return () => unsub();
   }, [id, trackingDriver]);
 
+  // Computed here (before the `!order` early return) because the camera
+  // auto-fit effect below is an unconditional hook and needs these values;
+  // optional chaining covers the case where `order` hasn't loaded yet.
+  const destination: LatLng = {
+    lat: order?.addressSnapshot.lat ?? SHARM_CENTER.lat,
+    lng: order?.addressSnapshot.lng ?? SHARM_CENTER.lng,
+  };
+
   // Keep both the driver and the destination pin in view as the driver moves.
-  // Uses the same order?.addressSnapshot fallback as `destination` below —
-  // computed independently here because hooks must run before the `!order`
-  // early return, ahead of where `destination` itself is declared.
-  const destLat = order?.addressSnapshot.lat ?? SHARM_CENTER.lat;
-  const destLng = order?.addressSnapshot.lng ?? SHARM_CENTER.lng;
   useEffect(() => {
     if (!driverLoc || !mapRef.current) return;
     mapRef.current.fitToCoordinates(
       [
         { latitude: driverLoc.lat, longitude: driverLoc.lng },
-        { latitude: destLat, longitude: destLng },
+        { latitude: destination.lat, longitude: destination.lng },
       ],
       { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 }, animated: true },
     );
-  }, [driverLoc, destLat, destLng]);
+  }, [driverLoc, destination.lat, destination.lng]);
 
   if (!order) {
     return (
@@ -122,11 +125,6 @@ export default function OrderTracking() {
   // Customers may only cancel before the restaurant accepts; once a card order
   // is paid, cancellation implies a refund flow we don't have yet — hide it.
   const canCancel = order.status === 'placed' && order.paymentStatus !== 'paid';
-
-  const destination: LatLng = {
-    lat: order.addressSnapshot.lat ?? SHARM_CENTER.lat,
-    lng: order.addressSnapshot.lng ?? SHARM_CENTER.lng,
-  };
   const driverIsStale = driverLoc ? isDriverLocationStale(driverLoc.at, now) : false;
 
   const confirmCancel = () => {
