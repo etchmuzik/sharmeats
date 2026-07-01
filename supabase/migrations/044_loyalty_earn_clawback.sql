@@ -90,6 +90,21 @@ create trigger orders_accrue_loyalty
 -- clawback_loyalty_on_reversal — fires when a DELIVERED order moves away from
 -- 'delivered' (today: only -> 'cancelled'). Mirrors the earn amounts as
 -- negative ledger rows so the next sweep can demote tier / debit balance.
+--
+-- Net-outstanding scoping: an order can cycle through delivered -> cancelled
+-- -> (re-accepted) -> delivered -> cancelled more than once if its status
+-- flips back off 'delivered' and later returns to it (the accrual/clawback
+-- guards only test the immediate old/new transition, not full order history,
+-- so a second delivered transition on the same order legitimately re-fires
+-- accrual and can insert a second `order_earn` row for that same
+-- ref_order_id). If clawback summed *all* `order_earn` rows for the order
+-- unconditionally, a second cancellation would re-claw-back points already
+-- reversed by the first cancellation's clawback, over-debiting the subject.
+-- Each side therefore claws back only the NET outstanding amount for this
+-- order: sum(order_earn) - sum(|clawback| already issued) for that
+-- (subject_type, ref_order_id) pair. This nets to the full original earn on
+-- a single earn->clawback cycle (unchanged behavior) and to just the most
+-- recent cycle's earn on repeated earn->clawback->earn->clawback cycles.
 -- ============================================================================
 create or replace function public.clawback_loyalty_on_reversal()
 returns trigger
@@ -103,17 +118,23 @@ declare
 begin
   if old.status <> 'delivered' or new.status = 'delivered' then return new; end if;
 
-  select coalesce(sum(delta_points),0) into v_customer_pts
+  select coalesce(sum(delta_points) filter (where reason = 'order_earn'),0)
+       + coalesce(sum(delta_points) filter (where reason = 'clawback'),0)
+    into v_customer_pts
     from public.loyalty_points_ledger
-   where subject_type = 'customer' and ref_order_id = new.id and reason = 'order_earn';
+   where subject_type = 'customer' and ref_order_id = new.id and reason in ('order_earn','clawback');
 
-  select coalesce(sum(delta_points),0) into v_driver_pts
+  select coalesce(sum(delta_points) filter (where reason = 'order_earn'),0)
+       + coalesce(sum(delta_points) filter (where reason = 'clawback'),0)
+    into v_driver_pts
     from public.loyalty_points_ledger
-   where subject_type = 'driver' and ref_order_id = new.id and reason = 'order_earn';
+   where subject_type = 'driver' and ref_order_id = new.id and reason in ('order_earn','clawback');
 
-  select coalesce(sum(delta_points),0) into v_rest_pts
+  select coalesce(sum(delta_points) filter (where reason = 'order_earn'),0)
+       + coalesce(sum(delta_points) filter (where reason = 'clawback'),0)
+    into v_rest_pts
     from public.loyalty_points_ledger
-   where subject_type = 'restaurant' and ref_order_id = new.id and reason = 'order_earn';
+   where subject_type = 'restaurant' and ref_order_id = new.id and reason in ('order_earn','clawback');
 
   if v_customer_pts > 0 then
     insert into public.loyalty_points_ledger (subject_type, subject_id, delta_points, reason, ref_order_id)
