@@ -42,7 +42,11 @@ export type IconName =
   | 'signout'
   | 'gift' // invite friends / referrals
   | 'share'
-  | 'person';
+  | 'person'
+  | 'scooter'
+  | 'motorbike'
+  | 'bicycle'
+  | 'car';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -76,6 +80,10 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   gift: 'gift-outline',
   share: 'share-social-outline',
   person: 'person-outline',
+  scooter: 'bicycle-outline',
+  motorbike: 'bicycle-outline',
+  bicycle: 'bicycle-outline',
+  car: 'car-outline',
 };
 
 type Props = {
