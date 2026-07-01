@@ -4,7 +4,7 @@
 
 **Goal:** Add a structured, driver-facing dropoff-preference field to checkout (Hand to me / Leave at door / Meet outside / Don't ring bell / Call on arrival), display it prominently on the driver's job screen (today's `kitchen_notes` never renders there — dead data), and restyle checkout with a progress stepper and a dedicated dropoff card whose "quiet" chip selections trigger an inline contactless-confirmation banner instead of a separate toggle.
 
-**Architecture:** New Postgres enum `dropoff_preference` + two new nullable columns on `public.orders` (migration 041, `create or replace function` on `place_order`'s existing 10-arg signature to add 2 more). Client-side: a new `DropoffPreference` string-literal union type threaded through `CreateOrderInput` → both order-repo adapters (mock + Supabase) → `Order`. New `DropoffPreferenceCard` component on the customer checkout screen (mirrors the existing `KitchenBriefing` component pattern) plus a slim static `CheckoutStepper` component. Driver side: extend the existing `Job` type/select/mapper in `apps/driver/src/jobs.ts`, add a new `DropoffPreferenceCard` component (mirrors the existing `HotelHandoffCard` pattern) rendered in `apps/driver/app/job/[id].tsx`.
+**Architecture:** New Postgres enum `dropoff_preference` + two new nullable columns on `public.orders` (migration 041; `place_order` requires a `DROP FUNCTION IF EXISTS` on its existing 10-arg signature followed by `CREATE OR REPLACE FUNCTION` with the new 12-arg signature, since Postgres treats a changed parameter list as a new overload rather than a replacement). Client-side: a new `DropoffPreference` string-literal union type threaded through `CreateOrderInput` → both order-repo adapters (mock + Supabase) → `Order`. New `DropoffPreferenceCard` component on the customer checkout screen (mirrors the existing `KitchenBriefing` component pattern) plus a slim static `CheckoutStepper` component. Driver side: extend the existing `Job` type/select/mapper in `apps/driver/src/jobs.ts`, add a new `DropoffPreferenceCard` component (mirrors the existing `HotelHandoffCard` pattern) rendered in `apps/driver/app/job/[id].tsx`.
 
 **Tech Stack:** Expo/React Native (customer + driver apps), Supabase Postgres (RPC-based writes via `place_order`), i18next-style flat-dot-key JSON i18n (customer app only; driver app is English-only, no i18n directory).
 
@@ -67,9 +67,12 @@
 -- kitchen_notes on the job screen — this instruction currently reaches no one.
 --
 -- Non-destructive: both new columns are nullable, no backfill needed.
--- place_order gets a CREATE OR REPLACE on its current 10-arg signature (see
--- 036_place_order_unique_violation_guard.sql for the ground-truth prior
--- body), appending 2 new trailing default-null params so no existing caller
+-- place_order's parameter list is changing (2 new trailing params), so a
+-- plain CREATE OR REPLACE would add a second overload rather than replacing
+-- the existing 10-arg function (see 036_place_order_unique_violation_guard.sql
+-- for the ground-truth prior body). This migration therefore issues a DROP
+-- FUNCTION IF EXISTS on the old 10-arg signature FIRST, then CREATE OR
+-- REPLACE FUNCTION with the new 12-arg signature, so no existing caller
 -- (all of which use named args) breaks.
 
 create type public.dropoff_preference as enum (
