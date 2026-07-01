@@ -33,13 +33,21 @@ const CHIPS: ChipDef[] = [
 
 const QUIET_VALUES: DropoffPreference[] = ['leave_at_door', 'no_bell'];
 
+/** Pure chip-visibility filter: which chips should render for a given address kind. */
+export function getVisibleChips(addressKind: AddressKind | undefined): ChipDef[] {
+  return CHIPS.filter((c) => !addressKind || !c.hideForAddressKinds.includes(addressKind));
+}
+
+/** Pure banner-trigger logic: does this dropoff preference warrant the quiet/contactless banner. */
+export function isQuietPreference(value: DropoffPreference | null): boolean {
+  return value !== null && QUIET_VALUES.includes(value);
+}
+
 export function DropoffPreferenceCard({ addressKind, value, onChange }: Props) {
   const t = useT();
   const dir = useDirection();
-  const visibleChips = CHIPS.filter(
-    (c) => !addressKind || !c.hideForAddressKinds.includes(addressKind),
-  );
-  const showQuietBanner = value !== null && QUIET_VALUES.includes(value);
+  const visibleChips = getVisibleChips(addressKind);
+  const showQuietBanner = isQuietPreference(value);
 
   return (
     <View style={styles.card}>
