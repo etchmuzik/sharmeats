@@ -54,6 +54,10 @@ export interface Job {
   customer_phone: string | null;
   /** Per-order delivery/prep note from the customer. */
   kitchen_notes: string | null;
+  /** Driver-facing handoff instruction (mig 041) — e.g. 'no_bell', 'leave_at_door'. */
+  dropoff_preference: string | null;
+  /** Optional free-text elaboration on dropoff_preference. */
+  dropoff_note: string | null;
   assigned_driver_id: string | null;
 }
 
@@ -85,7 +89,8 @@ function normalizeAddressSnapshot(raw: unknown): Job['address_snapshot'] {
 const JOB_SELECT =
   'id, short_code, restaurant_name, status, payment_method, payment_status, ' +
   'total_egp, subtotal_egp, delivery_fee_egp, tip_egp, items, dropoff_geo, ' +
-  'address_snapshot, customer_phone, kitchen_notes, assigned_driver_id, restaurants(geo)';
+  'address_snapshot, customer_phone, kitchen_notes, dropoff_preference, dropoff_note, ' +
+  'assigned_driver_id, restaurants(geo)';
 
 /** Normalize a raw order row (with nested restaurants) into a Job. */
 function toJob(row: Record<string, unknown> | null): Job | null {
@@ -115,6 +120,8 @@ function toJob(row: Record<string, unknown> | null): Job | null {
     address_snapshot: normalizeAddressSnapshot(row.address_snapshot),
     customer_phone: (row.customer_phone as string | null) ?? null,
     kitchen_notes: (row.kitchen_notes as string | null) ?? null,
+    dropoff_preference: (row.dropoff_preference as string | null) ?? null,
+    dropoff_note: (row.dropoff_note as string | null) ?? null,
     assigned_driver_id: (row.assigned_driver_id as string | null) ?? null,
   };
 }
