@@ -18,6 +18,7 @@ export const rewardsRepo = {
     return delay(history.slice(0, limit));
   },
   async redeem(points: number): Promise<string> {
+    if (points == null || points <= 0) throw new Error('INVALID_POINTS');
     if (points > status.pointsBalance) throw new Error('INSUFFICIENT_POINTS');
     status = { ...status, pointsBalance: status.pointsBalance - points };
     history.unshift({ id: `h${history.length + 1}`, deltaPoints: -points, reason: 'redeem', refOrderId: null, createdAt: Date.now() });
