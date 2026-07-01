@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   },
   step: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  dotFilled: { backgroundColor: colors.accent ?? colors.ink },
+  dotFilled: { backgroundColor: colors.accent },
   dotEmpty: { backgroundColor: colors.line },
   label: { fontSize: font.sizes.xs, marginLeft: 2 },
   labelFilled: { color: colors.ink2, fontWeight: font.weights.bold },
