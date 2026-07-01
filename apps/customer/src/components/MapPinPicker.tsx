@@ -12,7 +12,7 @@ export interface LatLng {
 }
 
 /** Naama Bay — the tourist heart of Sharm el-Sheikh. Sensible map center before GPS. */
-const SHARM_CENTER: LatLng = { lat: 27.9158, lng: 34.3299 };
+export const SHARM_CENTER: LatLng = { lat: 27.9158, lng: 34.3299 };
 const DEFAULT_DELTA = 0.04;
 
 /** Give a fresh GPS fix this long before falling back (simulators with no
