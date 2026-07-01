@@ -44,6 +44,7 @@ const COPY: Record<string, { title: string; body: string }> = {
   order_delivered: { title: 'Delivered', body: 'Enjoy your meal! Tap to rate your order.' },
   new_offer: { title: 'New delivery offer', body: 'You have a new job. Tap to accept.' },
   referral_rewarded: { title: 'Referral reward earned', body: 'Your friend ordered — your discount is ready. Tap to see it.' },
+  order_placed_merchant: { title: 'New order', body: 'A new order just came in. Tap to accept it.' },
 };
 
 Deno.serve(async (req: Request) => {

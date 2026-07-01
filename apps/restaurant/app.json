@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Sharm Eats Restaurant",
+    "slug": "sharmeats-restaurant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "sharmeatsrestaurant",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#7a3cff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "eg.sharmeats.restaurant",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#7a3cff"
+      },
+      "package": "eg.sharmeats.restaurant"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-asset",
+      "expo-notifications",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "b0ee1d33-9c44-4d2a-9711-ec2d4f374eb0"
+      }
+    },
+    "owner": "etchmuzik"
+  }
+}
