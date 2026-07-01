@@ -14,6 +14,7 @@ import { hotelsRepo } from './repositories/hotels';
 import { menusRepo } from './repositories/menus';
 import { ordersRepo } from './repositories/orders';
 import { restaurantsRepo } from './repositories/restaurants';
+import { rewardsRepo } from './repositories/rewards';
 import { userRepo } from './repositories/user';
 
 import { authRepoSupabase } from './supabase/auth';
@@ -21,6 +22,7 @@ import { hotelsRepoSupabase } from './supabase/hotels';
 import { menusRepoSupabase } from './supabase/menus';
 import { ordersRepoSupabase } from './supabase/orders';
 import { restaurantsRepoSupabase } from './supabase/restaurants';
+import { rewardsRepoSupabase } from './supabase/rewards';
 import { userRepoSupabase } from './supabase/user';
 
 const useSupabase = process.env.EXPO_PUBLIC_USE_SUPABASE === 'true';
@@ -33,6 +35,7 @@ export const db = useSupabase
       hotels: hotelsRepoSupabase,
       user: userRepoSupabase,
       orders: ordersRepoSupabase,
+      rewards: rewardsRepoSupabase,
     }
   : {
       auth: authRepo,
@@ -41,6 +44,7 @@ export const db = useSupabase
       hotels: hotelsRepo,
       user: userRepo,
       orders: ordersRepo,
+      rewards: rewardsRepo,
     };
 
 export type DB = typeof db;

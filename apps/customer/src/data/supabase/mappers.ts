@@ -6,6 +6,8 @@ import type {
   Order,
   PaymentMethod,
   Restaurant,
+  RewardsHistoryEntry,
+  RewardsStatus,
   Rider,
   User,
 } from '../types';
@@ -346,5 +348,33 @@ export function rowToOrder(o: OrderRow): Order {
     kitchenNotes: o.kitchen_notes ?? undefined,
     aggregateAllergens: (o.aggregate_allergens ?? undefined) as Order['aggregateAllergens'],
     scheduledFor: tsToMs(o.scheduled_for),
+  };
+}
+
+export function rowToRewardsStatus(row: {
+  tier: string;
+  points_balance: number;
+  points_rolling_12mo: number;
+}): RewardsStatus {
+  return {
+    tier: row.tier as RewardsStatus['tier'],
+    pointsBalance: row.points_balance,
+    pointsRolling12mo: row.points_rolling_12mo,
+  };
+}
+
+export function rowToRewardsHistoryEntry(row: {
+  id: string;
+  delta_points: number;
+  reason: string;
+  ref_order_id: string | null;
+  created_at: string;
+}): RewardsHistoryEntry {
+  return {
+    id: row.id,
+    deltaPoints: row.delta_points,
+    reason: row.reason as RewardsHistoryEntry['reason'],
+    refOrderId: row.ref_order_id,
+    createdAt: tsToMs(row.created_at) ?? Date.now(),
   };
 }
