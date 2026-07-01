@@ -29,4 +29,11 @@ supabase/.temp/
 *.apk
 *-deploy.zip
 
+# Signing / store credentials — NEVER commit. ASC API keys (.p8), Google Play
+# service-account JSONs, and anything under a per-app credentials/ dir are secrets.
+# EAS reads them from disk at submit time; they live locally / in EAS, not in git.
+**/credentials/
+*.p8
+*service-account*.json
+
 .superpowers/
