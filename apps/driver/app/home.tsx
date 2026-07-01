@@ -22,7 +22,9 @@ import {
   type EarningsSummary,
   type Job,
 } from '../src/jobs';
+import * as Notifications from 'expo-notifications';
 import { pingOnce } from '../src/location';
+import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
 import { colors, font, radius, spacing } from '../src/theme';
 import { Icon } from '../src/components/Icon';
 import { useToast } from '../src/components/Toast';
@@ -66,6 +68,22 @@ export default function Home() {
     }, [load]),
   );
 
+  // Push notifications: register this device for delivery-offer pushes (H1) and
+  // refresh the offer list when the driver taps a `new_offer` notification. Runs
+  // once on the home screen, which is only reachable post-auth (so auth.uid() is
+  // available for token registration). Best-effort — never blocks the screen.
+  useEffect(() => {
+    configureNotificationHandler();
+    registerForPush();
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (response: Notifications.NotificationResponse) => {
+        const event = response.notification.request.content.data?.event;
+        if (event === 'new_offer') load();
+      },
+    );
+    return () => sub.remove();
+  }, [load]);
+
   async function toggleOnline(next: boolean) {
     setOnlineState(next);
     try {
@@ -75,6 +93,13 @@ export default function Home() {
       setOnlineState(!next); // revert on failure
       toast("Couldn't update your status. Check your connection.", 'error');
     }
+  }
+
+  // Unregister this device's push token before signing out so the next driver on
+  // the same device doesn't receive the previous account's offers.
+  async function handleSignOut() {
+    await unregisterPush();
+    await signOut();
   }
 
   async function accept(a: Assignment) {
@@ -114,7 +139,7 @@ export default function Home() {
         <Text style={{ marginTop: 8, color: colors.ink2, textAlign: 'center' }}>
           Your account isn't linked to a driver profile yet. Contact Sharm Eats ops to get set up.
         </Text>
-        <Pressable onPress={signOut} style={{ marginTop: 24, padding: 12 }}>
+        <Pressable onPress={handleSignOut} style={{ marginTop: 24, padding: 12 }}>
           <Text style={{ color: colors.accent, fontWeight: '600' }}>Sign out</Text>
         </Pressable>
       </View>
@@ -151,7 +176,7 @@ export default function Home() {
             </Text>
           </View>
         </View>
-        <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Sign out">
+        <Pressable onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="Sign out">
           <Text style={{ color: colors.ink3, fontSize: font.sizes.sm }}>Sign out</Text>
         </Pressable>
       </View>
