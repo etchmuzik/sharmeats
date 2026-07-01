@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { KitchenBriefing } from '../src/components/KitchenBriefing';
+import { CheckoutStepper } from '../src/components/CheckoutStepper';
+import { DropoffPreferenceCard } from '../src/components/DropoffPreferenceCard';
 import { Icon, type IconName } from '../src/components/Icon';
 import { colors, font, radius, shadow } from '../src/theme';
 import { useT } from '../src/i18n';
@@ -16,7 +18,7 @@ import { useDirection } from '../src/lib/direction';
 import { useCart } from '../src/store/cart';
 import { useSession, type Currency } from '../src/store/session';
 import { db } from '../src/data';
-import type { Address, AllergyKey, PaymentMethod, Restaurant } from '../src/data/types';
+import type { Address, AllergyKey, DropoffPreference, PaymentMethod, Restaurant } from '../src/data/types';
 import { formatEgp, formatTime } from '../src/lib/format';
 import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
 import { success, selection } from '../src/haptics';
@@ -82,6 +84,8 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [kitchenNotes, setKitchenNotes] = useState('');
+  const [dropoffPreference, setDropoffPreference] = useState<DropoffPreference | null>(null);
+  const [dropoffNote, setDropoffNote] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -209,6 +213,8 @@ export default function Checkout() {
         deliveryFeeEgp: deliveryFee,
         taxRate: 0,
         kitchenNotes: kitchenNotes.trim() || undefined,
+        dropoffPreference: dropoffPreference ?? undefined,
+        dropoffNote: dropoffNote.trim() || undefined,
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
         scheduledFor: scheduledFor ?? undefined,
         promoCode: promoApplied?.code,
@@ -277,6 +283,7 @@ export default function Checkout() {
         <Text style={styles.title}>{t('checkout.title')}</Text>
         <View style={{ width: 38 }} />
       </View>
+      <CheckoutStepper />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 200 }}>
         {/* Address card */}
@@ -319,6 +326,12 @@ export default function Checkout() {
             </Pressable>
           )}
         </View>
+
+        <DropoffPreferenceCard
+          addressKind={address?.kind}
+          value={dropoffPreference}
+          onChange={setDropoffPreference}
+        />
 
         {/* Contact number — the driver calls this. Required to place the order. */}
         <View style={styles.card}>
