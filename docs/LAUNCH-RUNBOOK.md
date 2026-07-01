@@ -18,21 +18,42 @@ your action (a purchase, a login, a secret, a dashboard click); steps marked
 (Hostinger, GoDaddy, Namecheap, Cloudflare…). You already use Hostinger for
 gosharm.com, so that's a convenient home.
 
-### 1.2 Point the landing site (Vercel) — **YOU** (I prepped the code)
-The landing app is a Vercel project (`prj_UHdybpN705MRgJVv1JDD4juQinzF`).
+### 1.2 Landing, merchant, and admin (Hostinger static hosting) — **SUPERSEDES the Vercel plan below**
+All 3 web surfaces actually deploy as **static exports to Hostinger shared
+hosting**, not Vercel — `landing`, `apps/merchant-web`, and `apps/admin-web`
+all support `STATIC_EXPORT=1 npm run build` (see each app's `next.config.mjs`),
+which produces a Node-free `out/` directory. Each is client-only (Supabase
+auth + Realtime in the browser), so this exports cleanly with no API routes.
+
+**To deploy any of the 3 after a code change:**
+```bash
+cd apps/merchant-web   # or apps/admin-web, or landing
+STATIC_EXPORT=1 npm run build
+cd out && zip -r ../../<app>-deploy_$(date +%Y%m%d_%H%M%S).zip . && cd ../..
+```
+Then upload via the Hostinger MCP `hosting_deployStaticWebsite` tool
+(`domain` = the subdomain, e.g. `merchant.sharmeats.online`), or manually
+through hPanel → File Manager → replace `public_html` for that subdomain.
+Verified live 2026-07-01: `curl -sI https://merchant.sharmeats.online` returns
+`server: LiteSpeed` / `platform: hostinger`, not a Vercel response header.
+
+DNS: each subdomain already resolves (A/CNAME already wired at the
+registrar level to Hostinger) — no further DNS action needed.
+
+<details>
+<summary>Original Vercel plan (not what actually shipped — kept for history)</summary>
+
+The landing app has a Vercel project (`prj_UHdybpN705MRgJVv1JDD4juQinzF`) that
+was never pointed at the domain. If you ever want to move off Hostinger:
 1. Vercel → the landing project → **Settings → Domains → Add** → `sharmeats.online`
    and `www.sharmeats.online`.
 2. Vercel shows the DNS records to add at your registrar — typically:
    - `A  @  76.76.21.21`  (Vercel apex)
    - `CNAME  www  cname.vercel-dns.com`
-   (Use the exact values Vercel displays.)
-3. Wait for DNS to verify (minutes to a couple hours).
-
-### 1.3 Merchant + admin subdomains (Vercel) — **YOU**
-Same flow on the respective Vercel projects:
-- `merchant.sharmeats.online` → the **merchant-web** project
-- `admin.sharmeats.online` → the **admin-web** project
-Add a `CNAME <sub> cname.vercel-dns.com` for each.
+3. Same flow for `merchant.sharmeats.online` → **merchant-web** and
+   `admin.sharmeats.online` → **admin-web** Vercel projects, each with a
+   `CNAME <sub> cname.vercel-dns.com`.
+</details>
 
 ### 1.4 iOS universal links — **DONE in repo** (needs the domain live + a rebuild)
 - `apps/customer/app.json` → `ios.associatedDomains: ["applinks:sharmeats.online"]` ✅
