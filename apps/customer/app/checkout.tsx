@@ -3,7 +3,8 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
-import { randomUUID } from 'expo-crypto';
+// expo-crypto is imported lazily inside makeIdempotencyKey so a native-module
+// failure can never throw at module-eval / checkout render. See the helper below.
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
@@ -21,6 +22,27 @@ import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
 import { success, selection } from '../src/haptics';
 import { captureError, track } from '../src/lib/analytics';
 
+// Crash-safe idempotency key. Tries expo-crypto's randomUUID (best), but a native
+// failure (module-init throw on some device/arch combos) must NEVER break checkout
+// render — falls back to a plain JS UUIDv4. The value only needs to be unique per
+// checkout attempt for place_order's dedup; cryptographic quality is not required.
+function makeIdempotencyKey(): string {
+  try {
+    // Lazy require so the native module is only touched here, never at module-eval.
+    const crypto = require('expo-crypto') as { randomUUID?: () => string };
+    const id = crypto?.randomUUID?.();
+    if (id) return id;
+  } catch {
+    // fall through to JS fallback
+  }
+  // RFC4122-ish v4 from Math.random — fine for a request-dedup token.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export default function Checkout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -36,7 +58,13 @@ export default function Checkout() {
   // (double-tap, network retry) so place_order returns the existing order
   // instead of creating a duplicate. Reset after a successful placement so a
   // subsequent order gets a fresh key.
-  const idempotencyKey = useRef(randomUUID());
+  //
+  // Generated lazily inside useRef's initializer (runs once, NOT on every
+  // render) and guarded: a native randomUUID() failure must never throw during
+  // checkout's render — it would trip the ScreenErrorBoundary. Falls back to a
+  // plain JS UUID; the value only needs to be unique-per-checkout, not crypto.
+  const idempotencyKey = useRef<string>(undefined as unknown as string);
+  if (!idempotencyKey.current) idempotencyKey.current = makeIdempotencyKey();
 
   const selectedAddressId = useSession((s) => s.selectedAddressId);
   const sessionPhone = useSession((s) => s.phone);

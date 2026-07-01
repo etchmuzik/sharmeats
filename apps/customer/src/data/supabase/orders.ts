@@ -178,8 +178,18 @@ export const ordersRepoSupabase = {
   /** Subscribe to order status changes (Realtime postgres_changes). */
   subscribe(orderId: string, cb: (o: Order) => void): () => void {
     const sb = getSupabase();
+    const name = `order:${orderId}:status`;
+    // supabase-js returns an EXISTING channel if one with this name is still
+    // registered. If a prior channel hasn't finished removeChannel() (async),
+    // re-creating it here would hand back an already-subscribed channel, and
+    // calling .on('postgres_changes') on it throws
+    // "cannot add postgres_changes callbacks ... after subscribe()".
+    // Tear down any stale same-named channel first so we always get a fresh one.
+    for (const existing of sb.getChannels()) {
+      if (existing.topic === `realtime:${name}`) sb.removeChannel(existing);
+    }
     const channel = sb
-      .channel(`order:${orderId}:status`)
+      .channel(name)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
@@ -200,8 +210,14 @@ export const ordersRepoSupabase = {
    */
   subscribeDriverLocation(orderId: string, cb: (loc: DriverLocation) => void): () => void {
     const sb = getSupabase();
+    const name = `order:${orderId}:driver_loc`;
+    // Same channel-reuse guard as subscribe(): drop any stale same-named channel
+    // so .on() is never called on an already-subscribed instance.
+    for (const existing of sb.getChannels()) {
+      if (existing.topic === `realtime:${name}`) sb.removeChannel(existing);
+    }
     const channel = sb
-      .channel(`order:${orderId}:driver_loc`, { config: { broadcast: { self: false } } })
+      .channel(name, { config: { broadcast: { self: false } } })
       .on('broadcast', { event: 'loc' }, (msg) => {
         const p = msg.payload as DriverLocation;
         if (p && typeof p.lat === 'number' && typeof p.lng === 'number') cb(p);
