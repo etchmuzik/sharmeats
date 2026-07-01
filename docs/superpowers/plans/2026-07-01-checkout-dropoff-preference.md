@@ -31,7 +31,7 @@
 | `supabase/migrations/041_dropoff_preference.sql` | **Create.** New enum, 2 new `orders` columns, `place_order` redefinition. |
 | `apps/customer/src/data/types.ts` | **Modify.** Add `DropoffPreference` type; add 2 fields to `Order`. |
 | `apps/customer/src/data/repositories/orders.ts` | **Modify.** Add 2 fields to `CreateOrderInput`. |
-| `apps/customer/src/data/mock/orders.ts` | **Modify.** Store the 2 new fields on the mock-created `Order`. |
+| `apps/customer/src/data/repositories/orders.ts` (the `ordersRepo` mock implementation — corrected from the plan's original wrong path `mock/orders.ts`, which does not exist) | **Modify.** Store the 2 new fields on the mock-created `Order`. |
 | `apps/customer/src/data/supabase/orders.ts` | **Modify.** Pass 2 new RPC params in `place_order` call. |
 | `apps/customer/src/data/supabase/mappers.ts` | **Modify.** Add 2 fields to `OrderRow` + `rowToOrder`. |
 | `apps/customer/src/components/CheckoutStepper.tsx` | **Create.** Static 3-step progress indicator. |
@@ -451,7 +451,7 @@ git commit -m "feat(customer): add DropoffPreference type to Order/CreateOrderIn
 ### Task 3: Mock + Supabase order-repo adapters thread the new fields
 
 **Files:**
-- Modify: `apps/customer/src/data/mock/orders.ts:116-144` (the `Order` object literal inside `ordersRepo.create`)
+- Modify: `apps/customer/src/data/repositories/orders.ts:116-144` (the `ordersRepo` mock implementation — the `Order` object literal inside `ordersRepo.create`; corrected from the plan's original wrong path `mock/orders.ts`, which does not exist)
 - Modify: `apps/customer/src/data/supabase/orders.ts:56-69` (`place_order` RPC call)
 - Modify: `apps/customer/src/data/supabase/mappers.ts:280-303` (`OrderRow` interface), `:305-350` (`rowToOrder`)
 
@@ -461,7 +461,7 @@ git commit -m "feat(customer): add DropoffPreference type to Order/CreateOrderIn
 
 - [ ] **Step 1: Mock repo — store the fields on the created order**
 
-In `apps/customer/src/data/mock/orders.ts`, inside `ordersRepo.create`, the
+In `apps/customer/src/data/repositories/orders.ts`, inside `ordersRepo.create`, the
 `Order` object literal currently has:
 
 ```typescript
@@ -555,7 +555,7 @@ Expected: no new errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/customer/src/data/mock/orders.ts apps/customer/src/data/supabase/orders.ts apps/customer/src/data/supabase/mappers.ts
+git add apps/customer/src/data/repositories/orders.ts apps/customer/src/data/supabase/orders.ts apps/customer/src/data/supabase/mappers.ts
 git commit -m "feat(customer): thread dropoff preference through order-repo adapters"
 ```
 
