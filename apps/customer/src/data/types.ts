@@ -171,6 +171,13 @@ export interface MenuItem {
 
 export type AddressKind = 'hotel' | 'street' | 'beach_pin';
 
+export type DropoffPreference =
+  | 'hand_to_me'
+  | 'leave_at_door'
+  | 'meet_outside'
+  | 'no_bell'
+  | 'call_on_arrival';
+
 export interface Address {
   id: string;
   kind: AddressKind;
@@ -297,6 +304,10 @@ export interface Order {
   ratingComment?: string;
   kitchenNotes?: string;
   aggregateAllergens?: AllergyKey[];
+  /** Driver-facing handoff instruction (separate from kitchenNotes, which is prep-facing). */
+  dropoffPreference?: DropoffPreference;
+  /** Optional free-text elaboration on dropoffPreference (e.g. gate code). */
+  dropoffNote?: string;
   scheduledFor?: number;
 }
 

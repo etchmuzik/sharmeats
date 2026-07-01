@@ -5,6 +5,7 @@ import type {
   Address,
   AllergyKey,
   CartItem,
+  DropoffPreference,
   Order,
   OrderStatus,
   PaymentMethodKind,
@@ -85,6 +86,10 @@ export interface CreateOrderInput {
   deliveryFeeEgp: number;
   taxRate?: number;
   kitchenNotes?: string;
+  /** Driver-facing handoff instruction, distinct from kitchenNotes. */
+  dropoffPreference?: DropoffPreference;
+  /** Optional free-text elaboration on dropoffPreference. */
+  dropoffNote?: string;
   aggregateAllergens?: AllergyKey[];
   scheduledFor?: number;
   /** Optional promo code — the server (or mock rules) revalidates it. */
