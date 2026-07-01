@@ -2,8 +2,8 @@
 -- Three-sided loyalty system, part 1: the shared points ledger + config.
 --
 -- One append-only ledger drives customer, driver, and restaurant loyalty.
--- Each subject_type earns points on order delivery (migration 042 adds the
--- triggers) and a nightly sweep (migration 043) recomputes tier from it.
+-- Each subject_type earns points on order delivery (migration 044 adds the
+-- triggers) and a nightly sweep (migration 045) recomputes tier from it.
 -- Redemption/clawback are also just ledger rows (negative delta_points).
 --
 -- Security model: RLS enabled, read-only-own policy, ALL writes via
@@ -33,7 +33,7 @@ create index if not exists loyalty_ledger_ref_order_idx
 alter table public.loyalty_points_ledger enable row level security;
 
 -- A customer may read their own ledger rows (history screen). Drivers and
--- restaurants read via their own SECURITY DEFINER RPCs (migration 044) rather
+-- restaurants read via their own SECURITY DEFINER RPCs (migration 046) rather
 -- than a direct policy, since subject_id there is drivers.id/restaurants.id,
 -- not auth.uid() — a plain policy can't express that join cheaply per-row.
 create policy "loyalty_ledger_customer_read_own" on public.loyalty_points_ledger

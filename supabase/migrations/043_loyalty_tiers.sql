@@ -46,7 +46,7 @@ create policy "customer_loyalty_read_own" on public.customer_loyalty
 -- Drivers/restaurants: subject_id is drivers.id/restaurants.id, not auth.uid(),
 -- so a cheap row policy can't express "my own row" without a join. Deliberately
 -- NO client policy here — reads go through my_driver_tier()/my_restaurant_tier()
--- SECURITY DEFINER RPCs (migration 044), matching the promo_codes/referrals
+-- SECURITY DEFINER RPCs (migration 046), matching the promo_codes/referrals
 -- precedent of "no direct table access, narrow RPC only."
 
 comment on table public.customer_loyalty is
