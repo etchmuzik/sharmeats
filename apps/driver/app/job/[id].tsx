@@ -17,6 +17,7 @@ import { openDirections } from '../../src/navigation';
 import { colors, font, radius, spacing } from '../../src/theme';
 import { Icon } from '../../src/components/Icon';
 import { HotelHandoffCard } from '../../src/components/HotelHandoffCard';
+import { DropoffPreferenceCard } from '../../src/components/DropoffPreferenceCard';
 import { useToast } from '../../src/components/Toast';
 
 export default function JobScreen() {
@@ -233,6 +234,8 @@ export default function JobScreen() {
             ) : null}
           </View>
         )}
+
+        <DropoffPreferenceCard preference={job.dropoff_preference} note={job.dropoff_note} />
 
         {/* Order items — so the driver can verify the bag before leaving the restaurant. */}
         {job.items.length > 0 && (
