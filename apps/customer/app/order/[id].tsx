@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import MapView, { Marker } from 'react-native-maps';
 import { BackButton } from '../../src/components/BackButton';
 import { Icon } from '../../src/components/Icon';
 import { colors, font, radius, shadow } from '../../src/theme';
@@ -14,6 +15,8 @@ import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
 import { ScreenErrorBoundary } from '../../src/components/ScreenErrorBoundary';
+import { SHARM_CENTER, type LatLng } from '../../src/components/MapPinPicker';
+import { isDriverLocationStale, vehicleIconName } from '../../src/lib/tracking';
 
 // Expo Router renders this instead of crashing if anything throws while the
 // tracking screen renders — the user gets a retry screen and we report the error.
@@ -38,7 +41,8 @@ export default function OrderTracking() {
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number; at: number } | null>(null);
+  const mapRef = useRef<MapView | null>(null);
 
   const copyShortCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
@@ -79,10 +83,27 @@ export default function OrderTracking() {
       return;
     }
     const unsub = db.orders.subscribeDriverLocation(id, (loc) =>
-      setDriverLoc({ lat: loc.lat, lng: loc.lng }),
+      setDriverLoc({ lat: loc.lat, lng: loc.lng, at: loc.at }),
     );
     return () => unsub();
   }, [id, trackingDriver]);
+
+  // Keep both the driver and the destination pin in view as the driver moves.
+  // Uses the same order?.addressSnapshot fallback as `destination` below —
+  // computed independently here because hooks must run before the `!order`
+  // early return, ahead of where `destination` itself is declared.
+  const destLat = order?.addressSnapshot.lat ?? SHARM_CENTER.lat;
+  const destLng = order?.addressSnapshot.lng ?? SHARM_CENTER.lng;
+  useEffect(() => {
+    if (!driverLoc || !mapRef.current) return;
+    mapRef.current.fitToCoordinates(
+      [
+        { latitude: driverLoc.lat, longitude: driverLoc.lng },
+        { latitude: destLat, longitude: destLng },
+      ],
+      { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 }, animated: true },
+    );
+  }, [driverLoc, destLat, destLng]);
 
   if (!order) {
     return (
@@ -101,6 +122,12 @@ export default function OrderTracking() {
   // Customers may only cancel before the restaurant accepts; once a card order
   // is paid, cancellation implies a refund flow we don't have yet — hide it.
   const canCancel = order.status === 'placed' && order.paymentStatus !== 'paid';
+
+  const destination: LatLng = {
+    lat: order.addressSnapshot.lat ?? SHARM_CENTER.lat,
+    lng: order.addressSnapshot.lng ?? SHARM_CENTER.lng,
+  };
+  const driverIsStale = driverLoc ? isDriverLocationStale(driverLoc.at, now) : false;
 
   const confirmCancel = () => {
     tap();
@@ -130,24 +157,41 @@ export default function OrderTracking() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="light" />
 
-      {/* Mock map */}
       <View style={styles.map}>
-        <View style={[styles.road, styles.r1]} />
-        <View style={[styles.road, styles.r2]} />
-        <View style={[styles.road, styles.r3]} />
-        <View style={styles.routeLine} />
-        <View style={styles.pinRider}>
-          <View style={[styles.riderDot, driverLoc && styles.riderDotLive]} />
-          {driverLoc && (
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>LIVE</Text>
+        <MapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={{
+            latitude: destination.lat,
+            longitude: destination.lng,
+            latitudeDelta: 0.04,
+            longitudeDelta: 0.04,
+          }}>
+          <Marker
+            coordinate={{ latitude: destination.lat, longitude: destination.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={styles.destMarker}>
+              <Icon name="location" size={20} color={colors.white} accessibilityLabel="Your delivery location" />
             </View>
+          </Marker>
+          {driverLoc && order.rider && (
+            <Marker
+              coordinate={{ latitude: driverLoc.lat, longitude: driverLoc.lng }}
+              anchor={{ x: 0.5, y: 0.5 }}>
+              <View style={[styles.riderMarker, driverIsStale && styles.riderMarkerStale]}>
+                <Icon name={vehicleIconName(order.rider.vehicle)} size={18} color={colors.white} accessibilityLabel="Your driver" />
+              </View>
+            </Marker>
           )}
-        </View>
-        <View style={styles.pinDest}>
-          <Icon name="location" size={28} color={colors.accent} accessibilityLabel="Your delivery location" />
-        </View>
+        </MapView>
+        {driverLoc && (
+          <View style={styles.liveBadge}>
+            <View style={[styles.liveDot, driverIsStale && { backgroundColor: colors.amber }]} />
+            <Text style={styles.liveText}>
+              {driverIsStale ? t('order.trackingReconnecting') : 'LIVE'}
+            </Text>
+          </View>
+        )}
         <View style={[styles.mapNav, { top: insets.top + 6 }]}>
           <BackButton tint="light" onPress={() => router.replace('/(tabs)/orders')} />
         </View>
@@ -489,25 +533,33 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  road: { position: 'absolute', backgroundColor: '#fff', borderRadius: 6, opacity: 0.92 },
-  r1: { left: -50, right: -50, top: '55%', height: 14, transform: [{ rotate: '-6deg' }] },
-  r2: { left: '62%', top: -50, bottom: -50, width: 12, transform: [{ rotate: '8deg' }] },
-  r3: { left: '10%', top: '18%', width: '38%', height: 8, transform: [{ rotate: '18deg' }] },
-  routeLine: {
-    position: 'absolute',
-    left: '30%',
-    top: '50%',
-    width: '50%',
-    height: 0,
-    borderTopWidth: 3,
-    borderColor: colors.accent,
-    borderStyle: 'dashed',
-    transform: [{ rotate: '-22deg' }],
+  destMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.white,
   },
-  pinRider: { position: 'absolute', left: '28%', top: '48%', alignItems: 'center' },
-  riderDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, borderWidth: 3, borderColor: '#fff' },
-  riderDotLive: { backgroundColor: colors.green },
+  riderMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.white,
+  },
+  riderMarkerStale: {
+    backgroundColor: colors.amber,
+  },
   liveBadge: {
+    position: 'absolute',
+    left: 14,
+    bottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -519,7 +571,6 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green },
   liveText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  pinDest: { position: 'absolute', left: '72%', top: '30%' },
   mapNav: { position: 'absolute', left: 14 },
 
   sheet: {
