@@ -16,3 +16,7 @@ expo-env.d.ts
 credentials/
 *.p8
 store-screenshots-clean/raw/
+
+# Local build artifacts
+*.ipa
+build-ios-customer*.ipa

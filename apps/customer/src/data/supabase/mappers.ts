@@ -318,7 +318,10 @@ export function rowToOrder(o: OrderRow): Order {
           ...it,
           lineId: (it as { lineId?: string }).lineId ?? `${o.id}-${i}`,
         }))
-      : o.items,
+      : // Non-array items → []. A null/undefined items would otherwise pass
+        // through and crash any .map() in the order UI (mirrors the history
+        // coercion below).
+        [],
     subtotalEgp: o.subtotal_egp,
     deliveryFeeEgp: o.delivery_fee_egp,
     taxEgp: o.tax_egp,

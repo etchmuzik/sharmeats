@@ -68,8 +68,19 @@ export const useCart = create<CartState>((set, get) => ({
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Pick<CartState, 'restaurantId' | 'restaurantName' | 'lines'>;
-        set({ ...parsed, hydrated: true });
+        const parsed = JSON.parse(raw) as Partial<
+          Pick<CartState, 'restaurantId' | 'restaurantName' | 'lines'>
+        >;
+        // Coerce `lines` to an array. If stored data is corrupt/old-format and
+        // `lines` is missing or non-array, count()/subtotal() would .reduce() on
+        // a non-array and throw during render in the always-mounted TabBar.
+        // (Mirrors the Array.isArray guard in session.ts hydrate.)
+        set({
+          restaurantId: parsed.restaurantId ?? null,
+          restaurantName: parsed.restaurantName ?? null,
+          lines: Array.isArray(parsed.lines) ? parsed.lines : [],
+          hydrated: true,
+        });
         return;
       }
     } catch {
