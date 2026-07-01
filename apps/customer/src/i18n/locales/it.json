@@ -251,6 +251,7 @@
   "order.statusPreparing": "Stiamo preparando il tuo cibo",
   "order.statusReady": "Pronto per il ritiro",
   "order.statusOnTheWay": "{rider} è in arrivo",
+  "order.trackingReconnecting": "Riconnessione alla posizione del rider…",
   "order.statusDelivered": "Consegnato",
   "order.markDelivered": "Segna consegnato (debug)",
   "order.callRider": "Chiama il corriere",

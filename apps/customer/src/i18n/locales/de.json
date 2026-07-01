@@ -251,6 +251,7 @@
   "order.statusPreparing": "Dein Essen wird zubereitet",
   "order.statusReady": "Bereit zur Abholung",
   "order.statusOnTheWay": "{rider} ist unterwegs",
+  "order.trackingReconnecting": "Verbindung zum Standort des Fahrers wird wiederhergestellt…",
   "order.statusDelivered": "Geliefert",
   "order.markDelivered": "Als geliefert markieren (Debug)",
   "order.callRider": "Fahrer anrufen",

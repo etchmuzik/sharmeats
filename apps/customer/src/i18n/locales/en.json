@@ -251,6 +251,7 @@
   "order.statusPreparing": "Preparing your food",
   "order.statusReady": "Ready for pickup",
   "order.statusOnTheWay": "{rider} is on the way",
+  "order.trackingReconnecting": "Reconnecting to your driver's location…",
   "order.statusDelivered": "Delivered",
   "order.markDelivered": "Mark delivered (debug)",
   "order.callRider": "Call rider",

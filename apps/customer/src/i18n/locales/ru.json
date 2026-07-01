@@ -251,6 +251,7 @@
   "order.statusPreparing": "Готовим вашу еду",
   "order.statusReady": "Готово к выдаче",
   "order.statusOnTheWay": "{rider} уже в пути",
+  "order.trackingReconnecting": "Восстановление связи с местоположением водителя…",
   "order.statusDelivered": "Доставлено",
   "order.markDelivered": "Отметить доставленным (отладка)",
   "order.callRider": "Позвонить курьеру",

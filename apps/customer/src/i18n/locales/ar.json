@@ -251,6 +251,7 @@
   "order.statusPreparing": "جاري تحضير الطعام",
   "order.statusReady": "جاهز للاستلام",
   "order.statusOnTheWay": "{rider} في الطريق",
+  "order.trackingReconnecting": "جارٍ إعادة الاتصال بموقع السائق…",
   "order.statusDelivered": "تم التسليم",
   "order.markDelivered": "تأكيد التسليم (تجريبي)",
   "order.callRider": "اتصل بالسائق",
