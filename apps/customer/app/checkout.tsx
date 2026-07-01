@@ -85,6 +85,8 @@ export default function Checkout() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [kitchenNotes, setKitchenNotes] = useState('');
   const [dropoffPreference, setDropoffPreference] = useState<DropoffPreference | null>(null);
+  // dropoffNote is threaded through to db.orders.create() but has no UI input
+  // yet in this pass — reserved for a future "add a note" affordance.
   const [dropoffNote, setDropoffNote] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
