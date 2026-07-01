@@ -56,10 +56,17 @@ export default function OrdersTab() {
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    const [a, p] = await Promise.all([db.orders.listActive(), db.orders.listPast()]);
-    setActive(a);
-    setPast(p);
-    setRefreshing(false);
+    try {
+      const [a, p] = await Promise.all([db.orders.listActive(), db.orders.listPast()]);
+      setActive(a);
+      setPast(p);
+    } catch {
+      // Network/Supabase error — keep whatever we already have rather than
+      // wedging the screen. The pull-to-refresh control retries on demand.
+    } finally {
+      // Always clear the spinner so pull-to-refresh never hangs.
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {

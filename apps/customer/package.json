@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "export": "expo export --platform ios --output-dir ./.export --clear",
-    "test:adapters": "npx tsx scripts/test-supabase-adapters.ts"
+    "test:adapters": "npx tsx scripts/test-supabase-adapters.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
@@ -54,6 +56,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^2.1.9"
   }
 }

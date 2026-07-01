@@ -314,7 +314,9 @@ export default function OrderTracking() {
                   <Text style={styles.plateText}>{order.rider.plate}</Text>
                 </View>
                 <Text style={styles.riderMetaText}>·</Text>
-                <Text style={styles.riderMetaText}>★ {order.rider.rating.toFixed(1)}</Text>
+                <Text style={styles.riderMetaText}>
+                  ★ {(order.rider.rating ?? 5).toFixed(1)}
+                </Text>
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
