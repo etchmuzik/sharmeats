@@ -27,6 +27,11 @@ const TIER_NEXT: Record<RewardsStatus['tier'], { next: RewardsStatus['tier'] | n
 // RewardsHistoryEntry.reason is a typed union, not display text — the Task 8
 // i18n set has no per-reason copy, so map to short plain-English fallbacks
 // rather than leaking raw enum values ("order_earn") into the UI.
+// TODO(i18n): reason labels are hardcoded English; rewards.* i18n namespace
+// (Task 8) doesn't cover ledger reason strings — add rewards.reasonEarn/
+// reasonRedeem/reasonClawback/reasonBonus keys to all 5 locale files in a
+// follow-up i18n pass before this screen is fully localized. This is a known,
+// deliberate scope gap, not an oversight.
 const REASON_LABEL: Record<RewardsHistoryEntry['reason'], string> = {
   order_earn: 'Order reward',
   redeem: 'Redeemed',
@@ -185,9 +190,12 @@ function PerkRow({ text, dir, last }: { text: string; dir: ReturnType<typeof use
   );
 }
 
+// Mirrors platform_settings seed values from supabase/migrations/042_loyalty_ledger.sql
+// (loyalty_tier_multiplier_silver=125, loyalty_tier_multiplier_gold=150, stored as
+// hundredths) — update both places together if the DB config ever changes.
 function tierMultiplier(tier: RewardsStatus['tier']): number {
-  if (tier === 'gold') return 2;
-  if (tier === 'silver') return 1.5;
+  if (tier === 'gold') return 1.5;
+  if (tier === 'silver') return 1.25;
   return 1;
 }
 
