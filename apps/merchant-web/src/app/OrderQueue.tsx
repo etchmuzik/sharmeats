@@ -6,6 +6,12 @@ import type { MerchantContext, MerchantOrder, OrderStatus } from '@/lib/types';
 import { OrderCard } from './OrderCard';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
+import {
+  registerNotificationWorker,
+  requestNotificationPermission,
+  notificationPermission,
+  notifyNewOrder,
+} from './notify';
 
 /**
  * Live order queue. Server-rendered initial orders are hydrated here, then a
@@ -26,6 +32,9 @@ export function OrderQueue({
   const { toast } = useToast();
   const [orders, setOrders] = useState<MerchantOrder[]>(initialOrders);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  // Notification permission state, so the header can show an "Enable alerts"
+  // button until the operator grants OS-level new-order notifications.
+  const [notifyPerm, setNotifyPerm] = useState<NotificationPermission | 'unsupported'>('default');
   // Web Audio context for the new-order chime. Created lazily on first use (and
   // only in the browser) because AudioContext can't be constructed during SSR
   // and browsers block audio until a user gesture. Reused across chimes.
@@ -66,8 +75,10 @@ export function OrderQueue({
             if (exists) {
               return prev.map((o) => (o.id === row.id ? { ...o, ...row } : o));
             }
-            // New visible order — alert.
+            // New visible order — alert in-tab (chime + pulse) AND out-of-app
+            // (system notification, so a backgrounded tab still alerts the kitchen).
             playChime();
+            void notifyNewOrder(row.short_code, row.total_egp);
             setNewIds((s) => new Set(s).add(row.id));
             setTimeout(() => {
               setNewIds((s) => {
@@ -86,6 +97,25 @@ export function OrderQueue({
       supabase.removeChannel(channel);
     };
   }, [context.restaurantId, supabase, isVisibleToMerchant, isActive]);
+
+  // Register the notification service worker + read current permission on mount
+  // so out-of-app new-order alerts can fire (B2). Registration is best-effort.
+  useEffect(() => {
+    void registerNotificationWorker();
+    setNotifyPerm(notificationPermission());
+  }, []);
+
+  // Ask for notification permission (must be from a click). Wired to the header
+  // "Enable alerts" button.
+  const enableAlerts = useCallback(async () => {
+    const result = await requestNotificationPermission();
+    setNotifyPerm(result);
+    if (result === 'granted') {
+      toast('Order alerts enabled', 'success');
+    } else if (result === 'denied') {
+      toast('Alerts blocked — enable notifications for this site in your browser', 'error');
+    }
+  }, [toast]);
 
   // Audible new-order chime via the Web Audio API — a real two-note beep, not the
   // old silent 44-byte WAV (which had no sample data, so it was inaudible). A
@@ -150,6 +180,27 @@ export function OrderQueue({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
+      {notifyPerm === 'default' && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
+          <div className="text-sm text-ink2">
+            <span className="font-semibold text-ink">Turn on order alerts</span> — get a system
+            notification the moment an order arrives, even when this tab isn&apos;t in front.
+          </div>
+          <button
+            type="button"
+            onClick={enableAlerts}
+            className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+          >
+            Enable alerts
+          </button>
+        </div>
+      )}
+      {notifyPerm === 'denied' && (
+        <div className="mb-4 rounded-xl border border-line bg-redsoft px-4 py-3 text-sm text-red">
+          Order alerts are blocked. To hear about new orders when this tab isn&apos;t focused,
+          allow notifications for this site in your browser settings.
+        </div>
+      )}
       {orders.length === 0 ? (
         <div className="mt-24 flex flex-col items-center text-center text-ink3">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sand text-ink2">
