@@ -179,12 +179,12 @@ export default function HomeTab() {
 
   const addrText =
     address?.kind === 'hotel'
-      ? `${hotel?.name ?? address.hotelName ?? 'Hotel'} · Room ${address.roomNumber ?? '-'}`
+      ? `${hotel?.name ?? address.hotelName ?? t('address.hotel')} · ${t('address.room')} ${address.roomNumber ?? '-'}`
       : address?.kind === 'street'
-        ? `${address.streetText ?? 'Address'} ${address.building ?? ''}`
+        ? `${address.streetText ?? t('address.title')} ${address.building ?? ''}`.trim()
         : address?.kind === 'beach_pin'
-          ? `${address.beachName ?? 'Beach pin'}`
-          : 'Choose address';
+          ? `${address.beachName ?? t('address.beachPin')}`
+          : t('address.chooseAddress');
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>

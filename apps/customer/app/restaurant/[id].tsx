@@ -24,6 +24,7 @@ import { useT } from '../../src/i18n';
 import { useCart } from '../../src/store/cart';
 import { tap, selection } from '../../src/haptics';
 import { useFavorite } from '../../src/lib/favorites';
+import { effectiveIsOpen, closedReasonKey } from '../../src/lib/openHours';
 import { track } from '../../src/lib/analytics';
 
 export default function RestaurantDetail() {
@@ -125,6 +126,13 @@ export default function RestaurantDetail() {
 
   const showCartBar = cartCount > 0 && cartRestaurantId === restaurant.id;
 
+  // Gate ordering when the venue is closed. Without this, a customer can build a
+  // full cart and only discover it's closed when place_order rejects with
+  // MERCHANT_CLOSED at checkout. We still show the menu (browsing is fine), but
+  // disable add-to-cart and surface a clear banner.
+  const open = effectiveIsOpen(restaurant);
+  const closedReason = closedReasonKey(restaurant);
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       <StatusBar style="light" />
@@ -171,6 +179,15 @@ export default function RestaurantDetail() {
           )}
 
           <Text style={styles.descr}>{restaurant.description}</Text>
+
+          {!open && (
+            <View style={styles.closedBanner} accessibilityRole="alert">
+              <Text style={styles.closedTitle}>
+                {closedReason === 'fridayPrayer' ? t('restaurant.fridayPrayer') : t('restaurant.closed')}
+              </Text>
+              <Text style={styles.closedBody}>{t('restaurant.closedBanner')}</Text>
+            </View>
+          )}
 
           {/* Restaurant contact (phone/address) is intentionally NOT shown here:
               customers should order through the platform, not call the venue
@@ -251,8 +268,10 @@ export default function RestaurantDetail() {
               {(itemsBySection.get(sec.id) ?? []).map((it) => (
                 <Pressable
                   key={it.id}
-                  onPress={() => router.push(`/item/${it.id}` as never)}
-                  style={({ pressed }) => [styles.item, pressed && { opacity: 0.93 }]}>
+                  onPress={() => open && router.push(`/item/${it.id}` as never)}
+                  disabled={!open}
+                  accessibilityState={{ disabled: !open }}
+                  style={({ pressed }) => [styles.item, pressed && open && { opacity: 0.93 }]}>
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={styles.itemName}>{it.name}</Text>
                     <Text style={styles.itemDesc} numberOfLines={2}>
@@ -265,11 +284,13 @@ export default function RestaurantDetail() {
                       ))}
                     </View>
                   </View>
-                  <View style={styles.itemPh}>
+                  <View style={[styles.itemPh, !open && { opacity: 0.5 }]}>
                     <Image source={{ uri: it.image }} style={{ width: '100%', height: '100%' }} />
-                    <View style={styles.addCircle}>
-                      <Text style={styles.addPlus}>+</Text>
-                    </View>
+                    {open && (
+                      <View style={styles.addCircle}>
+                        <Text style={styles.addPlus}>+</Text>
+                      </View>
+                    )}
                   </View>
                 </Pressable>
               ))}
@@ -404,6 +425,17 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   promoText: { color: colors.accent, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  closedBanner: {
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
+    backgroundColor: colors.sand,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  closedTitle: { color: colors.ink, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  closedBody: { color: colors.ink2, fontSize: font.sizes.md, lineHeight: 18, marginTop: 4 },
   menuNav: {
     borderTopWidth: 1,
     borderBottomWidth: 1,

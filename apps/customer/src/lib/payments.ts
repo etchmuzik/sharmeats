@@ -38,3 +38,41 @@ export function withCashOnDelivery(methods: readonly PaymentMethod[]): PaymentMe
   if (methods.some((m) => m.kind === 'cash')) return [...methods];
   return [CASH_ON_DELIVERY_METHOD, ...methods];
 }
+
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
+
+/**
+ * i18n keys for a payment method's display label + subline, by kind. The stored
+ * label/subline (from payments.ts / the DB) are English fallbacks; the render
+ * sites should prefer these localized strings so non-English users don't see raw
+ * English. COD is the only launch method, so it's the one that matters most.
+ */
+const PAYMENT_LABEL_KEYS: Partial<Record<PaymentMethod['kind'], { label: string; subline?: string }>> = {
+  cash: { label: 'payment.cash', subline: 'payment.cashSubline' },
+  card: { label: 'payment.card' },
+  apple_pay: { label: 'payment.applePay' },
+  fawry: { label: 'payment.fawry' },
+};
+
+/**
+ * Localized label/subline for a payment method. Falls back to the method's own
+ * stored strings when no i18n key exists (or a key is missing → useT returns the
+ * key, which we detect and ignore). Keeps a single source of truth for how a
+ * payment method is presented across checkout + the picker.
+ */
+export function localizedPayment(
+  t: TranslateFn,
+  m: Pick<PaymentMethod, 'kind' | 'label' | 'subline'>,
+): { label: string; subline: string } {
+  const keys = PAYMENT_LABEL_KEYS[m.kind];
+  const resolve = (key: string | undefined, fallback: string | undefined): string => {
+    if (!key) return fallback ?? '';
+    const out = t(key);
+    // useT returns the key itself when a translation is missing — fall back then.
+    return out === key ? fallback ?? '' : out;
+  };
+  return {
+    label: resolve(keys?.label, m.label),
+    subline: resolve(keys?.subline, m.subline),
+  };
+}

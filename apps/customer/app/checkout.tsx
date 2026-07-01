@@ -20,6 +20,7 @@ import type { Address, AllergyKey, PaymentMethod, Restaurant } from '../src/data
 import { formatEgp, formatTime } from '../src/lib/format';
 import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
 import { success, selection } from '../src/haptics';
+import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
 
 // Crash-safe idempotency key. Tries expo-crypto's randomUUID (best), but a native
@@ -448,14 +449,16 @@ export default function Checkout() {
           <Pressable
             onPress={() => router.push('/payment/picker')}
             accessibilityRole="button"
-            accessibilityLabel={`${t('checkout.payWith')}: ${payment?.label ?? t('checkout.choosePayment')}`}
+            accessibilityLabel={`${t('checkout.payWith')}: ${payment ? localizedPayment(t, payment).label : t('checkout.choosePayment')}`}
             style={styles.payChosen}>
             <View style={styles.payIcon}>
               <Icon name={paymentIconName(payment?.kind)} size={22} color={colors.ink} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.payLabel}>{payment?.label ?? t('checkout.choosePayment')}</Text>
-              <Text style={styles.paySub}>{payment?.subline ?? ''}</Text>
+              <Text style={styles.payLabel}>
+                {payment ? localizedPayment(t, payment).label : t('checkout.choosePayment')}
+              </Text>
+              <Text style={styles.paySub}>{payment ? localizedPayment(t, payment).subline : ''}</Text>
             </View>
             <Icon name="chevronForward" size={20} color={colors.ink3} />
           </Pressable>

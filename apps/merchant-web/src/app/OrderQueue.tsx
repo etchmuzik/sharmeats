@@ -26,7 +26,10 @@ export function OrderQueue({
   const { toast } = useToast();
   const [orders, setOrders] = useState<MerchantOrder[]>(initialOrders);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Web Audio context for the new-order chime. Created lazily on first use (and
+  // only in the browser) because AudioContext can't be constructed during SSR
+  // and browsers block audio until a user gesture. Reused across chimes.
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const isVisibleToMerchant = useCallback((o: MerchantOrder) => {
     // COD shows immediately; card orders only once paid.
@@ -84,11 +87,40 @@ export function OrderQueue({
     };
   }, [context.restaurantId, supabase, isVisibleToMerchant, isActive]);
 
+  // Audible new-order chime via the Web Audio API — a real two-note beep, not the
+  // old silent 44-byte WAV (which had no sample data, so it was inaudible). A
+  // busy kitchen needs to HEAR an order land. Browsers gate audio until the first
+  // user gesture, so the first order after a fresh page load may be silent until
+  // the operator clicks once; every order after that chimes. Best-effort — never
+  // throws into the Realtime handler.
   function playChime() {
     try {
-      audioRef.current?.play().catch(() => {});
+      if (typeof window === 'undefined') return;
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return;
+      const ctx = audioCtxRef.current ?? (audioCtxRef.current = new Ctor());
+      if (ctx.state === 'suspended') void ctx.resume();
+
+      // Two short descending notes (880Hz → 660Hz) — a recognizable "ding-dong".
+      const now = ctx.currentTime;
+      [
+        { freq: 880, start: 0, dur: 0.18 },
+        { freq: 660, start: 0.2, dur: 0.28 },
+      ].forEach(({ freq, start, dur }) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        // Quick attack, smooth decay so it's a pleasant chime, not a click.
+        gain.gain.setValueAtTime(0.0001, now + start);
+        gain.gain.exponentialRampToValueAtTime(0.25, now + start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + start);
+        osc.stop(now + start + dur);
+      });
     } catch {
-      /* autoplay may be blocked until first interaction */
+      /* audio unavailable / blocked until first interaction — best-effort only */
     }
   }
 
@@ -118,13 +150,6 @@ export function OrderQueue({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      {/* A short data-URI chime so there's no asset dependency. */}
-      <audio
-        ref={audioRef}
-        preload="auto"
-        src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
-      />
-
       {orders.length === 0 ? (
         <div className="mt-24 flex flex-col items-center text-center text-ink3">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sand text-ink2">

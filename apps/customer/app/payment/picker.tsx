@@ -11,6 +11,7 @@ import { useDirection } from '../../src/lib/direction';
 import { db } from '../../src/data';
 import type { PaymentMethod } from '../../src/data/types';
 import { selection } from '../../src/haptics';
+import { localizedPayment } from '../../src/lib/payments';
 import { useGoBack } from '../../src/lib/navigation';
 
 const ICON: Record<PaymentMethod['kind'], IconName> = {
@@ -49,6 +50,7 @@ export default function PaymentPicker() {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 140 + insets.bottom }}>
         {methods.map((m) => {
           const isSel = chosen === m.id;
+          const loc = localizedPayment(t, m);
           return (
             <Pressable
               key={m.id}
@@ -58,14 +60,14 @@ export default function PaymentPicker() {
               }}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSel }}
-              accessibilityLabel={`${m.label}${m.subline ? `, ${m.subline}` : ''}`}
+              accessibilityLabel={`${loc.label}${loc.subline ? `, ${loc.subline}` : ''}`}
               style={[styles.card, dir.row, isSel && styles.cardActive]}>
               <View style={styles.icon}>
                 <Icon name={ICON[m.kind] ?? 'card'} size={24} color={colors.ink} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, dir.text]}>{m.label}</Text>
-                <Text style={[styles.sub, dir.text]}>{m.subline}</Text>
+                <Text style={[styles.label, dir.text]}>{loc.label}</Text>
+                <Text style={[styles.sub, dir.text]}>{loc.subline}</Text>
               </View>
               <View
                 style={[

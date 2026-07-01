@@ -24,6 +24,11 @@ type Phase =
 export default function DashboardPage() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ state: 'loading' });
+  // Open/closed is toggleable from the header (RLS restaurants_merchant_update
+  // already allows merchant staff to flip is_open). Held in local state so the
+  // badge updates instantly; seeded from the resolved context once ready.
+  const [isOpen, setIsOpen] = useState(false);
+  const [togglingOpen, setTogglingOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -75,6 +80,7 @@ export default function DashboardPage() {
         .order('placed_at', { ascending: true });
 
       if (cancelled) return;
+      setIsOpen(ctx.isOpen);
       setPhase({ state: 'ready', ctx, initialOrders: (orders as MerchantOrder[]) ?? [] });
     })();
 
@@ -113,6 +119,26 @@ export default function DashboardPage() {
   }
 
   const { ctx, initialOrders } = phase;
+
+  // Self-serve pause/resume intake. Lets an overwhelmed kitchen stop new orders
+  // without phoning the platform. Optimistic with rollback on failure.
+  const toggleOpen = async () => {
+    if (togglingOpen) return;
+    setTogglingOpen(true);
+    const next = !isOpen;
+    setIsOpen(next); // optimistic
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase
+      .from('restaurants')
+      .update({ is_open: next })
+      .eq('id', ctx.restaurantId);
+    if (error) {
+      setIsOpen(!next); // rollback
+      alert(`Could not update status: ${error.message}`);
+    }
+    setTogglingOpen(false);
+  };
+
   return (
     <main className="min-h-screen bg-bg">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
@@ -121,13 +147,18 @@ export default function DashboardPage() {
           <div className="text-xs text-ink3">Merchant dashboard · {ctx.staffRole}</div>
         </div>
         <div className="flex items-center gap-3">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              ctx.isOpen ? 'bg-greensoft text-green' : 'bg-redsoft text-red'
+          <button
+            type="button"
+            onClick={toggleOpen}
+            disabled={togglingOpen}
+            aria-pressed={isOpen}
+            title={isOpen ? 'Tap to stop accepting new orders' : 'Tap to start accepting orders'}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-60 ${
+              isOpen ? 'bg-greensoft text-green hover:bg-green hover:text-white' : 'bg-redsoft text-red hover:bg-red hover:text-white'
             }`}
           >
-            {ctx.isOpen ? 'Open' : 'Closed'}
-          </span>
+            {togglingOpen ? '…' : isOpen ? 'Open · tap to pause' : 'Closed · tap to open'}
+          </button>
           <SignOutButton />
         </div>
       </header>

@@ -21,3 +21,10 @@ expo-env.d.ts
 .previews/
 # Supabase CLI scratch
 supabase/.temp/
+# Build artifacts — signed binaries and deploy bundles must never be committed
+# (a stray `git add -A` would otherwise commit a ~16MB signed .ipa). Build them
+# locally / in CI and upload via Transporter/EAS/Play, don't track them.
+*.ipa
+*.aab
+*.apk
+*-deploy.zip
