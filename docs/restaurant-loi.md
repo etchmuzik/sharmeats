@@ -12,7 +12,7 @@ The LOI exists because:
 
 A food delivery app for Sharm El Sheikh, focused first on the tourist market (European, Russian, Egyptian guests at Naama Bay hotels, resorts, apartments, and homes).
 
-What makes us different from Talabat / Twista / Bringit:
+What makes us different from Talabat / Bringit / Elmenus:
 - App available in **5 languages** at launch: English, Arabic, Russian, Italian, German.
 - **Hotel-room delivery as a first-class feature** — guests pick their hotel and room number directly. No need for a local phone or Egyptian address.
 - **International payments** — guests can pay with their home-country card, and see prices in EUR / USD / GBP / RUB.
@@ -28,14 +28,14 @@ What makes us different from Talabat / Twista / Bringit:
 
 | Item | Founding cohort | Standard (after month 3) |
 |---|---|---|
-| Commission per order | **12%** (vs Talabat 22–28%, Twista 18–22%) | 18% |
+| Commission per order | **12%** (vs Talabat 22–28%, Bringit 18–22%) | 15% |
 | Setup fee | EGP 0 | EGP 500 |
 | Tablet / hardware | We provide free | Restaurant-owned or rented EGP 200/mo |
 | Menu photography | We send a photographer once, free | EGP 1,500 one-time |
 | Account management | Dedicated WhatsApp line with our Sharm ops lead | Shared support queue |
 | Min order guarantee | **If you receive fewer than 20 orders in month 1, we credit you EGP 1,000** | None |
 | Payment terms | Weekly payout (every Sunday), bank transfer | Same |
-| Exclusivity | **None.** Keep listing on Talabat, Twista, Bringit, Elmenus. We compete on results. | Same |
+| Exclusivity | **None.** Keep listing on Talabat, Bringit, Elmenus. We compete on results. | Same |
 
 ### Non-commercial commitments from us
 
@@ -86,13 +86,13 @@ If at any point in the first 90 days you want out, you can leave with 7 days' wr
 هذا الخطاب يعبر عن نية متبادلة للعمل سويًا، وليس عقدًا ملزمًا. العقد التجاري الملزم سيتم توقيعه قبل ظهور المطعم على التطبيق.
 
 **ما نقدمه للمطاعم الـ ٢٠ الأولى (لمدة ٣ شهور من تاريخ الإطلاق):**
-- عمولة **١٢٪** على الطلب (مقابل ٢٢–٢٨٪ على طلبات و ١٨–٢٢٪ على تويستا).
+- عمولة **١٢٪** على الطلب (مقابل ٢٢–٢٨٪ على طلبات و ١٨–٢٢٪ على برينجيت).
 - صفر رسوم اشتراك. صفر رسوم تركيب جهاز.
 - تصوير قائمة الطعام مجانًا (مرة واحدة).
 - مسؤول علاقات مخصص على واتساب لخدمتك.
 - **ضمان: لو وصلتك أقل من ٢٠ طلب في الشهر الأول، نرد لك ١٠٠٠ جنيه كرصيد.**
 - تحويل بنكي أسبوعي كل يوم أحد.
-- **لا حصرية.** فضّل بحريتك أن تكمل مع طلبات وتويستا وغيرهم.
+- **لا حصرية.** فضّل بحريتك أن تكمل مع طلبات وبرينجيت وغيرهم.
 
 **ما نطلبه منك:**
 - توقيع هذا الخطاب.

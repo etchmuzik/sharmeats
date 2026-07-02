@@ -86,6 +86,80 @@ export type Database = {
           },
         ]
       }
+      credit_ledger: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          delta_egp: number
+          id: number
+          note: string | null
+          reason: string
+          ref_order_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          delta_egp: number
+          id?: never
+          note?: string | null
+          reason: string
+          ref_order_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          delta_egp?: number
+          id?: never
+          note?: string | null
+          reason?: string
+          ref_order_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_ledger_ref_order_id_fkey"
+            columns: ["ref_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_credit_balance: {
+        Row: {
+          balance_egp: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_egp?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_egp?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_credit_balance_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_loyalty: {
         Row: {
           points_balance: number
@@ -758,6 +832,57 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_financials: {
+        Row: {
+          commission_egp: number
+          commission_pct: number
+          created_at: string
+          delivered_at: string
+          delivery_fee_egp: number
+          order_id: string
+          payment_method: string
+          restaurant_id: string
+          subtotal_egp: number
+        }
+        Insert: {
+          commission_egp: number
+          commission_pct: number
+          created_at?: string
+          delivered_at: string
+          delivery_fee_egp?: number
+          order_id: string
+          payment_method: string
+          restaurant_id: string
+          subtotal_egp: number
+        }
+        Update: {
+          commission_egp?: number
+          commission_pct?: number
+          created_at?: string
+          delivered_at?: string
+          delivery_fee_egp?: number
+          order_id?: string
+          payment_method?: string
+          restaurant_id?: string
+          subtotal_egp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_financials_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_financials_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
@@ -1568,6 +1693,7 @@ export type Database = {
           display_name: string
           email: string | null
           id: string
+          is_blocked: boolean
           locale: Database["public"]["Enums"]["locale_type"]
           phone: string
           preferred_currency: Database["public"]["Enums"]["currency_type"]
@@ -1583,6 +1709,7 @@ export type Database = {
           display_name: string
           email?: string | null
           id: string
+          is_blocked?: boolean
           locale?: Database["public"]["Enums"]["locale_type"]
           phone: string
           preferred_currency?: Database["public"]["Enums"]["currency_type"]
@@ -1598,6 +1725,7 @@ export type Database = {
           display_name?: string
           email?: string | null
           id?: string
+          is_blocked?: boolean
           locale?: Database["public"]["Enums"]["locale_type"]
           phone?: string
           preferred_currency?: Database["public"]["Enums"]["currency_type"]
@@ -1937,6 +2065,7 @@ export type Database = {
       auto_assign_order: { Args: { p_order_id: string }; Returns: string }
       disablelongtransactions: { Args: never; Returns: string }
       dispatch_sweep: { Args: never; Returns: number }
+      dispatch_watchdog: { Args: never; Returns: undefined }
       driver_ping: {
         Args: { p_lat: number; p_lng: number; p_status?: string }
         Returns: undefined
@@ -2090,12 +2219,23 @@ export type Database = {
       gettransactionid: { Args: never; Returns: unknown }
       has_completed_order: { Args: { p_user: string }; Returns: boolean }
       is_merchant_staff: { Args: { p_restaurant_id: string }; Returns: boolean }
+      issue_credit: {
+        Args: {
+          p_amount_egp: number
+          p_note?: string
+          p_order_id?: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       loyalty_tier_sweep: { Args: never; Returns: number }
       mark_cod_collected: {
         Args: { p_amount: number; p_order_id: string }
         Returns: undefined
       }
+      my_credit_balance: { Args: never; Returns: number }
       my_driver_tier: {
         Args: never
         Returns: {
@@ -2154,6 +2294,7 @@ export type Database = {
           vehicle: Database["public"]["Enums"]["vehicle_type"]
         }[]
       }
+      ops_alert: { Args: { p_text: string }; Returns: undefined }
       place_order: {
         Args: {
           p_address_id: string
@@ -2222,6 +2363,7 @@ export type Database = {
         Returns: number
       }
       reconcile_stale_card_orders: { Args: never; Returns: number }
+      redeem_credit: { Args: { p_amount_egp: number }; Returns: string }
       redeem_points: { Args: { p_points: number }; Returns: string }
       resolve_zone: {
         Args: { p_geo: unknown }
