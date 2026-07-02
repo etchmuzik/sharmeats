@@ -7,6 +7,7 @@ import type { MerchantContext, MerchantOrder } from '@/lib/types';
 import { OrderQueue } from './OrderQueue';
 import { SignOutButton } from './SignOutButton';
 import { Skeleton, OrderQueueSkeleton } from './Skeleton';
+import { TierStatusCard } from './TierStatusCard';
 
 type Phase =
   | { state: 'loading' }
@@ -162,6 +163,10 @@ export default function DashboardPage() {
           <SignOutButton />
         </div>
       </header>
+
+      <div className="px-6 pt-4">
+        <TierStatusCard />
+      </div>
 
       <OrderQueue context={ctx} initialOrders={initialOrders} />
     </main>

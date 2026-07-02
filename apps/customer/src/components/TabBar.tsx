@@ -7,13 +7,14 @@ import { selection } from '../haptics';
 import { useCart } from '../store/cart';
 import { useT } from '../i18n';
 
-type TabKey = 'home' | 'browse' | 'cart' | 'orders' | 'profile';
+type TabKey = 'home' | 'browse' | 'cart' | 'orders' | 'rewards' | 'profile';
 
 const TABS: { key: TabKey; icon: string; tKey: string; path: string }[] = [
   { key: 'home', icon: '🏠', tKey: 'tabs.home', path: '/(tabs)/home' },
   { key: 'browse', icon: '🔍', tKey: 'tabs.browse', path: '/(tabs)/browse' },
   { key: 'cart', icon: '🛒', tKey: 'tabs.cart', path: '/(tabs)/cart' },
   { key: 'orders', icon: '🧾', tKey: 'tabs.orders', path: '/(tabs)/orders' },
+  { key: 'rewards', icon: '🎁', tKey: 'tabs.rewards', path: '/(tabs)/rewards' },
   { key: 'profile', icon: '👤', tKey: 'tabs.profile', path: '/(tabs)/profile' },
 ];
 

@@ -175,6 +175,16 @@ export default function Home() {
               {!driver.is_verified && '  · pending verification'}
             </Text>
           </View>
+          <Pressable
+            onPress={() => router.push('/tier')}
+            accessibilityRole="button"
+            accessibilityLabel="View my loyalty tier"
+            hitSlop={8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
+          >
+            <Icon name="trophy" size={14} color={colors.accent} />
+            <Text style={{ color: colors.accent, fontWeight: '600', fontSize: font.sizes.sm }}>My tier</Text>
+          </Pressable>
         </View>
         <Pressable onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="Sign out">
           <Text style={{ color: colors.ink3, fontSize: font.sizes.sm }}>Sign out</Text>

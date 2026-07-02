@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rowToOrder, rowToRider } from './mappers';
+import { rowToOrder, rowToRewardsHistoryEntry, rowToRewardsStatus, rowToRider } from './mappers';
 
 // These tests pin down the exact crash/render bugs fixed this session so they
 // can't regress. rowToOrder exercises the module-private tsToMs +
@@ -120,5 +120,28 @@ describe('rowToRider — rating guard', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
     expect(r.rating).toBe(4.8);
+  });
+});
+
+describe('rowToRewardsStatus', () => {
+  it('maps a customer_loyalty row', () => {
+    const result = rowToRewardsStatus({ tier: 'gold', points_balance: 500, points_rolling_12mo: 2100 });
+    expect(result).toEqual({ tier: 'gold', pointsBalance: 500, pointsRolling12mo: 2100 });
+  });
+});
+
+describe('rowToRewardsHistoryEntry', () => {
+  it('maps a ledger row and parses the timestamp', () => {
+    const result = rowToRewardsHistoryEntry({
+      id: 'abc',
+      delta_points: -50,
+      reason: 'redeem',
+      ref_order_id: null,
+      created_at: '2026-07-01T12:00:00+00:00',
+    });
+    expect(result.deltaPoints).toBe(-50);
+    expect(result.reason).toBe('redeem');
+    expect(result.refOrderId).toBeNull();
+    expect(typeof result.createdAt).toBe('number');
   });
 });

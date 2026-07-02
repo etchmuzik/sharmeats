@@ -23,6 +23,7 @@ export default function RootLayout() {
               <Stack.Screen name="signin" />
               <Stack.Screen name="home" />
               <Stack.Screen name="job/[id]" />
+              <Stack.Screen name="tier" />
             </Stack>
           </ToastProvider>
         </AuthProvider>

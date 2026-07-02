@@ -335,3 +335,19 @@ export interface User {
   allergyProfile?: AllergyKey[];
   createdAt: number;
 }
+
+export type RewardsTier = 'bronze' | 'silver' | 'gold';
+
+export interface RewardsStatus {
+  tier: RewardsTier;
+  pointsBalance: number;
+  pointsRolling12mo: number;
+}
+
+export interface RewardsHistoryEntry {
+  id: string;
+  deltaPoints: number;
+  reason: 'order_earn' | 'redeem' | 'clawback' | 'tier_bonus';
+  refOrderId: string | null;
+  createdAt: number;
+}

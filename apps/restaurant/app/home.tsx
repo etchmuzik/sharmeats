@@ -225,6 +225,14 @@ export default function Home() {
             {togglingOpen ? '…' : isOpen ? 'Open · pause' : 'Closed · open'}
           </Text>
         </Pressable>
+        <Pressable
+          onPress={() => router.push('/tier')}
+          accessibilityRole="button"
+          accessibilityLabel="View tier status"
+          style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+        >
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Tier</Text>
+        </Pressable>
         <Pressable onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="Sign out" style={{ padding: spacing.xs }}>
           <Icon name="signout" size={22} color={colors.ink2} accessibilityLabel="Sign out" />
         </Pressable>

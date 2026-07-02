@@ -22,6 +22,7 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="signin" />
               <Stack.Screen name="home" />
+              <Stack.Screen name="tier" />
             </Stack>
           </ToastProvider>
         </AuthProvider>

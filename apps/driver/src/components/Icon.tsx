@@ -42,7 +42,8 @@ export type IconName =
   | 'bell'
   | 'help'
   | 'signout'
-  | 'person';
+  | 'person'
+  | 'trophy';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -76,6 +77,7 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   help: 'help-circle-outline',
   signout: 'log-out-outline',
   person: 'person-outline',
+  trophy: 'trophy-outline',
 };
 
 type Props = {
