@@ -132,6 +132,15 @@ the account parts.
 
 ## 5. Housekeeping (low priority)
 
+- **Turn on crash reporting + analytics (currently OFF in production).** The
+  apps ship with Sentry + PostHog wired but disabled — production builds boot
+  without the keys, so we're flying blind on crashes and usage. To enable, set
+  two env vars in the EAS **production** build profile
+  (`apps/customer/eas.json` → `build.production.env`, or as EAS secrets):
+  `EXPO_PUBLIC_SENTRY_DSN` (sentry.io → project → Client Keys/DSN) and
+  `EXPO_PUBLIC_POSTHOG_API_KEY` (posthog.com → Project settings → Project API
+  key), then rebuild. Until then a release build logs a loud warning at boot so
+  the gap is visible. Optional: `EXPO_PUBLIC_POSTHOG_HOST` (defaults to EU cloud).
 - **Rotate the Hostinger API token** pasted in chat earlier (hPanel → Account →
   API → revoke, regenerate).
 - **Delete the 3 unused Vercel projects** (landing/merchant/admin) — everything

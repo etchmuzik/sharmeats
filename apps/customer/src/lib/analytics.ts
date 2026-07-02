@@ -33,6 +33,24 @@ export function initAnalytics(): void {
   if (POSTHOG_KEY) {
     posthog = new PostHog(POSTHOG_KEY, { host: POSTHOG_HOST });
   }
+
+  // [M4] Make the "silently disabled in prod" trap loud. Opt-in-by-env is the
+  // right posture for mock/dev, but a *release* build with no DSN/key means we
+  // ship blind — no crash reports, no analytics — and nothing surfaced that.
+  // We can't hardcode secrets here, so instead we warn unmistakably whenever a
+  // non-dev build boots without them. Set EXPO_PUBLIC_SENTRY_DSN and
+  // EXPO_PUBLIC_POSTHOG_API_KEY in the EAS `production` profile (or as EAS
+  // secrets) to light them up.
+  const isRelease = !__DEV__;
+  if (isRelease && (!SENTRY_DSN || !POSTHOG_KEY)) {
+    const missing = [!SENTRY_DSN && 'EXPO_PUBLIC_SENTRY_DSN', !POSTHOG_KEY && 'EXPO_PUBLIC_POSTHOG_API_KEY']
+      .filter(Boolean)
+      .join(', ');
+    console.warn(
+      `[analytics] Release build booted WITHOUT ${missing}. ` +
+        'Crash reporting / product analytics are DISABLED. Set these in the EAS production profile.',
+    );
+  }
 }
 
 export type AnalyticsEvent =

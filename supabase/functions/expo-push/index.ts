@@ -2,8 +2,8 @@
 //
 // Internal function called by RPCs/webhooks (service-role auth) to push order
 // status notifications to the right surface(s). Looks up Expo push tokens from
-// public.push_tokens (added in a small follow-up migration), maps an event to a
-// localized title/body, and POSTs to Expo's push API.
+// public.push_tokens, maps an event to a localized title/body, and POSTs to
+// Expo's push API.
 //
 // Gracefully no-ops if push_tokens is absent or a recipient has no token, so it
 // never blocks the order flow.
@@ -21,10 +21,18 @@
 // We fail CLOSED: if the secret is NOT configured the function returns 503 and
 // refuses to process, so an un-provisioned environment can never be driven
 // unauthenticated. If the secret IS set, a missing/mismatched header is 401.
+//
+// [M2 hardening] Messages are sent in chunks of 100 (Expo's per-request cap —
+// one oversized POST would previously have been rejected wholesale), and the
+// ticket response is parsed instead of discarded: a DeviceNotRegistered ticket
+// deletes that token from push_tokens so we stop pushing to dead devices
+// (Expo throttles senders that keep hitting unregistered tokens). Tickets are
+// positional within a chunk: ticket[i] answers message[i].
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const EXPO_CHUNK_SIZE = 100; // hard cap per https://docs.expo.dev/push-notifications/sending-notifications/
 
 interface PushBody {
   event: string;       // e.g. 'order_paid', 'order_accepted', 'order_out_for_delivery'
@@ -33,7 +41,14 @@ interface PushBody {
   recipientUserIds?: string[];
 }
 
-// Minimal event -> copy map. Real i18n lives in packages/shared/i18n; this is a
+interface ExpoTicket {
+  status: 'ok' | 'error';
+  id?: string;
+  message?: string;
+  details?: { error?: string };
+}
+
+// Minimal event -> copy map. Real i18n lives in the apps; this is a
 // server-side fallback in English/Arabic-ready keys.
 const COPY: Record<string, { title: string; body: string }> = {
   order_paid: { title: 'Payment confirmed', body: 'Your order is confirmed and sent to the kitchen.' },
@@ -107,13 +122,49 @@ Deno.serve(async (req: Request) => {
 
     if (messages.length === 0) return new Response('ok (no tokens)', { status: 200 });
 
-    await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(messages),
-    }).catch(() => {});
+    // [M2] Send in Expo-sized chunks; collect dead tokens from error tickets.
+    const deadTokens: string[] = [];
+    let sent = 0;
+    for (let i = 0; i < messages.length; i += EXPO_CHUNK_SIZE) {
+      const chunk = messages.slice(i, i + EXPO_CHUNK_SIZE);
+      try {
+        const res = await fetch(EXPO_PUSH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(chunk),
+        });
+        if (!res.ok) {
+          console.error(`expo-push: Expo API ${res.status} for chunk ${i / EXPO_CHUNK_SIZE}`);
+          continue; // best-effort: other chunks still go out
+        }
+        const payload = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
+        const tickets = payload?.data ?? [];
+        // Tickets are positional: tickets[j] answers chunk[j].
+        tickets.forEach((ticket, j) => {
+          if (ticket.status === 'ok') {
+            sent++;
+            return;
+          }
+          const code = ticket.details?.error;
+          if (code === 'DeviceNotRegistered' && chunk[j]) {
+            deadTokens.push(chunk[j].to);
+          } else {
+            console.error(`expo-push: ticket error ${code ?? 'unknown'}: ${ticket.message ?? ''}`);
+          }
+        });
+      } catch (e) {
+        console.error(`expo-push: network error sending chunk: ${e}`);
+      }
+    }
 
-    return new Response('ok', { status: 200 });
+    // [M2] Prune tokens Expo says are dead so we stop pushing to them.
+    if (deadTokens.length > 0) {
+      const { error: pruneErr } = await admin.from('push_tokens').delete().in('token', deadTokens);
+      if (pruneErr) console.error(`expo-push: failed to prune ${deadTokens.length} dead tokens: ${pruneErr.message}`);
+      else console.log(`expo-push: pruned ${deadTokens.length} DeviceNotRegistered token(s)`);
+    }
+
+    return new Response(`ok (sent ${sent}/${messages.length}, pruned ${deadTokens.length})`, { status: 200 });
   } catch (e) {
     return new Response(`error: ${e}`, { status: 500 });
   }
