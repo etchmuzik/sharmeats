@@ -162,9 +162,15 @@ export function OrderQueue({
         p_note: note ?? null,
       });
       if (error) {
+        // The RPC failed → the DB did NOT change, so no Realtime event will
+        // arrive to reconcile. Applying the optimistic update here would
+        // silently drop the order from the queue (or jump it backward) while
+        // it's still live in the DB. Surface the error and leave state alone.
         toast(`Could not update order: ${error.message}`, 'error');
+        return;
       }
-      // Optimistic: the Realtime event will also arrive and reconcile.
+      // Optimistic (success path only): the Realtime event will also arrive and
+      // reconcile.
       setOrders((prev) =>
         prev
           .map((o) => (o.id === orderId ? { ...o, status: next } : o))

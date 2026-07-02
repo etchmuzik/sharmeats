@@ -21,6 +21,14 @@ export interface SessionInfo {
   isAnonymous: boolean;
 }
 
+/**
+ * Which verifyOtp() type the pending code expects, decided by sendOtp() based on
+ * whether the session was anonymous. 'phone_change' links the phone to the
+ * current (anon) user preserving auth.uid(); 'sms' signs into the phone user.
+ * Module-scoped because sign-in is a single screen with one code in flight.
+ */
+let pendingVerifyType: 'sms' | 'phone_change' = 'sms';
+
 export const authRepoSupabase = {
   /** Current session's user id, or null if not signed in. */
   async currentUserId(): Promise<string | null> {
@@ -61,11 +69,44 @@ export const authRepoSupabase = {
   /**
    * Send an SMS OTP to `phone` (E.164, e.g. +201001234567). Called from the
    * sign-in screen. Requires a Phone provider (Twilio/MessageBird/Vonage) to be
-   * enabled in the Supabase dashboard (Authentication → Providers → Phone). If
-   * it isn't configured, Supabase returns an error which we surface clearly.
+   * enabled in the Supabase dashboard (Authentication → Providers → Phone).
+   *
+   * CRITICAL: if the current session is ANONYMOUS (guest checkout), we must
+   * LINK the phone to that anon user via updateUser() + verifyOtp(phone_change)
+   * so auth.uid() is preserved and the guest's in-flight order, addresses, and
+   * favourites carry over. Using signInWithOtp/verifyOtp(sms) here would create
+   * a *different* user and swap the session, orphaning all of it. We stash which
+   * flow was used so verifyOtp() below picks the matching verify type.
    */
   async sendOtp(phone: string): Promise<void> {
     const sb = getSupabase();
+    const {
+      data: { session },
+    } = await sb.auth.getSession();
+    const isAnon = session?.user?.is_anonymous ?? false;
+
+    if (isAnon) {
+      // Link the phone to the current anonymous user (preserves auth.uid()).
+      const { error } = await sb.auth.updateUser({ phone });
+      if (!error) {
+        pendingVerifyType = 'phone_change';
+        return;
+      }
+      // updateUser fails if the phone already belongs to another account
+      // ("phone_exists" / already registered). In that case this is a RETURNING
+      // user — fall through to the plain sign-in flow (their real account +
+      // history is more valuable than merging the throwaway guest cart).
+      if (!/exist|registered|taken|already/i.test(error.message)) {
+        const hint = /provider|not enabled|disabled|sms/i.test(error.message)
+          ? ' — enable a Phone provider in Supabase → Authentication → Providers → Phone.'
+          : '';
+        throw new Error(`Could not send the code${hint} (${error.message})`);
+      }
+    }
+
+    // Non-anonymous session, or a returning phone that already has an account:
+    // sign into / create the phone user directly.
+    pendingVerifyType = 'sms';
     const { error } = await sb.auth.signInWithOtp({ phone });
     if (error) {
       const hint = /provider|not enabled|disabled|sms/i.test(error.message)
@@ -76,14 +117,20 @@ export const authRepoSupabase = {
   },
 
   /**
-   * Verify the SMS OTP. On success Supabase LINKS the phone to the CURRENT
-   * (anonymous) session — same auth.uid(), so order history is preserved — and
-   * returns the upgraded user. We mirror the verified phone into public.users so
-   * checkout can prefill a trusted number. Returns the user id + phone.
+   * Verify the SMS OTP. Uses the verify type chosen by sendOtp():
+   *   - 'phone_change' when linking to the current anon user (auth.uid()
+   *     preserved → order history/addresses carry over), or
+   *   - 'sms' for a returning/new phone user (fresh session).
+   * We mirror the verified phone into public.users so checkout can prefill a
+   * trusted number. Returns the user id + phone.
    */
   async verifyOtp(phone: string, code: string): Promise<{ userId: string; phone: string }> {
     const sb = getSupabase();
-    const { data, error } = await sb.auth.verifyOtp({ phone, token: code, type: 'sms' });
+    const { data, error } = await sb.auth.verifyOtp(
+      pendingVerifyType === 'phone_change'
+        ? { phone, token: code, type: 'phone_change' }
+        : { phone, token: code, type: 'sms' },
+    );
     if (error) throw new Error(`Invalid or expired code (${error.message})`);
     const user = data.user;
     if (!user) throw new Error('Verification returned no user.');
