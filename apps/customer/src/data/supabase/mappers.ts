@@ -55,6 +55,12 @@ function normalizeAddressSnapshot(raw: unknown): Address | undefined {
     landmark: (pick('landmark', 'landmark') as string) ?? undefined,
     beachName: (pick('beachName', 'beach_name') as string) ?? undefined,
     isDefault: Boolean(pick('isDefault', 'is_default')),
+    // [H-CUST1] place_order (mig 057) now stamps lat/lng into the snapshot so the
+    // tracking map can place the real destination pin (the raw `geo` WKB is not
+    // usable client-side). Older orders lack these → undefined → the screen
+    // falls back to SHARM_CENTER as before.
+    lat: typeof a.lat === 'number' ? (a.lat as number) : undefined,
+    lng: typeof a.lng === 'number' ? (a.lng as number) : undefined,
   };
 }
 

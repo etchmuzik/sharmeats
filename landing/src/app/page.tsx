@@ -153,12 +153,22 @@ export default function HomePage() {
             </h2>
             <p className="mt-3 max-w-md text-white/85">{dict.hero.subtitle}</p>
             <div className={`mt-8 flex flex-wrap gap-3 ${isRtl ? 'justify-end' : ''}`}>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink">
+              <a
+                href="https://apps.apple.com/app/id6776864451"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-white/90"
+              >
                 App Store
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-ink/20 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/30">
+              </a>
+              <a
+                href="https://play.google.com/store/apps/details?id=eg.sharmeats.customer"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-ink/20 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/30 transition hover:bg-ink/30"
+              >
                 Google Play
-              </span>
+              </a>
             </div>
           </div>
           <div className="relative hidden w-40 shrink-0 overflow-hidden rounded-[1.6rem] ring-4 ring-white/20 shadow-2xl lg:block">
@@ -187,6 +197,17 @@ export default function HomePage() {
               hello@sharmeats.online
             </a>
           </p>
+        </div>
+        {/* [H-LAND1] Legal links — required by users and store reviewers, and
+            previously reachable only by typing the URL. */}
+        <div className="border-t border-line">
+          <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-6 py-4 text-xs text-ink3">
+            <a href="/privacy" className="hover:text-accent">Privacy</a>
+            <a href="/terms" className="hover:text-accent">Terms</a>
+            <a href="/delete-account" className="hover:text-accent">Delete account</a>
+            <a href="/privacy-driver" className="hover:text-accent">Driver privacy</a>
+            <a href="/privacy-restaurant" className="hover:text-accent">Restaurant privacy</a>
+          </nav>
         </div>
       </footer>
     </main>

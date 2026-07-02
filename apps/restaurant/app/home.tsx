@@ -15,6 +15,7 @@ import { useAuth } from '../src/auth';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
+import { initChime, playNewOrderChime, releaseChime } from '../src/chime';
 import {
   advanceStatus,
   getActiveOrders,
@@ -40,6 +41,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [noRestaurant, setNoRestaurant] = useState(false);
+  const [loadError, setLoadError] = useState(false); // [H-BIZ1] network vs no-restaurant
   const [isOpen, setIsOpen] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
@@ -47,8 +49,10 @@ export default function Home() {
   const load = useCallback(async () => {
     try {
       const c = await getMyRestaurant();
+      // A successful call that returns no context = genuinely not linked.
+      setNoRestaurant(!c);
+      setLoadError(false);
       if (!c) {
-        setNoRestaurant(true);
         setLoading(false);
         return;
       }
@@ -57,7 +61,9 @@ export default function Home() {
       const rows = await getActiveOrders(c.restaurantId);
       setOrders(rows);
     } catch {
-      // best-effort; a transient error leaves the last-known queue in place
+      // [H-BIZ1] A transient fetch failure must NOT look like "no restaurant
+      // linked". Flag a retry state and keep the last-known queue in place.
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -67,18 +73,37 @@ export default function Home() {
     load();
   }, [load]);
 
+  // [H-REST1] Preload the in-app chime; release on unmount.
+  useEffect(() => {
+    initChime();
+    return () => releaseChime();
+  }, []);
+
   // Live order updates via Realtime once we know the restaurant.
   useEffect(() => {
     if (!ctx) return;
-    const unsub = subscribeOrders(ctx.restaurantId, (row) => {
-      setOrders((prev) => {
-        const visible = isVisible(row) && isActive(row.status);
-        if (!visible) return prev.filter((o) => o.id !== row.id);
-        const exists = prev.some((o) => o.id === row.id);
-        if (exists) return prev.map((o) => (o.id === row.id ? { ...o, ...row } : o));
-        return [...prev, row].sort((a, b) => a.placed_at.localeCompare(b.placed_at));
-      });
-    });
+    const unsub = subscribeOrders(
+      ctx.restaurantId,
+      (row) => {
+        setOrders((prev) => {
+          const visible = isVisible(row) && isActive(row.status);
+          if (!visible) return prev.filter((o) => o.id !== row.id);
+          const exists = prev.some((o) => o.id === row.id);
+          if (exists) return prev.map((o) => (o.id === row.id ? { ...o, ...row } : o));
+          // [H-REST1] A newly-visible order the queue hasn't seen → sound the
+          // in-app chime (independent of push, which may be denied/hiccup).
+          playNewOrderChime();
+          return [...prev, row].sort((a, b) => a.placed_at.localeCompare(b.placed_at));
+        });
+      },
+      // [H-CUST2] Refetch the active list on (re)connect so orders placed during
+      // a network drop — or before the channel joined — still appear.
+      () => {
+        getActiveOrders(ctx.restaurantId)
+          .then((rows) => setOrders(rows))
+          .catch(() => {});
+      },
+    );
     return unsub;
   }, [ctx]);
 
@@ -165,6 +190,32 @@ export default function Home() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
         <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
+
+  // [H-BIZ1] A fetch failed (network) — retry, don't show "not linked".
+  if (loadError && !ctx) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md }}>
+        <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
+          Couldn&apos;t load your restaurant
+        </Text>
+        <Text style={{ color: colors.ink2, textAlign: 'center' }}>
+          Check your connection and try again.
+        </Text>
+        <Pressable
+          onPress={() => {
+            setLoading(true);
+            load();
+          }}
+          style={{ marginTop: spacing.lg, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl }}
+        >
+          <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
+        </Pressable>
+        <Pressable onPress={handleSignOut} style={{ padding: spacing.md }}>
+          <Text style={{ color: colors.ink3, fontWeight: '700' }}>Sign out</Text>
+        </Pressable>
       </View>
     );
   }
@@ -369,16 +420,25 @@ function OrderRow({
       {/* Items */}
       <View style={{ gap: 2 }}>
         {order.items?.map((it, i) => (
-          <Text key={i} style={{ fontSize: font.sizes.base, color: colors.ink }}>
-            <Text style={{ fontWeight: '700' }}>{it.quantity}× </Text>
-            {it.name}
-            {it.modifierChoices && it.modifierChoices.length > 0 ? (
-              <Text style={{ color: colors.ink3 }}>
-                {' '}
-                ({it.modifierChoices.map((m) => m.optionName).filter(Boolean).join(', ')})
+          <View key={i}>
+            <Text style={{ fontSize: font.sizes.base, color: colors.ink }}>
+              <Text style={{ fontWeight: '700' }}>{it.quantity}× </Text>
+              {it.name}
+              {it.modifierChoices && it.modifierChoices.length > 0 ? (
+                <Text style={{ color: colors.ink3 }}>
+                  {' '}
+                  ({it.modifierChoices.map((m) => m.optionName).filter(Boolean).join(', ')})
+                </Text>
+              ) : null}
+            </Text>
+            {/* [H-REST1] Per-item note (e.g. "no onions") — the kitchen must see
+                this. Previously only merchant-web rendered it. */}
+            {it.notes ? (
+              <Text style={{ fontSize: font.sizes.sm, color: colors.amber, marginLeft: spacing.md }}>
+                “{it.notes}”
               </Text>
             ) : null}
-          </Text>
+          </View>
         ))}
       </View>
 

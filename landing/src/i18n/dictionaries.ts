@@ -45,11 +45,11 @@ export interface Dictionary {
 export const dictionaries: Record<Locale, Dictionary> = {
   en: {
     hero: {
-      eyebrow: 'Sharm El Sheikh — coming soon',
+      eyebrow: 'Sharm El Sheikh — now live',
       title: 'Food delivery built for Sharm.',
       subtitle:
         'Five languages. Hotel-room delivery. Real ETAs with credits when we miss them. The food app tourists and residents actually want.',
-      cta: 'Join the waitlist',
+      cta: 'Get the app',
       notSpam: 'No spam. One message when we open in your area.',
     },
     valueProps: {
@@ -70,7 +70,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       ],
     },
     waitlist: {
-      title: 'Be first to know when we launch',
+      title: 'Get the Sharm Eats app',
       emailLabel: 'Email',
       emailPlaceholder: 'you@example.com',
       whatsappLabel: 'WhatsApp (with country code)',
@@ -89,11 +89,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
   },
   ar: {
     hero: {
-      eyebrow: 'شرم الشيخ — قريبًا',
+      eyebrow: 'شرم الشيخ — متاح الآن',
       title: 'توصيل طعام مصمم لشرم.',
       subtitle:
         'خمس لغات. توصيل إلى غرفة الفندق. أوقات وصول صادقة مع رصيد تعويضي لو تأخّرنا. تطبيق الطعام اللي السياح والمقيمين بيدوّروا عليه.',
-      cta: 'انضم لقائمة الانتظار',
+      cta: 'حمّل التطبيق',
       notSpam: 'لا رسائل مزعجة. رسالة واحدة لما نفتح في منطقتك.',
     },
     valueProps: {
@@ -133,11 +133,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
   },
   ru: {
     hero: {
-      eyebrow: 'Шарм-эль-Шейх — скоро',
+      eyebrow: 'Шарм-эль-Шейх — уже доступно',
       title: 'Доставка еды, созданная для Шарма.',
       subtitle:
         'Пять языков. Доставка в номер отеля. Честное время доставки — если опоздаем, автоматически зачислим кредит. Приложение, которое действительно нужно туристам и жителям.',
-      cta: 'В лист ожидания',
+      cta: 'Скачать приложение',
       notSpam: 'Никакого спама. Одно сообщение, когда мы откроемся в вашем районе.',
     },
     valueProps: {
@@ -177,11 +177,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
   },
   it: {
     hero: {
-      eyebrow: 'Sharm El Sheikh — in arrivo',
+      eyebrow: 'Sharm El Sheikh — ora disponibile',
       title: 'Consegna cibo pensata per Sharm.',
       subtitle:
         'Cinque lingue. Consegna in camera. Tempi reali con credito automatico se sbagliamo. L\'app che turisti e residenti aspettavano.',
-      cta: 'Iscriviti alla lista',
+      cta: 'Scarica l’app',
       notSpam: 'Niente spam. Un messaggio quando apriamo nella tua zona.',
     },
     valueProps: {
@@ -221,11 +221,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
   },
   de: {
     hero: {
-      eyebrow: 'Sharm El Sheikh — bald da',
+      eyebrow: 'Sharm El Sheikh — jetzt verfügbar',
       title: 'Lieferdienst, gemacht für Sharm.',
       subtitle:
         'Fünf Sprachen. Lieferung aufs Zimmer. Ehrliche Lieferzeiten mit automatischem Guthaben, wenn wir uns verspäten. Die Food-App, die Touristen und Bewohner wirklich brauchen.',
-      cta: 'Auf die Warteliste',
+      cta: 'App holen',
       notSpam: 'Kein Spam. Eine Nachricht, sobald wir in deinem Gebiet starten.',
     },
     valueProps: {

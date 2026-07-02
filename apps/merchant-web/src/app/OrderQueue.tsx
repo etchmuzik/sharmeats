@@ -91,7 +91,24 @@ export function OrderQueue({
           });
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        // [H-CUST2] On (re)connect, refetch the active queue. supabase-js rejoins
+        // the channel after a network drop but never replays events emitted during
+        // the outage — an order placed while offline would otherwise never appear
+        // or chime. Also covers the join-window gap after the initial SSR load.
+        if (status === 'SUBSCRIBED') {
+          supabase
+            .from('orders')
+            .select('*')
+            .eq('restaurant_id', context.restaurantId)
+            .not('status', 'in', '(delivered,cancelled,rejected)')
+            .or('payment_method.eq.cash_on_delivery,payment_status.eq.paid')
+            .order('placed_at', { ascending: true })
+            .then(({ data }) => {
+              if (data) setOrders(data as MerchantOrder[]);
+            });
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
