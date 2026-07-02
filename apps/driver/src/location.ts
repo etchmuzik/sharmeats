@@ -121,8 +121,12 @@ export async function startStreaming(orderId: string): Promise<void> {
         if (active) active.lastPingAt = now;
         // Fire-and-forget; wrap so .catch exists (the RPC builder is thenable,
         // not a real Promise). A failed ping must not crash streaming.
+        // [H-DRV3] Pass status='' so driver_ping PRESERVES the current status
+        // (coalesce(nullif(p_status,''), status)). Hardcoding 'on_job' here
+        // re-stamped a driver who had just gone offline back to on_job within
+        // ~25s — they could never actually go offline while a stale stream ran.
         Promise.resolve(
-          sb.rpc('driver_ping', { p_lng: longitude, p_lat: latitude, p_status: 'on_job' }),
+          sb.rpc('driver_ping', { p_lng: longitude, p_lat: latitude, p_status: '' }),
         ).catch(() => {});
       }
     },

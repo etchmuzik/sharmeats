@@ -199,7 +199,22 @@ export const ordersRepoSupabase = {
           cb(rowToOrder(payload.new as Parameters<typeof rowToOrder>[0]));
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        // [H-CUST2] On (re)connect, refetch the order once. supabase-js rejoins
+        // the channel after a network drop but does NOT replay events emitted
+        // during the outage, so a status change while offline would be missed.
+        // A one-shot fetch on SUBSCRIBED closes that gap (and the join-window
+        // gap between the initial fetch and the first subscribe).
+        if (status === 'SUBSCRIBED') {
+          sb.from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data) cb(rowToOrder(data as Parameters<typeof rowToOrder>[0]));
+            });
+        }
+      });
     return () => {
       sb.removeChannel(channel);
     };

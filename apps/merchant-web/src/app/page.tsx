@@ -12,6 +12,7 @@ import { TierStatusCard } from './TierStatusCard';
 type Phase =
   | { state: 'loading' }
   | { state: 'no-restaurant' }
+  | { state: 'error' } // [H-BIZ1] transient fetch failure — retry, not "no restaurant"
   | { state: 'ready'; ctx: MerchantContext; initialOrders: MerchantOrder[] };
 
 /**
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   // badge updates instantly; seeded from the resolved context once ready.
   const [isOpen, setIsOpen] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0); // [H-BIZ1] bump to retry the load
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -45,12 +47,24 @@ export default function DashboardPage() {
       }
 
       // Resolve which merchant this staffer belongs to (RLS-scoped).
-      const { data: staffRows } = await supabase
+      const { data: staffRows, error: staffErr } = await supabase
         .from('merchant_staff')
         .select('restaurant_id, staff_role, restaurants(name, is_open)')
         .limit(1);
 
-      const staff = staffRows?.[0] as
+      if (cancelled) return;
+      // [H-BIZ1] A query failure is NOT the same as "no restaurant linked".
+      // Previously the error was discarded and staffRows was undefined → the
+      // owner saw "not linked" mid-shift on any network blip. Show a retry.
+      if (staffErr) {
+        setPhase({ state: 'error' });
+        return;
+      }
+
+      // Supabase types a to-one embed as an array; at runtime it's a single
+      // object for merchant_staff→restaurants. Cast via unknown (pre-existing;
+      // tsc flagged the direct cast — routed through unknown to satisfy it).
+      const staff = staffRows?.[0] as unknown as
         | {
             restaurant_id: string;
             staff_role: string;
@@ -58,7 +72,6 @@ export default function DashboardPage() {
           }
         | undefined;
 
-      if (cancelled) return;
       if (!staff) {
         setPhase({ state: 'no-restaurant' });
         return;
@@ -88,7 +101,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   if (phase.state === 'loading') {
     return (
@@ -98,6 +111,29 @@ export default function DashboardPage() {
           <Skeleton className="h-8 w-20" />
         </header>
         <OrderQueueSkeleton />
+      </main>
+    );
+  }
+
+  if (phase.state === 'error') {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg px-4 text-center">
+        <div className="max-w-md">
+          <h1 className="text-xl font-bold">Couldn&apos;t load the dashboard</h1>
+          <p className="mt-2 text-ink2">Check your connection and try again.</p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <button
+              onClick={() => {
+                setPhase({ state: 'loading' });
+                setReloadKey((k) => k + 1);
+              }}
+              className="rounded-lg bg-accent px-6 py-2 font-semibold text-white"
+            >
+              Retry
+            </button>
+            <SignOutButton />
+          </div>
+        </div>
       </main>
     );
   }

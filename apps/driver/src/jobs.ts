@@ -132,18 +132,35 @@ export interface Assignment {
   status: 'offered' | 'accepted' | 'rejected' | 'completed' | 'reassigned';
 }
 
-/** The driver row for the current user (null if not a driver / not linked). */
+/** Distinguishes a genuinely-unlinked account from a transient fetch failure. */
+export class DriverFetchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DriverFetchError';
+  }
+}
+
+/**
+ * The driver row for the current user.
+ *   - returns the row when linked,
+ *   - returns null when the account genuinely has no driver profile,
+ *   - THROWS DriverFetchError on a query/network failure.
+ * [H-BIZ1] Previously the query error was discarded and any failure looked like
+ * "not a registered driver" — a dead-zone blip stranded a real driver on the
+ * terminal "contact ops" screen. The caller now shows a retry state instead.
+ */
 export async function getMyDriver() {
   const sb = getSupabase();
   const {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return null;
-  const { data } = await sb
+  const { data, error } = await sb
     .from('drivers')
     .select('id, name, status, vehicle, rating, is_verified')
     .eq('profile_id', user.id)
     .maybeSingle();
+  if (error) throw new DriverFetchError(error.message);
   return data;
 }
 
@@ -172,12 +189,32 @@ export async function getOffers(driverId: string): Promise<Assignment[]> {
   return (data as Assignment[]) ?? [];
 }
 
-/** The driver's current active order (assigned + not terminal). */
+/**
+ * The driver's current active order — one they have ACCEPTED and not finished.
+ *
+ * [H-DRV2] auto_assign_order/assign_driver set orders.assigned_driver_id at OFFER
+ * time (before the driver accepts). Keying the active job off assigned_driver_id
+ * alone made a merely-offered order show up as the black "Active delivery" card
+ * (exposing the full address/phone pre-accept, letting the driver run the job
+ * without accepting, and colliding with the sweep re-offering it to someone else
+ * at TTL). We now require an ACCEPTED assignment: fetch the driver's accepted
+ * order ids first, then load the newest non-terminal order among them.
+ */
 export async function getActiveJob(driverId: string): Promise<Job | null> {
-  const { data, error } = await getSupabase()
+  const sb = getSupabase();
+  const { data: accepted, error: aErr } = await sb
+    .from('order_assignments')
+    .select('order_id')
+    .eq('driver_id', driverId)
+    .eq('status', 'accepted');
+  if (aErr) throw aErr;
+  const acceptedIds = (accepted ?? []).map((r) => (r as { order_id: string }).order_id);
+  if (acceptedIds.length === 0) return null;
+
+  const { data, error } = await sb
     .from('orders')
     .select(JOB_SELECT)
-    .eq('assigned_driver_id', driverId)
+    .in('id', acceptedIds)
     .not('status', 'in', '(delivered,cancelled,rejected)')
     .order('placed_at', { ascending: false })
     .limit(1)

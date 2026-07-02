@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
+  type AppStateStatus,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,6 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
 import {
+  DriverFetchError,
   getActiveJob,
   getEarnings,
   getMyDriver,
@@ -23,7 +26,7 @@ import {
   type Job,
 } from '../src/jobs';
 import * as Notifications from 'expo-notifications';
-import { pingOnce } from '../src/location';
+import { isStreaming, pingOnce, stopStreaming } from '../src/location';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
 import { colors, font, radius, spacing } from '../src/theme';
 import { Icon } from '../src/components/Icon';
@@ -42,24 +45,36 @@ export default function Home() {
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // [H-BIZ1] true = a fetch failed (network), distinct from "not a driver".
+  const [loadError, setLoadError] = useState(false);
+  const onlineRef = useRef(false);
 
   const load = useCallback(async () => {
-    const d = await getMyDriver();
-    setDriver(d);
-    if (!d) {
+    try {
+      const d = await getMyDriver();
+      setDriver(d);
+      setLoadError(false);
+      if (!d) {
+        setLoading(false);
+        return;
+      }
+      setOnlineState(d.status !== 'offline');
+      onlineRef.current = d.status !== 'offline';
+      const [job, offs, earn] = await Promise.all([
+        getActiveJob(d.id),
+        getOffers(d.id),
+        getEarnings(d.id),
+      ]);
+      setActiveJob(job);
+      setOffers(offs);
+      setEarnings(earn);
+    } catch (e) {
+      // [H-BIZ1] A transient fetch failure must NOT masquerade as "not a
+      // registered driver". Flag an error state (retry) and keep prior data.
+      if (e instanceof DriverFetchError || e instanceof Error) setLoadError(true);
+    } finally {
       setLoading(false);
-      return;
     }
-    setOnlineState(d.status !== 'offline');
-    const [job, offs, earn] = await Promise.all([
-      getActiveJob(d.id),
-      getOffers(d.id),
-      getEarnings(d.id),
-    ]);
-    setActiveJob(job);
-    setOffers(offs);
-    setEarnings(earn);
-    setLoading(false);
   }, []);
 
   useFocusEffect(
@@ -67,6 +82,24 @@ export default function Home() {
       load();
     }, [load]),
   );
+
+  // [H-DRV1] When the app returns to the foreground (e.g. the driver came back
+  // from Google Maps after navigating), re-seed the authoritative position and
+  // restart the location watcher if a stream is meant to be running. Foreground
+  // watchPositionAsync stops emitting while backgrounded, so current_geo would
+  // otherwise stay frozen at the pickup point for the whole ride.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        // Re-seed current_geo (status preserved — pass nothing).
+        pingOnce().catch(() => {});
+        // If a delivery stream is active, refresh the active-job view so any
+        // status change (or reassignment) while backgrounded is reflected.
+        if (isStreaming()) load();
+      }
+    });
+    return () => sub.remove();
+  }, [load]);
 
   // Push notifications: register this device for delivery-offer pushes (H1) and
   // refresh the offer list when the driver taps a `new_offer` notification. Runs
@@ -86,11 +119,21 @@ export default function Home() {
 
   async function toggleOnline(next: boolean) {
     setOnlineState(next);
+    onlineRef.current = next;
     try {
       await setOnline(next);
-      if (next) await pingOnce('online');
+      if (next) {
+        await pingOnce('online');
+      } else {
+        // [H-DRV3] Going offline MUST stop any running location stream. Otherwise
+        // its throttled driver_ping keeps writing (and, before this fix, re-stamped
+        // status back to on_job), so the driver could never actually go offline.
+        await stopStreaming();
+        await pingOnce('offline');
+      }
     } catch {
       setOnlineState(!next); // revert on failure
+      onlineRef.current = !next;
       toast("Couldn't update your status. Check your connection.", 'error');
     }
   }
@@ -98,6 +141,9 @@ export default function Home() {
   // Unregister this device's push token before signing out so the next driver on
   // the same device doesn't receive the previous account's offers.
   async function handleSignOut() {
+    // [H-DRV3] Stop the stream first so a sign-out mid-delivery doesn't leave the
+    // GPS watcher + pings running for the signed-out account.
+    await stopStreaming();
     await unregisterPush();
     await signOut();
   }
@@ -126,6 +172,34 @@ export default function Home() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
         <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
+
+  // [H-BIZ1] A fetch failed (network) — offer a retry rather than the terminal
+  // "not a registered driver" screen. Only show "not registered" when the load
+  // SUCCEEDED and there genuinely is no driver row.
+  if (!driver && loadError) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.bg }}>
+        <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
+          Couldn't load your profile
+        </Text>
+        <Text style={{ marginTop: 8, color: colors.ink2, textAlign: 'center' }}>
+          Check your connection and try again.
+        </Text>
+        <Pressable
+          onPress={() => {
+            setLoading(true);
+            load();
+          }}
+          style={{ marginTop: 24, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl }}
+        >
+          <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
+        </Pressable>
+        <Pressable onPress={handleSignOut} style={{ marginTop: 12, padding: 12 }}>
+          <Text style={{ color: colors.ink3, fontWeight: '600' }}>Sign out</Text>
+        </Pressable>
       </View>
     );
   }

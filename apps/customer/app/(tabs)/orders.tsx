@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +45,23 @@ export default function OrdersTab() {
   const loadFromOrder = useCart((s) => s.loadFromOrder);
 
   const reorder = (o: Order) => {
+    // Guard: orders placed before mig 055 snapshot their modifier choices WITHOUT
+    // optionId, so one-tap reorder would silently drop every add-on and place a
+    // cheaper, wrong order. If any line has modifiers but is missing ids, send the
+    // user to the restaurant to rebuild it instead of quietly corrupting the cart.
+    const hasUnresolvableMods = o.items.some((it) =>
+      (it.modifierChoices ?? []).some((c) => !c.optionId),
+    );
+    if (hasUnresolvableMods) {
+      Alert.alert(t('orders.reorderTitle'), t('orders.reorderNeedsRebuild'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('orders.reorderOpenMenu'),
+          onPress: () => router.push(`/restaurant/${o.restaurantId}`),
+        },
+      ]);
+      return;
+    }
     success();
     loadFromOrder({
       restaurantId: o.restaurantId,

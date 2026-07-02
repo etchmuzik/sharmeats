@@ -1144,6 +1144,7 @@ export type Database = {
           max_discount_egp: number | null
           max_uses: number | null
           min_subtotal_egp: number | null
+          owner_user_id: string | null
           per_user_limit: number | null
           valid_from: string | null
           valid_to: string | null
@@ -1158,6 +1159,7 @@ export type Database = {
           max_discount_egp?: number | null
           max_uses?: number | null
           min_subtotal_egp?: number | null
+          owner_user_id?: string | null
           per_user_limit?: number | null
           valid_from?: string | null
           valid_to?: string | null
@@ -1172,12 +1174,21 @@ export type Database = {
           max_discount_egp?: number | null
           max_uses?: number | null
           min_subtotal_egp?: number | null
+          owner_user_id?: string | null
           per_user_limit?: number | null
           valid_from?: string | null
           valid_to?: string | null
           value?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_redemptions: {
         Row: {

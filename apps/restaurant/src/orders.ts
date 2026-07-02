@@ -105,6 +105,7 @@ export async function getActiveOrders(restaurantId: string): Promise<RestaurantO
 export function subscribeOrders(
   restaurantId: string,
   onChange: (row: RestaurantOrder) => void,
+  onResync?: () => void,
 ): () => void {
   const sb = getSupabase();
   const name = `restaurant:${restaurantId}:orders`;
@@ -121,7 +122,14 @@ export function subscribeOrders(
         if (row?.id) onChange(row);
       },
     )
-    .subscribe();
+    .subscribe((status) => {
+      // [H-CUST2] On (re)connect, ask the caller to refetch the active list.
+      // supabase-js rejoins the channel after a network drop but never replays
+      // events emitted during the outage — an order placed while offline would
+      // otherwise never appear or chime. Also covers the join-window gap between
+      // the initial load and the first SUBSCRIBED.
+      if (status === 'SUBSCRIBED') onResync?.();
+    });
   return () => {
     sb.removeChannel(channel);
   };
