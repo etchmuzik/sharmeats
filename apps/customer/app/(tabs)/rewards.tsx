@@ -24,19 +24,13 @@ const TIER_NEXT: Record<RewardsStatus['tier'], { next: RewardsStatus['tier'] | n
   gold: { next: null, threshold: 0 },
 };
 
-// RewardsHistoryEntry.reason is a typed union, not display text — the Task 8
-// i18n set has no per-reason copy, so map to short plain-English fallbacks
-// rather than leaking raw enum values ("order_earn") into the UI.
-// TODO(i18n): reason labels are hardcoded English; rewards.* i18n namespace
-// (Task 8) doesn't cover ledger reason strings — add rewards.reasonEarn/
-// reasonRedeem/reasonClawback/reasonBonus keys to all 5 locale files in a
-// follow-up i18n pass before this screen is fully localized. This is a known,
-// deliberate scope gap, not an oversight.
-const REASON_LABEL: Record<RewardsHistoryEntry['reason'], string> = {
-  order_earn: 'Order reward',
-  redeem: 'Redeemed',
-  clawback: 'Adjustment',
-  tier_bonus: 'Tier bonus',
+// RewardsHistoryEntry.reason is a typed union, not display text — map each
+// enum value to its i18n key.
+const REASON_KEY: Record<RewardsHistoryEntry['reason'], string> = {
+  order_earn: 'rewards.reasonEarn',
+  redeem: 'rewards.reasonRedeem',
+  clawback: 'rewards.reasonClawback',
+  tier_bonus: 'rewards.reasonBonus',
 };
 
 const REDEEM_POINTS = 100;
@@ -167,7 +161,7 @@ export default function RewardsTab() {
                   dir.row,
                   i < history.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.line },
                 ]}>
-                <Text style={[styles.historyReason, dir.text]}>{REASON_LABEL[h.reason]}</Text>
+                <Text style={[styles.historyReason, dir.text]}>{t(REASON_KEY[h.reason])}</Text>
                 <Text style={[styles.historyDelta, { color: h.deltaPoints >= 0 ? colors.green : colors.ink3 }]}>
                   {h.deltaPoints >= 0 ? '+' : ''}
                   {h.deltaPoints}
