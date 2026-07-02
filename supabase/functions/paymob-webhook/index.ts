@@ -19,7 +19,8 @@
 // We use the service-role key for the DB write, gated by HMAC verification.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { createHmac } from 'node:crypto';
+import { Buffer } from 'node:buffer';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // Fields Paymob concatenates (documented order) to compute the HMAC.
 const HMAC_FIELDS = [
@@ -68,7 +69,20 @@ Deno.serve(async (req: Request) => {
     }).join('');
 
     const computed = createHmac('sha512', hmacSecret).update(concatenated).digest('hex');
-    if (computed !== providedHmac) {
+    // [AUDIT-1] Constant-time comparison. Amount-binding + the idempotent
+    // pending→paid transition below already make a forged signature
+    // non-exploitable, but a plain `!==` short-circuits on the first differing
+    // byte (a timing side channel in principle); timingSafeEqual removes it.
+    // Guard the hex decode + length so a malformed `hmac` param can't throw.
+    let providedBuf: Buffer;
+    let computedBuf: Buffer;
+    try {
+      providedBuf = Buffer.from(providedHmac, 'hex');
+      computedBuf = Buffer.from(computed, 'hex');
+    } catch {
+      return new Response('invalid hmac', { status: 401 });
+    }
+    if (providedBuf.length !== computedBuf.length || !timingSafeEqual(providedBuf, computedBuf)) {
       return new Response('invalid hmac', { status: 401 });
     }
 
