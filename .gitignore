@@ -37,3 +37,5 @@ supabase/.temp/
 *service-account*.json
 
 .superpowers/
+__pycache__/
+*.pyc
