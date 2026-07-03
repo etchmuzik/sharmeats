@@ -26,6 +26,7 @@ export default function RootLayout() {
               <Stack.Screen name="job/[id]/chat" />
               <Stack.Screen name="history" />
               <Stack.Screen name="tier" />
+              <Stack.Screen name="kyc" />
             </Stack>
           </ToastProvider>
         </AuthProvider>

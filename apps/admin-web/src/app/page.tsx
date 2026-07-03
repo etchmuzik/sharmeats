@@ -129,6 +129,12 @@ export default function OpsPage() {
           >
             Finance
           </a>
+          <a
+            href="/kyc"
+            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            KYC
+          </a>
           <SignOutButton />
         </div>
       </header>
