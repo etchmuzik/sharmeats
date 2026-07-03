@@ -13,10 +13,12 @@
  *  - On sign-out call unregisterPush() so the next user on this device does
  *    not receive the previous account's order updates.
  */
+import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { db, isBackendLive } from '../data';
 import { captureError, track } from './analytics';
 
@@ -71,6 +73,54 @@ export async function registerForPush(): Promise<void> {
     // Push is best-effort — never block app start on it.
     captureError(e, { where: 'registerForPush' });
   }
+}
+
+// Map a notification's data payload to an in-app route. Order events carry an
+// orderId; support events route to the support thread. Unknown events do nothing.
+function routeForNotification(data: Record<string, unknown> | undefined): string | null {
+  if (!data) return null;
+  const event = typeof data.event === 'string' ? data.event : '';
+  const orderId = typeof data.orderId === 'string' ? data.orderId : '';
+  if (event === 'support_reply') return '/support';
+  if (event === 'new_message' && orderId) return `/order/${orderId}/chat`;
+  if (orderId) return `/order/${orderId}`;
+  return null;
+}
+
+/**
+ * Route notification taps to the right screen — both while the app is running
+ * (addNotificationResponseReceivedListener) and on a cold start where the app
+ * was launched by tapping a push (getLastNotificationResponseAsync). Mount once
+ * from the root layout. Previously order-update pushes carried an orderId that
+ * nothing consumed, so a tap just opened the home screen.
+ */
+export function useNotificationRouting(): void {
+  const router = useRouter();
+  useEffect(() => {
+    let handled = false;
+    // Cold start: was the app opened by tapping a notification?
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (handled || !response) return;
+        const route = routeForNotification(
+          response.notification.request.content.data as Record<string, unknown> | undefined,
+        );
+        if (route) {
+          handled = true;
+          router.push(route);
+        }
+      })
+      .catch(() => {});
+
+    // Warm taps while the app is running.
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const route = routeForNotification(
+        response.notification.request.content.data as Record<string, unknown> | undefined,
+      );
+      if (route) router.push(route);
+    });
+    return () => sub.remove();
+  }, [router]);
 }
 
 /** Best-effort token cleanup on sign-out. */

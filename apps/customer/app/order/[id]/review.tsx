@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as StoreReview from 'expo-store-review';
 import { BackButton } from '../../../src/components/BackButton';
 import { PrimaryButton } from '../../../src/components/PrimaryButton';
 import { colors, font, radius } from '../../../src/theme';
@@ -55,6 +56,16 @@ export default function Review() {
     await db.orders.submitReview(id, food, delivery, comment.trim());
     success();
     setSubmitted(true);
+    // Happy moment: if the customer rated the order highly, ask them to rate the
+    // app in the store too (native prompt; the OS rate-limits how often it shows).
+    // App-store rating is the top conversion factor for tourist search discovery.
+    if (food >= 4 && delivery >= 4) {
+      try {
+        if (await StoreReview.isAvailableAsync()) await StoreReview.requestReview();
+      } catch {
+        // best-effort; never block the flow
+      }
+    }
     setTimeout(() => router.replace('/(tabs)/orders'), 1100);
   };
 
