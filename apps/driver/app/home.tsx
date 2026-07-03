@@ -309,10 +309,21 @@ export default function Home() {
             accessibilityRole="button"
             accessibilityLabel="View delivery history"
             hitSlop={8}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.xl, marginBottom: spacing.lg }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.xl, marginBottom: spacing.md }}
           >
             <Icon name="receipt" size={14} color={colors.accent} />
             <Text style={{ color: colors.accent, fontWeight: '600', fontSize: font.sizes.sm }}>Delivery history</Text>
+            <Icon name="chevronForward" size={14} color={colors.accent} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/kyc')}
+            accessibilityRole="button"
+            accessibilityLabel="Verification documents"
+            hitSlop={8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.xl, marginBottom: spacing.lg }}
+          >
+            <Icon name="person" size={14} color={colors.accent} />
+            <Text style={{ color: colors.accent, fontWeight: '600', fontSize: font.sizes.sm }}>Verification documents</Text>
             <Icon name="chevronForward" size={14} color={colors.accent} />
           </Pressable>
         </>

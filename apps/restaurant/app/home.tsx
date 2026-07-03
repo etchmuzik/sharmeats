@@ -287,6 +287,14 @@ export default function Home() {
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Menu</Text>
         </Pressable>
         <Pressable
+          onPress={() => router.push('/kyc')}
+          accessibilityRole="button"
+          accessibilityLabel="Verification documents"
+          style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+        >
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Docs</Text>
+        </Pressable>
+        <Pressable
           onPress={() => router.push('/tier')}
           accessibilityRole="button"
           accessibilityLabel="View tier status"

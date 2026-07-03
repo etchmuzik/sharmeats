@@ -53,6 +53,12 @@
             "buildToolsVersion": "35.0.0"
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Sharm Eats needs photo access so you can upload your verification documents."
+        }
       ]
     ],
     "experiments": {
