@@ -94,6 +94,14 @@ export default function PrivacyDriverPage() {
                 earnings summary and reconcile payouts.
               </li>
               <li>
+                <strong>Verification documents</strong> — when you upload them to
+                get verified, we collect photos of your identity and eligibility
+                documents (such as your national ID, driving licence, and vehicle
+                registration). These are stored privately, used only to confirm
+                you are eligible to deliver, and are visible only to you and our
+                review team — never to customers or other drivers.
+              </li>
+              <li>
                 <strong>Basic identifiers &amp; device data</strong> — an account
                 identifier and standard technical data (such as app version and
                 IP address from sign-in and connection logs) needed to operate
