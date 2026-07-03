@@ -113,3 +113,21 @@ export interface MenuItem {
   is_available: boolean;
   sort_order: number;
 }
+
+export type SettlementStatus = 'draft' | 'finalized' | 'paid';
+
+export interface RestaurantSettlement {
+  id: string;
+  restaurant_id: string;
+  period_start: string;
+  period_end: string;
+  order_count: number;
+  gross_sales_egp: number;
+  cod_sales_egp: number;
+  card_sales_egp: number;
+  commission_egp: number;
+  net_payable_egp: number;
+  status: SettlementStatus;
+  paid_at: string | null;
+  paid_reference: string | null;
+}

@@ -8,6 +8,7 @@ import { OrderQueue } from './OrderQueue';
 import { SignOutButton } from './SignOutButton';
 import { Skeleton, OrderQueueSkeleton } from './Skeleton';
 import { TierStatusCard } from './TierStatusCard';
+import { StatementsCard } from './StatementsCard';
 
 type Phase =
   | { state: 'loading' }
@@ -200,8 +201,9 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="px-6 pt-4">
+      <div className="grid gap-4 px-6 pt-4 md:grid-cols-2">
         <TierStatusCard />
+        <StatementsCard />
       </div>
 
       <OrderQueue context={ctx} initialOrders={initialOrders} />
