@@ -59,6 +59,8 @@ export interface Job {
   /** Optional free-text elaboration on dropoff_preference. */
   dropoff_note: string | null;
   assigned_driver_id: string | null;
+  /** Promised delivery time (ISO), set at place_order from honest ETA (mig 079). Drives the countdown. */
+  eta_at: string | null;
 }
 
 /**
@@ -90,7 +92,7 @@ const JOB_SELECT =
   'id, short_code, restaurant_name, status, payment_method, payment_status, ' +
   'total_egp, subtotal_egp, delivery_fee_egp, tip_egp, items, dropoff_geo, ' +
   'address_snapshot, customer_phone, kitchen_notes, dropoff_preference, dropoff_note, ' +
-  'assigned_driver_id, restaurants(geo)';
+  'assigned_driver_id, eta_at, restaurants(geo)';
 
 /** Normalize a raw order row (with nested restaurants) into a Job. */
 function toJob(row: Record<string, unknown> | null): Job | null {
@@ -123,6 +125,7 @@ function toJob(row: Record<string, unknown> | null): Job | null {
     dropoff_preference: (row.dropoff_preference as string | null) ?? null,
     dropoff_note: (row.dropoff_note as string | null) ?? null,
     assigned_driver_id: (row.assigned_driver_id as string | null) ?? null,
+    eta_at: (row.eta_at as string | null) ?? null,
   };
 }
 

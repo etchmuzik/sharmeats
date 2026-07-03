@@ -1,0 +1,71 @@
+name: CI
+
+# Runs typecheck (all surfaces), tests, and lint (where present) on every PR and
+# push to main. Each app installs independently (its own lockfile), so we matrix
+# per surface and run only the checks that surface actually defines — a missing
+# `test`/`lint` script is skipped, not failed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.surface }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        surface:
+          - apps/customer
+          - apps/driver
+          - apps/restaurant
+          - apps/admin-web
+          - apps/merchant-web
+          - landing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.surface }}/package-lock.json
+
+      - name: Install
+        working-directory: ${{ matrix.surface }}
+        # Prefer a clean, lockfile-exact install; fall back to `npm install` for
+        # any surface whose lockfile has drifted (keeps CI unblocking, not silent
+        # — the fallback is logged).
+        run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
+
+      - name: Typecheck
+        working-directory: ${{ matrix.surface }}
+        run: npm run typecheck --if-present
+
+      - name: Test
+        working-directory: ${{ matrix.surface }}
+        run: npm test --if-present
+
+      - name: Lint
+        working-directory: ${{ matrix.surface }}
+        run: npm run lint --if-present
+
+  # Edge functions run on Deno, not Node — test them separately.
+  edge-functions:
+    name: edge-functions (deno)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned to a full commit SHA (supply-chain safety); v2.0.5.
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: v2.x
+      - name: Test edge functions
+        run: deno test --allow-none supabase/functions/

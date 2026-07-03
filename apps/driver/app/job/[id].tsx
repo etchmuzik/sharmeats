@@ -18,6 +18,7 @@ import { colors, font, radius, spacing } from '../../src/theme';
 import { Icon } from '../../src/components/Icon';
 import { HotelHandoffCard } from '../../src/components/HotelHandoffCard';
 import { DropoffPreferenceCard } from '../../src/components/DropoffPreferenceCard';
+import { DeliveryCountdown } from '../../src/components/DeliveryCountdown';
 import { useToast } from '../../src/components/Toast';
 
 export default function JobScreen() {
@@ -169,6 +170,12 @@ export default function JobScreen() {
           {job.short_code}
         </Text>
         <Text style={{ color: colors.ink2, fontSize: font.sizes.base }}>{job.restaurant_name}</Text>
+
+        {/* Phase-aware countdown: "pick up by" before pickup, "deliver by" after.
+            Only while the job is active (a terminal status has no clock). */}
+        {!['delivered', 'cancelled', 'rejected'].includes(job.status) && (
+          <DeliveryCountdown etaAt={job.eta_at} beforePickup={beforePickup(job.status)} />
+        )}
 
         {/* Status timeline */}
         <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
