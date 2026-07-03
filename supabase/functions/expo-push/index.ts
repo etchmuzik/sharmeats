@@ -68,6 +68,10 @@ const COPY: Record<string, { title: string; body: string }> = {
   new_message: { title: 'New message', body: 'You have a new message about your order. Tap to reply.' },
   support_reply: { title: 'Support replied', body: 'Our team answered your message. Tap to read it.' },
   support_new_message: { title: 'New support message', body: 'A customer needs help. Tap to respond.' },
+  driver_assigned: { title: 'Driver on the way', body: 'A driver is heading to the restaurant for your order.' },
+  order_ready_pickup: { title: 'Order ready for pickup', body: 'An order is ready — head to the restaurant to collect it.' },
+  low_rating: { title: 'Low rating received', body: 'A customer left a low rating on a recent order. Tap to review.' },
+  tier_promoted: { title: 'You leveled up!', body: 'You reached a new rewards tier. Tap to see your new perks.' },
 };
 
 Deno.serve(async (req: Request) => {

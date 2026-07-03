@@ -1540,6 +1540,68 @@ export type Database = {
           },
         ]
       }
+      restaurant_settlements: {
+        Row: {
+          card_sales_egp: number
+          cod_sales_egp: number
+          commission_egp: number
+          created_at: string
+          gross_sales_egp: number
+          id: string
+          net_payable_egp: number
+          order_count: number
+          paid_at: string | null
+          paid_reference: string | null
+          period_end: string
+          period_start: string
+          restaurant_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          card_sales_egp?: number
+          cod_sales_egp?: number
+          commission_egp?: number
+          created_at?: string
+          gross_sales_egp?: number
+          id?: string
+          net_payable_egp?: number
+          order_count?: number
+          paid_at?: string | null
+          paid_reference?: string | null
+          period_end: string
+          period_start: string
+          restaurant_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          card_sales_egp?: number
+          cod_sales_egp?: number
+          commission_egp?: number
+          created_at?: string
+          gross_sales_egp?: number
+          id?: string
+          net_payable_egp?: number
+          order_count?: number
+          paid_at?: string | null
+          paid_reference?: string | null
+          period_end?: string
+          period_start?: string
+          restaurant_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_settlements_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurants: {
         Row: {
           accepts_card: boolean
@@ -2200,8 +2262,16 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      finalize_settlement: {
+        Args: { p_settlement_id: string }
+        Returns: undefined
+      }
       generate_order_short_code: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
+      generate_settlements: {
+        Args: { p_period_end: string; p_period_start: string }
+        Returns: number
+      }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }
@@ -2333,6 +2403,10 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: undefined
       }
+      mark_settlement_paid: {
+        Args: { p_reference: string; p_settlement_id: string }
+        Returns: undefined
+      }
       mark_support_thread_read: {
         Args: { p_user_id?: string }
         Returns: undefined
@@ -2377,6 +2451,32 @@ export type Database = {
       }
       my_merchant_ids: { Args: never; Returns: string[] }
       my_referral_code: { Args: never; Returns: string }
+      my_restaurant_settlements: {
+        Args: { p_limit?: number }
+        Returns: {
+          card_sales_egp: number
+          cod_sales_egp: number
+          commission_egp: number
+          created_at: string
+          gross_sales_egp: number
+          id: string
+          net_payable_egp: number
+          order_count: number
+          paid_at: string | null
+          paid_reference: string | null
+          period_end: string
+          period_start: string
+          restaurant_id: string
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "restaurant_settlements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       my_restaurant_tier: {
         Args: never
         Returns: {
@@ -2458,6 +2558,7 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      push_headers: { Args: never; Returns: Json }
       quote_delivery_fee: {
         Args: {
           p_dropoff: unknown
