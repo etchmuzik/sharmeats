@@ -1,7 +1,12 @@
 -- =============================================================
--- Sharm Eats — FULL SCHEMA, migrations 001 → 014, in order.
--- Paste this entire file into the Supabase SQL Editor and Run.
--- Safe to run on a fresh project. Order matters (later depends on earlier).
+-- Sharm Eats — PARTIAL SCHEMA SNAPSHOT, migrations 001 → 014 only.
+--
+-- ⚠️ STALE / NOT THE SOURCE OF TRUTH. Production is at migration 071.
+-- This file is an early bootstrap snapshot and stops at 014. To stand up a
+-- fresh project, apply the numbered files in supabase/migrations/ IN ORDER
+-- (001 → 071) instead — they include everything since (money foundation,
+-- messaging, support chat, notification coverage, fraud caps, etc.).
+-- Kept only for historical reference.
 -- =============================================================
 
 

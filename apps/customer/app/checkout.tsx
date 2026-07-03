@@ -85,8 +85,7 @@ export default function Checkout() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [kitchenNotes, setKitchenNotes] = useState('');
   const [dropoffPreference, setDropoffPreference] = useState<DropoffPreference | null>(null);
-  // dropoffNote is threaded through to db.orders.create() but has no UI input
-  // yet in this pass — reserved for a future "add a note" affordance.
+  // Free-text driver note (gate code, "ring twice"), threaded to db.orders.create().
   const [dropoffNote, setDropoffNote] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
@@ -334,6 +333,21 @@ export default function Checkout() {
           value={dropoffPreference}
           onChange={setDropoffPreference}
         />
+
+        {/* Free-text note for the driver (gate code, "ring twice", etc.). */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('checkout.dropoffNote')}</Text>
+          <TextInput
+            value={dropoffNote}
+            onChangeText={setDropoffNote}
+            placeholder={t('checkout.dropoffNotePlaceholder')}
+            placeholderTextColor={colors.ink3}
+            multiline
+            maxLength={280}
+            style={[styles.phoneInput, dir.text, { minHeight: 48 }]}
+            accessibilityLabel={t('checkout.dropoffNote')}
+          />
+        </View>
 
         {/* Contact number — the driver calls this. Required to place the order. */}
         <View style={styles.card}>

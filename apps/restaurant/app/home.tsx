@@ -14,6 +14,8 @@ import * as Notifications from 'expo-notifications';
 import { useAuth } from '../src/auth';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
+import { AllergenBanner } from '../src/components/AllergenBanner';
+import { ContactButtons } from '../src/components/ContactButtons';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
 import { initChime, playNewOrderChime, releaseChime } from '../src/chime';
 import {
@@ -277,6 +279,14 @@ export default function Home() {
           </Text>
         </Pressable>
         <Pressable
+          onPress={() => router.push('/menu')}
+          accessibilityRole="button"
+          accessibilityLabel="Menu availability"
+          style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+        >
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Menu</Text>
+        </Pressable>
+        <Pressable
           onPress={() => router.push('/tier')}
           accessibilityRole="button"
           accessibilityLabel="View tier status"
@@ -309,6 +319,7 @@ export default function Home() {
               key={o.id}
               order={o}
               busy={busyIds.has(o.id)}
+              onOpenDetail={() => router.push(`/order/${o.id}`)}
               onAccept={() => doAdvance(o, 'accepted')}
               onReject={(reason) => doAdvance(o, 'rejected', reason)}
             />
@@ -321,6 +332,7 @@ export default function Home() {
               key={o.id}
               order={o}
               busy={busyIds.has(o.id)}
+              onOpenDetail={() => router.push(`/order/${o.id}`)}
               primary={
                 o.status === 'accepted'
                   ? { label: 'Start preparing', next: 'preparing' }
@@ -333,7 +345,12 @@ export default function Home() {
 
         <Section title="Ready / picked up" count={ready.length}>
           {ready.map((o) => (
-            <OrderRow key={o.id} order={o} busy={busyIds.has(o.id)} />
+            <OrderRow
+              key={o.id}
+              order={o}
+              busy={busyIds.has(o.id)}
+              onOpenDetail={() => router.push(`/order/${o.id}`)}
+            />
           ))}
         </Section>
       </ScrollView>
@@ -373,6 +390,7 @@ function Section({
 function OrderRow({
   order,
   busy,
+  onOpenDetail,
   onAccept,
   onReject,
   primary,
@@ -380,6 +398,7 @@ function OrderRow({
 }: {
   order: RestaurantOrder;
   busy: boolean;
+  onOpenDetail?: () => void;
   onAccept?: () => void;
   onReject?: (reason?: string) => void;
   primary?: { label: string; next: OrderStatus };
@@ -399,15 +418,24 @@ function OrderRow({
 
   return (
     <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.white, padding: spacing.lg, gap: spacing.sm }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <View>
-          <Text style={{ fontWeight: '800', fontSize: font.sizes.lg, color: colors.ink }}>{order.short_code}</Text>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
-            {new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            {order.scheduled_for
-              ? ` · scheduled ${new Date(order.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-              : ''}
-          </Text>
+      <Pressable
+        onPress={onOpenDetail}
+        disabled={!onOpenDetail}
+        accessibilityRole={onOpenDetail ? 'button' : undefined}
+        accessibilityLabel={onOpenDetail ? `Open order ${order.short_code}` : undefined}
+        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View>
+            <Text style={{ fontWeight: '800', fontSize: font.sizes.lg, color: colors.ink }}>{order.short_code}</Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
+              {new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {order.scheduled_for
+                ? ` · scheduled ${new Date(order.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                : ''}
+            </Text>
+          </View>
+          {onOpenDetail ? <Icon name="chevronForward" size={16} color={colors.ink3} /> : null}
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ fontWeight: '800', fontSize: font.sizes.lg, color: colors.ink }}>{order.total_egp} EGP</Text>
@@ -415,7 +443,10 @@ function OrderRow({
             {order.payment_method === 'cash_on_delivery' ? 'Cash on delivery' : `Card · ${order.payment_status}`}
           </Text>
         </View>
-      </View>
+      </Pressable>
+
+      {/* [H-REST2] Food-safety allergy briefing — must be prominent. */}
+      <AllergenBanner allergens={order.aggregate_allergens} />
 
       {/* Items */}
       <View style={{ gap: 2 }}>
@@ -457,6 +488,9 @@ function OrderRow({
           </Text>
         </View>
       </View>
+
+      {/* [H-REST2] Contact — call the customer or open the in-app chat. */}
+      <ContactButtons orderId={order.id} customerPhone={order.customer_phone} />
 
       {/* Actions */}
       {rejecting && onReject ? (

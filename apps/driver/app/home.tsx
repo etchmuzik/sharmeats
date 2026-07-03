@@ -297,11 +297,25 @@ export default function Home() {
 
       {/* Earnings */}
       {earnings && (
-        <View style={{ flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, marginBottom: spacing.lg }}>
-          <Stat label="Today" value={`${earnings.todayTotal} EGP`} />
-          <Stat label="Deliveries" value={`${earnings.todayCount}`} />
-          <Stat label="COD owed" value={`${earnings.codOwed} EGP`} warn={earnings.codOwed > 0} />
-        </View>
+        <>
+          <View style={{ flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
+            <Stat label="Today" value={`${earnings.todayTotal} EGP`} />
+            <Stat label="Deliveries" value={`${earnings.todayCount}`} />
+            <Stat label="Tips today" value={`${earnings.todayTips} EGP`} />
+            <Stat label="COD owed" value={`${earnings.codOwed} EGP`} warn={earnings.codOwed > 0} />
+          </View>
+          <Pressable
+            onPress={() => router.push('/history')}
+            accessibilityRole="button"
+            accessibilityLabel="View delivery history"
+            hitSlop={8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.xl, marginBottom: spacing.lg }}
+          >
+            <Icon name="receipt" size={14} color={colors.accent} />
+            <Text style={{ color: colors.accent, fontWeight: '600', fontSize: font.sizes.sm }}>Delivery history</Text>
+            <Icon name="chevronForward" size={14} color={colors.accent} />
+          </Pressable>
+        </>
       )}
 
       {/* Active job */}

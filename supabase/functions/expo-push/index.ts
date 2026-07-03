@@ -60,6 +60,14 @@ const COPY: Record<string, { title: string; body: string }> = {
   new_offer: { title: 'New delivery offer', body: 'You have a new job. Tap to accept.' },
   referral_rewarded: { title: 'Referral reward earned', body: 'Your friend ordered — your discount is ready. Tap to see it.' },
   order_placed_merchant: { title: 'New order', body: 'A new order just came in. Tap to accept it.' },
+  order_rejected: { title: 'Order declined', body: 'The restaurant could not take your order. Any charge is refunded.' },
+  order_cancelled: { title: 'Order cancelled', body: 'Your order was cancelled. Tap for details.' },
+  order_cancelled_merchant: { title: 'Order cancelled', body: 'An order was cancelled — you can stop preparing it.' },
+  payment_failed: { title: 'Payment failed', body: 'Your card payment did not go through. Tap to try again.' },
+  credit_issued: { title: 'Credit added', body: 'Credit was added to your Sharm Eats wallet. Tap to see it.' },
+  new_message: { title: 'New message', body: 'You have a new message about your order. Tap to reply.' },
+  support_reply: { title: 'Support replied', body: 'Our team answered your message. Tap to read it.' },
+  support_new_message: { title: 'New support message', body: 'A customer needs help. Tap to respond.' },
 };
 
 Deno.serve(async (req: Request) => {

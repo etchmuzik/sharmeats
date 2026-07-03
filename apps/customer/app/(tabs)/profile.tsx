@@ -38,6 +38,7 @@ export default function ProfileTab() {
   }, []);
 
   const rows: Row[] = [
+    { icon: 'person', label: t('profile.editProfile'), onPress: () => router.push('/edit-profile') },
     { icon: 'location', label: t('profile.addresses'), onPress: () => router.push('/address/picker') },
     { icon: 'card', label: t('profile.payment'), onPress: () => router.push('/payment/picker') },
     {
@@ -49,6 +50,7 @@ export default function ProfileTab() {
     { icon: 'currency', label: t('profile.currency'), value: currency, onPress: () => router.push('/settings') },
     { icon: 'bell', label: t('profile.notifications'), onPress: () => router.push('/settings') },
     { icon: 'gift', label: t('profile.invite'), onPress: () => router.push('/invite') },
+    { icon: 'chat', label: t('profile.support'), onPress: () => router.push('/support') },
     { icon: 'help', label: t('profile.help'), onPress: () => router.push('/help') },
     {
       icon: 'signout',

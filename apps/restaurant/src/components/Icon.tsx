@@ -28,7 +28,11 @@ export type IconName =
   | 'person'
   | 'clock'
   | 'flame'
-  | 'bag';
+  | 'bag'
+  | 'phone'
+  | 'chat'
+  | 'send'
+  | 'alert';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -52,6 +56,10 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   clock: 'time-outline',
   flame: 'flame-outline',
   bag: 'bag-check-outline',
+  phone: 'call',
+  chat: 'chatbubble-ellipses',
+  send: 'send',
+  alert: 'alert-circle',
 };
 
 type Props = {

@@ -23,6 +23,9 @@ export default function RootLayout() {
               <Stack.Screen name="signin" />
               <Stack.Screen name="home" />
               <Stack.Screen name="tier" />
+              <Stack.Screen name="menu" />
+              <Stack.Screen name="order/[id]" />
+              <Stack.Screen name="order/[id]/chat" />
             </Stack>
           </ToastProvider>
         </AuthProvider>

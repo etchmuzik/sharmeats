@@ -261,6 +261,7 @@ export async function collectCod(orderId: string, amount: number): Promise<void>
 export interface EarningsSummary {
   todayTotal: number;
   todayCount: number;
+  todayTips: number;
   codOwed: number;
 }
 
@@ -269,7 +270,7 @@ export async function getEarnings(driverId: string): Promise<EarningsSummary> {
   since.setHours(0, 0, 0, 0);
   const { data, error } = await getSupabase()
     .from('driver_earnings')
-    .select('total, cod_collected, created_at')
+    .select('total, tip, cod_collected, created_at')
     .eq('driver_id', driverId)
     .gte('created_at', since.toISOString());
   if (error) throw error;
@@ -277,6 +278,47 @@ export async function getEarnings(driverId: string): Promise<EarningsSummary> {
   return {
     todayTotal: rows.reduce((s, r) => s + (r.total ?? 0), 0),
     todayCount: rows.length,
+    todayTips: rows.reduce((s, r) => s + (r.tip ?? 0), 0),
     codOwed: rows.reduce((s, r) => s + (r.cod_collected ?? 0), 0),
   };
+}
+
+/** One past delivery, joined with its order for display. */
+export interface DeliveryHistoryItem {
+  id: string;
+  order_id: string;
+  short_code: string;
+  restaurant_name: string;
+  total: number;
+  tip: number;
+  created_at: string;
+}
+
+/**
+ * The driver's completed deliveries, newest first. Reads driver_earnings (one
+ * row per delivery) joined to the order for its short_code/restaurant. RLS
+ * scopes driver_earnings to the owning driver.
+ */
+export async function getHistory(driverId: string, limit = 50): Promise<DeliveryHistoryItem[]> {
+  const { data, error } = await getSupabase()
+    .from('driver_earnings')
+    .select('id, order_id, total, tip, created_at, orders(short_code, restaurant_name)')
+    .eq('driver_id', driverId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    const ord = r.orders as { short_code?: string; restaurant_name?: string } | { short_code?: string; restaurant_name?: string }[] | null;
+    const order = Array.isArray(ord) ? ord[0] : ord;
+    return {
+      id: r.id as string,
+      order_id: r.order_id as string,
+      short_code: order?.short_code ?? '—',
+      restaurant_name: order?.restaurant_name ?? 'Restaurant',
+      total: (r.total as number) ?? 0,
+      tip: (r.tip as number) ?? 0,
+      created_at: r.created_at as string,
+    };
+  });
 }

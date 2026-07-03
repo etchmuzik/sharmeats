@@ -941,6 +941,51 @@ export type Database = {
           },
         ]
       }
+      order_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          order_id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          order_id: string
+          read_at?: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_status_events: {
         Row: {
           actor_id: string | null
@@ -1684,6 +1729,51 @@ export type Database = {
         }
         Relationships: []
       }
+      support_messages: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          from_support: boolean
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          from_support?: boolean
+          id?: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          from_support?: boolean
+          id?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           allergy_profile: Database["public"]["Enums"]["allergy_key_type"][]
@@ -2063,6 +2153,10 @@ export type Database = {
       auto_accept_sweep: { Args: never; Returns: number }
       auto_advance_sweep: { Args: never; Returns: number }
       auto_assign_order: { Args: { p_order_id: string }; Returns: string }
+      can_access_order_thread: {
+        Args: { p_order_id: string }
+        Returns: boolean
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dispatch_sweep: { Args: never; Returns: number }
       dispatch_watchdog: { Args: never; Returns: undefined }
@@ -2235,6 +2329,14 @@ export type Database = {
         Args: { p_amount: number; p_order_id: string }
         Returns: undefined
       }
+      mark_order_thread_read: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
+      mark_support_thread_read: {
+        Args: { p_user_id?: string }
+        Returns: undefined
+      }
       my_credit_balance: { Args: never; Returns: number }
       my_driver_tier: {
         Args: never
@@ -2284,6 +2386,8 @@ export type Database = {
           tier: string
         }[]
       }
+      my_support_unread_count: { Args: never; Returns: number }
+      my_unread_message_count: { Args: never; Returns: number }
       nearest_drivers: {
         Args: { p_geo: unknown; p_limit?: number; p_radius_m?: number }
         Returns: {
@@ -2365,6 +2469,24 @@ export type Database = {
       reconcile_stale_card_orders: { Args: never; Returns: number }
       redeem_credit: { Args: { p_amount_egp: number }; Returns: string }
       redeem_points: { Args: { p_points: number }; Returns: string }
+      reply_support_message: {
+        Args: { p_body: string; p_user_id: string }
+        Returns: {
+          author_id: string | null
+          body: string
+          created_at: string
+          from_support: boolean
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       resolve_zone: {
         Args: { p_geo: unknown }
         Returns: Database["public"]["Enums"]["zone_type"]
@@ -2374,6 +2496,42 @@ export type Database = {
         Returns: Database["public"]["Enums"]["zone_type"]
       }
       rider_snapshot: { Args: { p_driver_id: string }; Returns: Json }
+      send_order_message: {
+        Args: { p_body: string; p_order_id: string }
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          order_id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "order_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      send_support_message: {
+        Args: { p_body: string }
+        Returns: {
+          author_id: string | null
+          body: string
+          created_at: string
+          from_support: boolean
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown

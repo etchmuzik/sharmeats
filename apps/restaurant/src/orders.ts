@@ -30,6 +30,33 @@ export interface OrderItem {
   quantity: number;
   modifierChoices?: { optionName?: string }[];
   notes?: string;
+  allergens?: AllergenKey[];
+}
+
+/** Structured allergen keys (mirrors the DB allergy_key_type enum, migration 003). */
+export type AllergenKey =
+  | 'nuts'
+  | 'gluten'
+  | 'dairy'
+  | 'shellfish'
+  | 'eggs'
+  | 'soy'
+  | 'spicy'
+  | 'sesame';
+
+/** Human-readable label for an allergen key, for the kitchen briefing banner. */
+export function allergenLabel(key: AllergenKey): string {
+  const labels: Record<AllergenKey, string> = {
+    nuts: 'Nuts',
+    gluten: 'Gluten',
+    dairy: 'Dairy',
+    shellfish: 'Shellfish',
+    eggs: 'Eggs',
+    soy: 'Soy',
+    spicy: 'Spicy',
+    sesame: 'Sesame',
+  };
+  return labels[key] ?? key;
 }
 
 export interface RestaurantOrder {
@@ -46,6 +73,10 @@ export interface RestaurantOrder {
   kitchen_notes: string | null;
   scheduled_for: string | null;
   placed_at: string;
+  // [H-REST2] Authoritative allergy briefing for the kitchen (food safety).
+  aggregate_allergens: AllergenKey[] | null;
+  // [H-REST2] Customer phone for the "Call customer" button (nullable).
+  customer_phone: string | null;
 }
 
 export interface RestaurantContext {
@@ -57,7 +88,8 @@ export interface RestaurantContext {
 
 const ORDER_SELECT =
   'id, short_code, restaurant_id, status, payment_method, payment_status, fulfillment_type,' +
-  ' total_egp, address_snapshot, items, kitchen_notes, scheduled_for, placed_at';
+  ' total_egp, address_snapshot, items, kitchen_notes, scheduled_for, placed_at,' +
+  ' aggregate_allergens, customer_phone';
 
 /**
  * Resolve which restaurant this staffer belongs to (RLS-scoped via
@@ -95,6 +127,17 @@ export async function getActiveOrders(restaurantId: string): Promise<RestaurantO
     .order('placed_at', { ascending: true });
   if (error) throw error;
   return (data ?? []) as unknown as RestaurantOrder[];
+}
+
+/** Read a single order by id (RLS-scoped to the staffer's restaurant). */
+export async function getOrder(orderId: string): Promise<RestaurantOrder | null> {
+  const { data, error } = await getSupabase()
+    .from('orders')
+    .select(ORDER_SELECT)
+    .eq('id', orderId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as unknown as RestaurantOrder) ?? null;
 }
 
 /**
