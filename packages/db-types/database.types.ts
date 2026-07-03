@@ -502,6 +502,53 @@ export type Database = {
           },
         ]
       }
+      kyc_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["kyc_doc_status"]
+          storage_path: string
+          subject_id: string
+          subject_type: Database["public"]["Enums"]["kyc_subject_type"]
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_doc_status"]
+          storage_path: string
+          subject_id: string
+          subject_type: Database["public"]["Enums"]["kyc_subject_type"]
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_doc_status"]
+          storage_path?: string
+          subject_id?: string
+          subject_type?: Database["public"]["Enums"]["kyc_subject_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_documents_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_points_ledger: {
         Row: {
           created_at: string
@@ -840,6 +887,7 @@ export type Database = {
         Row: {
           commission_egp: number
           commission_pct: number
+          commission_vat_egp: number
           created_at: string
           delivered_at: string
           delivery_fee_egp: number
@@ -851,6 +899,7 @@ export type Database = {
         Insert: {
           commission_egp: number
           commission_pct: number
+          commission_vat_egp?: number
           created_at?: string
           delivered_at: string
           delivery_fee_egp?: number
@@ -862,6 +911,7 @@ export type Database = {
         Update: {
           commission_egp?: number
           commission_pct?: number
+          commission_vat_egp?: number
           created_at?: string
           delivered_at?: string
           delivery_fee_egp?: number
@@ -2423,6 +2473,30 @@ export type Database = {
           tier: string
         }[]
       }
+      my_kyc_documents: {
+        Args: {
+          p_subject_id: string
+          p_subject_type: Database["public"]["Enums"]["kyc_subject_type"]
+        }
+        Returns: {
+          created_at: string
+          doc_type: string
+          id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["kyc_doc_status"]
+          storage_path: string
+          subject_id: string
+          subject_type: Database["public"]["Enums"]["kyc_subject_type"]
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "kyc_documents"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       my_loyalty_history: {
         Args: { p_limit?: number }
         Returns: {
@@ -2595,6 +2669,10 @@ export type Database = {
       resolve_zone_nearest: {
         Args: { p_geo: unknown }
         Returns: Database["public"]["Enums"]["zone_type"]
+      }
+      review_kyc_document: {
+        Args: { p_approve: boolean; p_document_id: string; p_note?: string }
+        Returns: undefined
       }
       rider_snapshot: { Args: { p_driver_id: string }; Returns: Json }
       send_order_message: {
@@ -3274,6 +3352,8 @@ export type Database = {
         | "contains_nuts"
         | "spicy"
         | "glutenfree"
+      kyc_doc_status: "pending" | "approved" | "rejected"
+      kyc_subject_type: "driver" | "restaurant"
       locale_type: "en" | "ar" | "ru" | "it" | "de"
       order_status_type:
         | "placed"
@@ -3481,6 +3561,8 @@ export const Constants = {
         "spicy",
         "glutenfree",
       ],
+      kyc_doc_status: ["pending", "approved", "rejected"],
+      kyc_subject_type: ["driver", "restaurant"],
       locale_type: ["en", "ar", "ru", "it", "de"],
       order_status_type: [
         "placed",
