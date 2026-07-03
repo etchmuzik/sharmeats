@@ -299,6 +299,10 @@ function mapPlaceOrderError(error: { message?: string }): Error {
     BELOW_MIN_ORDER: 'Your order is below the restaurant minimum.',
     INVALID_QTY: 'Invalid item quantity.',
     AUTH_REQUIRED: 'Please sign in to place your order.',
+    OUT_OF_RANGE: 'This restaurant is too far from your address to deliver. Try a closer restaurant or a different address.',
+    USER_BLOCKED: 'Your account can’t place orders right now. Please contact support.',
+    TOO_MANY_ACTIVE_ORDERS: 'You have too many orders in progress. Please wait for one to arrive first.',
+    NEW_USER_ORDER_LIMIT: 'New accounts have a daily order limit. Please try again later.',
   };
   for (const key of Object.keys(map)) {
     if (msg.includes(key)) return new Error(map[key]);
