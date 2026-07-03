@@ -190,6 +190,51 @@ export async function getOffers(driverId: string): Promise<Assignment[]> {
 }
 
 /**
+ * Live subscription to this driver's offers via Realtime postgres_changes on
+ * order_assignments. Previously the offer list refreshed only on screen-focus,
+ * app-foreground, or a `new_offer` push tap — so a driver sitting on the home
+ * screen with push disabled would not see a fresh offer until they manually
+ * refocused. This makes an offer appear the instant dispatch creates the row,
+ * independent of push.
+ *
+ * Fires `onChange` on every assignment change for this driver (INSERT of a new
+ * offer, or an UPDATE that expires/reassigns one), and once on (re)connect —
+ * supabase-js rejoins after a network drop but never replays missed events, so
+ * a resync closes both the outage gap and the initial join-window gap. `onChange`
+ * receives the current pending-offer list (refetched, so it's always consistent
+ * with the DB rather than patched from a single row).
+ *
+ * Tears down any stale same-named channel first (supabase-js reuses a channel by
+ * name; calling .on() on an already-subscribed one throws). Returns unsubscribe.
+ */
+export function subscribeOffers(
+  driverId: string,
+  onChange: (offers: Assignment[]) => void,
+): () => void {
+  const sb = getSupabase();
+  const name = `driver:${driverId}:offers`;
+  for (const existing of sb.getChannels()) {
+    if (existing.topic === `realtime:${name}`) sb.removeChannel(existing);
+  }
+  const refresh = () => {
+    getOffers(driverId).then(onChange).catch(() => {});
+  };
+  const channel = sb
+    .channel(name)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'order_assignments', filter: `driver_id=eq.${driverId}` },
+      () => refresh(),
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') refresh();
+    });
+  return () => {
+    sb.removeChannel(channel);
+  };
+}
+
+/**
  * The driver's current active order — one they have ACCEPTED and not finished.
  *
  * [H-DRV2] auto_assign_order/assign_driver set orders.assigned_driver_id at OFFER
