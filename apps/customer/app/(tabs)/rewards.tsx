@@ -301,9 +301,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   walletCard: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.xl,
-    padding: 18,
+    // [App v2] Dark wallet card (#131313) — the design's ".wcard". White-overlay
+    // circle / button / subtitle (rgba(255,255,255,…)) all read on this surface.
+    backgroundColor: colors.inkDeep,
+    borderRadius: radius.xxxl,
+    padding: 22,
     marginTop: 16,
     ...shadow.card,
   },
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  walletBalance: { fontSize: font.sizes['6xl'], fontWeight: font.weights.extrabold, color: colors.white },
+  walletBalance: { fontSize: font.sizes['10xl'], fontWeight: font.weights.extrabold, color: colors.white, letterSpacing: -0.5 },
   walletSub: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
   walletEmpty: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 12 },
   walletBtn: {
