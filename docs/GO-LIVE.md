@@ -102,3 +102,31 @@ Owner: **you** (2 web-UI steps).
 ## TL;DR
 - **Closed pilot (COD + TestFlight):** ready now.
 - **Public launch (card payments + App Store):** blocked on Paymob setup (A) and the two App Store submissions (B, C) — all external/yours; the code is done.
+
+---
+
+## Payment mode: CASH-ON-DELIVERY ONLY (current launch state)
+
+The customer app ships **cash-only** on purpose. Card/Apple Pay are hidden
+everywhere — there is no dead "pay by card" button and no reachable card path.
+
+- **Where it's controlled:** `apps/customer/src/lib/payments.ts` →
+  `CARD_PAYMENTS_ENABLED` (reads `EXPO_PUBLIC_PAYMENTS_CARD_ENABLED`).
+  Set to `"false"` in `apps/customer/eas.json` production profile.
+- **Effect:** `listPaymentMethods()` returns COD only, so both the checkout
+  summary and the payment picker show only Cash on Delivery. The checkout's
+  card branch (`if (isCard)`) is unreachable while the flag is off.
+- **COD works with zero card config** — verified live: 41/41 open restaurants
+  accept cash, `mark_cod_collected` reconciles driver earnings, per-user COD
+  fraud caps (3 active / 5 new-user-24h) are enforced race-safely.
+
+### To enable card payments later (do NOT do this before Paymob is live)
+1. Create the Paymob account; set `PAYMOB_SECRET_KEY` / `PAYMOB_PUBLIC_KEY` /
+   `PAYMOB_INTEGRATION_ID` / `PAYMOB_HMAC_SECRET` as function secrets.
+2. Deploy `paymob-create-intention` + `paymob-webhook` (`--no-verify-jwt` on the
+   webhook) and set the callback URL in the Paymob dashboard.
+3. Flip `EXPO_PUBLIC_PAYMENTS_CARD_ENABLED=true` in `eas.json` and **rebuild** the
+   customer app. Card only appears in a fresh build — it is not a runtime toggle.
+
+Flipping the flag on before steps 1–2 are done would show customers a card option
+that can't complete. Keep it `false` until Paymob is verified end-to-end.
