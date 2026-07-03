@@ -66,7 +66,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fafaf7' } }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F6F5F2' } }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="signin" />

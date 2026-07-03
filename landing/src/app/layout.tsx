@@ -1,15 +1,19 @@
 import type { Metadata } from 'next';
-import { Sora, Plus_Jakarta_Sans } from 'next/font/google';
+import { Urbanist, Tajawal } from 'next/font/google';
 import './globals.css';
 
-// Brand display + UI faces (self-hosted via next/font). Mapped to Tailwind's
-// font-display / font-sans in tailwind.config so the marketing site shares the
-// app's identity (headlines were rendering in Georgia before).
-const sora = Sora({ subsets: ['latin'], weight: ['500', '600', '700', '800'], variable: '--font-display' });
-const jakarta = Plus_Jakarta_Sans({
+// Landing v2 typefaces (Claude Design handoff): Urbanist for Latin scripts,
+// Tajawal as the Arabic companion — stacked so RTL copy falls through to
+// Tajawal automatically, exactly like the design's --body stack.
+const urbanist = Urbanist({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-sans',
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-urbanist',
+});
+const tajawal = Tajawal({
+  subsets: ['arabic'],
+  weight: ['400', '500', '700', '800'],
+  variable: '--font-tajawal',
 });
 
 export const metadata: Metadata = {
@@ -35,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sora.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`${urbanist.variable} ${tajawal.variable}`}>
       <body>{children}</body>
     </html>
   );

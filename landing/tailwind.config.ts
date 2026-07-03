@@ -1,27 +1,29 @@
 import type { Config } from 'tailwindcss';
 
+// Landing v2 palette (Claude Design handoff, 2026-07): warm off-white canvas,
+// near-black ink, coral accent, teal secondary. Legal pages share these tokens.
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        ink: '#0a0a0c',
-        ink2: '#5b5b66',
-        ink3: '#9494a0',
-        bg: '#fafaf7',
-        bgSoft: '#f5f0e1',
-        line: '#e8e3d4',
-        accent: '#ff5a3c',
-        accentDark: '#e8482b',
-        accentSoft: '#ffeae4',
-        sea: '#0e7c91',
-        seaSoft: '#dff0f3',
-        sand: '#f3ead7',
-        sand2: '#ebe0c5',
+        ink: '#161616',
+        ink2: '#8B8984',
+        ink3: '#B0ADA6',
+        bg: '#F6F5F2',
+        bgSoft: '#EFEDE9',
+        line: '#EAE8E3',
+        accent: '#F05A1F',
+        accentDark: '#C4552D',
+        accentSoft: '#FDEBE2',
+        sea: '#0E7C91',
+        seaSoft: '#DFF0F3',
+        sand: '#EFEDE9',
+        sand2: '#E4E2DD',
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        display: ['var(--font-display)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-urbanist)', 'var(--font-tajawal)', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        display: ['var(--font-urbanist)', 'var(--font-tajawal)', 'system-ui', 'sans-serif'],
       },
     },
   },

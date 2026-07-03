@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, View, Pressable, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font } from '../theme';
+import { colors, font, radius, shadow } from '../theme';
 import { selection } from '../haptics';
 import { useCart } from '../store/cart';
 import { useUnreadBadges } from '../hooks/useUnreadBadges';
@@ -19,6 +19,12 @@ const TABS: { key: TabKey; icon: string; tKey: string; path: string }[] = [
   { key: 'profile', icon: '👤', tKey: 'tabs.profile', path: '/(tabs)/profile' },
 ];
 
+/**
+ * App v2 floating pill nav: a dark rounded bar hovering above the bottom edge;
+ * the active tab sits in a white pill with its label, inactive tabs are
+ * icon-only. Pure restyle of the v1 bar — routing, haptics and the cart /
+ * unread badges are unchanged.
+ */
 export function TabBar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,14 +46,7 @@ export function TabBar() {
   }, [cartCount, scale]);
 
   return (
-    <View
-      style={[
-        styles.wrap,
-        {
-          paddingBottom: Math.max(insets.bottom, 12),
-          borderTopWidth: 1,
-        },
-      ]}>
+    <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 14) }]}>
       {TABS.map((tab) => {
         const active = pathname.includes(tab.key);
         return (
@@ -57,9 +56,9 @@ export function TabBar() {
               if (!active) selection();
               router.replace(tab.path as never);
             }}
-            style={styles.tab}>
+            style={active ? styles.tabOn : styles.tab}>
             <View>
-              <Text style={[styles.icon, !active && { opacity: 0.5 }]}>{tab.icon}</Text>
+              <Text style={[styles.icon, !active && styles.iconDim]}>{tab.icon}</Text>
               {tab.key === 'cart' && cartCount > 0 && (
                 <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
                   <Text style={styles.badgeText}>{cartCount}</Text>
@@ -76,7 +75,7 @@ export function TabBar() {
                 </View>
               )}
             </View>
-            <Text style={[styles.label, active && styles.labelActive]}>{t(tab.tKey)}</Text>
+            {active && <Text style={styles.labelOn}>{t(tab.tKey)}</Text>}
           </Pressable>
         );
       })}
@@ -87,19 +86,37 @@ export function TabBar() {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    left: 14,
+    right: 14,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(255,255,255,0.98)',
-    borderTopColor: colors.line,
-    paddingTop: 10,
+    alignItems: 'center',
+    backgroundColor: colors.inkDeep,
+    borderRadius: radius.pill,
+    padding: 6,
+    ...shadow.nav,
   },
-  tab: { alignItems: 'center', paddingHorizontal: 14, paddingVertical: 4 },
-  icon: { fontSize: 22, marginBottom: 3 },
-  label: { fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.ink3 },
-  labelActive: { color: colors.accent },
+  tab: {
+    flex: 1,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabOn: {
+    height: 52,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+  },
+  icon: { fontSize: 20 },
+  iconDim: { opacity: 0.45 },
+  labelOn: {
+    fontSize: font.sizes.base,
+    fontWeight: font.weights.extrabold,
+    color: colors.inkDeep,
+  },
   badge: {
     position: 'absolute',
     top: -4,
