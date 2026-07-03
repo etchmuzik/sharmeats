@@ -10,6 +10,7 @@ import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { KitchenBriefing } from '../src/components/KitchenBriefing';
 import { CheckoutStepper } from '../src/components/CheckoutStepper';
+import { CheckoutPromiseCard } from '../src/components/CheckoutPromiseCard';
 import { DropoffPreferenceCard } from '../src/components/DropoffPreferenceCard';
 import { Icon, type IconName } from '../src/components/Icon';
 import { colors, font, radius, shadow } from '../src/theme';
@@ -173,6 +174,18 @@ export default function Checkout() {
   const discount = promoApplied?.discount ?? 0;
   const total = Math.max(0, subtotal + deliveryFee + tax + tipEgp - discount);
 
+  // Honest client-side "promised by" estimate for the v2 promise card. Server
+  // authority still sets the real eta_at inside place_order (prep + travel +
+  // dispatch buffer); this is a pre-placement preview: a scheduled slot if the
+  // user picked one, else now + the restaurant's high prep estimate + a 5-min
+  // dispatch buffer (mirrors dispatch_buffer_minutes default in mig 079).
+  const promisedTime = useMemo<string | null>(() => {
+    if (scheduledFor) return formatTime(new Date(scheduledFor));
+    if (!restaurant) return null;
+    const mins = (restaurant.prepTimeHigh || 30) + 5;
+    return formatTime(new Date(Date.now() + mins * 60_000));
+  }, [scheduledFor, restaurant]);
+
   const applyPromo = async () => {
     const code = promoInput.trim();
     if (!code || promoChecking) return;
@@ -287,6 +300,9 @@ export default function Checkout() {
       <CheckoutStepper />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 200 }}>
+        {/* [App v2] Honest-ETA promise card — the design's signature checkout header. */}
+        {promisedTime && <CheckoutPromiseCard promisedTime={promisedTime} />}
+
         {/* Address card */}
         <View style={styles.card}>
           <View style={[styles.cardHead, dir.row]}>

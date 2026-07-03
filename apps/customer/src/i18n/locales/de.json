@@ -44,6 +44,8 @@
   "address.floor": "Etage",
   "address.apt": "Whg.",
   "checkout.title": "Zur Kasse",
+  "checkout.promiseTitle": "Zugesagt bis {time}",
+  "checkout.promiseSub": "Über 15 Min zu spät → Gutschrift kommt automatisch",
   "onboarding.title1": "Essenslieferung gemacht für ",
   "onboarding.accent1": "Sharm",
   "onboarding.desc1": "Von Hotelzimmern über Apartments bis zu Beachclubs — wir liefern aus Sharms besten Küchen.",

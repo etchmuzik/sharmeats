@@ -44,6 +44,8 @@
   "address.floor": "الدور",
   "address.apt": "شقة",
   "checkout.title": "إتمام الطلب",
+  "checkout.promiseTitle": "في معادك الساعة {time}",
+  "checkout.promiseSub": "لو اتأخرنا 15 دقيقة زيادة، الرصيد بينزل لوحده",
   "onboarding.title1": "توصيل طعام مصمم لـ",
   "onboarding.accent1": "شرم",
   "onboarding.desc1": "من غرف الفنادق إلى الشقق وأندية الشاطئ — نوصل من أفضل مطابخ شرم.",

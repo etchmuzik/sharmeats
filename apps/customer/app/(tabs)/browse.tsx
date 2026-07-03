@@ -15,11 +15,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius } from '../../src/theme';
 import { CuisinePill } from '../../src/components/CuisinePill';
+import { CuisineChip } from '../../src/components/CuisineChip';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
 import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
 import type { Cuisine, MenuItem, Restaurant } from '../../src/data/types';
 import { useT } from '../../src/i18n';
+import { useDirection } from '../../src/lib/direction';
 import { formatEgp } from '../../src/lib/format';
 import { effectiveIsOpen } from '../../src/lib/openHours';
 import { tap } from '../../src/haptics';
@@ -65,6 +67,7 @@ export default function BrowseTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
+  const dir = useDirection();
   const [cuisine, setCuisine] = useState<Cuisine | 'all'>('all');
   const [query, setQuery] = useState('');
   const [all, setAll] = useState<Restaurant[]>([]);
@@ -180,12 +183,18 @@ export default function BrowseTab() {
             accessibilityLabel={t('home.searchHint')}
           />
         </View>
+        {/* [App v2] circular category chips — the arc picker's lighter, all-13
+            interpretation. RTL is mirrored explicitly because this app never
+            engages native forceRTL (see src/lib/direction.ts). */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.cuisineRow}>
+          contentContainerStyle={[
+            styles.cuisineRow,
+            { flexDirection: dir.isRtl ? 'row-reverse' : 'row' },
+          ]}>
           {CUISINES.map((c) => (
-            <CuisinePill
+            <CuisineChip
               key={c.key}
               label={t(c.tKey)}
               emoji={c.emoji}
@@ -306,7 +315,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   input: { flex: 1, fontSize: font.sizes.lg, color: colors.ink, paddingVertical: 0 },
-  cuisineRow: { gap: 8, paddingTop: 14, paddingBottom: 6 },
+  cuisineRow: { gap: 6, paddingTop: 14, paddingBottom: 8, paddingHorizontal: 2 },
   flagRow: { gap: 8, paddingTop: 4, paddingBottom: 14, alignItems: 'center' },
   sortDivider: { width: 1, height: 22, backgroundColor: colors.line2, marginHorizontal: 4 },
   menuMatchWrap: { gap: 6, marginBottom: 14 },
