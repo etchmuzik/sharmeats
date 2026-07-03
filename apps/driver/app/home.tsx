@@ -21,6 +21,7 @@ import {
   getOffers,
   respondToOffer,
   setOnline,
+  subscribeOffers,
   type Assignment,
   type EarningsSummary,
   type Job,
@@ -105,6 +106,17 @@ export default function Home() {
     });
     return () => sub.remove();
   }, [load]);
+
+  // Live offer sync via Realtime (order_assignments), independent of push. Makes
+  // a new offer appear the instant dispatch creates it even when the app is open
+  // and push is disabled — the previous paths (focus/foreground/push-tap) left a
+  // gap for an idle-but-open driver. Subscribes once we know the driver; the
+  // subscription self-resyncs on (re)connect so nothing is missed across drops.
+  useEffect(() => {
+    if (!driver) return;
+    const unsub = subscribeOffers(driver.id, (offs) => setOffers(offs));
+    return unsub;
+  }, [driver?.id]);
 
   // Push notifications: register this device for delivery-offer pushes (H1) and
   // refresh the offer list when the driver taps a `new_offer` notification. Runs
