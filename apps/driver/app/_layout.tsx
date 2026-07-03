@@ -5,6 +5,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/auth';
 import { ToastProvider } from '../src/components/Toast';
 import { colors } from '../src/theme';
+import { initCrashReporting } from '../src/lib/crash';
+
+// Boot crash reporting before the tree renders (no-op unless EXPO_PUBLIC_SENTRY_DSN
+// is set). The driver app runs unattended mid-delivery — a silent crash is the
+// worst blind spot, so this runs first.
+initCrashReporting();
 
 export default function RootLayout() {
   return (
