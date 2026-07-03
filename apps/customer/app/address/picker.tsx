@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
+import { Icon } from '../../src/components/Icon';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { useT } from '../../src/i18n';
@@ -46,6 +47,22 @@ export default function AddressPicker() {
 
   const filtered = addresses.filter((a) => a.kind === active);
 
+  const removeAddress = (id: string) => {
+    Alert.alert('', t('address.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('address.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          await db.user.removeAddress(id);
+          if (id === selectedAddressId) setSelectedAddressId(null);
+          const all = await db.user.listAddresses();
+          setAddresses(all);
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="dark" />
@@ -86,6 +103,7 @@ export default function AddressPicker() {
                 tap();
                 setSelectedAddressId(a.id);
               }}
+              onLongPress={() => removeAddress(a.id)}
               style={[styles.card, isSel && styles.cardActive]}>
               <View style={styles.cardLeft}>
                 <Text style={styles.cardIcon}>
@@ -102,6 +120,14 @@ export default function AddressPicker() {
                       : `${a.beachName ?? t('address.beachPin')}`}
                 </Text>
               </View>
+              <Pressable
+                onPress={() => removeAddress(a.id)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t('address.delete')}
+                style={styles.deleteBtn}>
+                <Icon name="trash" size={18} color={colors.ink3} />
+              </Pressable>
               <View
                 style={[styles.radio, isSel && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
                 {isSel && <View style={styles.radioDot} />}
@@ -165,6 +191,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.white },
+  deleteBtn: { padding: 6, marginRight: 4 },
   addNew: {
     borderRadius: radius.xl,
     borderWidth: 1.5,

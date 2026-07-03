@@ -77,7 +77,7 @@ comment on column public.restaurants.vertical_id is
 comment on column public.restaurants.fulfillment_type is
   'Hybrid fleet: ''platform'' (our drivers, dispatched) or ''self_delivery'' (merchant''s own driver). Default copied onto each order, frozen there.';
 comment on column public.restaurants.commission_pct is
-  'Platform commission %. Founding-cohort LOI offers 12% (vs Twista 18-22%).';
+  'Platform commission %. Founding-cohort LOI offers 12% (vs Bringit 18-22%).';
 comment on column public.menu_items.unit is
   'Sale unit. ''each'' for food/most items; ''kg''/''pack'' for grocery weights. price_egp is per-unit.';
 comment on column public.menu_items.requires_prescription is

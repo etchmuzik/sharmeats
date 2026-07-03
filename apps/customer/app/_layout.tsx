@@ -77,9 +77,12 @@ export default function RootLayout() {
           <Stack.Screen name="payment/picker" options={{ presentation: 'modal' }} />
           <Stack.Screen name="order/[id]" />
           <Stack.Screen name="order/[id]/review" />
+          <Stack.Screen name="order/[id]/chat" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="settings/allergies" />
           <Stack.Screen name="help" />
+          <Stack.Screen name="support" />
+          <Stack.Screen name="edit-profile" />
           <Stack.Screen name="delete-account" />
         </Stack>
       </SafeAreaProvider>

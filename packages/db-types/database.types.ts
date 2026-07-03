@@ -86,6 +86,80 @@ export type Database = {
           },
         ]
       }
+      credit_ledger: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          delta_egp: number
+          id: number
+          note: string | null
+          reason: string
+          ref_order_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          delta_egp: number
+          id?: never
+          note?: string | null
+          reason: string
+          ref_order_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          delta_egp?: number
+          id?: never
+          note?: string | null
+          reason?: string
+          ref_order_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_ledger_ref_order_id_fkey"
+            columns: ["ref_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_credit_balance: {
+        Row: {
+          balance_egp: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_egp?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_egp?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_credit_balance_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_loyalty: {
         Row: {
           points_balance: number
@@ -762,6 +836,57 @@ export type Database = {
           },
         ]
       }
+      order_financials: {
+        Row: {
+          commission_egp: number
+          commission_pct: number
+          created_at: string
+          delivered_at: string
+          delivery_fee_egp: number
+          order_id: string
+          payment_method: string
+          restaurant_id: string
+          subtotal_egp: number
+        }
+        Insert: {
+          commission_egp: number
+          commission_pct: number
+          created_at?: string
+          delivered_at: string
+          delivery_fee_egp?: number
+          order_id: string
+          payment_method: string
+          restaurant_id: string
+          subtotal_egp: number
+        }
+        Update: {
+          commission_egp?: number
+          commission_pct?: number
+          created_at?: string
+          delivered_at?: string
+          delivery_fee_egp?: number
+          order_id?: string
+          payment_method?: string
+          restaurant_id?: string
+          subtotal_egp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_financials_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_financials_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           catalog_item_id: string | null
@@ -812,6 +937,51 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          order_id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          order_id: string
+          read_at?: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1559,6 +1729,51 @@ export type Database = {
         }
         Relationships: []
       }
+      support_messages: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          from_support: boolean
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          from_support?: boolean
+          id?: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          from_support?: boolean
+          id?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           allergy_profile: Database["public"]["Enums"]["allergy_key_type"][]
@@ -1568,6 +1783,7 @@ export type Database = {
           display_name: string
           email: string | null
           id: string
+          is_blocked: boolean
           locale: Database["public"]["Enums"]["locale_type"]
           phone: string
           preferred_currency: Database["public"]["Enums"]["currency_type"]
@@ -1583,6 +1799,7 @@ export type Database = {
           display_name: string
           email?: string | null
           id: string
+          is_blocked?: boolean
           locale?: Database["public"]["Enums"]["locale_type"]
           phone: string
           preferred_currency?: Database["public"]["Enums"]["currency_type"]
@@ -1598,6 +1815,7 @@ export type Database = {
           display_name?: string
           email?: string | null
           id?: string
+          is_blocked?: boolean
           locale?: Database["public"]["Enums"]["locale_type"]
           phone?: string
           preferred_currency?: Database["public"]["Enums"]["currency_type"]
@@ -1935,8 +2153,13 @@ export type Database = {
       auto_accept_sweep: { Args: never; Returns: number }
       auto_advance_sweep: { Args: never; Returns: number }
       auto_assign_order: { Args: { p_order_id: string }; Returns: string }
+      can_access_order_thread: {
+        Args: { p_order_id: string }
+        Returns: boolean
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dispatch_sweep: { Args: never; Returns: number }
+      dispatch_watchdog: { Args: never; Returns: undefined }
       driver_ping: {
         Args: { p_lat: number; p_lng: number; p_status?: string }
         Returns: undefined
@@ -2090,12 +2313,31 @@ export type Database = {
       gettransactionid: { Args: never; Returns: unknown }
       has_completed_order: { Args: { p_user: string }; Returns: boolean }
       is_merchant_staff: { Args: { p_restaurant_id: string }; Returns: boolean }
+      issue_credit: {
+        Args: {
+          p_amount_egp: number
+          p_note?: string
+          p_order_id?: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       loyalty_tier_sweep: { Args: never; Returns: number }
       mark_cod_collected: {
         Args: { p_amount: number; p_order_id: string }
         Returns: undefined
       }
+      mark_order_thread_read: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
+      mark_support_thread_read: {
+        Args: { p_user_id?: string }
+        Returns: undefined
+      }
+      my_credit_balance: { Args: never; Returns: number }
       my_driver_tier: {
         Args: never
         Returns: {
@@ -2144,6 +2386,8 @@ export type Database = {
           tier: string
         }[]
       }
+      my_support_unread_count: { Args: never; Returns: number }
+      my_unread_message_count: { Args: never; Returns: number }
       nearest_drivers: {
         Args: { p_geo: unknown; p_limit?: number; p_radius_m?: number }
         Returns: {
@@ -2154,6 +2398,7 @@ export type Database = {
           vehicle: Database["public"]["Enums"]["vehicle_type"]
         }[]
       }
+      ops_alert: { Args: { p_text: string }; Returns: undefined }
       place_order: {
         Args: {
           p_address_id: string
@@ -2222,7 +2467,26 @@ export type Database = {
         Returns: number
       }
       reconcile_stale_card_orders: { Args: never; Returns: number }
+      redeem_credit: { Args: { p_amount_egp: number }; Returns: string }
       redeem_points: { Args: { p_points: number }; Returns: string }
+      reply_support_message: {
+        Args: { p_body: string; p_user_id: string }
+        Returns: {
+          author_id: string | null
+          body: string
+          created_at: string
+          from_support: boolean
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       resolve_zone: {
         Args: { p_geo: unknown }
         Returns: Database["public"]["Enums"]["zone_type"]
@@ -2232,6 +2496,42 @@ export type Database = {
         Returns: Database["public"]["Enums"]["zone_type"]
       }
       rider_snapshot: { Args: { p_driver_id: string }; Returns: Json }
+      send_order_message: {
+        Args: { p_body: string; p_order_id: string }
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          order_id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: Database["public"]["Enums"]["app_role"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "order_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      send_support_message: {
+        Args: { p_body: string }
+        Returns: {
+          author_id: string | null
+          body: string
+          created_at: string
+          from_support: boolean
+          id: string
+          read_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "support_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown

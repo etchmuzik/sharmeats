@@ -250,6 +250,18 @@ export type OrderStatus =
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
+export type MessageSenderRole = 'customer' | 'driver' | 'merchant_staff' | 'admin';
+
+export interface OrderMessage {
+  id: string;
+  orderId: string;
+  senderId: string;
+  senderRole: MessageSenderRole;
+  body: string;
+  createdAt: number;
+  readAt: number | null;
+}
+
 export interface Rider {
   id: string;
   name: string;

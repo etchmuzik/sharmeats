@@ -76,4 +76,4 @@ cd apps/admin-web    && npm install && npm run dev   # :3002
 
 ## Business context
 
-**Competition (verified May 2026):** Twista leads (500+ restaurants, 4.9★); wedge = tourist-first + hyper-local + 12% commission (vs 18-22%). See `docs/restaurant-loi.md`.
+**Competition (corrected July 2026):** Bringit is the local incumbent (owner-confirmed; restaurant count / rating to re-verify); wedge = tourist-first + hyper-local + 12% commission (vs 18-22%). See `docs/restaurant-loi.md`.

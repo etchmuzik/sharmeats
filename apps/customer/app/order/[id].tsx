@@ -363,18 +363,21 @@ export default function OrderTracking() {
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Pressable
+                onPress={() => {
+                  tap();
+                  router.push(`/order/${order.id}/chat`);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('order.messageInApp')}
+                style={[styles.actBtn, { backgroundColor: colors.accent }]}>
+                <Icon name="chat" size={20} color={colors.white} />
+              </Pressable>
+              <Pressable
                 onPress={() => contactRider('call', order.rider?.phone)}
                 accessibilityRole="button"
                 accessibilityLabel={t('order.callDriver')}
                 style={[styles.actBtn, { backgroundColor: colors.green }]}>
                 <Icon name="phone" size={20} color={colors.white} />
-              </Pressable>
-              <Pressable
-                onPress={() => contactRider('whatsapp', order.rider?.phone)}
-                accessibilityRole="button"
-                accessibilityLabel={t('order.messageDriver')}
-                style={[styles.actBtn, { backgroundColor: '#25D366' }]}>
-                <Icon name="chat" size={20} color={colors.white} />
               </Pressable>
             </View>
           </View>
@@ -405,7 +408,7 @@ export default function OrderTracking() {
 
         {/* Restaurant contact — shown only here (post-order), never while
             browsing. Lets the customer reach the venue about THIS order. */}
-        {!isCancelled && restaurant && (restaurant.address || restaurant.phone) && (
+        {!isCancelled && restaurant && (
           <View style={styles.contactCard}>
             {restaurant.address && (
               <Text style={styles.contactAddr} numberOfLines={2}>
@@ -413,6 +416,16 @@ export default function OrderTracking() {
               </Text>
             )}
             <View style={styles.contactActions}>
+              <Pressable
+                onPress={() => {
+                  tap();
+                  router.push(`/order/${order.id}/chat`);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('order.messageRestaurant')}
+                style={styles.contactBtn}>
+                <Text style={styles.contactBtnText}>💬 {t('order.messageRestaurant')}</Text>
+              </Pressable>
               {restaurant.phone && (
                 <Pressable
                   onPress={() => {
@@ -462,6 +475,17 @@ export default function OrderTracking() {
             <Text style={styles.cancelBtnText}>{t('order.cancelOrder')}</Text>
           </Pressable>
         )}
+
+        <Pressable
+          onPress={() => {
+            tap();
+            router.push(`/help?orderCode=${order.shortCode}`);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('order.getHelp')}
+          style={styles.helpLink}>
+          <Text style={styles.helpLinkText}>{t('order.getHelp')}</Text>
+        </Pressable>
 
         {/* Dev-only shortcut to fast-forward an order to delivered. __DEV__ is
             false in production builds, so a real customer never sees this — in
@@ -735,6 +759,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelBtnText: { color: colors.red, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
+  helpLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
+  helpLinkText: { color: colors.sea, fontSize: font.sizes.lg, fontWeight: font.weights.semibold },
 
   debugBtn: {
     marginTop: 18,

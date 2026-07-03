@@ -237,6 +237,40 @@ export default function JobScreen() {
 
         <DropoffPreferenceCard preference={job.dropoff_preference} note={job.dropoff_note} />
 
+        {/* Contact the customer. In-app chat is always available once assigned;
+            the phone call is offered only while out for delivery (mig 028
+            fetches customer_phone but it was never surfaced — the #1 buried
+            feature: a driver at the door with no way to reach the customer). */}
+        {!['delivered', 'cancelled', 'rejected'].includes(job.status) && (
+          <View style={{ marginTop: spacing.md, flexDirection: 'row', gap: spacing.md }}>
+            {job.customer_phone && job.status === 'out_for_delivery' && (
+              <ContactButton
+                icon="phone"
+                label="Call customer"
+                onPress={() => Linking.openURL(`tel:${job.customer_phone}`)}
+              />
+            )}
+            <ContactButton
+              icon="chat"
+              label="Message"
+              onPress={() => router.push(`/job/${id}/chat`)}
+            />
+          </View>
+        )}
+
+        {/* Customer's delivery note (kitchen_notes) — fetched but never shown
+            before. Only render when the customer actually left one. */}
+        {job.kitchen_notes?.trim() ? (
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.amberSoft, borderRadius: radius.xl, padding: spacing.lg }}>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.amber, fontWeight: '700', textTransform: 'uppercase' }}>
+              Note from the customer
+            </Text>
+            <Text style={{ fontSize: font.sizes.base, color: colors.ink, marginTop: 4 }}>
+              {job.kitchen_notes.trim()}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Order items — so the driver can verify the bag before leaving the restaurant. */}
         {job.items.length > 0 && (
           <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
@@ -268,6 +302,16 @@ export default function JobScreen() {
               ? `Collect ${job.total_egp} EGP cash`
               : `Paid by card · ${job.total_egp} EGP`}
           </Text>
+          {/* Tip (tip_egp) — fetched but never displayed, so the driver couldn't
+              see the tip they earned on this delivery. */}
+          {job.tip_egp > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Icon name="star" size={13} color={colors.star} />
+              <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, fontWeight: '600' }}>
+                Includes {job.tip_egp} EGP tip for you
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -339,6 +383,39 @@ function NavButton({
     >
       <Icon name={icon} size={18} color={colors.white} />
       <Text style={{ color: colors.white, fontWeight: '700', fontSize: font.sizes.base }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function ContactButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: 'phone' | 'chat';
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={{
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        backgroundColor: colors.accentSoft,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        borderRadius: radius.lg,
+        paddingVertical: spacing.md,
+      }}
+    >
+      <Icon name={icon} size={18} color={colors.accentDark} />
+      <Text style={{ color: colors.accentDark, fontWeight: '700', fontSize: font.sizes.base }}>{label}</Text>
     </Pressable>
   );
 }

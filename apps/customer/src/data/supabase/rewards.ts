@@ -23,4 +23,18 @@ export const rewardsRepoSupabase = {
     if (typeof data !== 'string' || data.length === 0) throw new Error('Redeem failed');
     return data;
   },
+
+  // Credit wallet (refunds, goodwill, and the automatic SLA late-credit — mig 062).
+  async getCreditBalanceEgp(): Promise<number> {
+    const { data, error } = await getSupabase().rpc('my_credit_balance');
+    if (error) throw error;
+    return typeof data === 'number' ? data : 0;
+  },
+
+  async redeemCredit(amountEgp: number): Promise<string> {
+    const { data, error } = await getSupabase().rpc('redeem_credit', { p_amount_egp: amountEgp });
+    if (error) throw error;
+    if (typeof data !== 'string' || data.length === 0) throw new Error('Redeem failed');
+    return data;
+  },
 };

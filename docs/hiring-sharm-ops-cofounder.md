@@ -28,7 +28,7 @@ None of this can be remote. None of this is doable by the founder remotely. Hire
 - **F&B or hospitality background** — 3+ years. Examples that count:
   - Restaurant general manager (any Sharm hotel restaurant or standalone).
   - Hotel F&B coordinator (Hilton, Marriott, Four Seasons, Rixos, Savoy, Jaz, Coral Sea, Sunrise, Steigenberger — any of them).
-  - Ex-Talabat / Otlob / Elmenus / **Twista** account manager (highest-value background — already has the relationships).
+  - Ex-Talabat / Otlob / Elmenus / **Bringit** account manager (highest-value background — already has the relationships).
   - Restaurant supplier rep (e.g., wholesale meat, beverages) — has the Rolodex.
 - **English fluency.** Will be the primary contact for European tourist hotel partnerships.
 - **Comfortable with founder ambiguity.** This is not a salaried job; the first 6 months are scrappy.
@@ -55,7 +55,7 @@ None of this can be remote. None of this is doable by the founder remotely. Hire
 Ranked by expected signal-to-noise.
 
 ### Tier 1 — direct outreach (do these first)
-1. **Twista / Talabat / Otlob account-manager LinkedIn DMs.** Search LinkedIn for `"Twista" Sharm`, `"Talabat" Sharm`, `"Otlob" account manager Egypt`. Reach out to 30. Expect 5 replies. This is the highest-yield channel because they already do exactly this job.
+1. **Bringit / Talabat / Otlob account-manager LinkedIn DMs.** Search LinkedIn for `"Bringit" Sharm`, `"Talabat" Sharm`, `"Otlob" account manager Egypt`. Reach out to 30. Expect 5 replies. This is the highest-yield channel because they already do exactly this job.
 2. **Hotel F&B coordinators / restaurant managers at named resorts.** Same LinkedIn search: `Hilton Sharks Bay F&B`, `Four Seasons Sharm F&B coordinator`, `Marriott Sharm restaurant manager`. Even ex-employees count.
 3. **Personal network in Sharm** — anyone you know who's lived there. Ask: "Who's the most connected F&B person you know in Naama Bay?" Direct intros beat cold outreach 10:1.
 
@@ -74,7 +74,7 @@ Ranked by expected signal-to-noise.
 
 > Hi [Name] — I came across your profile while looking for someone who knows Sharm's F&B scene from the inside.
 >
-> I'm building a tourist-focused food delivery app for Sharm El Sheikh. The incumbent operators (Twista, Bringit) are good at operations but weak on product — there's a real opportunity to do this better, especially for European and Russian guests at the major resorts.
+> I'm building a tourist-focused food delivery app for Sharm El Sheikh. The incumbent operators (Bringit, Talabat) are good at operations but weak on product — there's a real opportunity to do this better, especially for European and Russian guests at the major resorts.
 >
 > I'm looking for a co-founder, not an employee. Someone Sharm-based with F&B relationships who wants to build this with me — equity-heavy, scrappy first 6 months, real upside if it works.
 >
@@ -98,11 +98,11 @@ Ranked by expected signal-to-noise.
 
 ### Stage 1 — Screening call (30 min, video)
 - Goal: confirm basics. Sharm-based, Arabic native, F&B background, willing to be a co-founder not employee.
-- Red flags: wants fixed salary, "I'll work remotely from Cairo," can't articulate why they want *this*, badmouths Twista/Talabat reflexively (suggests poor judgment, not insight).
+- Red flags: wants fixed salary, "I'll work remotely from Cairo," can't articulate why they want *this*, badmouths Bringit/Talabat reflexively (suggests poor judgment, not insight).
 
 ### Stage 2 — F&B knowledge test (45 min, video)
 Open-ended questions:
-1. "Walk me through how Twista probably onboards a new restaurant. Where do you think they're weak?"
+1. "Walk me through how Bringit probably onboards a new restaurant. Where do you think they're weak?"
 2. "If I gave you 10 restaurants to sign in Naama Bay next month, which 10 would you go to first and why?"
 3. "What's a fair commission rate to take from a Sharm restaurant? What's too high? Why?"
 4. "Tell me about a time you got someone to change their mind in a business setting."
@@ -157,7 +157,7 @@ If they're behind at day 30, talk. If they're behind at day 60, the role isn't w
 
 1. [ ] Lock cash + equity range with your funding source.
 2. [ ] Write the 2-line LinkedIn outreach (templates above).
-3. [ ] Pull a list of 30 Twista/Talabat ex-AMs in Sharm via LinkedIn Sales Nav (or just LinkedIn search).
+3. [ ] Pull a list of 30 Bringit/Talabat ex-AMs in Sharm via LinkedIn Sales Nav (or just LinkedIn search).
 4. [ ] Send first 10 DMs. Track replies in a Notion/Sheets pipeline.
 5. [ ] Post Arabic teaser in 3 Facebook groups.
 6. [ ] Ask 5 people in your network: "Who's the most F&B-connected person you know in Sharm?"

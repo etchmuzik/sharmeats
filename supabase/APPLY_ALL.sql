@@ -1,7 +1,12 @@
 -- =============================================================
--- Sharm Eats — FULL SCHEMA, migrations 001 → 014, in order.
--- Paste this entire file into the Supabase SQL Editor and Run.
--- Safe to run on a fresh project. Order matters (later depends on earlier).
+-- Sharm Eats — PARTIAL SCHEMA SNAPSHOT, migrations 001 → 014 only.
+--
+-- ⚠️ STALE / NOT THE SOURCE OF TRUTH. Production is at migration 071.
+-- This file is an early bootstrap snapshot and stops at 014. To stand up a
+-- fresh project, apply the numbered files in supabase/migrations/ IN ORDER
+-- (001 → 071) instead — they include everything since (money foundation,
+-- messaging, support chat, notification coverage, fraud caps, etc.).
+-- Kept only for historical reference.
 -- =============================================================
 
 
@@ -745,7 +750,7 @@ comment on column public.restaurants.vertical_id is
 comment on column public.restaurants.fulfillment_type is
   'Hybrid fleet: ''platform'' (our drivers, dispatched) or ''self_delivery'' (merchant''s own driver). Default copied onto each order, frozen there.';
 comment on column public.restaurants.commission_pct is
-  'Platform commission %. Founding-cohort LOI offers 12% (vs Twista 18-22%).';
+  'Platform commission %. Founding-cohort LOI offers 12% (vs Bringit 18-22%).';
 comment on column public.menu_items.unit is
   'Sale unit. ''each'' for food/most items; ''kg''/''pack'' for grocery weights. price_egp is per-unit.';
 comment on column public.menu_items.requires_prescription is

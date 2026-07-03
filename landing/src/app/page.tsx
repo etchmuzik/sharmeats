@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
+import { WaitlistForm } from '@/components/WaitlistForm';
 import { dictionaries, type Locale, rtlLocales } from '@/i18n/dictionaries';
 
 /**
@@ -141,6 +142,26 @@ export default function HomePage() {
             body={vp3.body}
             rtl={isRtl}
           />
+        </div>
+      </section>
+
+      {/* ── Waitlist: capture pre-install interest (coexists with the app CTA) ── */}
+      <section id="waitlist" className="scroll-mt-20 bg-sand">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 lg:grid-cols-[1fr_0.9fr] lg:gap-14 lg:py-28">
+          <div className={isRtl ? 'text-right' : 'text-left'}>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-sea ring-1 ring-line">
+              <span className="h-1.5 w-1.5 rounded-full bg-sea" />
+              {dict.hero.eyebrow}
+            </span>
+            <h2 className="mt-6 max-w-lg font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+              {dict.waitlist.title}
+            </h2>
+            <p className="mt-4 max-w-md text-lg leading-relaxed text-ink2">{dict.hero.subtitle}</p>
+            <p className="mt-4 text-sm text-ink3">{dict.hero.notSpam}</p>
+          </div>
+          <div className="w-full">
+            <WaitlistForm locale={locale} dict={dict.waitlist} />
+          </div>
         </div>
       </section>
 

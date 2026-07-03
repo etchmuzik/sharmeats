@@ -4,6 +4,7 @@ const delay = <T>(value: T, ms = 40): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
 let status: RewardsStatus = { tier: 'silver', pointsBalance: 340, pointsRolling12mo: 620 };
+let creditEgp = 50; // demo: a prior late-delivery credit
 
 const history: RewardsHistoryEntry[] = [
   { id: 'h1', deltaPoints: 25, reason: 'order_earn', refOrderId: 'order-1', createdAt: Date.now() - 86400000 },
@@ -23,5 +24,14 @@ export const rewardsRepo = {
     status = { ...status, pointsBalance: status.pointsBalance - points };
     history.unshift({ id: `h${history.length + 1}`, deltaPoints: -points, reason: 'redeem', refOrderId: null, createdAt: Date.now() });
     return delay('LOY-DEMO42');
+  },
+  async getCreditBalanceEgp(): Promise<number> {
+    return delay(creditEgp);
+  },
+  async redeemCredit(amountEgp: number): Promise<string> {
+    if (amountEgp == null || amountEgp <= 0) throw new Error('INVALID_AMOUNT');
+    if (amountEgp > creditEgp) throw new Error('INSUFFICIENT_CREDIT');
+    creditEgp -= amountEgp;
+    return delay('CR-DEMO42');
   },
 };

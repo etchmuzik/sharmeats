@@ -32,6 +32,7 @@ export interface Dictionary {
     submit: string;
     submitting: string;
     success: string;
+    duplicate: string;
     errorEmail: string;
     errorGeneric: string;
   };
@@ -78,6 +79,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       submit: 'Join the waitlist',
       submitting: 'Joining…',
       success: 'You are on the list. We will message you when we open.',
+      duplicate: 'You are already on the list. We will be in touch.',
       errorEmail: 'Please enter a valid email.',
       errorGeneric: 'Something went wrong. Please try again.',
     },
@@ -122,6 +124,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       submit: 'انضم',
       submitting: 'جاري الانضمام…',
       success: 'أنت في القائمة. هنبعتلك رسالة لما نفتح.',
+      duplicate: 'أنت مسجّل بالفعل. هنتواصل معاك.',
       errorEmail: 'من فضلك أدخل بريد صحيح.',
       errorGeneric: 'حصل خطأ. حاول تاني.',
     },
@@ -166,6 +169,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       submit: 'В список',
       submitting: 'Записываем…',
       success: 'Вы в списке. Напишем, как только откроемся.',
+      duplicate: 'Вы уже в списке. Мы с вами свяжемся.',
       errorEmail: 'Введите корректный email.',
       errorGeneric: 'Что-то пошло не так. Попробуйте ещё раз.',
     },
@@ -210,6 +214,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       submit: 'Iscriviti',
       submitting: 'Iscrivendo…',
       success: 'Sei in lista. Ti scriviamo all\'apertura.',
+      duplicate: 'Sei già in lista. Ti scriveremo noi.',
       errorEmail: 'Email non valida.',
       errorGeneric: 'Qualcosa è andato storto. Riprova.',
     },
@@ -254,6 +259,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       submit: 'Beitreten',
       submitting: 'Eintragen…',
       success: 'Du bist auf der Liste. Wir melden uns bei Start.',
+      duplicate: 'Du stehst bereits auf der Liste. Wir melden uns.',
       errorEmail: 'Bitte eine gültige E-Mail eingeben.',
       errorGeneric: 'Etwas ist schiefgelaufen. Bitte erneut versuchen.',
     },

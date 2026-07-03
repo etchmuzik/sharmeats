@@ -12,17 +12,21 @@
 import { authRepo } from './repositories/auth';
 import { hotelsRepo } from './repositories/hotels';
 import { menusRepo } from './repositories/menus';
+import { messagesRepo } from './repositories/messages';
 import { ordersRepo } from './repositories/orders';
 import { restaurantsRepo } from './repositories/restaurants';
 import { rewardsRepo } from './repositories/rewards';
+import { supportRepo } from './repositories/support';
 import { userRepo } from './repositories/user';
 
 import { authRepoSupabase } from './supabase/auth';
 import { hotelsRepoSupabase } from './supabase/hotels';
 import { menusRepoSupabase } from './supabase/menus';
+import { messagesRepoSupabase } from './supabase/messages';
 import { ordersRepoSupabase } from './supabase/orders';
 import { restaurantsRepoSupabase } from './supabase/restaurants';
 import { rewardsRepoSupabase } from './supabase/rewards';
+import { supportRepoSupabase } from './supabase/support';
 import { userRepoSupabase } from './supabase/user';
 
 const useSupabase = process.env.EXPO_PUBLIC_USE_SUPABASE === 'true';
@@ -36,6 +40,8 @@ export const db = useSupabase
       user: userRepoSupabase,
       orders: ordersRepoSupabase,
       rewards: rewardsRepoSupabase,
+      messages: messagesRepoSupabase,
+      support: supportRepoSupabase,
     }
   : {
       auth: authRepo,
@@ -45,6 +51,8 @@ export const db = useSupabase
       user: userRepo,
       orders: ordersRepo,
       rewards: rewardsRepo,
+      messages: messagesRepo,
+      support: supportRepo,
     };
 
 export type DB = typeof db;

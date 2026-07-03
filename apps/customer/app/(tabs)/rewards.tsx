@@ -8,11 +8,12 @@ import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { tap, success } from '../../src/haptics';
 import { db } from '../../src/data';
+import { formatEgp } from '../../src/lib/format';
 import type { RewardsHistoryEntry, RewardsStatus } from '../../src/data/types';
 
 type ViewState =
   | { kind: 'loading' }
-  | { kind: 'loaded'; status: RewardsStatus; history: RewardsHistoryEntry[] }
+  | { kind: 'loaded'; status: RewardsStatus; history: RewardsHistoryEntry[]; creditEgp: number }
   | { kind: 'error' };
 
 // Rolling-12mo point thresholds for tier progression, mirrored from
@@ -45,11 +46,12 @@ export default function RewardsTab() {
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
     try {
-      const [status, history] = await Promise.all([
+      const [status, history, creditEgp] = await Promise.all([
         db.rewards.getStatus(),
         db.rewards.listHistory(20),
+        db.rewards.getCreditBalanceEgp(),
       ]);
-      setState({ kind: 'loaded', status, history });
+      setState({ kind: 'loaded', status, history, creditEgp });
     } catch {
       setState({ kind: 'error' });
     }
@@ -75,6 +77,22 @@ export default function RewardsTab() {
     }
   };
 
+  const redeemCredit = async (amountEgp: number) => {
+    if (state.kind !== 'loaded' || redeeming || amountEgp <= 0) return;
+    tap();
+    setRedeeming(true);
+    try {
+      const code = await db.rewards.redeemCredit(amountEgp);
+      success();
+      Alert.alert(t('wallet.title'), t('wallet.redeemSuccess', { code }));
+      await load();
+    } catch {
+      Alert.alert(t('wallet.title'), t('rewards.redeemInsufficient'));
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
   if (state.kind === 'loading') {
     return (
       <View style={[styles.center, { backgroundColor: colors.bg }]}>
@@ -94,10 +112,11 @@ export default function RewardsTab() {
     );
   }
 
-  const { status, history } = state;
+  const { status, history, creditEgp } = state;
   const nextInfo = TIER_NEXT[status.tier];
   const pointsToNext = nextInfo.next ? Math.max(0, nextInfo.threshold - status.pointsRolling12mo) : 0;
   const canRedeem = status.pointsBalance >= REDEEM_POINTS;
+  const hasCredit = creditEgp > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -109,6 +128,43 @@ export default function RewardsTab() {
           paddingHorizontal: 20,
         }}>
         <Text style={[styles.title, dir.text]}>{t('rewards.title')}</Text>
+
+        <View style={styles.walletCard}>
+          <View style={styles.balanceHead}>
+            <View style={styles.walletCircle}>
+              <Icon name="wallet" size={26} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.walletBalance}>{t('wallet.balance', { amount: formatEgp(creditEgp) })}</Text>
+              <Text style={[styles.walletSub, dir.text]}>{t('wallet.subtitle')}</Text>
+            </View>
+          </View>
+          {hasCredit ? (
+            <Pressable
+              disabled={redeeming}
+              onPress={() =>
+                Alert.alert(
+                  t('wallet.title'),
+                  t('wallet.redeemConfirm', { amount: formatEgp(creditEgp) }),
+                  [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('wallet.redeemButton'), onPress: () => void redeemCredit(creditEgp) },
+                  ],
+                )
+              }
+              accessibilityRole="button"
+              accessibilityLabel={t('wallet.redeemButton')}
+              style={styles.walletBtn}>
+              {redeeming ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.walletBtnText}>{t('wallet.redeemButton')}</Text>
+              )}
+            </Pressable>
+          ) : (
+            <Text style={[styles.walletEmpty, dir.text]}>{t('wallet.empty')}</Text>
+          )}
+        </View>
 
         <View style={styles.balanceCard}>
           <View style={styles.balanceHead}>
@@ -218,6 +274,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  walletCard: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.xl,
+    padding: 18,
+    marginTop: 16,
+    ...shadow.card,
+  },
+  walletCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletBalance: { fontSize: font.sizes['6xl'], fontWeight: font.weights.extrabold, color: colors.white },
+  walletSub: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
+  walletEmpty: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 12 },
+  walletBtn: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: radius.lg,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  walletBtnText: { color: colors.white, fontWeight: font.weights.bold, fontSize: font.sizes.lg },
   balancePoints: { fontSize: font.sizes['8xl'], fontWeight: font.weights.extrabold, color: colors.accent },
   tierLabel: { fontSize: font.sizes.lg, color: colors.ink2, marginTop: 2, fontWeight: font.weights.semibold },
   progressText: { fontSize: font.sizes.base, color: colors.ink3, marginTop: 12 },

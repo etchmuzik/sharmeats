@@ -97,11 +97,28 @@ Deno.serve(async (req: Request) => {
     );
 
     if (!success) {
-      await admin
+      const { data: failedRows } = await admin
         .from('orders')
         .update({ payment_status: 'failed' })
         .eq('id', orderId)
-        .eq('payment_status', 'pending');
+        .eq('payment_status', 'pending')
+        .select('id, user_id');
+      // Tell the customer their card payment did not go through (best-effort).
+      const failed = failedRows && failedRows.length > 0 ? failedRows[0] : null;
+      if (failed?.user_id) {
+        const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/expo-push`;
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        };
+        const secret = Deno.env.get('PUSH_INTERNAL_SECRET');
+        if (secret) headers['x-internal-secret'] = secret;
+        fetch(fnUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ event: 'payment_failed', orderId: failed.id, recipientUserIds: [failed.user_id] }),
+        }).catch(() => {});
+      }
       return new Response('ok', { status: 200 });
     }
 
