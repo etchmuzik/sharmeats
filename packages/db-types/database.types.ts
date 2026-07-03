@@ -1100,6 +1100,10 @@ export type Database = {
           dispatch_eligible_at: string | null
           dispatch_mode: string | null
           dropoff_geo: unknown
+          dropoff_note: string | null
+          dropoff_preference:
+            | Database["public"]["Enums"]["dropoff_preference"]
+            | null
           eta_at: string
           fulfillment_type: string
           history: Json
@@ -1152,6 +1156,10 @@ export type Database = {
           dispatch_eligible_at?: string | null
           dispatch_mode?: string | null
           dropoff_geo?: unknown
+          dropoff_note?: string | null
+          dropoff_preference?:
+            | Database["public"]["Enums"]["dropoff_preference"]
+            | null
           eta_at: string
           fulfillment_type?: string
           history?: Json
@@ -1204,6 +1212,10 @@ export type Database = {
           dispatch_eligible_at?: string | null
           dispatch_mode?: string | null
           dropoff_geo?: unknown
+          dropoff_note?: string | null
+          dropoff_preference?:
+            | Database["public"]["Enums"]["dropoff_preference"]
+            | null
           eta_at?: string
           fulfillment_type?: string
           history?: Json
@@ -2641,6 +2653,8 @@ export type Database = {
           p_address_id: string
           p_cart: Json
           p_customer_phone?: string
+          p_dropoff_note?: string
+          p_dropoff_preference?: Database["public"]["Enums"]["dropoff_preference"]
           p_idempotency_key?: string
           p_kitchen_notes?: string
           p_payment_method: string
@@ -3451,6 +3465,12 @@ export type Database = {
         | "grocery"
         | "pharmacy"
       currency_type: "EGP" | "EUR" | "USD" | "GBP" | "RUB"
+      dropoff_preference:
+        | "hand_to_me"
+        | "leave_at_door"
+        | "meet_outside"
+        | "no_bell"
+        | "call_on_arrival"
       handoff_type: "lobby" | "reception" | "poolside"
       item_flag_type:
         | "halal"
@@ -3659,6 +3679,13 @@ export const Constants = {
         "pharmacy",
       ],
       currency_type: ["EGP", "EUR", "USD", "GBP", "RUB"],
+      dropoff_preference: [
+        "hand_to_me",
+        "leave_at_door",
+        "meet_outside",
+        "no_bell",
+        "call_on_arrival",
+      ],
       handoff_type: ["lobby", "reception", "poolside"],
       item_flag_type: [
         "halal",

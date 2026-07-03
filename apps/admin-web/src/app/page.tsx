@@ -147,6 +147,12 @@ export default function OpsPage() {
           >
             Campaigns
           </a>
+          <a
+            href="/support"
+            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            Support
+          </a>
           <SignOutButton />
         </div>
       </header>
