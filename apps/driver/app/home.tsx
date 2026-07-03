@@ -27,6 +27,7 @@ import {
 } from '../src/jobs';
 import * as Notifications from 'expo-notifications';
 import { isStreaming, pingOnce, stopStreaming } from '../src/location';
+import { unreadCount } from '../src/messages';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
 import { colors, font, radius, spacing } from '../src/theme';
 import { Icon } from '../src/components/Icon';
@@ -43,6 +44,7 @@ export default function Home() {
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [offers, setOffers] = useState<Assignment[]>([]);
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   // [H-BIZ1] true = a fetch failed (network), distinct from "not a driver".
@@ -60,14 +62,17 @@ export default function Home() {
       }
       setOnlineState(d.status !== 'offline');
       onlineRef.current = d.status !== 'offline';
-      const [job, offs, earn] = await Promise.all([
+      const [job, offs, earn, unread] = await Promise.all([
         getActiveJob(d.id),
         getOffers(d.id),
         getEarnings(d.id),
+        // Badge is advisory — a count failure must not fail the whole load.
+        unreadCount().catch(() => 0),
       ]);
       setActiveJob(job);
       setOffers(offs);
       setEarnings(earn);
+      setUnreadMsgs(unread);
     } catch (e) {
       // [H-BIZ1] A transient fetch failure must NOT masquerade as "not a
       // registered driver". Flag an error state (retry) and keep prior data.
@@ -350,6 +355,29 @@ export default function Home() {
           <Text style={{ color: '#cfd6da', fontSize: font.sizes.sm, marginTop: 2 }}>
             {statusLabel(activeJob.status)} · tap to continue →
           </Text>
+          {unreadMsgs > 0 && (
+            <Pressable
+              onPress={() => router.push(`/job/${activeJob.id}/chat`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${unreadMsgs} unread messages — open chat`}
+              style={{
+                marginTop: spacing.md,
+                alignSelf: 'flex-start',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: colors.accent,
+                borderRadius: radius.xl,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 6,
+              }}
+            >
+              <Icon name="chat" size={14} color={colors.ink} />
+              <Text style={{ color: colors.ink, fontWeight: '700', fontSize: font.sizes.sm }}>
+                {unreadMsgs} new message{unreadMsgs === 1 ? '' : 's'}
+              </Text>
+            </Pressable>
+          )}
         </Pressable>
       )}
 
