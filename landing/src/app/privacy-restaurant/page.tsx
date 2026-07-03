@@ -84,6 +84,14 @@ export default function PrivacyRestaurantPage() {
                 against your staff account in the order&rsquo;s audit history so
                 order handling stays accountable.
               </li>
+              <li>
+                <strong>Verification documents.</strong> When you upload them to
+                get your restaurant verified, we collect photos of your business
+                documents (such as commercial registration, tax card, and food
+                licence). These are stored privately, used only to confirm your
+                restaurant is eligible to sell on the platform, and are visible
+                only to your staff and our review team.
+              </li>
             </ul>
           </section>
 
