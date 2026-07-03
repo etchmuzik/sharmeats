@@ -8,7 +8,7 @@ import { useSession } from '../src/store/session';
 import { db, isBackendLive } from '../src/data';
 import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
 import { initAnalytics } from '../src/lib/analytics';
-import { configureNotificationHandler, registerForPush } from '../src/lib/push';
+import { configureNotificationHandler, registerForPush, useNotificationRouting } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
 
@@ -22,6 +22,9 @@ configureNotificationHandler();
 export default function RootLayout() {
   const hydrateCart = useCart((s) => s.hydrate);
   const hydrateSession = useSession((s) => s.hydrate);
+
+  // Route notification taps (order updates, chat, support) to the right screen.
+  useNotificationRouting();
 
   useEffect(() => {
     hydrateCart();
