@@ -10,6 +10,7 @@ import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { tap } from '../../src/haptics';
 import { db } from '../../src/data';
+import { useUnreadBadges } from '../../src/hooks/useUnreadBadges';
 import type { User } from '../../src/data/types';
 import { unregisterPush } from '../../src/lib/push';
 import { resetAnalyticsUser } from '../../src/lib/analytics';
@@ -18,6 +19,7 @@ interface Row {
   icon: IconName;
   label: string;
   value?: string;
+  badge?: number;
   onPress: () => void;
   destructive?: boolean;
 }
@@ -32,6 +34,7 @@ export default function ProfileTab() {
   const phone = useSession((s) => s.phone);
   const signOut = useSession((s) => s.signOut);
   const [me, setMe] = useState<User | null>(null);
+  const unread = useUnreadBadges();
 
   useEffect(() => {
     db.user.getMe().then(setMe);
@@ -50,7 +53,7 @@ export default function ProfileTab() {
     { icon: 'currency', label: t('profile.currency'), value: currency, onPress: () => router.push('/settings') },
     { icon: 'bell', label: t('profile.notifications'), onPress: () => router.push('/settings') },
     { icon: 'gift', label: t('profile.invite'), onPress: () => router.push('/invite') },
-    { icon: 'chat', label: t('profile.support'), onPress: () => router.push('/support') },
+    { icon: 'chat', label: t('profile.support'), badge: unread.support, onPress: () => router.push('/support') },
     { icon: 'help', label: t('profile.help'), onPress: () => router.push('/help') },
     {
       icon: 'signout',
@@ -114,6 +117,11 @@ export default function ProfileTab() {
                 {r.label}
               </Text>
               {r.value && <Text style={styles.rowValue}>{r.value}</Text>}
+              {r.badge != null && r.badge > 0 && (
+                <View style={styles.rowBadge} accessibilityLabel={`${r.badge} unread`}>
+                  <Text style={styles.rowBadgeText}>{r.badge}</Text>
+                </View>
+              )}
               <Icon name={dir.isRtl ? 'chevronBack' : 'chevronForward'} size={18} color={colors.ink3} />
             </Pressable>
           ))}
@@ -153,4 +161,15 @@ const styles = StyleSheet.create({
   rowIcon: { width: 26, alignItems: 'center' },
   rowLabel: { flex: 1, fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.semibold },
   rowValue: { fontSize: font.sizes.lg, color: colors.ink2, marginHorizontal: 4 },
+  rowBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    marginHorizontal: 4,
+  },
+  rowBadgeText: { color: colors.white, fontSize: 11, fontWeight: font.weights.bold },
 });

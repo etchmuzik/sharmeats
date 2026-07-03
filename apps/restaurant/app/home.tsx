@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../src/auth';
@@ -30,6 +30,7 @@ import {
   type RestaurantContext,
   type RestaurantOrder,
 } from '../src/orders';
+import { myUnreadMessageCount } from '../src/messages';
 import { colors, font, radius, spacing } from '../src/theme';
 
 export default function Home() {
@@ -47,6 +48,7 @@ export default function Home() {
   const [isOpen, setIsOpen] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -62,6 +64,8 @@ export default function Home() {
       setIsOpen(c.isOpen);
       const rows = await getActiveOrders(c.restaurantId);
       setOrders(rows);
+      // Badge is advisory — a count failure must not fail the queue load.
+      setUnreadMsgs(await myUnreadMessageCount().catch(() => 0));
     } catch {
       // [H-BIZ1] A transient fetch failure must NOT look like "no restaurant
       // linked". Flag a retry state and keep the last-known queue in place.
@@ -80,6 +84,22 @@ export default function Home() {
     initChime();
     return () => releaseChime();
   }, []);
+
+  // Unread-chat badge: refresh when the screen regains focus (order screens
+  // mark their thread read on open) and on a slow poll — the kiosk sits on
+  // this screen and the orders Realtime channel doesn't carry message events.
+  const refreshUnread = useCallback(() => {
+    myUnreadMessageCount().then(setUnreadMsgs).catch(() => {});
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      refreshUnread();
+    }, [refreshUnread]),
+  );
+  useEffect(() => {
+    const id = setInterval(refreshUnread, 60_000);
+    return () => clearInterval(id);
+  }, [refreshUnread]);
 
   // Live order updates via Realtime once we know the restaurant.
   useEffect(() => {
@@ -278,6 +298,24 @@ export default function Home() {
             {togglingOpen ? '…' : isOpen ? 'Open · pause' : 'Closed · open'}
           </Text>
         </Pressable>
+        {unreadMsgs > 0 && (
+          <View
+            accessibilityLabel={`${unreadMsgs} unread customer messages — open an order to reply`}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 3,
+              borderRadius: radius.pill,
+              backgroundColor: colors.accentSoft,
+              marginRight: spacing.xs,
+            }}
+          >
+            <Icon name="chat" size={14} color={colors.accent} />
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', color: colors.accent }}>{unreadMsgs}</Text>
+          </View>
+        )}
         <Pressable
           onPress={() => router.push('/menu')}
           accessibilityRole="button"

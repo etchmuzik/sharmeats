@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font } from '../theme';
 import { selection } from '../haptics';
 import { useCart } from '../store/cart';
+import { useUnreadBadges } from '../hooks/useUnreadBadges';
 import { useT } from '../i18n';
 
 type TabKey = 'home' | 'browse' | 'cart' | 'orders' | 'rewards' | 'profile';
@@ -23,6 +24,7 @@ export function TabBar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const cartCount = useCart((s) => s.count());
+  const unread = useUnreadBadges();
   const t = useT();
   const scale = useRef(new Animated.Value(1)).current;
   const prevCount = useRef(cartCount);
@@ -62,6 +64,16 @@ export function TabBar() {
                 <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
                   <Text style={styles.badgeText}>{cartCount}</Text>
                 </Animated.View>
+              )}
+              {tab.key === 'orders' && unread.orders > 0 && (
+                <View style={styles.badge} accessibilityLabel={`${unread.orders} unread order messages`}>
+                  <Text style={styles.badgeText}>{unread.orders}</Text>
+                </View>
+              )}
+              {tab.key === 'profile' && unread.support > 0 && (
+                <View style={styles.badge} accessibilityLabel={`${unread.support} unread support replies`}>
+                  <Text style={styles.badgeText}>{unread.support}</Text>
+                </View>
               )}
             </View>
             <Text style={[styles.label, active && styles.labelActive]}>{t(tab.tKey)}</Text>
