@@ -21,30 +21,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { Buffer } from 'node:buffer';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-
-// Fields Paymob concatenates (documented order) to compute the HMAC.
-const HMAC_FIELDS = [
-  'amount_cents',
-  'created_at',
-  'currency',
-  'error_occured',
-  'has_parent_transaction',
-  'id',
-  'integration_id',
-  'is_3d_secure',
-  'is_auth',
-  'is_capture',
-  'is_refunded',
-  'is_standalone_payment',
-  'is_voided',
-  'order.id',
-  'owner',
-  'pending',
-  'source_data.pan',
-  'source_data.sub_type',
-  'source_data.type',
-  'success',
-];
+import { amountMatches, buildHmacString, isSuccess, resolveOrderId } from './verify.ts';
 
 Deno.serve(async (req: Request) => {
   try {
@@ -61,12 +38,8 @@ Deno.serve(async (req: Request) => {
     }
     const obj = (payload.obj ?? payload) as Record<string, any>;
 
-    // Build the concatenation string from the documented fields.
-    const concatenated = HMAC_FIELDS.map((path) => {
-      const val = path.split('.').reduce((acc: any, k) => (acc == null ? acc : acc[k]), obj);
-      if (typeof val === 'boolean') return val ? 'true' : 'false';
-      return val == null ? '' : String(val);
-    }).join('');
+    // Build the concatenation string from the documented fields (see verify.ts).
+    const concatenated = buildHmacString(obj);
 
     const computed = createHmac('sha512', hmacSecret).update(concatenated).digest('hex');
     // [AUDIT-1] Constant-time comparison. Amount-binding + the idempotent
@@ -86,8 +59,8 @@ Deno.serve(async (req: Request) => {
       return new Response('invalid hmac', { status: 401 });
     }
 
-    const success = obj.success === true || obj.success === 'true';
-    const orderId = obj.order?.merchant_order_id ?? obj.special_reference ?? obj.extras?.order_id;
+    const success = isSuccess(obj);
+    const orderId = resolveOrderId(obj);
     if (!orderId) return new Response('no order ref', { status: 400 });
 
     // Service-role client (bypasses RLS) — safe because HMAC is verified above.
@@ -147,9 +120,7 @@ Deno.serve(async (req: Request) => {
 
     // AMOUNT ASSERTION (decisive control): signed piastres must equal what the
     // located order owes. total_egp is integer EGP; piastres = total_egp * 100.
-    const signedAmountCents = Number(obj.amount_cents);
-    const expectedAmountCents = pending.total_egp * 100;
-    if (!Number.isFinite(signedAmountCents) || signedAmountCents !== expectedAmountCents) {
+    if (!amountMatches(obj.amount_cents, pending.total_egp)) {
       return new Response('amount mismatch', { status: 400 });
     }
 
