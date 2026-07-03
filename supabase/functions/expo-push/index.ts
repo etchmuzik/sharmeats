@@ -39,6 +39,9 @@ interface PushBody {
   orderId: string;
   // Optional explicit recipients; otherwise we resolve from the order.
   recipientUserIds?: string[];
+  // Optional custom copy (marketing campaigns) — overrides the COPY map.
+  title?: string;
+  body?: string;
 }
 
 interface ExpoTicket {
@@ -122,13 +125,16 @@ Deno.serve(async (req: Request) => {
       // push_tokens not provisioned yet — no-op, don't fail the order flow.
       return new Response('ok (push_tokens unavailable)', { status: 200 });
     }
+    // Custom copy (campaigns) overrides the event COPY map when provided.
+    const title = body.title?.trim() || COPY[body.event]?.title || 'Sharm Eats';
+    const messageBody = body.body?.trim() || COPY[body.event]?.body || 'Order update';
     const messages = (tokens ?? [])
       .filter((t: { token: string }) => t.token?.startsWith('ExponentPushToken'))
       .map((t: { token: string }) => ({
         to: t.token,
         sound: 'default',
-        title: COPY[body.event]?.title ?? 'Sharm Eats',
-        body: COPY[body.event]?.body ?? 'Order update',
+        title,
+        body: messageBody,
         data: { orderId: body.orderId, event: body.event },
       }));
 

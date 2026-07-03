@@ -1462,6 +1462,47 @@ export type Database = {
           },
         ]
       }
+      push_campaigns: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          recipients: number
+          segment: string
+          segment_param: string | null
+          sent_by: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          recipients?: number
+          segment: string
+          segment_param?: string | null
+          sent_by?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          recipients?: number
+          segment?: string
+          segment_param?: string | null
+          sent_by?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_campaigns_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_tokens: {
         Row: {
           created_at: string
@@ -2253,6 +2294,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      all_restaurant_scorecards: {
+        Args: { p_days?: number }
+        Returns: {
+          acceptance_rate: number
+          avg_food_rating: number
+          avg_prep_minutes: number
+          cancel_rate: number
+          on_time_rate: number
+          orders: number
+          reject_rate: number
+          restaurant_id: string
+          restaurant_name: string
+        }[]
+      }
       anonymize_my_account: { Args: never; Returns: undefined }
       assign_driver: {
         Args: { p_driver_id: string; p_order_id: string }
@@ -2641,6 +2696,25 @@ export type Database = {
         }
         Returns: number
       }
+      recent_push_campaigns: {
+        Args: { p_limit?: number }
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          recipients: number
+          segment: string
+          segment_param: string | null
+          sent_by: string | null
+          title: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "push_campaigns"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       reconcile_stale_card_orders: { Args: never; Returns: number }
       redeem_credit: { Args: { p_amount_egp: number }; Returns: string }
       redeem_points: { Args: { p_points: number }; Returns: string }
@@ -2670,6 +2744,24 @@ export type Database = {
         Args: { p_geo: unknown }
         Returns: Database["public"]["Enums"]["zone_type"]
       }
+      restaurant_scorecard: {
+        Args: { p_days?: number; p_restaurant_id: string }
+        Returns: {
+          acceptance_rate: number
+          accepted: number
+          avg_food_rating: number
+          avg_prep_minutes: number
+          cancel_rate: number
+          cancelled: number
+          delivered: number
+          on_time_rate: number
+          orders: number
+          reject_rate: number
+          rejected: number
+          restaurant_id: string
+          window_days: number
+        }[]
+      }
       review_kyc_document: {
         Args: { p_approve: boolean; p_document_id: string; p_note?: string }
         Returns: undefined
@@ -2692,6 +2784,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      send_push_campaign: {
+        Args: {
+          p_body: string
+          p_segment: string
+          p_segment_param?: string
+          p_title: string
+        }
+        Returns: number
       }
       send_support_message: {
         Args: { p_body: string }
