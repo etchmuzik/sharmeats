@@ -2,6 +2,28 @@
 
 _Pre-scale technical audit · prepared before increasing marketing spend_
 
+> ## ✅ Resolved 2026-07-03 (post-audit build)
+> A large share of the P0 layer was built and shipped to prod the same day this
+> audit was produced. Now DONE and live:
+> - **Money foundation** (mig 062): per-order commission snapshot, credit wallet,
+>   SLA late-credit engine (the advertised auto-10% is now real), refund/goodwill
+>   credit tooling. Loyalty repriced to ~1% (mig 061).
+> - **COD fraud caps** (mig 065): block flag + concurrent/new-user order limits.
+> - **Waitlist capture fixed** (mig 063) — was silently dropping every lead.
+> - **Dispatch watchdog** (mig 066): stuck-order + sweep-failure alerting.
+> - **In-app chat** across all 3 apps (migs 067/068) + **live support chat**
+>   (migs 069/070) — the "no way to message driver/restaurant/support" gap.
+> - **Full A-to-X notification coverage** (mig 071 + edge fns): rejected/cancelled
+>   orders, payment failures, and credit grants now all notify the right party.
+> - **Buried-feature UI fixes** across all 3 apps (address delete, dropoff note,
+>   edit-profile, allergen banner, driver/restaurant contact, menu 86-ing, etc.).
+> - **Security-hardened** (mig 072): closed a CRITICAL anon support-reply forgery
+>   found in the post-build A-to-Z review.
+>
+> Everything below is the **original audit as written**. Items above are resolved;
+> the remaining P1/P2 backlog (settlement/payout system, VAT/KYC/e-invoicing,
+> restaurant scorecards, order batching, etc.) stands as the forward roadmap.
+
 Sharm Eats is a live, three-sided food-delivery platform for Sharm El Sheikh: a
 customer app, a driver app, a restaurant (kitchen) app, and a merchant/admin web
 console, all on a Supabase backend with 61 migrations. The **front of house is
