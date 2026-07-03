@@ -123,6 +123,12 @@ export default function OpsPage() {
           >
             Menus
           </a>
+          <a
+            href="/finance"
+            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            Finance
+          </a>
           <SignOutButton />
         </div>
       </header>
