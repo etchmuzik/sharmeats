@@ -172,3 +172,33 @@ caps only if the numbers hold.
 real orders how often eligible pairs actually occur in Sharm before investing in
 the UI. If batchable pairs are rare at your volume, the ROI may not be there yet —
 and Phase 0 tells you that cheaply.
+
+---
+
+## Appendix — Phase 0 is LIVE (mig 085, shadow mode)
+
+Backend-only instrumentation is deployed and running. It changes nothing a user
+sees; it just logs which order pairs *would* be eligible to batch.
+
+- **Table:** `batch_candidate_log` (admin-read RLS) — one row per eligible pair.
+- **Finder:** `batch_candidates()` — read-only, "what's eligible right now?"
+- **Cron:** `sharmeats-batch-shadow` every 2 min logs new eligible pairs.
+- **Thresholds:** `platform_settings` keys `batch_max_pickup_gap_m` (400),
+  `batch_max_dropoff_gap_m` (1500), `batch_ready_window_min` (6) — tune anytime.
+
+### Reading the results (run as admin)
+```sql
+-- How many eligible pairs have we seen, and how many were same-restaurant?
+select count(*)                                          as total_pairs,
+       count(*) filter (where same_restaurant)           as same_restaurant_pairs,
+       round(avg(pickup_gap_m))                          as avg_pickup_gap_m,
+       round(avg(dropoff_gap_m))                         as avg_dropoff_gap_m,
+       date_trunc('day', observed_at)                    as day
+from public.batch_candidate_log
+group by day order by day desc;
+```
+
+**Decision gate for Phase 1:** if, after a week or two of real volume, this table
+shows eligible pairs happening regularly (especially same-restaurant), batching is
+worth building the UI for. If pairs are rare, hold — the ROI isn't there yet, and
+you learned that for the cost of one migration instead of a two-week build.
