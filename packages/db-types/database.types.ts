@@ -2324,6 +2324,14 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: boolean
       }
+      delivery_feasibility: {
+        Args: { p_dropoff: unknown; p_restaurant_id: string }
+        Returns: {
+          distance_m: number
+          eta_minutes: number
+          in_range: boolean
+        }[]
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dispatch_sweep: { Args: never; Returns: number }
       dispatch_watchdog: { Args: never; Returns: undefined }
