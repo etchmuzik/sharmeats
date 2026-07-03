@@ -1,19 +1,28 @@
+/**
+ * App v2 design language (Claude Design handoff, 2026-07): warm off-white
+ * canvas, near-black ink, coral accent, hairline warm-grey lines, white cards
+ * with a soft 2/10 shadow, pill CTAs, floating dark (#131313) tab nav.
+ * Semantic status colors (green/red/amber/blue) are kept from v1 — they are
+ * meaning, not styling, and the design does not respecify them.
+ */
 export const colors = {
-  bg: '#fafaf7',
-  bgSoft: '#f5f0e1',
-  bgSoft2: '#fbf6e8',
-  sand: '#f3ead7',
-  sand2: '#ebe0c5',
-  ink: '#0a0a0c',
-  ink2: '#5b5b66',
-  ink3: '#9494a0',
-  line: '#e8e3d4',
-  line2: '#dad3bf',
-  accent: '#ff5a3c',
-  accentDark: '#e8482b',
-  accentSoft: '#ffeae4',
-  sea: '#0e7c91',
-  seaSoft: '#dff0f3',
+  bg: '#F6F5F2',
+  bgSoft: '#EFEDE9',
+  bgSoft2: '#F1EFEB',
+  sand: '#EBE9E4',
+  sand2: '#E4E2DD',
+  ink: '#161616',
+  ink2: '#8B8984',
+  ink3: '#B0ADA6',
+  /** Dark surface for the floating pill nav / dark CTAs / wallet card. */
+  inkDeep: '#131313',
+  line: '#EAE8E3',
+  line2: '#DDDAD4',
+  accent: '#F05A1F',
+  accentDark: '#C4552D',
+  accentSoft: '#FDEEE7',
+  sea: '#0E7C91',
+  seaSoft: '#DFF0F3',
   green: '#2e8a5d',
   greenSoft: '#e2f1ea',
   blue: '#0070f3',
@@ -38,12 +47,13 @@ export const spacing = {
   huge: 48,
 } as const;
 
+// v2 rounds everything up a notch: cards live at 18–24, controls at pill.
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 14,
-  xl: 16,
-  xxl: 18,
+  sm: 10,
+  md: 14,
+  lg: 16,
+  xl: 18,
+  xxl: 20,
   xxxl: 24,
   pill: 999,
 } as const;
@@ -78,22 +88,31 @@ export const font = {
 } as const;
 
 export const shadow = {
+  // Design card shadow: 0 2px 10px rgba(23,20,16,.04)
   soft: {
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowColor: '#171410',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   card: {
-    shadowColor: '#000',
+    shadowColor: '#171410',
     shadowOpacity: 0.1,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 5,
   },
+  // Floating pill nav: 0 18px 40px rgba(0,0,0,.22)
+  nav: {
+    shadowColor: '#000',
+    shadowOpacity: 0.22,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: 18 },
+    elevation: 12,
+  },
   accentGlow: {
-    shadowColor: '#ff5a3c',
+    shadowColor: '#F05A1F',
     shadowOpacity: 0.3,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },

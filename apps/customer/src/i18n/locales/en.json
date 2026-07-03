@@ -44,6 +44,8 @@
   "address.floor": "Floor",
   "address.apt": "Apt",
   "checkout.title": "Checkout",
+  "checkout.promiseTitle": "Promised by {time}",
+  "checkout.promiseSub": "15+ min late → credit lands automatically",
   "onboarding.title1": "Food delivery built for ",
   "onboarding.accent1": "Sharm",
   "onboarding.desc1": "From hotel rooms to apartments and beach clubs — we deliver from Sharm's best kitchens.",

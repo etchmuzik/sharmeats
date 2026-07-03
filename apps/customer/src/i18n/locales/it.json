@@ -44,6 +44,8 @@
   "address.floor": "Piano",
   "address.apt": "Int.",
   "checkout.title": "Pagamento",
+  "checkout.promiseTitle": "Promesso entro le {time}",
+  "checkout.promiseSub": "Più di 15 min di ritardo → il credito arriva da solo",
   "onboarding.title1": "Consegna di cibo creata per ",
   "onboarding.accent1": "Sharm",
   "onboarding.desc1": "Dalle camere d'hotel agli appartamenti e ai beach club — consegniamo dalle migliori cucine di Sharm.",

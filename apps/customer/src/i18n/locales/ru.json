@@ -44,6 +44,8 @@
   "address.floor": "Этаж",
   "address.apt": "Кв.",
   "checkout.title": "Оформление заказа",
+  "checkout.promiseTitle": "Обещаем к {time}",
+  "checkout.promiseSub": "Опоздаем на 15+ минут — кредит начислится автоматически",
   "onboarding.title1": "Доставка еды, созданная для ",
   "onboarding.accent1": "Шарма",
   "onboarding.desc1": "От гостиничных номеров до квартир и пляжных клубов — мы доставляем из лучших кухонь Шарма.",

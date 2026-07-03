@@ -13,6 +13,137 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-[dir="rtl"] {
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+/* ──────────────────────────────────────────────────────────────────────────
+   Landing v2 (Claude Design handoff, 2026-07) — ported near-verbatim from
+   "Sharmeats Landing v2.dc.html" so the page matches the mock pixel-for-pixel.
+   Scoped to the home page via the .lpage wrapper; legal pages are Tailwind-only
+   and never use these class names. Font stack + palette mirror the design's
+   CSS custom properties.
+   ────────────────────────────────────────────────────────────────────────── */
+.lpage{--bg:#F6F5F2;--ink:#161616;--mut:#8B8984;--dim:#B0ADA6;--line:#EAE8E3;--accent:#F05A1F;--body:var(--font-urbanist),var(--font-tajawal),sans-serif;font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+.lpage .fx{display:flex}
+.lpage .ac{align-items:center}
+.lpage .jb{justify-content:space-between}
+.lpage .jc{justify-content:center}
+.lpage .col{display:flex;flex-direction:column}
+.lpage .wrap{flex-wrap:wrap}
+.lpage .gap12{gap:12px}
+.lpage .gap16{gap:16px}
+.lpage .gap24{gap:24px}
+.lpage .m0{margin:0}
+.lpage .mt8{margin-top:8px}
+.lpage .shell{max-width:1180px;margin:0 auto;padding-inline:44px}
+.lpage .nav{position:sticky;top:0;z-index:50;background:rgba(246,245,242,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.lpage .navi{height:74px}
+.lpage .logo{font-size:21px;font-weight:800;letter-spacing:-.03em;color:var(--ink);text-decoration:none}
+.lpage .eats{color:var(--accent)}
+.lpage .nlink{color:var(--mut);font-size:13px;font-weight:700;text-decoration:none}
+.lpage .lgroup{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px}
+.lpage .sw{background:none;border:0;color:var(--mut);font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:.04em;line-height:1;padding:8px 11px;border-radius:999px;cursor:pointer}
+.lpage .sw.on{background:#131313;color:#fff}
+.lpage .btn{display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;font-family:var(--body);font-size:14px;font-weight:800;line-height:1;padding:15px 24px;border-radius:999px;text-decoration:none;border:0;cursor:pointer}
+.lpage .btn.dbtn{background:#131313;color:#fff}
+.lpage .hero{padding:92px 0 88px;position:relative;overflow:hidden}
+.lpage .hgrid{display:grid;grid-template-columns:1.05fr .95fr;gap:72px;align-items:center}
+.lpage .kick{display:inline-flex;align-items:center;gap:10px;color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.22em;text-transform:uppercase}
+.lpage .kdot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:lp-pulse 2.4s infinite}
+.lpage .h1{font-weight:800;font-size:clamp(40px,5.8vw,74px);line-height:1.04;letter-spacing:-.03em;margin:22px 0 24px;text-wrap:balance}
+.lpage .em{color:#C4552D;font-style:normal}
+.lpage .sub{font-size:17px;line-height:1.7;color:var(--mut);max-width:52ch;margin:0 0 34px;text-wrap:pretty;font-weight:600}
+.lpage .store{position:relative;display:inline-flex;align-items:center;gap:13px;border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px 20px 12px 16px;text-decoration:none;color:var(--ink);transition:border-color .25s;cursor:pointer;box-shadow:0 2px 10px rgba(23,20,16,.04)}
+.lpage .store:hover{border-color:var(--accent)}
+.lpage .sicon{width:24px;height:24px;fill:currentColor;flex-shrink:0}
+.lpage .s1{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.lpage .s2{font-size:16px;font-weight:800;letter-spacing:-.01em}
+.lpage .note{margin:20px 0 0;font-size:13px;color:var(--dim);font-weight:600}
+.lpage .pwrap{position:relative}
+.lpage .arch{position:relative;border-radius:32px;overflow:hidden;aspect-ratio:4/5;box-shadow:0 40px 80px -36px rgba(23,20,16,.35)}
+.lpage .himg{width:100%;height:100%;object-fit:cover;object-position:50% 42%;display:block}
+.lpage .chip{position:absolute;bottom:18px;inset-inline:18px;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-radius:16px;padding:14px 18px;font-size:14px;font-weight:700;line-height:1.45;color:var(--ink);box-shadow:0 10px 30px rgba(23,20,16,.12);z-index:2;margin:0}
+.lpage .pulse{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:lp-pulse 2.4s infinite}
+.lpage .tick{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:19px 0;overflow:hidden;background:#fff}
+.lpage .trow{display:flex;width:max-content;animation:lp-tickmove 38s linear infinite}
+.lpage .titem{display:flex;align-items:center;gap:52px;padding-inline-end:52px;font-size:12px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+.lpage .tdot{color:var(--accent);font-size:8px}
+.lpage .why{padding:112px 0 90px}
+.lpage .big{font-weight:800;font-size:clamp(30px,3.6vw,48px);line-height:1.08;letter-spacing:-.025em;margin:16px 0 44px;max-width:24ch}
+.lpage .wrow{display:grid;grid-template-columns:104px 1fr;gap:44px;align-items:center;padding:52px 0;border-top:1px solid var(--line)}
+.lpage .wrow.wlast{border-bottom:1px solid var(--line)}
+.lpage .wnum{font-size:56px;line-height:1;font-weight:800;letter-spacing:-.02em;color:#DFDCD5}
+.lpage .wtitle{font-weight:800;font-size:clamp(26px,2.7vw,34px);letter-spacing:-.02em;margin:0 0 14px}
+.lpage .wbody{color:var(--mut);font-size:17px;line-height:1.7;margin:0;max-width:58ch;text-wrap:pretty;font-weight:700}
+.lpage .pcard{background:var(--accent);color:#fff;border-radius:32px;padding:72px 70px;display:grid;grid-template-columns:1.2fr auto;gap:44px;align-items:center}
+.lpage .pcard.drv{background:#0E7C91;margin-top:22px}
+.lpage .pk{font-size:12px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.75)}
+.lpage .pt{font-weight:800;font-size:clamp(30px,3.6vw,46px);line-height:1.06;letter-spacing:-.02em;margin:14px 0}
+.lpage .pb{font-size:16px;line-height:1.65;margin:0;max-width:52ch;color:rgba(255,255,255,.85);text-wrap:pretty;font-weight:600}
+.lpage .dl{padding:128px 0;text-align:center}
+.lpage .dlt{font-weight:800;font-size:clamp(38px,5.2vw,66px);line-height:1.04;letter-spacing:-.03em;margin:0 0 16px}
+.lpage .dls{color:var(--mut);font-size:16px;margin:0 0 38px;font-weight:600}
+.lpage .foot{border-top:1px solid var(--line);padding:44px 0 56px}
+.lpage .fmut{color:var(--mut);font-size:13px;line-height:1.7;font-weight:600}
+.lpage .mail{color:var(--ink);text-decoration:none;border-bottom:2px solid var(--accent)}
+.lpage .igl{display:inline-flex;align-items:center;gap:8px;color:var(--ink);text-decoration:none;font-size:13px;font-weight:800}
+.lpage .igi{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;flex-shrink:0;color:var(--accent)}
+.lpage .hiw{padding:104px 0 8px}
+.lpage .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.lpage .step{background:#fff;border:1px solid var(--line);border-radius:24px;padding:34px 30px}
+.lpage .snum{font-size:13px;font-weight:800;color:var(--accent);letter-spacing:.18em}
+.lpage .stt{font-weight:800;font-size:19px;letter-spacing:-.01em;margin:14px 0 10px}
+.lpage .stb{color:var(--mut);font-size:14.5px;line-height:1.7;margin:0;font-weight:600;text-wrap:pretty}
+.lpage .band{background:#0E7C91;color:#fff;padding:104px 0}
+.lpage .band.coral{background:var(--accent)}
+.lpage .band .big{margin-bottom:0;max-width:22ch}
+.lpage .bk{font-size:12px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.75)}
+.lpage .bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:44px;margin-top:56px}
+.lpage .bt{font-weight:800;font-size:20px;letter-spacing:-.01em;margin:0 0 10px}
+.lpage .bb{font-size:15px;line-height:1.7;margin:0;color:rgba(255,255,255,.85);font-weight:600;text-wrap:pretty}
+.lpage .zones{padding:112px 0 36px}
+.lpage .zgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:8px}
+.lpage .zone{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;font-size:15px;font-weight:800;letter-spacing:-.01em}
+.lpage .znote{color:var(--dim);font-size:13px;font-weight:600;margin:18px 0 0}
+.lpage .soul{padding:76px 0 112px}
+.lpage .sgrid{display:grid;grid-template-columns:1fr .85fr;gap:64px;align-items:center}
+.lpage .simgs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.lpage .simg{aspect-ratio:4/5;border-radius:20px;overflow:hidden;box-shadow:0 14px 34px rgba(23,20,16,.1);position:relative}
+.lpage .simg.s2m{margin-top:30px}
+.lpage.rtl .kick{letter-spacing:0}
+.lpage.rtl .snum{letter-spacing:0}
+.lpage.rtl .bk{letter-spacing:0}
+.lpage.rtl .titem{letter-spacing:0}
+.lpage.rtl .pk{letter-spacing:0}
+.lpage.rtl .s1{letter-spacing:0}
+.lpage.rtl .sw{letter-spacing:0}
+.lpage.rtl .h1{font-size:clamp(36px,5vw,64px);line-height:1.2}
+.lpage.rtl .dlt{font-size:clamp(34px,4.6vw,56px);line-height:1.25}
+.lpage.rtl .pt{line-height:1.3}
+.lpage.rtl .big{line-height:1.35}
+.lpage.rtl .wtitle{line-height:1.45}
+.lpage.rtl .sub{line-height:1.9}
+.lpage.rtl .wbody{line-height:1.95}
+@keyframes lp-pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,90,31,.45)}50%{box-shadow:0 0 0 9px transparent}}
+@keyframes lp-tickmove{to{transform:translateX(-50%)}}
+@media (max-width:920px){
+  .lpage .shell{padding-inline:24px}
+  .lpage .hiw{padding-top:64px}
+  .lpage .steps{grid-template-columns:1fr}
+  .lpage .band{padding:68px 0}
+  .lpage .bgrid{grid-template-columns:1fr;gap:30px;margin-top:38px}
+  .lpage .zones{padding-top:72px}
+  .lpage .soul{padding:48px 0 72px}
+  .lpage .sgrid{grid-template-columns:1fr;gap:36px}
+  .lpage .navi{height:64px}
+  .lpage .nlink{display:none}
+  .lpage .hero{padding:56px 0 64px}
+  .lpage .hgrid{grid-template-columns:1fr;gap:48px}
+  .lpage .pwrap{max-width:430px;margin-inline:auto;width:100%}
+  .lpage .why{padding:72px 0 60px}
+  .lpage .wrow{grid-template-columns:60px 1fr;gap:24px}
+  .lpage .wnum{font-size:38px}
+  .lpage .pcard{grid-template-columns:1fr;padding:48px 36px}
+  .lpage .dl{padding:84px 0}
+}
+@media (max-width:600px){
+  .lpage .navcta{display:none}
+  .lpage .sw{padding:7px 9px;font-size:11px}
 }

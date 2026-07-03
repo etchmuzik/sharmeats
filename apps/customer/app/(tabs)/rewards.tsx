@@ -117,6 +117,11 @@ export default function RewardsTab() {
   const pointsToNext = nextInfo.next ? Math.max(0, nextInfo.threshold - status.pointsRolling12mo) : 0;
   const canRedeem = status.pointsBalance >= REDEEM_POINTS;
   const hasCredit = creditEgp > 0;
+  // [App v2] Tier progress fill: current rolling-12mo points as a % of the next
+  // threshold, clamped 0–100. Guarded division (threshold > 0 whenever next).
+  const tierPct = nextInfo.next
+    ? Math.min(100, Math.max(0, Math.round((status.pointsRolling12mo / nextInfo.threshold) * 100)))
+    : 100;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -178,9 +183,30 @@ export default function RewardsTab() {
               </Text>
             </View>
           </View>
-          {nextInfo.next && (
+          {nextInfo.next ? (
+            <View style={styles.tierProgress}>
+              <View style={[styles.tierRow, dir.row]}>
+                <Text style={[styles.tierRowStart, dir.text]} numberOfLines={1}>
+                  {t('rewards.tier', { tier: t(`rewards.tier${capitalize(status.tier)}`) })} · {status.pointsRolling12mo}
+                </Text>
+                <Text style={[styles.tierRowEnd, dir.text]}>
+                  {t(`rewards.tier${capitalize(nextInfo.next)}`)} · {nextInfo.threshold}
+                </Text>
+              </View>
+              <View
+                style={[styles.tierBar, { alignItems: dir.alignStart }]}
+                accessibilityRole="progressbar"
+                accessibilityLabel={t('rewards.progressToNext', {
+                  points: pointsToNext,
+                  tier: t(`rewards.tier${capitalize(nextInfo.next)}`),
+                })}
+                accessibilityValue={{ min: 0, max: 100, now: tierPct }}>
+                <View style={[styles.tierFill, { width: `${tierPct}%` }]} />
+              </View>
+            </View>
+          ) : (
             <Text style={[styles.progressText, dir.text]}>
-              {t('rewards.progressToNext', { points: pointsToNext, tier: t(`rewards.tier${capitalize(nextInfo.next)}`) })}
+              {t(`rewards.tier${capitalize(status.tier)}`)}
             </Text>
           )}
         </View>
@@ -275,9 +301,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   walletCard: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.xl,
-    padding: 18,
+    // [App v2] Dark wallet card (#131313) — the design's ".wcard". White-overlay
+    // circle / button / subtitle (rgba(255,255,255,…)) all read on this surface.
+    backgroundColor: colors.inkDeep,
+    borderRadius: radius.xxxl,
+    padding: 22,
     marginTop: 16,
     ...shadow.card,
   },
@@ -289,7 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  walletBalance: { fontSize: font.sizes['6xl'], fontWeight: font.weights.extrabold, color: colors.white },
+  walletBalance: { fontSize: font.sizes['10xl'], fontWeight: font.weights.extrabold, color: colors.white, letterSpacing: -0.5 },
   walletSub: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
   walletEmpty: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 12 },
   walletBtn: {
@@ -303,6 +331,13 @@ const styles = StyleSheet.create({
   balancePoints: { fontSize: font.sizes['8xl'], fontWeight: font.weights.extrabold, color: colors.accent },
   tierLabel: { fontSize: font.sizes.lg, color: colors.ink2, marginTop: 2, fontWeight: font.weights.semibold },
   progressText: { fontSize: font.sizes.base, color: colors.ink3, marginTop: 12 },
+  // [App v2] tier progress bar
+  tierProgress: { marginTop: 12 },
+  tierRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  tierRowStart: { flexShrink: 1, fontSize: font.sizes.md, fontWeight: font.weights.extrabold, color: colors.ink },
+  tierRowEnd: { fontSize: font.sizes.md, fontWeight: font.weights.extrabold, color: colors.ink3 },
+  tierBar: { height: 8, borderRadius: 4, backgroundColor: colors.bgSoft, overflow: 'hidden', marginTop: 12 },
+  tierFill: { height: '100%', borderRadius: 4, backgroundColor: colors.accent },
   perksCard: {
     backgroundColor: colors.white,
     borderRadius: radius.xl,
