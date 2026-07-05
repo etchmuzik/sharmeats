@@ -10,6 +10,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "ios": {
         "simulator": false
       },
@@ -19,6 +20,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co",
         "EXPO_PUBLIC_USE_SUPABASE": "true",
