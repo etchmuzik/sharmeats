@@ -112,6 +112,7 @@
   "restaurant.closedBanner": "المطعم مغلق حاليًا. يمكنك تصفّح القائمة، لكن الطلب سيتاح عند فتحه مرة أخرى.",
   "restaurant.reviews": "آراء العملاء",
   "home.reorder": "اطلب تاني",
+  "home.savedForYou": "محفوظ لك",
   "item.addToCart": "أضف إلى السلة · {amount}",
   "item.updateLine": "تحديث · {amount}",
   "item.required": "مطلوب",
@@ -237,6 +238,10 @@
   "payment.cash": "كاش عند الاستلام",
   "payment.cashSubline": "ادفع للسائق عند وصول طلبك",
   "order.tracking": "تتبع الطلب",
+  "order.saveOrderTitle": "حفظ هذا الطلب؟",
+  "order.saveOrderCta": "حفظ الطلب",
+  "order.saveOrderDefaultName": "طلبي من {restaurant}",
+  "order.saveOrderCapMsg": "لقد حفظت 5 طلبات. احذف واحداً من الصفحة الرئيسية لحفظ هذا.",
   "order.deliveringToRoom": "التوصيل إلى غرفتك",
   "order.noCallNeeded": "لا حاجة لمكالمة هاتفية · لدينا تفاصيل غرفتك",
   "order.kitchenSees": "المطبخ شايف",
@@ -394,5 +399,7 @@
   "support.team": "شرم إيتس",
   "support.placeholder": "نقدر نساعدك بإيه؟",
   "profile.support": "دردشة الدعم المباشر",
-  "profile.editProfile": "تعديل الملف"
+  "profile.editProfile": "تعديل الملف",
+  "savedOrder.remove": "إزالة",
+  "savedOrder.removeConfirm": "إزالة هذا الطلب المحفوظ؟"
 }
