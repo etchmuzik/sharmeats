@@ -5,25 +5,28 @@
  * brand. Raw values only (hex / px numbers) — no RN- or CSS-specific shapes —
  * so both RN StyleSheet and Tailwind/CSS can consume them.
  *
- * Palette identity: warm sand/cream (Sharm desert) + coral accent + sea teal.
+ * Palette identity (v2, Claude Design handoff 2026-07): warm off-white canvas,
+ * near-black ink, coral accent, hairline warm-grey lines + sea teal.
  */
 
 export const colors = {
-  bg: '#fafaf7',
-  bgSoft: '#f5f0e1',
-  bgSoft2: '#fbf6e8',
-  sand: '#f3ead7',
-  sand2: '#ebe0c5',
-  ink: '#0a0a0c',
-  ink2: '#5b5b66',
-  ink3: '#9494a0',
-  line: '#e8e3d4',
-  line2: '#dad3bf',
-  accent: '#ff5a3c',
-  accentDark: '#e8482b',
-  accentSoft: '#ffeae4',
-  sea: '#0e7c91',
-  seaSoft: '#dff0f3',
+  bg: '#F6F5F2',
+  bgSoft: '#EFEDE9',
+  bgSoft2: '#F1EFEB',
+  sand: '#EBE9E4',
+  sand2: '#E4E2DD',
+  ink: '#161616',
+  ink2: '#8B8984',
+  ink3: '#B0ADA6',
+  /** Dark surface for the floating pill nav / dark CTAs / wallet card. */
+  inkDeep: '#131313',
+  line: '#EAE8E3',
+  line2: '#DDDAD4',
+  accent: '#F05A1F',
+  accentDark: '#C4552D',
+  accentSoft: '#FDEEE7',
+  sea: '#0E7C91',
+  seaSoft: '#DFF0F3',
   green: '#2e8a5d',
   greenSoft: '#e2f1ea',
   blue: '#0070f3',
@@ -48,12 +51,13 @@ export const spacing = {
   huge: 48,
 } as const;
 
+// v2 rounds everything up a notch: cards live at 18–24, controls at pill.
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 14,
-  xl: 16,
-  xxl: 18,
+  sm: 10,
+  md: 14,
+  lg: 16,
+  xl: 18,
+  xxl: 20,
   xxxl: 24,
   pill: 999,
 } as const;
