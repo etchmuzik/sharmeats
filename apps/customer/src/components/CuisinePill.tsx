@@ -1,6 +1,6 @@
-import { Pressable, Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import { colors, radius, font } from '../theme';
-import { selection } from '../haptics';
+import { PressableScale } from './PressableScale';
 
 type Props = {
   label: string;
@@ -11,16 +11,14 @@ type Props = {
 
 export function CuisinePill({ label, emoji, active, onPress }: Props) {
   return (
-    <Pressable
-      onPress={() => {
-        selection();
-        onPress();
-      }}
+    <PressableScale
+      haptic="selection"
+      onPress={onPress}
       style={[styles.pill, active && styles.active]}>
       <Text style={[styles.label, active && styles.labelActive]}>
         {emoji ? `${emoji} ${label}` : label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 

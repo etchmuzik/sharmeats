@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius } from '../theme';
 import { formatEgp } from '../lib/format';
 import type { Modifier } from '../data/types';
+import { PressableScale } from './PressableScale';
 
 interface Props {
   modifier: Modifier;
@@ -45,7 +46,7 @@ function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>
       {m.options.map((o) => {
         const on = selected.has(o.id);
         return (
-          <Pressable key={o.id} onPress={() => onToggle(o.id)} style={[s.sizePill, on && s.sizePillOn]}>
+          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={[s.sizePill, on && s.sizePillOn]}>
             <Text style={[s.sizeName, on && s.sizeNameOn]}>{o.name}</Text>
             {o.subtitle ? <Text style={[s.sizeSub, on && s.sizeSubOn]}>{o.subtitle}</Text> : null}
             {o.priceDeltaEgp !== 0 && (
@@ -54,7 +55,7 @@ function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>
                 {formatEgp(o.priceDeltaEgp)}
               </Text>
             )}
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -67,13 +68,13 @@ function IngredientChips({ m, selected, onToggle }: { m: Modifier; selected: Set
       {m.options.map((o) => {
         const included = selected.has(o.id);
         return (
-          <Pressable key={o.id} onPress={() => onToggle(o.id)} style={[s.chip, included ? s.chipOn : s.chipOff]}>
+          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={[s.chip, included ? s.chipOn : s.chipOff]}>
             <Text style={[s.chipText, !included && s.chipTextOff]}>
               {included ? '' : 'No '}
               {o.name}
             </Text>
             <Text style={[s.chipX, included ? s.chipXOn : s.chipXOff]}>{included ? '×' : '+'}</Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -86,7 +87,7 @@ function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<stri
       {m.options.map((o) => {
         const on = selected.has(o.id);
         return (
-          <Pressable key={o.id} onPress={() => onToggle(o.id)} style={[s.card, on && s.cardOn]}>
+          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={[s.card, on && s.cardOn]}>
             {o.icon ? <Text style={s.cardIcon}>{o.icon}</Text> : null}
             <View style={{ flex: 1 }}>
               <View style={s.cardNameRow}>
@@ -112,7 +113,7 @@ function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<stri
             <View style={[s.cardCheck, on && s.cardCheckOn]}>
               {on ? <Text style={s.cardCheckMark}>✓</Text> : null}
             </View>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -126,7 +127,7 @@ function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string
       {m.options.map((o) => {
         const on = selected.has(o.id);
         return (
-          <Pressable key={o.id} onPress={() => onToggle(o.id)} style={s.row}>
+          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={s.row}>
             <View style={[single ? s.radio : s.check, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
               {on && (single ? <View style={s.radioDot} /> : <Text style={s.checkMark}>✓</Text>)}
             </View>
@@ -137,7 +138,7 @@ function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string
                 {formatEgp(o.priceDeltaEgp)}
               </Text>
             )}
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>

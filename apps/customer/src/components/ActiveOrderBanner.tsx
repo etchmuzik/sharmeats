@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { db } from '../data';
 import type { Order } from '../data/types';
@@ -7,7 +7,7 @@ import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 import { formatTime } from '../lib/format';
 import { colors, font, radius, shadow } from '../theme';
-import { tap } from '../haptics';
+import { PressableScale } from './PressableScale';
 
 const TERMINAL: Order['status'][] = ['delivered', 'cancelled', 'rejected'];
 
@@ -73,9 +73,9 @@ export function ActiveOrderBanner() {
     : t('banner.etaMin', { n: remainingMin });
 
   return (
-    <Pressable
+    <PressableScale
+      haptic="tap"
       onPress={() => {
-        tap();
         router.push(`/order/${order.id}`);
       }}
       accessibilityRole="button"
@@ -93,7 +93,7 @@ export function ActiveOrderBanner() {
       <View style={styles.trackBtn}>
         <Text style={styles.trackText}>{t('banner.track')}</Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

@@ -1,6 +1,6 @@
-import { Pressable, Text, View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
 import { colors, font, shadow } from '../theme';
-import { selection } from '../haptics';
+import { PressableScale } from './PressableScale';
 
 /**
  * App v2 circular category chip — a lighter interpretation of the design's arc
@@ -17,11 +17,9 @@ const SIZE = 56;
 
 export function CuisineChip({ label, emoji, active, onPress }: Props) {
   return (
-    <Pressable
-      onPress={() => {
-        selection();
-        onPress();
-      }}
+    <PressableScale
+      haptic="selection"
+      onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!active }}
       accessibilityLabel={label}
@@ -32,7 +30,7 @@ export function CuisineChip({ label, emoji, active, onPress }: Props) {
       <Text numberOfLines={1} style={[styles.label, active && styles.labelActive]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
