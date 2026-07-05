@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 50,
   },
-  skipText: { color: '#fff', fontSize: font.sizes.lg, fontWeight: font.weights.semibold },
+  skipText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.semibold },
   langBtn: {
     position: 'absolute',
     backgroundColor: 'rgba(255,255,255,0.95)',
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 6,
     minWidth: 160,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOpacity: 0.18,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },

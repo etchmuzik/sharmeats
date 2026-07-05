@@ -1,6 +1,9 @@
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
 import { useEffect, useState } from 'react';
+import { colors } from '../theme';
+
+const DEFAULT_PALETTE = [colors.accent, colors.sea, colors.star];
 
 export interface Particle {
   id: number; x: number; angle: number; distance: number; color: string; delay: number;
@@ -33,7 +36,7 @@ function Dot({ p, progress }: { p: Particle; progress: { value: number } }) {
   return <Animated.View style={[styles.dot, { backgroundColor: p.color }, style]} />;
 }
 
-export function Confetti({ visible, count = 14, palette = ['#F05A1F', '#0E7C91', '#e8a317'] }: {
+export function Confetti({ visible, count = 14, palette = DEFAULT_PALETTE }: {
   visible: boolean; count?: number; palette?: string[];
 }) {
   const progress = useSharedValue(0);
