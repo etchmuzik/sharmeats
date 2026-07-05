@@ -19,6 +19,7 @@ import { track } from '../../src/lib/analytics';
 import { ScreenErrorBoundary } from '../../src/components/ScreenErrorBoundary';
 import { SHARM_CENTER, type LatLng } from '../../src/components/MapPinPicker';
 import { isDriverLocationStale, vehicleIconName } from '../../src/lib/tracking';
+import { slaCreditEgp } from '../../src/lib/slaCredit';
 
 // Expo Router renders this instead of crashing if anything throws while the
 // tracking screen renders — the user gets a retry screen and we report the error.
@@ -141,7 +142,8 @@ export default function OrderTracking() {
   const stepIndex = STEPS.findIndex((s) => s.key === order.status);
   const remainingMs = order.etaAt - now;
   const remainingMin = Math.max(0, Math.ceil(remainingMs / 60_000));
-  const slaCreditEgp = Math.round(order.totalEgp * 0.1);
+  // What the engine actually credits (mig 062): 10% of SUBTOTAL, floored, 100 cap.
+  const lateCreditEgp = slaCreditEgp(order.subtotalEgp);
   const isCancelled = order.status === 'cancelled' || order.status === 'rejected';
   // Customers may only cancel before the restaurant accepts; once a card order
   // is paid, cancellation implies a refund flow we don't have yet — hide it.
@@ -270,7 +272,7 @@ export default function OrderTracking() {
           <Text style={styles.slaLine}>
             {t('order.slaLine', {
               time: formatTime(new Date(order.etaAt)),
-              credit: formatEgp(slaCreditEgp),
+              credit: formatEgp(lateCreditEgp),
             })}
           </Text>
         )}
