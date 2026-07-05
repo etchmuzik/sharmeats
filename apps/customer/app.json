@@ -2,11 +2,17 @@
   "expo": {
     "name": "Sharm Eats",
     "slug": "sharmeats-customer",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "scheme": "sharmeats",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d3628b78-b35a-4d15-a48a-c12b9579b682"
+    },
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash-icon.png",
