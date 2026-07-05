@@ -262,4 +262,36 @@ Then `npm run db:types` and sync the 4 apps (091 drops riders/legacy_rider_id
 from the generated types). For F4 at scale, use the `CREATE INDEX CONCURRENTLY`
 variants (outside a txn) instead of 088 as-is.
 
-**Live DB unchanged. All work is on branches / local. Awaiting your go to apply migrations to prod.**
+### PROD APPLY COMPLETE (2026-07-05, owner-approved "apply all")
+
+All 9 migrations applied to prod `ilqpsebcfbaoaogimhud` via `apply_migration`; head is now
+**094** (was 085). Post-apply verification battery (live):
+
+| Check | Result |
+|-------|--------|
+| Migration head | 094 (9 new versions recorded) |
+| F3 saved_orders | exists ✅ |
+| F8 riders / legacy_rider_id | both dropped ✅ |
+| F9 delivered orders missing financials | 0 (was 3) ✅ |
+| F1 ledger write grants (anon/auth) | 0 (was 60) ✅ |
+| F7 public_drivers write grants / SELECT | 0 write / 2 SELECT (read preserved) ✅ |
+| F7 drivers write grants | 0 ✅ |
+| Money: credit + loyalty mismatch | 0 / 0 (conserved) ✅ |
+| orders SELECT policies | 1 (4 collapsed) ✅ |
+| bare-auth initplan stragglers | 0 ✅ |
+| Perf advisor: auth_rls_initplan | 0 (was 30) ✅ |
+| Perf advisor: multiple_permissive_policies | 0 (was 48) ✅ |
+| Sec advisor: rls_enabled_no_policy | riders gone; 2 intentional keeps ✅ |
+| Cron: active / failures (10m) | 8 / 0 ✅ |
+| Realtime publication | unchanged (no financials) ✅ |
+
+Accepted residual advisors (by design): `security_definer_view` on `public_drivers`
+(F7 keeps the definer READ intentionally — write path closed), `spatial_ref_sys`
+RLS-disabled (PostGIS system table), 1 new `unindexed_foreign_keys` on
+`saved_orders.restaurant_id` (086 table postdates 088 — add
+`create index on saved_orders(restaurant_id)` in a future migration), and
+`unused_index` on the 18 fresh F4 indexes (no traffic yet — expected).
+
+**Follow-ups still owner-gated:** `npm run db:types` + sync 4 apps (091 removed
+riders/legacy_rider_id types); deploy expo-push (N4/N7 localized + new-event copy);
+N1 watchdog webhook; F6 leaked-password toggle; N3/F12 store build; F11 CI billing.
