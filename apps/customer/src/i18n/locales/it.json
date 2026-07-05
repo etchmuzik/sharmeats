@@ -112,6 +112,7 @@
   "restaurant.closedBanner": "Questo ristorante è chiuso al momento. Puoi sfogliare il menu, ma potrai ordinare quando riaprirà.",
   "restaurant.reviews": "Cosa dicono i clienti",
   "home.reorder": "Ordina di nuovo",
+  "home.savedForYou": "Salvati per te",
   "item.addToCart": "Aggiungi · {amount}",
   "item.updateLine": "Aggiorna · {amount}",
   "item.required": "Obbligatorio",
@@ -237,6 +238,10 @@
   "payment.cash": "Pagamento alla consegna",
   "payment.cashSubline": "Paga il corriere quando arriva l'ordine",
   "order.tracking": "Stato dell'ordine",
+  "order.saveOrderTitle": "Salvare questo ordine?",
+  "order.saveOrderCta": "Salva ordine",
+  "order.saveOrderDefaultName": "Il mio ordine da {restaurant}",
+  "order.saveOrderCapMsg": "Hai salvato 5 ordini. Rimuovine uno dalla Home per salvare questo.",
   "order.deliveringToRoom": "Consegna nella tua camera",
   "order.noCallNeeded": "Nessuna chiamata necessaria · abbiamo i dati della tua camera",
   "order.kitchenSees": "La cucina vede",
@@ -394,5 +399,7 @@
   "support.team": "Sharm Eats",
   "support.placeholder": "Come possiamo aiutarti?",
   "profile.support": "Chat di assistenza dal vivo",
-  "profile.editProfile": "Modifica profilo"
+  "profile.editProfile": "Modifica profilo",
+  "savedOrder.remove": "Rimuovi",
+  "savedOrder.removeConfirm": "Rimuovere questo ordine salvato?"
 }

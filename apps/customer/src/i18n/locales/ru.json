@@ -112,6 +112,7 @@
   "restaurant.closedBanner": "Ресторан сейчас закрыт. Вы можете посмотреть меню, но оформить заказ можно будет после открытия.",
   "restaurant.reviews": "Отзывы клиентов",
   "home.reorder": "Заказать снова",
+  "home.savedForYou": "Сохранённое для вас",
   "item.addToCart": "В корзину · {amount}",
   "item.updateLine": "Обновить · {amount}",
   "item.required": "Обязательно",
@@ -237,6 +238,10 @@
   "payment.cash": "Оплата при получении",
   "payment.cashSubline": "Оплатите курьеру при получении заказа",
   "order.tracking": "Отслеживание заказа",
+  "order.saveOrderTitle": "Сохранить этот заказ?",
+  "order.saveOrderCta": "Сохранить заказ",
+  "order.saveOrderDefaultName": "Мой заказ из {restaurant}",
+  "order.saveOrderCapMsg": "Вы сохранили 5 заказов. Удалите один на главной, чтобы сохранить этот.",
   "order.deliveringToRoom": "Доставка в ваш номер",
   "order.noCallNeeded": "Звонок не нужен · у нас есть данные вашего номера",
   "order.kitchenSees": "Кухня видит",
@@ -394,5 +399,7 @@
   "support.team": "Sharm Eats",
   "support.placeholder": "Чем помочь?",
   "profile.support": "Живой чат поддержки",
-  "profile.editProfile": "Изменить профиль"
+  "profile.editProfile": "Изменить профиль",
+  "savedOrder.remove": "Удалить",
+  "savedOrder.removeConfirm": "Удалить этот сохранённый заказ?"
 }
