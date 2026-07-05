@@ -102,7 +102,6 @@ screenshots if App Review flags them).
 - **Restaurant:** after its 1.0 clears review, bump to ≥1.0.1, build, submit.
 - Backend is ready: prod DB at migration 094, expo-push v11 live.
 
-## Branch
-`chore/store-release-updates` (driver 1.0.2 bump) — merge before/after building; the
-version just needs to be on `main` when you build (appVersionSource is remote, but
-`expo.version` is read from app.json at build time).
+## State
+Merged to `main` (PR #61). `main` now has customer **1.0.3** and driver **1.0.2** —
+`git checkout main && git pull`, then build. No branch juggling.
