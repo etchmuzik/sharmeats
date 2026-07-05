@@ -17,9 +17,9 @@ export function OrderCelebration({ visible, etaText, onDone }: {
 
   useEffect(() => {
     if (!visible) return;
-    let reduce = false;
-    AccessibilityInfo.isReduceMotionEnabled().then((v) => { reduce = v; });
-    enter.value = reduce ? 1 : withDelay(80, withSpring(1, { damping: 14 }));
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      enter.value = reduce ? 1 : withDelay(80, withSpring(1, { damping: 14 }));
+    });
     const timer = setTimeout(onDone, 1600);
     return () => clearTimeout(timer);
   }, [visible, enter, onDone]);
