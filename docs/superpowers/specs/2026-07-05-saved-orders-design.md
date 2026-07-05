@@ -125,9 +125,12 @@ When `order.status === 'delivered'`:
 - **Stale-modifier guard:** reuse the exact check from `orders.tsx` `reorder()` —
   if any line has `modifierChoices` missing `optionId`, do NOT offer the save
   card (the snapshot would replay wrong/cheaper items later).
-- **Cap reached (already 5):** the card instead reads "Replace a saved order to
-  keep this one" and taps through to a small picker listing the 5 existing saves;
-  choosing one deletes it and saves the new one.
+- **Cap reached (already 5):** the Save attempt surfaces a lightweight alert
+  ("You've saved 5 orders. Remove one from Home to save this.") rather than a
+  dedicated replace-picker screen. Removal already lives on the Home rail
+  (long-press → Remove), so directing the user there reuses that affordance
+  instead of building a second delete surface. The `save()` call throws a typed
+  `SavedOrdersCapError` that the card catches to show this message.
 - Once saved (or dismissed), the card does not reappear for that order (track via
   local per-order dismissal, same pattern as the home allergy nudge's
   `dismissAllergyNudge`).
