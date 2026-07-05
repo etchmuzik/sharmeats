@@ -17,63 +17,54 @@ What ships: customer = delight pass (PR #43) + N2/N8/N9/N10/N11 fixes + OTA conf
 (52 files since the last build). driver = phase-aware countdown + realtime offer
 sync + unread badges (8 files).
 
----
-
-## ⚠️ Prerequisite: fix CocoaPods PATH (local build needs it)
-
-The system `pod` (`/usr/local/bin/pod`) is **broken** (CocoaPods 1.16.2 +
-activesupport on system Ruby 2.6 → `uninitialized constant
-LoggerThreadSafeLevel::Logger`). The Homebrew `pod` (`/opt/homebrew/bin/pod`,
-1.16.2) **works**. Put brew first on PATH for the whole build session:
-
-```bash
-export PATH="/opt/homebrew/bin:$PATH"
-export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
-pod --version   # must print 1.16.2 cleanly, NOT a Ruby stack trace
-```
+## Pre-flight (verified 2026-07-05 — no config changes needed)
+- **EAS build quota is available** — the July 1–3 cloud builds all *finished*; the
+  "100% credits" note was from an earlier month. Cloud is viable.
+- **Prior build failures are resolved:** customer's June Sentry failure is guarded
+  by `SENTRY_DISABLE_AUTO_UPLOAD=true` (present in customer eas.json prod env);
+  driver has no Sentry plugin so it never runs that step. Driver's July-1
+  push-entitlement failure was a stale provisioning profile — EAS regenerated it,
+  and driver build #13 (Jul 3) finished with push working. `expo-notifications`
+  injects `aps-environment` at prebuild for both apps; do **not** hand-add it to
+  `ios.entitlements` (would conflict with the plugin).
 
 ---
 
-## Build (local — free, avoids the EAS credit cap)
+## Build + submit — PRIMARY PATH: cloud, non-interactive, auto-submit
 
-Run each from its app dir. iOS local builds prompt for **Apple signing** (login /
-distribution cert) — that's why this is yours to run, not automatable headless.
-Each takes ~20–40 min.
+Cloud build runs on EAS's macOS image (`macos-sequoia-15.6-xcode-26.2`, already in
+`build.production.ios`), signs server-side with the certs already on EAS, and
+`--auto-submit` chains the ASC upload the moment each build finishes — so this is
+**fully hands-off** once you kick it off. No local CocoaPods, no Apple 2FA prompt.
 
 ```bash
 cd /Users/etch/Downloads/sharmeats && git checkout main && git pull
 
-# CUSTOMER (1.0.3)
+# CUSTOMER 1.0.3 — build on EAS, auto-submit to App Store Connect when done
 cd apps/customer
-eas build --profile production --platform ios --local
-#   output: a .ipa in the app dir
+eas build --profile production --platform ios --non-interactive --auto-submit
 
-# DRIVER (1.0.2)  — note: eas.json build.production has no `channel` (driver has no OTA); fine.
+# DRIVER 1.0.2
 cd ../driver
-eas build --profile production --platform ios --local
+eas build --profile production --platform ios --non-interactive --auto-submit
 ```
 
-If a local build stalls on signing, the fallback is cloud (`eas build --profile
-production --platform ios`) — but that needs EAS credits, which were capped this
-month. Check `eas build:list` / the Expo dashboard billing before relying on it.
+Each build takes ~20–40 min on EAS; you can run both back-to-back (they queue).
+Watch progress at the URL each command prints, or `eas build:list`. The submit
+profiles already carry the ASC API key (`AuthKey_C4TFQQ5AAD.p8`, key `C4TFQQ5AAD`)
+and the right `ascAppId`, so `--auto-submit` needs nothing further.
 
----
-
-## Submit to App Store Connect
-
+### Fallback: local build (only if cloud quota unexpectedly blocks)
+System `pod` (`/usr/local/bin/pod`) is **broken** (Ruby 2.6 stack trace); the
+Homebrew one (`/opt/homebrew/bin/pod` 1.16.2) works — put brew first on PATH:
 ```bash
-# CUSTOMER
-cd apps/customer
-eas submit --profile production --platform ios --path <the-customer.ipa>
-
-# DRIVER
-cd ../driver
-eas submit --profile production --platform ios --path <the-driver.ipa>
+export PATH="/opt/homebrew/bin:$PATH"; export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+pod --version   # must print 1.16.2, NOT a stack trace
+cd apps/customer && eas build --profile production --platform ios --local
+eas submit --profile production --platform ios --path build-*.ipa
 ```
-
-The submit profiles are already configured with the ASC API key
-(`AuthKey_C4TFQQ5AAD.p8`, key `C4TFQQ5AAD`) and the right `ascAppId` per app, so
-submit is non-interactive.
+Local iOS builds prompt for Apple signing (interactive) — that's why cloud is
+preferred.
 
 ---
 
