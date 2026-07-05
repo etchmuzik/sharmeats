@@ -1,6 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export interface Particle {
   id: number; x: number; angle: number; distance: number; color: string; delay: number;
@@ -37,13 +37,24 @@ export function Confetti({ visible, count = 14, palette = ['#F05A1F', '#0E7C91',
   visible: boolean; count?: number; palette?: string[];
 }) {
   const progress = useSharedValue(0);
+  // Fail closed for a11y: stay hidden until the OS reduce-motion setting is known to be off.
+  const [reduceMotion, setReduceMotion] = useState(true);
   const particles = buildParticles(count, palette);
 
   useEffect(() => {
-    if (visible) { progress.value = 0; progress.value = withDelay(60, withTiming(1, { duration: 900 })); }
-  }, [visible, progress]);
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!cancelled) setReduceMotion(reduce);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
-  if (!visible) return null;
+  useEffect(() => {
+    if (visible && !reduceMotion) { progress.value = 0; progress.value = withDelay(60, withTiming(1, { duration: 900 })); }
+  }, [visible, reduceMotion, progress]);
+
+  // Per the delight-pass spec, the celebration collapses to static under reduced motion — no confetti at all.
+  if (!visible || reduceMotion) return null;
   return (
     <View pointerEvents="none" style={styles.wrap}>
       {particles.map((p) => <Dot key={p.id} p={p} progress={progress} />)}
