@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { Icon } from '../../src/components/Icon';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
+import { SavedOrdersCapError } from '../../src/data/repositories/savedOrders';
 import type { Order, OrderStatus, Restaurant } from '../../src/data/types';
 import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
@@ -31,6 +32,13 @@ const STEPS: { key: OrderStatus; tKey: string }[] = [
   { key: 'delivered', tKey: 'order.statusDelivered' },
 ];
 
+// Guard: orders placed before mig 055 snapshot their modifier choices WITHOUT
+// optionId, so saving one as a preset would silently drop every add-on and
+// later reorder a cheaper, wrong order. Matches the guard in orders.tsx reorder().
+function hasUnresolvableMods(items: { modifierChoices?: { optionId?: string }[] }[]): boolean {
+  return items.some((it) => (it.modifierChoices ?? []).some((c) => !c.optionId));
+}
+
 export default function OrderTracking() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -42,6 +50,10 @@ export default function OrderTracking() {
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number; at: number } | null>(null);
+  const [saveName, setSaveName] = useState('');
+  const [saveDone, setSaveDone] = useState(false);
+  const [saveDismissed, setSaveDismissed] = useState(false);
+  const [saving, setSaving] = useState(false);
   const mapRef = useRef<MapView | null>(null);
 
   const copyShortCode = async (code: string) => {
@@ -61,6 +73,13 @@ export default function OrderTracking() {
       clearInterval(tick);
     };
   }, [id]);
+
+  // Pre-fill the save-preset name once the order loads and is delivered.
+  useEffect(() => {
+    if (order?.status === 'delivered' && !saveName) {
+      setSaveName(t('order.saveOrderDefaultName', { restaurant: order.restaurantName }));
+    }
+  }, [order?.status, order?.restaurantName]);
 
   // Fetch the restaurant once we know which one, to show its contact card
   // (phone/address) HERE — contact info is gated behind a placed order, not
@@ -303,6 +322,61 @@ export default function OrderTracking() {
           })}
         </View>
         )}
+
+        {order.status === 'delivered' &&
+          !saveDone &&
+          !saveDismissed &&
+          !hasUnresolvableMods(order.items) && (
+            <View style={styles.saveCard}>
+              <View style={styles.saveHeadRow}>
+                <Text style={styles.saveTitle}>{t('order.saveOrderTitle')}</Text>
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    setSaveDismissed(true);
+                  }}
+                  hitSlop={12}
+                  accessibilityLabel={t('common.cancel')}>
+                  <Text style={styles.saveClose}>✕</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                value={saveName}
+                onChangeText={setSaveName}
+                style={styles.saveInput}
+                placeholder={t('order.saveOrderTitle')}
+                maxLength={40}
+                accessibilityLabel={t('order.saveOrderTitle')}
+              />
+              <Pressable
+                disabled={saving || saveName.trim().length === 0}
+                onPress={async () => {
+                  setSaving(true);
+                  try {
+                    await db.savedOrders.save({
+                      restaurantId: order.restaurantId,
+                      restaurantName: order.restaurantName,
+                      name: saveName.trim(),
+                      items: order.items,
+                    });
+                    success();
+                    track('saved_order_created', { restaurantId: order.restaurantId });
+                    setSaveDone(true);
+                  } catch (e) {
+                    if (e instanceof SavedOrdersCapError) {
+                      Alert.alert(t('order.saveOrderTitle'), t('order.saveOrderCapMsg'));
+                    } else {
+                      Alert.alert(t('order.saveOrderTitle'), t('common.retry'));
+                    }
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                style={[styles.saveBtn, (saving || saveName.trim().length === 0) && { opacity: 0.5 }]}>
+                <Text style={styles.saveBtnText}>{t('order.saveOrderCta')}</Text>
+              </Pressable>
+            </View>
+          )}
 
         {/* Kitchen briefing echo */}
         {((order.aggregateAllergens && order.aggregateAllergens.length > 0) || order.kitchenNotes) && (
@@ -772,4 +846,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   debugText: { color: colors.ink2, fontSize: font.sizes.md, fontWeight: font.weights.bold },
+
+  saveCard: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.xl,
+    padding: 14,
+    marginHorizontal: 16,
+    marginTop: 12,
+    ...shadow.soft,
+  },
+  saveHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  saveTitle: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
+  saveClose: { fontSize: 16, color: colors.ink3 },
+  saveInput: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+    fontSize: font.sizes.lg,
+    color: colors.ink,
+  },
+  saveBtn: {
+    marginTop: 10,
+    backgroundColor: colors.sea,
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  saveBtnText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
 });
