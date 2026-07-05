@@ -18,9 +18,12 @@ type Props = {
 export function BackButton({ size = 38, onPress, fallback, accessibilityLabel = 'Go back', tint = 'dark' }: Props) {
   const goBack = useGoBack(fallback);
   const dir = useDirection();
+  // Keep the visual circle at `size` but guarantee a >=44pt effective tap target (HIG minimum).
+  const slop = Math.max(4, Math.ceil((44 - size) / 2));
   return (
     <PressableScale
       haptic="tap"
+      hitSlop={slop}
       onPress={() => {
         if (onPress) onPress();
         else goBack();
