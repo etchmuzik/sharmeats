@@ -28,8 +28,15 @@
 // deletes that token from push_tokens so we stop pushing to dead devices
 // (Expo throttles senders that keep hitting unregistered tokens). Tickets are
 // positional within a chunk: ticket[i] answers message[i].
+//
+// [N4 i18n] Copy is localized per recipient via public.users.locale
+// (en/ar/ru/it/de; guests/unknown fall back to en). Locales are resolved with
+// ONE batched users query per request (never per-token), and messages are
+// grouped by locale so each Expo chunk carries a single language. The COPY map
+// lives in ./copy.ts so it can be unit-tested. Request contract is unchanged.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { type Locale, resolveCopy, normalizeLocale } from './copy.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_CHUNK_SIZE = 100; // hard cap per https://docs.expo.dev/push-notifications/sending-notifications/
@@ -51,31 +58,13 @@ interface ExpoTicket {
   details?: { error?: string };
 }
 
-// Minimal event -> copy map. Real i18n lives in the apps; this is a
-// server-side fallback in English/Arabic-ready keys.
-const COPY: Record<string, { title: string; body: string }> = {
-  order_paid: { title: 'Payment confirmed', body: 'Your order is confirmed and sent to the kitchen.' },
-  order_accepted: { title: 'Order accepted', body: 'The restaurant is preparing your order.' },
-  order_ready: { title: 'Order ready', body: 'Your order is ready and waiting for pickup.' },
-  order_picked_up: { title: 'On the way', body: 'Your driver has picked up your order.' },
-  order_out_for_delivery: { title: 'Out for delivery', body: 'Your driver is heading to you.' },
-  order_delivered: { title: 'Delivered', body: 'Enjoy your meal! Tap to rate your order.' },
-  new_offer: { title: 'New delivery offer', body: 'You have a new job. Tap to accept.' },
-  referral_rewarded: { title: 'Referral reward earned', body: 'Your friend ordered — your discount is ready. Tap to see it.' },
-  order_placed_merchant: { title: 'New order', body: 'A new order just came in. Tap to accept it.' },
-  order_rejected: { title: 'Order declined', body: 'The restaurant could not take your order. Any charge is refunded.' },
-  order_cancelled: { title: 'Order cancelled', body: 'Your order was cancelled. Tap for details.' },
-  order_cancelled_merchant: { title: 'Order cancelled', body: 'An order was cancelled — you can stop preparing it.' },
-  payment_failed: { title: 'Payment failed', body: 'Your card payment did not go through. Tap to try again.' },
-  credit_issued: { title: 'Credit added', body: 'Credit was added to your Sharm Eats wallet. Tap to see it.' },
-  new_message: { title: 'New message', body: 'You have a new message about your order. Tap to reply.' },
-  support_reply: { title: 'Support replied', body: 'Our team answered your message. Tap to read it.' },
-  support_new_message: { title: 'New support message', body: 'A customer needs help. Tap to respond.' },
-  driver_assigned: { title: 'Driver on the way', body: 'A driver is heading to the restaurant for your order.' },
-  order_ready_pickup: { title: 'Order ready for pickup', body: 'An order is ready — head to the restaurant to collect it.' },
-  low_rating: { title: 'Low rating received', body: 'A customer left a low rating on a recent order. Tap to review.' },
-  tier_promoted: { title: 'You leveled up!', body: 'You reached a new rewards tier. Tap to see your new perks.' },
-};
+interface ExpoMessage {
+  to: string;
+  sound: 'default';
+  title: string;
+  body: string;
+  data: { orderId: string; event: string };
+}
 
 Deno.serve(async (req: Request) => {
   try {
@@ -116,62 +105,96 @@ Deno.serve(async (req: Request) => {
     }
     if (userIds.length === 0) return new Response('ok (no recipients)', { status: 200 });
 
-    // Look up Expo tokens (table may not exist yet — handle gracefully).
+    // Look up Expo tokens with their owning user, so copy can be localized per
+    // recipient (table may not exist yet — handle gracefully).
     const { data: tokens, error } = await admin
       .from('push_tokens')
-      .select('token')
+      .select('token, user_id')
       .in('user_id', userIds);
     if (error) {
       // push_tokens not provisioned yet — no-op, don't fail the order flow.
       return new Response('ok (push_tokens unavailable)', { status: 200 });
     }
+    const validTokens = (tokens ?? []).filter(
+      (t: { token: string; user_id: string }) => t.token?.startsWith('ExponentPushToken'),
+    );
+    if (validTokens.length === 0) return new Response('ok (no tokens)', { status: 200 });
+
     // Custom copy (campaigns) overrides the event COPY map when provided.
-    const title = body.title?.trim() || COPY[body.event]?.title || 'Sharm Eats';
-    const messageBody = body.body?.trim() || COPY[body.event]?.body || 'Order update';
-    const messages = (tokens ?? [])
-      .filter((t: { token: string }) => t.token?.startsWith('ExponentPushToken'))
-      .map((t: { token: string }) => ({
+    const customTitle = body.title?.trim() || null;
+    const customBody = body.body?.trim() || null;
+
+    // [N4] Resolve each recipient's locale in ONE batched query (never
+    // per-token). Guests, missing rows, or a failed lookup fall back to 'en',
+    // which matches the old English-only behavior.
+    const localeByUser = new Map<string, Locale>();
+    if (!customTitle || !customBody) {
+      const { data: userRows, error: localeErr } = await admin
+        .from('users')
+        .select('id, locale')
+        .in('id', userIds);
+      if (localeErr) {
+        console.error(`expo-push: locale lookup failed (falling back to en): ${localeErr.message}`);
+      } else {
+        for (const u of (userRows ?? []) as { id: string; locale: string | null }[]) {
+          localeByUser.set(u.id, normalizeLocale(u.locale));
+        }
+      }
+    }
+
+    // [N4] Group messages by locale so each Expo chunk carries one language.
+    const messagesByLocale = new Map<Locale, ExpoMessage[]>();
+    for (const t of validTokens as { token: string; user_id: string }[]) {
+      const locale = localeByUser.get(t.user_id) ?? 'en';
+      const copy = resolveCopy(body.event, locale);
+      const message: ExpoMessage = {
         to: t.token,
         sound: 'default',
-        title,
-        body: messageBody,
+        title: customTitle ?? copy.title,
+        body: customBody ?? copy.body,
         data: { orderId: body.orderId, event: body.event },
-      }));
-
-    if (messages.length === 0) return new Response('ok (no tokens)', { status: 200 });
+      };
+      const group = messagesByLocale.get(locale);
+      if (group) group.push(message);
+      else messagesByLocale.set(locale, [message]);
+    }
 
     // [M2] Send in Expo-sized chunks; collect dead tokens from error tickets.
     const deadTokens: string[] = [];
     let sent = 0;
-    for (let i = 0; i < messages.length; i += EXPO_CHUNK_SIZE) {
-      const chunk = messages.slice(i, i + EXPO_CHUNK_SIZE);
-      try {
-        const res = await fetch(EXPO_PUSH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify(chunk),
-        });
-        if (!res.ok) {
-          console.error(`expo-push: Expo API ${res.status} for chunk ${i / EXPO_CHUNK_SIZE}`);
-          continue; // best-effort: other chunks still go out
+    let total = 0;
+    for (const [locale, messages] of messagesByLocale) {
+      total += messages.length;
+      for (let i = 0; i < messages.length; i += EXPO_CHUNK_SIZE) {
+        const chunk = messages.slice(i, i + EXPO_CHUNK_SIZE);
+        try {
+          const res = await fetch(EXPO_PUSH_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify(chunk),
+          });
+          if (!res.ok) {
+            console.error(`expo-push: Expo API ${res.status} for ${locale} chunk ${i / EXPO_CHUNK_SIZE}`);
+            continue; // best-effort: other chunks still go out
+          }
+          const payload = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
+          const tickets = payload?.data ?? [];
+          // Tickets are positional: tickets[j] answers chunk[j].
+          tickets.forEach((ticket, j) => {
+            if (ticket.status === 'ok') {
+              sent++;
+              return;
+            }
+            const code = ticket.details?.error;
+            if (code === 'DeviceNotRegistered' && chunk[j]) {
+              deadTokens.push(chunk[j].to);
+            } else {
+              console.error(`expo-push: ticket error ${code ?? 'unknown'}: ${ticket.message ?? ''}`);
+            }
+          });
+        } catch (e) {
+          console.error(`expo-push: network error sending chunk: ${e}`);
         }
-        const payload = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
-        const tickets = payload?.data ?? [];
-        // Tickets are positional: tickets[j] answers chunk[j].
-        tickets.forEach((ticket, j) => {
-          if (ticket.status === 'ok') {
-            sent++;
-            return;
-          }
-          const code = ticket.details?.error;
-          if (code === 'DeviceNotRegistered' && chunk[j]) {
-            deadTokens.push(chunk[j].to);
-          } else {
-            console.error(`expo-push: ticket error ${code ?? 'unknown'}: ${ticket.message ?? ''}`);
-          }
-        });
-      } catch (e) {
-        console.error(`expo-push: network error sending chunk: ${e}`);
       }
     }
 
@@ -182,7 +205,7 @@ Deno.serve(async (req: Request) => {
       else console.log(`expo-push: pruned ${deadTokens.length} DeviceNotRegistered token(s)`);
     }
 
-    return new Response(`ok (sent ${sent}/${messages.length}, pruned ${deadTokens.length})`, { status: 200 });
+    return new Response(`ok (sent ${sent}/${total}, pruned ${deadTokens.length})`, { status: 200 });
   } catch (e) {
     return new Response(`error: ${e}`, { status: 500 });
   }
