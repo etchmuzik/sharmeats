@@ -19,6 +19,7 @@ import { Mascot } from '../src/components/Mascot/Mascot';
 import { colors, font } from '../src/theme';
 import { useT, LOCALE_LABELS, ALL_LOCALES } from '../src/i18n';
 import { useSession, type Locale } from '../src/store/session';
+import { useDirection } from '../src/lib/direction';
 import { selection } from '../src/haptics';
 
 const { width } = Dimensions.get('window');
@@ -60,6 +61,7 @@ export default function Onboarding() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
   const locale = useSession((s) => s.locale);
   const setLocale = useSession((s) => s.setLocale);
   const signIn = useSession((s) => s.signIn);
@@ -119,17 +121,31 @@ export default function Onboarding() {
               {i < SLIDES.length - 1 && (
                 <Pressable
                   onPress={startAsGuest}
-                  style={[styles.skip, { top: insets.top + 16 }]}>
+                  style={[
+                    styles.skip,
+                    { top: insets.top + 16 },
+                    // Pinned corners swap in RTL so "skip" sits at the trailing edge.
+                    dir.isRtl ? { left: 20 } : { right: 20 },
+                  ]}>
                   <Text style={styles.skipText}>{t('common.skip')}</Text>
                 </Pressable>
               )}
               <Pressable
                 onPress={() => setPickerOpen((o) => !o)}
-                style={[styles.langBtn, { top: insets.top + 16 }]}>
+                style={[
+                  styles.langBtn,
+                  { top: insets.top + 16 },
+                  dir.isRtl ? { right: 20 } : { left: 20 },
+                ]}>
                 <Text style={styles.langText}>🌐 {LOCALE_LABELS[locale]}</Text>
               </Pressable>
               {pickerOpen && (
-                <View style={[styles.langSheet, { top: insets.top + 56 }]}>
+                <View
+                  style={[
+                    styles.langSheet,
+                    { top: insets.top + 56 },
+                    dir.isRtl ? { right: 20 } : { left: 20 },
+                  ]}>
                   {ALL_LOCALES.map((l) => (
                     <Pressable
                       key={l}
@@ -147,11 +163,11 @@ export default function Onboarding() {
               )}
             </View>
             <View style={styles.body}>
-              <Text style={styles.title}>
+              <Text style={[styles.title, dir.text]}>
                 {t(s.titleKey)}
                 <Text style={{ color: colors.accent }}>{t(s.accentKey)}</Text>
               </Text>
-              <Text style={styles.desc}>{t(s.descKey)}</Text>
+              <Text style={[styles.desc, dir.text]}>{t(s.descKey)}</Text>
               <View style={{ marginTop: 'auto' }}>
                 <View style={styles.dots}>
                   {SLIDES.map((_, j) => (
@@ -183,9 +199,9 @@ const styles = StyleSheet.create({
   imageWrap: { height: 460, position: 'relative' },
   image: { width: '100%', height: '100%' },
   mascotWrap: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  // NOTE: horizontal pinning (left/right 20) is applied inline per direction — see useDirection().
   skip: {
     position: 'absolute',
-    right: 20,
     backgroundColor: 'rgba(0,0,0,0.3)',
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -194,7 +210,6 @@ const styles = StyleSheet.create({
   skipText: { color: '#fff', fontSize: font.sizes.lg, fontWeight: font.weights.semibold },
   langBtn: {
     position: 'absolute',
-    left: 20,
     backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -203,7 +218,6 @@ const styles = StyleSheet.create({
   langText: { fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.ink },
   langSheet: {
     position: 'absolute',
-    left: 20,
     backgroundColor: colors.white,
     borderRadius: 12,
     paddingVertical: 6,
