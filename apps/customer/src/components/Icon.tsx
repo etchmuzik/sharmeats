@@ -12,6 +12,7 @@ import { colors } from '../theme';
  * `accessibilityLabel` for an icon that stands alone.
  */
 export type IconName =
+  | 'home'
   | 'location'
   | 'search'
   | 'cart'
@@ -50,6 +51,7 @@ export type IconName =
   | 'car';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
+  home: 'home-outline',
   location: 'location-outline',
   search: 'search-outline',
   cart: 'bag-handle-outline',

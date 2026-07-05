@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../data';
 import type { Order } from '../data/types';
 import { useT } from '../i18n';
@@ -8,6 +9,12 @@ import { useDirection } from '../lib/direction';
 import { formatTime } from '../lib/format';
 import { colors, font, radius, shadow } from '../theme';
 import { tap } from '../haptics';
+
+// The floating pill nav is 64px tall (52 content + 6 padding each side) and sits
+// at `bottom: max(insets.bottom, 14)`. The banner stacks directly above it with
+// a small gap, so the two never overlap.
+const NAV_HEIGHT = 64;
+const NAV_GAP = 10;
 
 const TERMINAL: Order['status'][] = ['delivered', 'cancelled', 'rejected'];
 
@@ -21,6 +28,7 @@ export function ActiveOrderBanner() {
   const pathname = usePathname();
   const t = useT();
   const dir = useDirection();
+  const insets = useSafeAreaInsets();
   const [order, setOrder] = useState<Order | null>(null);
   const [now, setNow] = useState(Date.now());
 
@@ -80,7 +88,7 @@ export function ActiveOrderBanner() {
       }}
       accessibilityRole="button"
       accessibilityLabel={`${t(`status.${order.status}`)} · ${order.restaurantName}`}
-      style={[styles.wrap, dir.row]}>
+      style={[styles.wrap, dir.row, { bottom: Math.max(insets.bottom, 14) + NAV_HEIGHT + NAV_GAP }]}>
       <View style={styles.pulse} />
       <View style={{ flex: 1 }}>
         <Text style={[styles.status, dir.text]} numberOfLines={1}>
@@ -99,8 +107,11 @@ export function ActiveOrderBanner() {
 
 const styles = StyleSheet.create({
   wrap: {
-    marginHorizontal: 12,
-    marginBottom: 8,
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    // `bottom` is set inline (nav height + safe-area inset) so the banner
+    // floats directly above the pill nav instead of overlapping it.
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: radius.xl,

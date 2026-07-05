@@ -3,6 +3,7 @@ import { Animated, View, Pressable, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, shadow } from '../theme';
+import { Icon, type IconName } from './Icon';
 import { selection } from '../haptics';
 import { useCart } from '../store/cart';
 import { useUnreadBadges } from '../hooks/useUnreadBadges';
@@ -10,13 +11,15 @@ import { useT } from '../i18n';
 
 type TabKey = 'home' | 'browse' | 'cart' | 'orders' | 'rewards' | 'profile';
 
-const TABS: { key: TabKey; icon: string; tKey: string; path: string }[] = [
-  { key: 'home', icon: '🏠', tKey: 'tabs.home', path: '/(tabs)/home' },
-  { key: 'browse', icon: '🔍', tKey: 'tabs.browse', path: '/(tabs)/browse' },
-  { key: 'cart', icon: '🛒', tKey: 'tabs.cart', path: '/(tabs)/cart' },
-  { key: 'orders', icon: '🧾', tKey: 'tabs.orders', path: '/(tabs)/orders' },
-  { key: 'rewards', icon: '🎁', tKey: 'tabs.rewards', path: '/(tabs)/rewards' },
-  { key: 'profile', icon: '👤', tKey: 'tabs.profile', path: '/(tabs)/profile' },
+// Minimal line icons (Ionicons via <Icon>) — white on the dark pill, ink on the
+// active white pill. Replaces the full-colour emoji that read too "commercial".
+const TABS: { key: TabKey; icon: IconName; tKey: string; path: string }[] = [
+  { key: 'home', icon: 'home', tKey: 'tabs.home', path: '/(tabs)/home' },
+  { key: 'browse', icon: 'search', tKey: 'tabs.browse', path: '/(tabs)/browse' },
+  { key: 'cart', icon: 'cart', tKey: 'tabs.cart', path: '/(tabs)/cart' },
+  { key: 'orders', icon: 'receipt', tKey: 'tabs.orders', path: '/(tabs)/orders' },
+  { key: 'rewards', icon: 'gift', tKey: 'tabs.rewards', path: '/(tabs)/rewards' },
+  { key: 'profile', icon: 'person', tKey: 'tabs.profile', path: '/(tabs)/profile' },
 ];
 
 /**
@@ -58,7 +61,7 @@ export function TabBar() {
             }}
             style={active ? styles.tabOn : styles.tab}>
             <View>
-              <Text style={[styles.icon, !active && styles.iconDim]}>{tab.icon}</Text>
+              <Icon name={tab.icon} size={22} color={active ? colors.inkDeep : 'rgba(255,255,255,0.55)'} />
               {tab.key === 'cart' && cartCount > 0 && (
                 <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
                   <Text style={styles.badgeText}>{cartCount}</Text>
@@ -110,8 +113,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 18,
   },
-  icon: { fontSize: 20 },
-  iconDim: { opacity: 0.45 },
   labelOn: {
     fontSize: font.sizes.base,
     fontWeight: font.weights.extrabold,
