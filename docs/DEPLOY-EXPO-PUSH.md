@@ -1,4 +1,13 @@
-# Deploy `expo-push` (N4 localization + N7 new events) — owner run
+# Deploy `expo-push` (N4 localization + N7 new events) — ✅ DONE 2026-07-05
+
+**DEPLOYED:** `expo-push` is now **v11** (was v10), `verify_jwt: false` preserved
+(the `--no-verify-jwt` flag held — DB→function `x-internal-secret` auth intact).
+Pre-deploy edge logs were all `200` (auth path healthy). N4 localized copy + the
+6 N7 event keys are live. The steps below are retained for reference / re-deploy.
+
+---
+
+
 
 **Why now:** migrations 086–094 are live in prod. Migration **093 (N7)** added DB
 triggers that emit 6 new push events (`order_cancelled_driver`,
