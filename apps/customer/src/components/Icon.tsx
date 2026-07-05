@@ -47,7 +47,8 @@ export type IconName =
   | 'scooter'
   | 'motorbike'
   | 'bicycle'
-  | 'car';
+  | 'car'
+  | 'home';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -86,20 +87,42 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   motorbike: 'bicycle-outline',
   bicycle: 'bicycle-outline',
   car: 'car-outline',
+  home: 'home-outline',
 };
+
+// Filled variants for icons that have an active state (nav tabs mostly).
+// Only intents with a meaningful "on" state need an entry; others fall back.
+const FILLED_MAP: Partial<Record<IconName, keyof typeof Ionicons.glyphMap>> = {
+  cart: 'bag-handle',
+  search: 'search',
+  receipt: 'receipt',
+  gift: 'gift',
+  person: 'person',
+  location: 'location',
+  star: 'star',
+  chat: 'chatbubble-ellipses',
+  bell: 'notifications',
+  home: 'home',
+};
+
+export function resolveGlyph(name: IconName, active: boolean): keyof typeof Ionicons.glyphMap {
+  if (active && FILLED_MAP[name]) return FILLED_MAP[name] as keyof typeof Ionicons.glyphMap;
+  return MAP[name];
+}
 
 type Props = {
   name: IconName;
   size?: number;
   color?: string;
+  active?: boolean;
   /** Provide only when the icon stands alone (no adjacent text label). */
   accessibilityLabel?: string;
 };
 
-export function Icon({ name, size = 18, color = colors.ink, accessibilityLabel }: Props) {
+export function Icon({ name, size = 18, color = colors.ink, active = false, accessibilityLabel }: Props) {
   return (
     <Ionicons
-      name={MAP[name]}
+      name={resolveGlyph(name, active)}
       size={size}
       color={color}
       accessibilityElementsHidden={!accessibilityLabel}
