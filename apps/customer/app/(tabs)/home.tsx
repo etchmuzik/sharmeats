@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
   Pressable,
@@ -18,11 +19,21 @@ import { CuisinePill } from '../../src/components/CuisinePill';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
 import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
-import type { Cuisine, Restaurant, Address, Hotel, Order } from '../../src/data/types';
+import type { Cuisine, Restaurant, Address, Hotel, Order, SavedOrder } from '../../src/data/types';
 import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
+import { useCart } from '../../src/store/cart';
 import { tap } from '../../src/haptics';
+
+/**
+ * Same predicate used in orders.tsx (Task 5): a saved-order line is unresolvable
+ * if any modifier choice lacks an optionId (pre-mig-055 snapshots). Loading such
+ * a line into the cart would silently drop the modifier and misprice the order.
+ */
+function hasUnresolvableMods(items: { modifierChoices?: { optionId?: string }[] }[]): boolean {
+  return items.some((it) => (it.modifierChoices ?? []).some((c) => !c.optionId));
+}
 
 const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
   { key: 'all', tKey: 'cuisine.all', emoji: '' },
@@ -96,6 +107,12 @@ export default function HomeTab() {
   const [address, setAddress] = useState<Address | null>(null);
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
+  const loadFromOrder = useCart((s) => s.loadFromOrder);
+
+  useEffect(() => {
+    db.savedOrders.list().then(setSavedOrders).catch(() => setSavedOrders([]));
+  }, []);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -138,6 +155,29 @@ export default function HomeTab() {
       setReorderRail(venues);
     });
   }, []);
+
+  const openSaved = (s: SavedOrder) => {
+    tap();
+    if (hasUnresolvableMods(s.items)) {
+      router.push(`/restaurant/${s.restaurantId}` as never);
+      return;
+    }
+    loadFromOrder({ restaurantId: s.restaurantId, restaurantName: s.restaurantName, lines: s.items });
+    router.push('/(tabs)/cart');
+  };
+
+  const removeSaved = (s: SavedOrder) => {
+    Alert.alert(t('savedOrder.removeConfirm'), '', [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('savedOrder.remove'),
+        style: 'destructive',
+        onPress: () => {
+          db.savedOrders.remove(s.id).then(() => setSavedOrders((prev) => prev.filter((x) => x.id !== s.id)));
+        },
+      },
+    ]);
+  };
 
   useEffect(() => {
     db.restaurants
@@ -288,6 +328,29 @@ export default function HomeTab() {
             />
           ))}
         </ScrollView>
+
+        {savedOrders.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+            <View style={[styles.secHead, dir.row]}>
+              <Text style={styles.secTitle}>{t('home.savedForYou')}</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingTop: 10 }}>
+              {savedOrders.map((s) => (
+                <Pressable
+                  key={s.id}
+                  onPress={() => openSaved(s)}
+                  onLongPress={() => removeSaved(s)}
+                  accessibilityRole="button"
+                  accessibilityLabel={s.name}
+                  style={styles.savedCard}>
+                  <Text style={styles.savedName} numberOfLines={1}>{s.name}</Text>
+                  <Text style={styles.savedSub} numberOfLines={1}>{s.restaurantName}</Text>
+                  <Text style={styles.savedMeta}>{t('orders.itemsCount', { n: s.items.length })}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {reorderRail.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
@@ -587,4 +650,16 @@ const styles = StyleSheet.create({
   nudgeCtaText: { color: colors.white, fontSize: font.sizes.md, fontWeight: font.weights.bold },
   nudgeClose: { padding: 4 },
   nudgeCloseText: { color: colors.ink3, fontSize: 16 },
+  savedCard: {
+    width: 168,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    padding: 12,
+    ...shadow.soft,
+  },
+  savedName: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.ink },
+  savedSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 4 },
+  savedMeta: { fontSize: font.sizes.sm, color: colors.ink3, marginTop: 6 },
 });
