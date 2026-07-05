@@ -329,6 +329,7 @@
   "rewards.tierSilver": "Серебряный",
   "rewards.tierGold": "Золотой",
   "rewards.progressToNext": "Осталось {points} баллов до уровня «{tier}»",
+  "rewards.starterHint": "Ваш первый заказ начинает путь",
   "rewards.redeemButton": "Обменять баллы",
   "rewards.redeemConfirm": "Обменять {points} баллов на промокод?",
   "rewards.redeemSuccess": "Код {code} добавлен — примените его при оформлении заказа.",

@@ -329,6 +329,7 @@
   "rewards.tierSilver": "فضي",
   "rewards.tierGold": "ذهبي",
   "rewards.progressToNext": "{points} نقطة للوصول إلى {tier}",
+  "rewards.starterHint": "أول طلب لك يبدأ رحلتك",
   "rewards.redeemButton": "استبدل النقاط",
   "rewards.redeemConfirm": "استبدال {points} نقطة بكود خصم؟",
   "rewards.redeemSuccess": "تمت إضافة كود {code} — استخدمه عند إتمام الطلب.",

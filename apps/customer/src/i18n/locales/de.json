@@ -329,6 +329,7 @@
   "rewards.tierSilver": "Silber",
   "rewards.tierGold": "Gold",
   "rewards.progressToNext": "Noch {points} Punkte bis {tier}",
+  "rewards.starterHint": "Deine erste Bestellung startet deine Reise",
   "rewards.redeemButton": "Punkte einlösen",
   "rewards.redeemConfirm": "{points} Punkte gegen einen Rabattcode einlösen?",
   "rewards.redeemSuccess": "Code {code} hinzugefügt — wende ihn an der Kasse an.",

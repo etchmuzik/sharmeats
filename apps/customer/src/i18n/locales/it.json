@@ -329,6 +329,7 @@
   "rewards.tierSilver": "Argento",
   "rewards.tierGold": "Oro",
   "rewards.progressToNext": "{points} punti per il livello {tier}",
+  "rewards.starterHint": "Il tuo primo ordine avvia il percorso",
   "rewards.redeemButton": "Riscatta punti",
   "rewards.redeemConfirm": "Riscattare {points} punti per un codice sconto?",
   "rewards.redeemSuccess": "Codice {code} aggiunto — usalo al checkout.",

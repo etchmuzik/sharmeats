@@ -329,6 +329,7 @@
   "rewards.tierSilver": "Silver",
   "rewards.tierGold": "Gold",
   "rewards.progressToNext": "{points} points to {tier}",
+  "rewards.starterHint": "Your first order starts your journey",
   "rewards.redeemButton": "Redeem points",
   "rewards.redeemConfirm": "Redeem {points} points for a discount code?",
   "rewards.redeemSuccess": "Code {code} added — apply it at checkout.",
