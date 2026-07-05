@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sharm Eats",
     "slug": "sharmeats-customer",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "scheme": "sharmeats",
     "userInterfaceStyle": "light",
