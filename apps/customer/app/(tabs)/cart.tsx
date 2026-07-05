@@ -117,8 +117,8 @@ export default function CartTab() {
         contentContainerStyle={[styles.emptyWrap, { paddingTop: insets.top + 40 }]}>
         <StatusBar style="dark" />
         <Mascot pose="shrug" size={120} />
-        <Text style={styles.emptyTitle}>{t('cart.empty')}</Text>
-        <Text style={styles.emptySub}>{t('cart.emptyDesc')}</Text>
+        <Text style={styles.emptyTitle}>{t('empty.cart.title')}</Text>
+        <Text style={styles.emptySub}>{t('empty.cart.body')}</Text>
         {nearby.length > 0 && (
           <View style={{ width: '100%', marginTop: 24, paddingHorizontal: 16 }}>
             <Text style={styles.nearbyTitle}>{t('cart.nearbyTitle')}</Text>

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { AccessibilityInfo } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, Path, G, Line } from 'react-native-svg';
 import { colors } from '../../theme';
@@ -13,9 +14,14 @@ export function Mascot({ pose = 'idle', size = 120, animate = true }: {
   const bob = useSharedValue(0);
 
   useEffect(() => {
-    if (animate) {
-      bob.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }), -1, true);
-    }
+    if (!animate) return;
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!cancelled && !reduce) {
+        bob.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }), -1, true);
+      }
+    });
+    return () => { cancelled = true; };
   }, [animate, bob]);
 
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: bob.value * -4 }] }));

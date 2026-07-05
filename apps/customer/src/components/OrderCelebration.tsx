@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View, Pressable, AccessibilityInfo } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withDelay, withSpring } from 'react-native-reanimated';
 import { Mascot } from './Mascot/Mascot';
 import { Confetti } from './Confetti';
 import { colors, font, radius, spacing, shadow } from '../theme';
