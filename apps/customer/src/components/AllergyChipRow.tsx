@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius } from '../theme';
-import { selection } from '../haptics';
 import { useT } from '../i18n';
+import { PressableScale } from './PressableScale';
 import { ALLERGY_KEYS, type AllergyKey } from '../data/types';
 
 interface Props {
@@ -18,7 +18,6 @@ export function AllergyChipRow({ selected, onChange, conflictWith }: Props) {
   const sel = new Set(selected);
 
   const toggle = (k: AllergyKey) => {
-    selection();
     const next = new Set(sel);
     if (next.has(k)) next.delete(k);
     else next.add(k);
@@ -31,8 +30,9 @@ export function AllergyChipRow({ selected, onChange, conflictWith }: Props) {
         const isSel = sel.has(k);
         const isConflict = conflicts.has(k) && isSel;
         return (
-          <Pressable
+          <PressableScale
             key={k}
+            haptic="selection"
             onPress={() => toggle(k)}
             style={[
               styles.chip,
@@ -48,7 +48,7 @@ export function AllergyChipRow({ selected, onChange, conflictWith }: Props) {
               {isConflict ? '⚠ ' : ''}
               {t(`allergy.${k}`)}
             </Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>

@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, shadow } from '../../src/theme';
+import { EmptyState } from '../../src/components/EmptyState';
 import { db } from '../../src/data';
 import type { Order, OrderStatus } from '../../src/data/types';
 import { useT } from '../../src/i18n';
@@ -168,12 +169,12 @@ export default function OrdersTab() {
           );
         }}
         ListEmptyComponent={
-          <View style={{ paddingTop: 60, alignItems: 'center' }}>
-            <Text style={{ fontSize: 56 }}>🧾</Text>
-            <Text style={{ marginTop: 12, color: colors.ink3, fontSize: font.sizes.xl }}>
-              {t('orders.empty')}
-            </Text>
-          </View>
+          <EmptyState
+            pose="snooze"
+            title={t('empty.orders.title')}
+            body={t('empty.orders.body')}
+            cta={{ label: t('empty.orders.cta'), onPress: () => router.push('/(tabs)/home') }}
+          />
         }
       />
     </View>

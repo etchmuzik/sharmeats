@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { QuantityStepper } from '../../src/components/QuantityStepper';
-import { Icon } from '../../src/components/Icon';
+import { Mascot } from '../../src/components/Mascot/Mascot';
 import { useCart } from '../../src/store/cart';
 import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
@@ -116,11 +116,9 @@ export default function CartTab() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         contentContainerStyle={[styles.emptyWrap, { paddingTop: insets.top + 40 }]}>
         <StatusBar style="dark" />
-        <View style={styles.emptyIco}>
-          <Icon name="cart" size={44} color={colors.sea} />
-        </View>
-        <Text style={styles.emptyTitle}>{t('cart.empty')}</Text>
-        <Text style={styles.emptySub}>{t('cart.emptyDesc')}</Text>
+        <Mascot pose="shrug" size={120} />
+        <Text style={styles.emptyTitle}>{t('empty.cart.title')}</Text>
+        <Text style={styles.emptySub}>{t('empty.cart.body')}</Text>
         {nearby.length > 0 && (
           <View style={{ width: '100%', marginTop: 24, paddingHorizontal: 16 }}>
             <Text style={styles.nearbyTitle}>{t('cart.nearbyTitle')}</Text>
@@ -355,15 +353,6 @@ const styles = StyleSheet.create({
   nearbyImg: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.bgSoft },
   nearbyName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
   nearbySub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
-  emptyIco: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.seaSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 80,
-  },
   emptyTitle: {
     fontSize: font.sizes['7xl'],
     fontWeight: font.weights.extrabold,

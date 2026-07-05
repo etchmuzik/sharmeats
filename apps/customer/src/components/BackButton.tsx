@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import type { Href } from 'expo-router';
 import { colors } from '../theme';
-import { tap } from '../haptics';
 import { useGoBack } from '../lib/navigation';
 import { useDirection } from '../lib/direction';
 import { Icon } from './Icon';
+import { PressableScale } from './PressableScale';
 
 type Props = {
   size?: number;
@@ -19,9 +19,9 @@ export function BackButton({ size = 38, onPress, fallback, accessibilityLabel = 
   const goBack = useGoBack(fallback);
   const dir = useDirection();
   return (
-    <Pressable
+    <PressableScale
+      haptic="tap"
       onPress={() => {
-        tap();
         if (onPress) onPress();
         else goBack();
       }}
@@ -38,7 +38,7 @@ export function BackButton({ size = 38, onPress, fallback, accessibilityLabel = 
       ]}>
       {/* Chevron points toward "back" in the current reading direction. */}
       <Icon name={dir.isRtl ? 'chevronForward' : 'chevronBack'} size={22} color={colors.ink} />
-    </Pressable>
+    </PressableScale>
   );
 }
 

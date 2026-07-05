@@ -1,7 +1,8 @@
 import { Image, Pressable, Text, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radius, font, shadow } from '../theme';
-import { tap, selection } from '../haptics';
+import { selection } from '../haptics';
+import { PressableScale } from './PressableScale';
 import { formatEgp, formatKm, formatPrepTime } from '../lib/format';
 import { closedReasonKey, effectiveIsOpen } from '../lib/openHours';
 import { useFavorite } from '../lib/favorites';
@@ -16,12 +17,12 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
   const closedReason = closedReasonKey(restaurant);
   const { isFav, toggle } = useFavorite(restaurant.id);
   return (
-    <Pressable
+    <PressableScale
+      haptic="tap"
       onPress={() => {
-        tap();
         router.push(`/restaurant/${restaurant.id}` as never);
       }}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}>
+      style={styles.card}>
       <Image source={{ uri: restaurant.coverImage }} style={styles.ph} />
       <View style={styles.body}>
         <View style={styles.topRow}>
@@ -75,7 +76,7 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
           <Text style={styles.metric}>{formatKm(restaurant.distanceMeters)}</Text>
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

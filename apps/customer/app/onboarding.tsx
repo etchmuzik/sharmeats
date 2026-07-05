@@ -15,14 +15,18 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../src/components/PrimaryButton';
+import { Mascot } from '../src/components/Mascot/Mascot';
 import { colors, font } from '../src/theme';
 import { useT, LOCALE_LABELS, ALL_LOCALES } from '../src/i18n';
 import { useSession, type Locale } from '../src/store/session';
+import { selection } from '../src/haptics';
 
 const { width } = Dimensions.get('window');
 
 type Slide = {
-  img: string;
+  kind: 'mascot' | 'image';
+  pose?: 'wave' | 'cheer';
+  img?: string;
   titleKey: string;
   accentKey: string;
   descKey: string;
@@ -30,18 +34,21 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   {
-    img: 'https://images.unsplash.com/photo-1601924582970-9238bcb495d9?w=900&h=1200&fit=crop&auto=format&q=80',
+    kind: 'mascot',
+    pose: 'wave',
     titleKey: 'onboarding.title1',
     accentKey: 'onboarding.accent1',
     descKey: 'onboarding.desc1',
   },
   {
-    img: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=900&h=1200&fit=crop&auto=format&q=80',
-    titleKey: 'onboarding.title2',
-    accentKey: 'onboarding.accent2',
-    descKey: 'onboarding.desc2',
+    kind: 'mascot',
+    pose: 'cheer',
+    titleKey: 'onboarding.codTitle',
+    accentKey: 'onboarding.codAccent',
+    descKey: 'onboarding.codDesc',
   },
   {
+    kind: 'image',
     img: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=900&h=1200&fit=crop&auto=format&q=80',
     titleKey: 'onboarding.title3',
     accentKey: 'onboarding.accent3',
@@ -62,7 +69,10 @@ export default function Onboarding() {
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (i !== index) setIndex(i);
+    if (i !== index) {
+      selection();
+      setIndex(i);
+    }
   };
 
   // Zero-friction guest entry: the app already holds an anonymous Supabase
@@ -94,7 +104,13 @@ export default function Onboarding() {
         {SLIDES.map((s, i) => (
           <View key={i} style={{ width, flex: 1 }}>
             <View style={styles.imageWrap}>
-              <Image source={{ uri: s.img }} style={styles.image} />
+              {s.kind === 'mascot' ? (
+                <View style={styles.mascotWrap}>
+                  <Mascot pose={s.pose} size={220} />
+                </View>
+              ) : (
+                <Image source={{ uri: s.img }} style={styles.image} />
+              )}
               <LinearGradient
                 colors={['transparent', 'transparent', colors.bg]}
                 style={StyleSheet.absoluteFill}
@@ -139,7 +155,10 @@ export default function Onboarding() {
               <View style={{ marginTop: 'auto' }}>
                 <View style={styles.dots}>
                   {SLIDES.map((_, j) => (
-                    <View key={j} style={[styles.dot, j === index && styles.dotOn]} />
+                    <View
+                      key={j}
+                      style={[styles.dot, j === index && styles.dotOn, { width: j === index ? 22 : 8 }]}
+                    />
                   ))}
                 </View>
                 <PrimaryButton
@@ -163,6 +182,7 @@ export default function Onboarding() {
 const styles = StyleSheet.create({
   imageWrap: { height: 460, position: 'relative' },
   image: { width: '100%', height: '100%' },
+  mascotWrap: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   skip: {
     position: 'absolute',
     right: 20,

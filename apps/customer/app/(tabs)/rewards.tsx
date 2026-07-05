@@ -9,6 +9,7 @@ import { useDirection } from '../../src/lib/direction';
 import { tap, success } from '../../src/haptics';
 import { db } from '../../src/data';
 import { formatEgp } from '../../src/lib/format';
+import { starterFloorPct } from '../../src/lib/rewards';
 import type { RewardsHistoryEntry, RewardsStatus } from '../../src/data/types';
 
 type ViewState =
@@ -122,6 +123,9 @@ export default function RewardsTab() {
   const tierPct = nextInfo.next
     ? Math.min(100, Math.max(0, Math.round((status.pointsRolling12mo / nextInfo.threshold) * 100)))
     : 100;
+  // Visual-only: never render an empty bar for new users. The TRUE value
+  // (tierPct) is still what the accessibility value and labels report below.
+  const displayTierPct = starterFloorPct(tierPct);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -187,7 +191,9 @@ export default function RewardsTab() {
             <View style={styles.tierProgress}>
               <View style={[styles.tierRow, dir.row]}>
                 <Text style={[styles.tierRowStart, dir.text]} numberOfLines={1}>
-                  {t('rewards.tier', { tier: t(`rewards.tier${capitalize(status.tier)}`) })} · {status.pointsRolling12mo}
+                  {status.pointsRolling12mo === 0
+                    ? t('rewards.starterHint')
+                    : `${t('rewards.tier', { tier: t(`rewards.tier${capitalize(status.tier)}`) })} · ${status.pointsRolling12mo}`}
                 </Text>
                 <Text style={[styles.tierRowEnd, dir.text]}>
                   {t(`rewards.tier${capitalize(nextInfo.next)}`)} · {nextInfo.threshold}
@@ -201,7 +207,7 @@ export default function RewardsTab() {
                   tier: t(`rewards.tier${capitalize(nextInfo.next)}`),
                 })}
                 accessibilityValue={{ min: 0, max: 100, now: tierPct }}>
-                <View style={[styles.tierFill, { width: `${tierPct}%` }]} />
+                <View style={[styles.tierFill, { width: `${displayTierPct}%` }]} />
               </View>
             </View>
           ) : (

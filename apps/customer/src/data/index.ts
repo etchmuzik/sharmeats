@@ -16,6 +16,7 @@ import { messagesRepo } from './repositories/messages';
 import { ordersRepo } from './repositories/orders';
 import { restaurantsRepo } from './repositories/restaurants';
 import { rewardsRepo } from './repositories/rewards';
+import { savedOrdersRepo } from './repositories/savedOrders';
 import { supportRepo } from './repositories/support';
 import { userRepo } from './repositories/user';
 
@@ -26,6 +27,7 @@ import { messagesRepoSupabase } from './supabase/messages';
 import { ordersRepoSupabase } from './supabase/orders';
 import { restaurantsRepoSupabase } from './supabase/restaurants';
 import { rewardsRepoSupabase } from './supabase/rewards';
+import { savedOrdersRepoSupabase } from './supabase/savedOrders';
 import { supportRepoSupabase } from './supabase/support';
 import { userRepoSupabase } from './supabase/user';
 
@@ -38,6 +40,7 @@ export const db = useSupabase
       menus: menusRepoSupabase,
       hotels: hotelsRepoSupabase,
       user: userRepoSupabase,
+      savedOrders: savedOrdersRepoSupabase,
       orders: ordersRepoSupabase,
       rewards: rewardsRepoSupabase,
       messages: messagesRepoSupabase,
@@ -49,6 +52,7 @@ export const db = useSupabase
       menus: menusRepo,
       hotels: hotelsRepo,
       user: userRepo,
+      savedOrders: savedOrdersRepo,
       orders: ordersRepo,
       rewards: rewardsRepo,
       messages: messagesRepo,

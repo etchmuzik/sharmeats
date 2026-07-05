@@ -323,6 +323,15 @@ export interface Order {
   scheduledFor?: number;
 }
 
+export interface SavedOrder {
+  id: string;
+  restaurantId: string;
+  restaurantName: string;
+  name: string;
+  items: CartItem[];
+  createdAt: string;
+}
+
 /**
  * Anonymized public review of a restaurant (sourced from order ratings).
  * The reviewer is a masked display name ("Ahmed K." / "Guest") — never an id.

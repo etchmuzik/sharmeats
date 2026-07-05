@@ -1,5 +1,6 @@
-import { Pressable, Text, View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
 import { colors, radius, font } from '../theme';
+import { PressableScale } from './PressableScale';
 import { tap } from '../haptics';
 
 type Props = {
@@ -18,7 +19,8 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, size = 'md
         styles.wrap,
         { height: sm ? 28 : 36, paddingHorizontal: sm ? 2 : 4 },
       ]}>
-      <Pressable
+      <PressableScale
+        haptic="none"
         onPress={() => {
           if (value > min) {
             tap();
@@ -27,9 +29,10 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, size = 'md
         }}
         style={[styles.btn, { width: sm ? 26 : 32 }]}>
         <Text style={styles.sym}>−</Text>
-      </Pressable>
+      </PressableScale>
       <Text style={[styles.v, { fontSize: sm ? font.sizes.lg : font.sizes['3xl'] }]}>{value}</Text>
-      <Pressable
+      <PressableScale
+        haptic="none"
         onPress={() => {
           if (value < max) {
             tap();
@@ -38,7 +41,7 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, size = 'md
         }}
         style={[styles.btn, { width: sm ? 26 : 32 }]}>
         <Text style={styles.sym}>+</Text>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
