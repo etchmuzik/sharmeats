@@ -57,6 +57,12 @@
   "onboarding.desc3": "Sieh Preise in EUR, USD, GBP oder RUB. Bezahlung in EGP zum heutigen Kurs. Keine Überraschungen.",
   "onboarding.getStarted": "Jetzt bestellen",
   "onboarding.haveAccount": "Ich habe bereits ein Konto",
+  "onboarding.codTitle": "Zahle bei Ankunft",
+  "onboarding.codAccent": "Barzahlung bei Lieferung",
+  "onboarding.codDesc": "Keine Karte nötig. Zahle dem Fahrer bar, wenn dein Essen ankommt.",
+  "celebration.title": "Bestellung aufgegeben! 🎉",
+  "celebration.cod": "Du zahlst bei Lieferung — keine Karte nötig",
+  "celebration.codEta": "Du zahlst bei Lieferung — Ankunft {eta}",
   "signin.title": "Telefonnummer eingeben",
   "signin.subtitle": "Wir senden dir einen 6-stelligen Code per WhatsApp oder SMS.",
   "signin.cta": "Code senden",
@@ -402,5 +408,12 @@
   "profile.support": "Live-Chat-Support",
   "profile.editProfile": "Profil bearbeiten",
   "savedOrder.remove": "Entfernen",
-  "savedOrder.removeConfirm": "Diese gespeicherte Bestellung entfernen?"
+  "savedOrder.removeConfirm": "Diese gespeicherte Bestellung entfernen?",
+  "empty.cart.title": "Dein Warenkorb ist leer",
+  "empty.cart.body": "Noch nichts hier — das ändern wir.",
+  "empty.cart.cta": "Restaurants ansehen",
+  "empty.orders.title": "Noch keine Bestellungen",
+  "empty.orders.body": "Deine erste leckere Bestellung ist nur einen Tipp entfernt.",
+  "empty.orders.cta": "Essen finden",
+  "empty.generic.title": "Noch nichts hier"
 }

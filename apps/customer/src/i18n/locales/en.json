@@ -57,6 +57,12 @@
   "onboarding.desc3": "See prices in EUR, USD, GBP, or RUB. Paid in EGP at today's rate. No surprises.",
   "onboarding.getStarted": "Start ordering",
   "onboarding.haveAccount": "I already have an account",
+  "onboarding.codTitle": "Pay when it arrives",
+  "onboarding.codAccent": "Cash on delivery",
+  "onboarding.codDesc": "No card needed. Pay the driver in cash when your food reaches you.",
+  "celebration.title": "Order placed! 🎉",
+  "celebration.cod": "You'll pay on delivery — no card needed",
+  "celebration.codEta": "You'll pay on delivery — arriving {eta}",
   "signin.title": "Enter your phone",
   "signin.subtitle": "We'll send a 6-digit code over WhatsApp or SMS.",
   "signin.cta": "Send code",
@@ -402,5 +408,12 @@
   "profile.support": "Live chat support",
   "profile.editProfile": "Edit profile",
   "savedOrder.remove": "Remove",
-  "savedOrder.removeConfirm": "Remove this saved order?"
+  "savedOrder.removeConfirm": "Remove this saved order?",
+  "empty.cart.title": "Your cart is empty",
+  "empty.cart.body": "Nothing here yet — let's fix that.",
+  "empty.cart.cta": "Browse restaurants",
+  "empty.orders.title": "No orders yet",
+  "empty.orders.body": "Your first delicious order is one tap away.",
+  "empty.orders.cta": "Find food",
+  "empty.generic.title": "Nothing here yet"
 }

@@ -57,6 +57,12 @@
   "onboarding.desc3": "Смотрите цены в EUR, USD, GBP или RUB. Оплата в EGP по сегодняшнему курсу. Без сюрпризов.",
   "onboarding.getStarted": "Начать заказ",
   "onboarding.haveAccount": "У меня уже есть аккаунт",
+  "onboarding.codTitle": "Платите при получении",
+  "onboarding.codAccent": "Оплата наличными при доставке",
+  "onboarding.codDesc": "Карта не нужна. Заплатите курьеру наличными, когда еда приедет.",
+  "celebration.title": "Заказ оформлен! 🎉",
+  "celebration.cod": "Вы оплатите при доставке — карта не нужна",
+  "celebration.codEta": "Вы оплатите при доставке — прибытие {eta}",
   "signin.title": "Введите номер телефона",
   "signin.subtitle": "Мы отправим 6-значный код в WhatsApp или по SMS.",
   "signin.cta": "Отправить код",
@@ -402,5 +408,12 @@
   "profile.support": "Живой чат поддержки",
   "profile.editProfile": "Изменить профиль",
   "savedOrder.remove": "Удалить",
-  "savedOrder.removeConfirm": "Удалить этот сохранённый заказ?"
+  "savedOrder.removeConfirm": "Удалить этот сохранённый заказ?",
+  "empty.cart.title": "Ваша корзина пуста",
+  "empty.cart.body": "Здесь пока ничего нет — давайте это исправим.",
+  "empty.cart.cta": "Смотреть рестораны",
+  "empty.orders.title": "Пока нет заказов",
+  "empty.orders.body": "Ваш первый вкусный заказ — в одном нажатии.",
+  "empty.orders.cta": "Найти еду",
+  "empty.generic.title": "Здесь пока ничего нет"
 }

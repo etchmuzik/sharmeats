@@ -57,6 +57,12 @@
   "onboarding.desc3": "شوف الأسعار باليورو أو الدولار أو الجنيه الإسترليني أو الروبل.",
   "onboarding.getStarted": "ابدأ الطلب",
   "onboarding.haveAccount": "لدي حساب بالفعل",
+  "onboarding.codTitle": "ادفع لما يوصلك",
+  "onboarding.codAccent": "الدفع عند الاستلام",
+  "onboarding.codDesc": "من غير كارت. ادفع للسائق كاش لما أكلك يوصلك.",
+  "celebration.title": "تم تأكيد الطلب! 🎉",
+  "celebration.cod": "هتدفع عند الاستلام — من غير كارت",
+  "celebration.codEta": "هتدفع عند الاستلام — الوصول {eta}",
   "signin.title": "أدخل رقم هاتفك",
   "signin.subtitle": "هنبعتلك رمز من ٦ أرقام على واتساب أو SMS.",
   "signin.cta": "أرسل الرمز",
@@ -402,5 +408,12 @@
   "profile.support": "دردشة الدعم المباشر",
   "profile.editProfile": "تعديل الملف",
   "savedOrder.remove": "إزالة",
-  "savedOrder.removeConfirm": "إزالة هذا الطلب المحفوظ؟"
+  "savedOrder.removeConfirm": "إزالة هذا الطلب المحفوظ؟",
+  "empty.cart.title": "سلتك فاضية",
+  "empty.cart.body": "لسه مفيش حاجة هنا — يلا نظبطها.",
+  "empty.cart.cta": "تصفح المطاعم",
+  "empty.orders.title": "لسه مفيش طلبات",
+  "empty.orders.body": "أول طلب لذيذ لك على بُعد ضغطة واحدة.",
+  "empty.orders.cta": "دوّر على أكل",
+  "empty.generic.title": "لسه مفيش حاجة هنا"
 }

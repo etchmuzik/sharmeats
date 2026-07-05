@@ -4,6 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, with
 import { Mascot } from './Mascot/Mascot';
 import { Confetti } from './Confetti';
 import { colors, font, radius, spacing, shadow } from '../theme';
+import { useT } from '../i18n';
 
 export function shouldCelebrate(param: string | string[] | undefined): boolean {
   const v = Array.isArray(param) ? param[0] : param;
@@ -13,6 +14,7 @@ export function shouldCelebrate(param: string | string[] | undefined): boolean {
 export function OrderCelebration({ visible, etaText, onDone }: {
   visible: boolean; etaText?: string; onDone: () => void;
 }) {
+  const t = useT();
   const enter = useSharedValue(0);
 
   useEffect(() => {
@@ -37,9 +39,9 @@ export function OrderCelebration({ visible, etaText, onDone }: {
         <View style={styles.glow}>
           <Mascot pose="cheer" size={140} />
         </View>
-        <Text style={styles.title}>Order placed! 🎉</Text>
+        <Text style={styles.title}>{t('celebration.title')}</Text>
         <Text style={styles.sub}>
-          {etaText ? `You'll pay on delivery — arriving ${etaText}` : "You'll pay on delivery — no card needed"}
+          {etaText ? t('celebration.codEta', { eta: etaText }) : t('celebration.cod')}
         </Text>
       </Animated.View>
     </Pressable>

@@ -57,6 +57,12 @@
   "onboarding.desc3": "Vedi i prezzi in EUR, USD, GBP o RUB. Pagamento in EGP al tasso di oggi. Nessuna sorpresa.",
   "onboarding.getStarted": "Inizia a ordinare",
   "onboarding.haveAccount": "Ho già un account",
+  "onboarding.codTitle": "Paghi quando arriva",
+  "onboarding.codAccent": "Contrassegno",
+  "onboarding.codDesc": "Nessuna carta necessaria. Paga il rider in contanti quando il cibo arriva.",
+  "celebration.title": "Ordine effettuato! 🎉",
+  "celebration.cod": "Pagherai alla consegna — nessuna carta necessaria",
+  "celebration.codEta": "Pagherai alla consegna — arrivo {eta}",
   "signin.title": "Inserisci il telefono",
   "signin.subtitle": "Ti invieremo un codice a 6 cifre via WhatsApp o SMS.",
   "signin.cta": "Invia codice",
@@ -402,5 +408,12 @@
   "profile.support": "Chat di assistenza dal vivo",
   "profile.editProfile": "Modifica profilo",
   "savedOrder.remove": "Rimuovi",
-  "savedOrder.removeConfirm": "Rimuovere questo ordine salvato?"
+  "savedOrder.removeConfirm": "Rimuovere questo ordine salvato?",
+  "empty.cart.title": "Il tuo carrello è vuoto",
+  "empty.cart.body": "Non c'è ancora niente qui — rimediamo subito.",
+  "empty.cart.cta": "Sfoglia i ristoranti",
+  "empty.orders.title": "Ancora nessun ordine",
+  "empty.orders.body": "Il tuo primo ordine delizioso è a un tocco di distanza.",
+  "empty.orders.cta": "Trova da mangiare",
+  "empty.generic.title": "Non c'è ancora niente qui"
 }
