@@ -7,6 +7,7 @@ import * as Clipboard from 'expo-clipboard';
 import MapView, { Marker } from 'react-native-maps';
 import { BackButton } from '../../src/components/BackButton';
 import { Icon } from '../../src/components/Icon';
+import { OrderCelebration, shouldCelebrate } from '../../src/components/OrderCelebration';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
@@ -40,11 +41,12 @@ function hasUnresolvableMods(items: { modifierChoices?: { optionId?: string }[] 
 }
 
 export default function OrderTracking() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, celebrate } = useLocalSearchParams<{ id: string; celebrate?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
   const [order, setOrder] = useState<Order | null>(null);
+  const [showCelebration, setShowCelebration] = useState(shouldCelebrate(celebrate));
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState(false);
@@ -575,6 +577,15 @@ export default function OrderTracking() {
           </Pressable>
         )}
       </ScrollView>
+
+      <OrderCelebration
+        visible={showCelebration}
+        etaText={order?.etaAt ? formatTime(new Date(order.etaAt)) : undefined}
+        onDone={() => {
+          setShowCelebration(false);
+          router.setParams({ celebrate: undefined });
+        }}
+      />
     </View>
   );
 }

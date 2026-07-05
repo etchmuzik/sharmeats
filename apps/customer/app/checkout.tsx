@@ -258,7 +258,7 @@ export default function Checkout() {
 
       success();
       clear();
-      router.replace(`/order/${order.id}`);
+      router.replace(`/order/${order.id}?celebrate=1`);
     } catch (e) {
       captureError(e, { where: 'checkout.place' });
       setPaymentError(e instanceof Error ? e.message : 'Could not place your order.');
