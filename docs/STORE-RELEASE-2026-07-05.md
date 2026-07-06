@@ -17,9 +17,12 @@ What ships: customer = delight pass (PR #43) + N2/N8/N9/N10/N11 fixes + OTA conf
 (52 files since the last build). driver = phase-aware countdown + realtime offer
 sync + unread badges (8 files).
 
-## Pre-flight (verified 2026-07-05 — no config changes needed)
-- **EAS build quota is available** — the July 1–3 cloud builds all *finished*; the
-  "100% credits" note was from an earlier month. Cloud is viable.
+## Pre-flight (verified 2026-07-05)
+- **⚠️ EAS cloud builds are BLOCKED**: Free plan's monthly builds are exhausted,
+  resets **2026-08-01**. Confirmed live via `eas build` output on 2026-07-05.
+  (Earlier in this doc I'd inferred quota was available because July 1–3 builds
+  finished — that was wrong; finishing proves builds worked *at the time*, not
+  that balance remains now. **Local build is the path.**)
 - **Prior build failures are resolved:** customer's June Sentry failure is guarded
   by `SENTRY_DISABLE_AUTO_UPLOAD=true` (present in customer eas.json prod env);
   driver has no Sentry plugin so it never runs that step. Driver's July-1
@@ -30,41 +33,57 @@ sync + unread badges (8 files).
 
 ---
 
-## Build + submit — PRIMARY PATH: cloud, non-interactive, auto-submit
+## Build + submit — LOCAL (cloud is blocked until Aug 1 — see above)
 
-Cloud build runs on EAS's macOS image (`macos-sequoia-15.6-xcode-26.2`, already in
-`build.production.ios`), signs server-side with the certs already on EAS, and
-`--auto-submit` chains the ASC upload the moment each build finishes — so this is
-**fully hands-off** once you kick it off. No local CocoaPods, no Apple 2FA prompt.
+Local build runs on your Mac, signs via the certs already on EAS (cached locally
+on first use), and needs one interactive Apple sign-in/2FA if the session has
+expired. That's the only manual step — everything else runs unattended.
 
+### Fix CocoaPods PATH first
+System `pod` (`/usr/local/bin/pod`) is **broken** (CocoaPods 1.16.2 + activesupport
+on system Ruby 2.6 → `uninitialized constant LoggerThreadSafeLevel::Logger`). The
+Homebrew one (`/opt/homebrew/bin/pod`, 1.16.2) works. Put brew first on PATH for
+the whole build session:
+```bash
+export PATH="/opt/homebrew/bin:$PATH"
+export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+pod --version   # must print 1.16.2 cleanly, NOT a Ruby stack trace
+```
+
+### Build (run each from its app dir; ~20–40 min each)
 ```bash
 cd /Users/etch/Downloads/sharmeats && git checkout main && git pull
 
-# CUSTOMER 1.0.3 — build on EAS, auto-submit to App Store Connect when done
+# CUSTOMER (1.0.3)
 cd apps/customer
-eas build --profile production --platform ios --non-interactive --auto-submit
+eas build --profile production --platform ios --local
+#   output: a .ipa file in the app dir
 
-# DRIVER 1.0.2
+# DRIVER (1.0.2)
 cd ../driver
-eas build --profile production --platform ios --non-interactive --auto-submit
+eas build --profile production --platform ios --local
 ```
 
-Each build takes ~20–40 min on EAS; you can run both back-to-back (they queue).
-Watch progress at the URL each command prints, or `eas build:list`. The submit
-profiles already carry the ASC API key (`AuthKey_C4TFQQ5AAD.p8`, key `C4TFQQ5AAD`)
-and the right `ascAppId`, so `--auto-submit` needs nothing further.
-
-### Fallback: local build (only if cloud quota unexpectedly blocks)
-System `pod` (`/usr/local/bin/pod`) is **broken** (Ruby 2.6 stack trace); the
-Homebrew one (`/opt/homebrew/bin/pod` 1.16.2) works — put brew first on PATH:
+### Submit to App Store Connect
 ```bash
-export PATH="/opt/homebrew/bin:$PATH"; export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
-pod --version   # must print 1.16.2, NOT a stack trace
-cd apps/customer && eas build --profile production --platform ios --local
+# CUSTOMER
+cd apps/customer
+eas submit --profile production --platform ios --path build-*.ipa
+
+# DRIVER
+cd ../driver
 eas submit --profile production --platform ios --path build-*.ipa
 ```
-Local iOS builds prompt for Apple signing (interactive) — that's why cloud is
-preferred.
+The submit profiles already carry the ASC API key (`AuthKey_C4TFQQ5AAD.p8`, key
+`C4TFQQ5AAD`) and the right `ascAppId` per app, so submit is non-interactive.
+
+### If you'd rather not deal with local builds at all
+Two alternatives, your call:
+- **Upgrade the EAS plan** (expo.dev/accounts/etchmuzik/settings/billing) to unlock
+  cloud builds again this month — then use `eas build --profile production
+  --platform ios --non-interactive --auto-submit` (fully hands-off, no local
+  toolchain).
+- **Wait for the Aug 1 reset** and use the same cloud command then.
 
 ---
 
