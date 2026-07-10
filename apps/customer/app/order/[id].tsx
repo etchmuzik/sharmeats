@@ -18,7 +18,12 @@ import { tap, success } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
 import { ScreenErrorBoundary } from '../../src/components/ScreenErrorBoundary';
 import { SHARM_CENTER, type LatLng } from '../../src/components/MapPinPicker';
-import { isDriverLocationStale, vehicleIconName } from '../../src/lib/tracking';
+import {
+  CAMERA_REFIT_THRESHOLD_M,
+  isDriverLocationStale,
+  metersBetween,
+  vehicleIconName,
+} from '../../src/lib/tracking';
 import { slaCreditEgp } from '../../src/lib/slaCredit';
 
 // Expo Router renders this instead of crashing if anything throws while the
@@ -58,6 +63,11 @@ export default function OrderTracking() {
   const [saveDismissed, setSaveDismissed] = useState(false);
   const [saving, setSaving] = useState(false);
   const mapRef = useRef<MapView | null>(null);
+  // Camera-fit discipline: remember where we last fitted and whether the user
+  // has taken manual control of the map, so live GPS pings (~5s apart, jitter
+  // included) don't re-animate the camera on every update.
+  const lastFitRef = useRef<{ lat: number; lng: number } | null>(null);
+  const userPannedRef = useRef(false);
 
   const copyShortCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
@@ -70,7 +80,9 @@ export default function OrderTracking() {
     if (!id) return;
     db.orders.get(id).then(setOrder);
     const unsub = db.orders.subscribe(id, setOrder);
-    const tick = setInterval(() => setNow(Date.now()), 1000);
+    // 10s granularity is plenty: the countdown renders whole minutes and the
+    // stale-fix threshold is 45s. A 1s tick re-rendered the screen every second.
+    const tick = setInterval(() => setNow(Date.now()), 10_000);
     return () => {
       unsub();
       clearInterval(tick);
@@ -102,6 +114,10 @@ export default function OrderTracking() {
   useEffect(() => {
     if (!id || !trackingDriver) {
       setDriverLoc(null);
+      // Fresh tracking session next time: allow one initial camera fit and
+      // return auto-follow to the map until the user pans again.
+      lastFitRef.current = null;
+      userPannedRef.current = false;
       return;
     }
     const unsub = db.orders.subscribeDriverLocation(id, (loc) =>
@@ -119,8 +135,21 @@ export default function OrderTracking() {
   };
 
   // Keep both the driver and the destination pin in view as the driver moves.
+  // Discipline (the "map keeps auto-scrolling" fix): broadcasts land ~every 5s
+  // whether or not the driver moved, and the old effect keyed on driverLoc's
+  // OBJECT identity — so the camera re-ran an animated fit on every ping.
+  // Now we fit only on the first fix and again once the driver has actually
+  // moved ≥ CAMERA_REFIT_THRESHOLD_M, and never after the user pans manually.
   useEffect(() => {
     if (!driverLoc || !mapRef.current) return;
+    if (userPannedRef.current) return;
+    if (
+      lastFitRef.current &&
+      metersBetween(lastFitRef.current, driverLoc) < CAMERA_REFIT_THRESHOLD_M
+    ) {
+      return;
+    }
+    lastFitRef.current = { lat: driverLoc.lat, lng: driverLoc.lng };
     mapRef.current.fitToCoordinates(
       [
         { latitude: driverLoc.lat, longitude: driverLoc.lng },
@@ -128,7 +157,7 @@ export default function OrderTracking() {
       ],
       { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 }, animated: true },
     );
-  }, [driverLoc, destination.lat, destination.lng]);
+  }, [driverLoc?.lat, driverLoc?.lng, destination.lat, destination.lng]);
 
   if (!order) {
     return (
@@ -182,6 +211,11 @@ export default function OrderTracking() {
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
+          onPanDrag={() => {
+            // The user took control — stop auto-fitting so the camera never
+            // fights their fingers for the rest of this tracking session.
+            userPannedRef.current = true;
+          }}
           initialRegion={{
             latitude: destination.lat,
             longitude: destination.lng,
