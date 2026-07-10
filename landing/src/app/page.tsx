@@ -19,6 +19,10 @@ import { dictionaries, locales, localeShort, type Locale, rtlLocales } from '@/i
 const APP_STORE_URL = 'https://apps.apple.com/eg/app/id6776864451';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=eg.sharmeats.customer';
 
+// Android is internal-track only (not public), so the Play link 404s. Flip this
+// to `true` — one line — once the app is live on the public Play Store.
+const PLAY_LIVE = false;
+
 /** Delivery zones (order matches the design's Z table). */
 const ZONES = [
   'Naama Bay', 'Hay El Salam', 'Hadaba', 'Old Market', 'Rowaysat', 'Sunny Lakes',
@@ -107,7 +111,7 @@ export default function HomePage() {
             <p className="sub">{t.sub}</p>
             <div className="fx ac wrap gap12">
               <StoreBadge href={APP_STORE_URL} icon="i-apple" line1={t.badge_a1} line2="App Store" />
-              <StoreBadge href={PLAY_STORE_URL} icon="i-play" line1={t.badge_g1} line2="Google Play" />
+              <StoreBadge href={PLAY_LIVE ? PLAY_STORE_URL : null} icon="i-play" line1={t.badge_g1} line2="Google Play" soon={PLAY_LIVE ? undefined : t.soon} />
             </div>
             <p className="note">{t.note}</p>
           </div>
@@ -252,7 +256,7 @@ export default function HomePage() {
           <p className="dls">{t.dl_s}</p>
           <div className="fx ac jc wrap gap12">
             <StoreBadge href={APP_STORE_URL} icon="i-apple" line1={t.badge_a1} line2="App Store" />
-            <StoreBadge href={PLAY_STORE_URL} icon="i-play" line1={t.badge_g1} line2="Google Play" />
+            <StoreBadge href={PLAY_LIVE ? PLAY_STORE_URL : null} icon="i-play" line1={t.badge_g1} line2="Google Play" soon={PLAY_LIVE ? undefined : t.soon} />
           </div>
         </div>
       </section>
@@ -287,15 +291,47 @@ export default function HomePage() {
   );
 }
 
-/** App Store / Google Play badge (design's .store card). */
-function StoreBadge({ href, icon, line1, line2 }: { href: string; icon: string; line1: string; line2: string }) {
-  return (
-    <a className="store" href={href} target="_blank" rel="noopener noreferrer">
+/**
+ * App Store / Google Play badge (design's .store card).
+ *
+ * When `href` is null the store isn't live yet: render a non-link, visually
+ * muted card with a "coming soon" tag instead of a dead link that 404s.
+ */
+function StoreBadge({
+  href,
+  icon,
+  line1,
+  line2,
+  soon,
+}: {
+  href: string | null;
+  icon: string;
+  line1: string;
+  line2: string;
+  soon?: string;
+}) {
+  const inner = (
+    <>
       <svg className="sicon"><use href={`#${icon}`} /></svg>
       <span className="col">
         <span className="s1">{line1}</span>
         <span className="s2">{line2}</span>
       </span>
+      {soon ? <span className="ssoon">{soon}</span> : null}
+    </>
+  );
+
+  if (!href) {
+    return (
+      <span className="store store-soon" aria-disabled="true">
+        {inner}
+      </span>
+    );
+  }
+
+  return (
+    <a className="store" href={href} target="_blank" rel="noopener noreferrer">
+      {inner}
     </a>
   );
 }
