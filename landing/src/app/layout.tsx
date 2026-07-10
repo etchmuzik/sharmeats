@@ -26,6 +26,10 @@ export const metadata: Metadata = {
       'Five languages. Hotel-room delivery. Honest ETAs with credits when we miss them.',
     type: 'website',
   },
+  // iOS Smart App Banner — the customer app is live on the App Store, so
+  // Safari visitors get the native install/open banner (renders the
+  // apple-itunes-app meta tag).
+  itunes: { appId: '6776864451' },
   // Sharm Eats logo (bold stacked wordmark tile) — generated into public/brand.
   icons: {
     icon: [
