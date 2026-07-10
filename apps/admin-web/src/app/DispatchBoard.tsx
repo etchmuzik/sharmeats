@@ -7,6 +7,21 @@ import { Icon } from './Icon';
 import { useToast } from './Toast';
 
 /**
+ * Fixed reasons for an admin cancellation. These land in `cancel_reason` on the
+ * order (via advance_order_status' p_note) so ops has a consistent audit trail
+ * instead of the free-text-in-the-SQL-editor path founders used before.
+ */
+const CANCEL_REASONS = [
+  'Restaurant closed',
+  'Out of stock',
+  'Customer request',
+  'No driver available',
+  'Duplicate order',
+  'Other',
+] as const;
+type CancelReason = (typeof CANCEL_REASONS)[number];
+
+/**
  * Manual dispatch board (+ live ops).
  *
  * Left: orders that need a platform driver (fulfillment_type='platform',
@@ -29,6 +44,9 @@ export function DispatchBoard({
   const [drivers, setDrivers] = useState<OpsDriver[]>(initialDrivers);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Order pending cancellation confirmation (id), and whether the RPC is in flight.
+  const [cancelling, setCancelling] = useState<OpsOrder | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   // Realtime: orders + driver status.
   useEffect(() => {
@@ -98,6 +116,31 @@ export function DispatchBoard({
     [supabase, toast],
   );
 
+  const cancelOrder = useCallback(
+    async (orderId: string, reason: CancelReason) => {
+      setCancelBusy(true);
+      // advance_order_status: admin/dispatcher may move any non-terminal order
+      // to 'cancelled' (mig 054 matrix). The reason is stored in cancel_reason,
+      // and the terminal-status trigger frees any assigned driver server-side.
+      const { error } = await supabase.rpc('advance_order_status', {
+        p_order_id: orderId,
+        p_new_status: 'cancelled',
+        p_note: reason,
+      });
+      setCancelBusy(false);
+      if (error) {
+        toast(`Cancel failed: ${error.message}`, 'error');
+        return;
+      }
+      toast('Order cancelled', 'success');
+      setCancelling(null);
+      if (selectedOrder === orderId) setSelectedOrder(null);
+      // Optimistic — Realtime will reconcile (terminal orders drop off the board).
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    },
+    [supabase, toast, selectedOrder],
+  );
+
   const driverName = (id: string | null) => drivers.find((d) => d.id === id)?.name ?? '—';
 
   return (
@@ -140,12 +183,20 @@ export function DispatchBoard({
                     {o.zone ?? 'zone ?'} · {o.payment_method === 'cash_on_delivery' ? 'COD' : 'card'}{' '}
                     · {o.total_egp} EGP
                   </div>
-                  <button
-                    onClick={() => setSelectedOrder(selectedOrder === o.id ? null : o.id)}
-                    className="mt-3 w-full rounded-xl bg-accent py-2 text-sm font-semibold text-white"
-                  >
-                    {selectedOrder === o.id ? 'Choose a driver →' : 'Assign driver'}
-                  </button>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => setSelectedOrder(selectedOrder === o.id ? null : o.id)}
+                      className="flex-1 rounded-xl bg-accent py-2 text-sm font-semibold text-white"
+                    >
+                      {selectedOrder === o.id ? 'Choose a driver →' : 'Assign driver'}
+                    </button>
+                    <button
+                      onClick={() => setCancelling(o)}
+                      className="rounded-xl border border-red px-3 py-2 text-sm font-semibold text-red hover:bg-redsoft"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -161,7 +212,7 @@ export function DispatchBoard({
                 {assigned.map((o) => (
                   <div
                     key={o.id}
-                    className="flex items-center justify-between rounded-xl border border-line bg-white px-4 py-2 text-sm"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-line bg-white px-4 py-2 text-sm"
                   >
                     <span className="font-semibold">{o.short_code}</span>
                     <span className="text-ink2">{o.restaurant_name}</span>
@@ -170,6 +221,12 @@ export function DispatchBoard({
                       <Icon name="scooter" size={13} />
                       {driverName(o.assigned_driver_id)}
                     </span>
+                    <button
+                      onClick={() => setCancelling(o)}
+                      className="rounded-lg border border-red px-2 py-1 text-xs font-semibold text-red hover:bg-redsoft"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 ))}
               </div>
@@ -213,6 +270,94 @@ export function DispatchBoard({
               })}
           </div>
         </section>
+      </div>
+
+      {cancelling && (
+        <CancelDialog
+          order={cancelling}
+          busy={cancelBusy}
+          onConfirm={(reason) => cancelOrder(cancelling.id, reason)}
+          onClose={() => {
+            if (!cancelBusy) setCancelling(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Confirm dialog for cancelling an order. Requires a fixed reason to be picked
+ * before the action is enabled. Replaces the old founder-in-the-SQL-editor path.
+ */
+function CancelDialog({
+  order,
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  order: OpsOrder;
+  busy: boolean;
+  onConfirm: (reason: CancelReason) => void;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState<CancelReason | ''>('');
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Cancel order ${order.short_code}`}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-line bg-white p-5 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-bold text-ink">
+          Cancel {order.short_code}?
+        </h3>
+        <p className="mt-1 text-sm text-ink2">
+          {order.restaurant_name} · {order.total_egp} EGP. This cannot be undone.
+          {order.assigned_driver_id && ' Any assigned driver is freed automatically.'}
+        </p>
+
+        <label className="mt-4 block">
+          <span className="mb-1 block text-sm font-semibold text-ink2">Reason</span>
+          <select
+            value={reason}
+            onChange={(e) => setReason(e.target.value as CancelReason)}
+            disabled={busy}
+            className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-accent"
+          >
+            <option value="" disabled>
+              Select a reason…
+            </option>
+            {CANCEL_REASONS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="mt-5 flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 rounded-xl border border-line py-2 text-sm font-semibold text-ink2 hover:bg-sand disabled:opacity-50"
+          >
+            Keep order
+          </button>
+          <button
+            onClick={() => reason && onConfirm(reason)}
+            disabled={!reason || busy}
+            className="flex-1 rounded-xl bg-red py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {busy ? 'Cancelling…' : 'Cancel order'}
+          </button>
+        </div>
       </div>
     </div>
   );
