@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { toCsv } from '@/lib/csv';
 import type { RestaurantSettlement } from '@/lib/types';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
@@ -128,6 +129,48 @@ export default function FinancePage() {
     await loadRows();
   };
 
+  // Serialize the currently loaded statements to CSV and trigger a browser
+  // download so the weekly payout run can be pasted into the bank portal.
+  const exportCsv = () => {
+    if (rows.length === 0) {
+      toast('No statements to export', 'error');
+      return;
+    }
+    const header = [
+      'restaurant',
+      'period_start',
+      'period_end',
+      'order_count',
+      'gross_sales_egp',
+      'commission_egp',
+      'net_payable_egp',
+      'status',
+      'paid_reference',
+    ];
+    const body = rows.map((r) => [
+      r.restaurant_name,
+      r.period_start,
+      r.period_end,
+      r.order_count,
+      r.gross_sales_egp,
+      r.commission_egp,
+      r.net_payable_egp,
+      r.status,
+      r.paid_reference ?? '',
+    ]);
+    const csv = toCsv(header, body);
+    const stamp = start || new Date().toISOString().slice(0, 10);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sharmeats-settlements-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   if (phase.state === 'loading') {
     return (
       <main className="min-h-screen bg-bg">
@@ -217,6 +260,13 @@ export default function FinancePage() {
             className="rounded-lg border border-line px-4 py-2.5 text-sm font-semibold hover:border-accent"
           >
             Refresh
+          </button>
+          <button
+            onClick={exportCsv}
+            disabled={rows.length === 0}
+            className="rounded-lg border border-line px-4 py-2.5 text-sm font-semibold hover:border-accent disabled:opacity-50"
+          >
+            Export CSV
           </button>
         </section>
 
