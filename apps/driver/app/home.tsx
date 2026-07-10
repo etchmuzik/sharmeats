@@ -185,6 +185,14 @@ export default function Home() {
     }
   }
 
+  // The countdown reached zero: dispatch_sweep has already expired this offer
+  // server-side, so we just drop it locally — no reject RPC (that would send a
+  // spurious decline). The Realtime subscription also refetches on the expiring
+  // UPDATE, so this is belt-and-suspenders.
+  function dismissOffer(assignmentId: string) {
+    setOffers((prev) => prev.filter((o) => o.id !== assignmentId));
+  }
+
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
@@ -399,26 +407,131 @@ export default function Home() {
           {offers.length > 0 ? 'New offers' : 'No offers right now'}
         </Text>
         {offers.map((o) => (
-          <View
+          <OfferCard
             key={o.id}
-            style={{ backgroundColor: colors.white, borderWidth: 1, borderColor: colors.accent, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}
-          >
-            <Text style={{ fontWeight: '700', color: colors.ink }}>New delivery offer</Text>
-            <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, marginTop: 2 }}>
-              Tap accept to view pickup + drop-off details.
-            </Text>
-            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-              <Pressable onPress={() => reject(o)} style={{ flex: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' }}>
-                <Text style={{ color: colors.red, fontWeight: '600' }}>Decline</Text>
-              </Pressable>
-              <Pressable onPress={() => accept(o)} style={{ flex: 1, backgroundColor: colors.green, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' }}>
-                <Text style={{ color: colors.white, fontWeight: '700' }}>Accept</Text>
-              </Pressable>
-            </View>
-          </View>
+            offer={o}
+            onAccept={() => accept(o)}
+            onDecline={() => reject(o)}
+            onExpire={() => dismissOffer(o.id)}
+          />
         ))}
       </View>
     </ScrollView>
+  );
+}
+
+/**
+ * Live seconds-remaining until `expiresAt`, ticking once per second. Returns
+ * null when there's no expiry timestamp (legacy rows). Clamps at 0. Fires
+ * `onZero` exactly once, the first tick that reaches 0, so the parent can drop
+ * the offer without fighting the server (dispatch_sweep already expired it).
+ */
+function useCountdown(expiresAt: string | null, onZero: () => void): number | null {
+  const targetMs = expiresAt ? new Date(expiresAt).getTime() : null;
+  const compute = () =>
+    targetMs === null ? null : Math.max(0, Math.round((targetMs - Date.now()) / 1000));
+  const [seconds, setSeconds] = useState<number | null>(compute);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    if (targetMs === null) {
+      setSeconds(null);
+      return;
+    }
+    firedRef.current = false;
+    setSeconds(Math.max(0, Math.round((targetMs - Date.now()) / 1000)));
+    const id = setInterval(() => {
+      const remaining = Math.max(0, Math.round((targetMs - Date.now()) / 1000));
+      setSeconds(remaining);
+      if (remaining <= 0 && !firedRef.current) {
+        firedRef.current = true;
+        onZero();
+      }
+    }, 1000);
+    return () => clearInterval(id);
+    // Re-arm only when the expiry instant changes; onZero is a fresh closure each
+    // render but the firedRef guard makes re-runs harmless.
+  }, [targetMs]);
+
+  return seconds;
+}
+
+/** Format seconds as m:ss, e.g. 42 -> "0:42", 90 -> "1:30". */
+function formatCountdown(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/**
+ * A pending delivery offer. Shows the pickup restaurant, the driver's payout
+ * (delivery fee + tip), and a live expiry countdown so drivers accept fast and
+ * fewer offers silently lapse. The customer address/phone are intentionally NOT
+ * shown pre-accept ([H-DRV2]) — only after accepting.
+ */
+function OfferCard({
+  offer,
+  onAccept,
+  onDecline,
+  onExpire,
+}: {
+  offer: Assignment;
+  onAccept: () => void;
+  onDecline: () => void;
+  onExpire: () => void;
+}) {
+  const seconds = useCountdown(offer.offer_expires_at, onExpire);
+  const payout = offer.delivery_fee_egp + offer.tip_egp;
+  const urgent = seconds !== null && seconds <= 10;
+  const expired = seconds !== null && seconds <= 0;
+
+  return (
+    <View
+      style={{ backgroundColor: colors.white, borderWidth: 1, borderColor: colors.accent, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, paddingRight: spacing.md }}>
+          <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase' }}>
+            Pickup
+          </Text>
+          <Text style={{ fontWeight: '700', color: colors.ink, fontSize: font.sizes.lg, marginTop: 2 }}>
+            {offer.restaurant_name}
+          </Text>
+        </View>
+        {seconds !== null && (
+          <View
+            accessibilityLabel={expired ? 'Offer expired' : `Expires in ${formatCountdown(seconds)}`}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              backgroundColor: urgent ? colors.redSoft : colors.accentSoft,
+              borderRadius: radius.lg,
+              paddingHorizontal: spacing.md,
+              paddingVertical: 4,
+            }}
+          >
+            <Icon name="clock" size={13} color={urgent ? colors.red : colors.accentDark} />
+            <Text style={{ color: urgent ? colors.red : colors.accentDark, fontWeight: '700', fontSize: font.sizes.sm }}>
+              {expired ? 'Expired' : formatCountdown(seconds)}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={{ color: colors.green, fontSize: font.sizes.base, fontWeight: '700', marginTop: spacing.md }}>
+        You earn {payout} EGP
+      </Text>
+
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+        <Pressable onPress={onDecline} style={{ flex: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' }}>
+          <Text style={{ color: colors.red, fontWeight: '600' }}>Decline</Text>
+        </Pressable>
+        <Pressable onPress={onAccept} style={{ flex: 1, backgroundColor: colors.green, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' }}>
+          <Text style={{ color: colors.white, fontWeight: '700' }}>Accept</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 

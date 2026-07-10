@@ -133,6 +133,22 @@ export interface Assignment {
   id: string;
   order_id: string;
   status: 'offered' | 'accepted' | 'rejected' | 'completed' | 'reassigned';
+  /**
+   * When this offer lapses (mig 025/060). Drives the live countdown on the offer
+   * card; dispatch_sweep expires the row server-side at this instant. Null only
+   * for legacy rows created before the column existed.
+   */
+  offer_expires_at: string | null;
+  /**
+   * Pre-accept preview of the pickup + payout — restaurant name and driver
+   * earnings only. RLS (orders_select) lets an OFFERED driver read these order
+   * columns via the order_assignments embed, so no migration is needed.
+   * [H-DRV2] Deliberately does NOT include the customer address or phone: those
+   * stay hidden until the driver accepts.
+   */
+  restaurant_name: string;
+  delivery_fee_egp: number;
+  tip_egp: number;
 }
 
 /** Distinguishes a genuinely-unlinked account from a transient fetch failure. */
@@ -181,15 +197,42 @@ export async function setOnline(online: boolean): Promise<void> {
   if (error) throw error;
 }
 
-/** Pending offers for this driver (status='offered'). */
+/**
+ * Pending offers for this driver (status='offered'), each with a lightweight
+ * pickup + payout preview so the driver can decide before accepting. The order
+ * columns come from a PostgREST embed on order_assignments.order_id -> orders
+ * (many-to-one, so `orders` is a single object). RLS permits it for an OFFERED
+ * driver — see the Assignment doc comment. Only the restaurant name + money are
+ * read here; the customer address/phone stay hidden until accept ([H-DRV2]).
+ */
 export async function getOffers(driverId: string): Promise<Assignment[]> {
   const { data, error } = await getSupabase()
     .from('order_assignments')
-    .select('id, order_id, status')
+    .select('id, order_id, status, offer_expires_at, orders(restaurant_name, delivery_fee_egp, tip_egp)')
     .eq('driver_id', driverId)
     .eq('status', 'offered');
   if (error) throw error;
-  return (data as Assignment[]) ?? [];
+  return (data ?? []).map(toAssignment);
+}
+
+/** Normalize a raw assignment row (with nested orders embed) into an Assignment. */
+function toAssignment(row: Record<string, unknown>): Assignment {
+  // The embed is many-to-one, so supabase-js should return a single object, but
+  // its generated typing sometimes widens the shape to an array — handle both.
+  const embed = row.orders as
+    | { restaurant_name?: string; delivery_fee_egp?: number; tip_egp?: number }
+    | { restaurant_name?: string; delivery_fee_egp?: number; tip_egp?: number }[]
+    | null;
+  const ord = Array.isArray(embed) ? embed[0] : embed;
+  return {
+    id: row.id as string,
+    order_id: row.order_id as string,
+    status: row.status as Assignment['status'],
+    offer_expires_at: (row.offer_expires_at as string | null) ?? null,
+    restaurant_name: ord?.restaurant_name ?? 'Restaurant',
+    delivery_fee_egp: ord?.delivery_fee_egp ?? 0,
+    tip_egp: ord?.tip_egp ?? 0,
+  };
 }
 
 /**
