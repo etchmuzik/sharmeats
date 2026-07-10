@@ -31,6 +31,7 @@ import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
 import { success, tap } from '../../src/haptics';
 import { useGoBack } from '../../src/lib/navigation';
+import { track } from '../../src/lib/analytics';
 
 interface SelectionMap {
   // modifierId → Set of optionIds
@@ -205,6 +206,12 @@ export default function ItemModal() {
         basePriceEgp: item.priceEgp,
         image: item.image,
         ...payload,
+      });
+      track('add_to_cart', {
+        restaurantId: restaurant.id,
+        itemId: item.id,
+        priceEgp: item.priceEgp,
+        qty,
       });
     }
     success();
