@@ -245,12 +245,17 @@ export default function JobScreen() {
         <DropoffPreferenceCard preference={job.dropoff_preference} note={job.dropoff_note} />
 
         {/* Contact the customer. In-app chat is always available once assigned;
-            the phone call is offered only while out for delivery (mig 028
-            fetches customer_phone but it was never surfaced — the #1 buried
-            feature: a driver at the door with no way to reach the customer). */}
+            the phone call is offered from pickup onward (picked_up +
+            out_for_delivery) — a driver heading over often needs to call about a
+            gate code or hotel wing, not just at the door. Kept off pre-pickup for
+            privacy (the driver shouldn't hold the customer's number while the
+            order is still at the restaurant); customer_phone is also only surfaced
+            for an accepted, non-terminal job, so the presence check below is the
+            natural backstop. mig 028 fetches customer_phone but it was long
+            unsurfaced — the #1 buried feature. */}
         {!['delivered', 'cancelled', 'rejected'].includes(job.status) && (
           <View style={{ marginTop: spacing.md, flexDirection: 'row', gap: spacing.md }}>
-            {job.customer_phone && job.status === 'out_for_delivery' && (
+            {job.customer_phone && !beforePickup(job.status) && (
               <ContactButton
                 icon="phone"
                 label="Call customer"
