@@ -14,6 +14,16 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 
 let player: AudioPlayer | null = null;
 let ready = false;
+let muted = false;
+
+/**
+ * Suppress/allow the chime. Staff can mute from the header (e.g. a busy service).
+ * Centralised here so BOTH the first-order chime and the repeat-until-acknowledged
+ * loop honour a single flag — no caller can forget to check it.
+ */
+export function setChimeMuted(next: boolean): void {
+  muted = next;
+}
 
 /** Preload the chime + configure playback to ignore the iOS silent switch. */
 export async function initChime(): Promise<void> {
@@ -33,9 +43,9 @@ export async function initChime(): Promise<void> {
   }
 }
 
-/** Play the chime for a newly-arrived order. No-op if init failed. */
+/** Play the chime for a newly-arrived order. No-op if init failed or muted. */
 export function playNewOrderChime(): void {
-  if (!ready || !player) return;
+  if (muted || !ready || !player) return;
   try {
     player.seekTo(0);
     player.play();

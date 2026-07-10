@@ -11,13 +11,14 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../src/auth';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
 import { AllergenBanner } from '../src/components/AllergenBanner';
 import { ContactButtons } from '../src/components/ContactButtons';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
-import { initChime, playNewOrderChime, releaseChime } from '../src/chime';
+import { initChime, playNewOrderChime, releaseChime, setChimeMuted } from '../src/chime';
 import {
   advanceStatus,
   getActiveOrders,
@@ -32,6 +33,13 @@ import {
 } from '../src/orders';
 import { myUnreadMessageCount } from '../src/messages';
 import { colors, font, radius, spacing } from '../src/theme';
+
+// [H-REST3] Live data shows merchants miss ~2/3 of orders into the 180s
+// auto-accept timeout — a single missed chime = a late kitchen. Re-fire the
+// chime on this cadence while any 'placed' order sits unacknowledged.
+const CHIME_REPEAT_MS = 25_000;
+// Persist the mute toggle so it survives a kiosk reload.
+const MUTE_KEY = 'chime:muted';
 
 export default function Home() {
   const router = useRouter();
@@ -49,6 +57,7 @@ export default function Home() {
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [unreadMsgs, setUnreadMsgs] = useState(0);
+  const [muted, setMuted] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -83,6 +92,27 @@ export default function Home() {
   useEffect(() => {
     initChime();
     return () => releaseChime();
+  }, []);
+
+  // [H-REST3] Restore the persisted mute preference on mount so a kiosk reload
+  // doesn't silently un-mute (or re-mute) the counter.
+  useEffect(() => {
+    AsyncStorage.getItem(MUTE_KEY)
+      .then((v) => {
+        const on = v === '1';
+        setMuted(on);
+        setChimeMuted(on);
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleMuted = useCallback(() => {
+    setMuted((prev) => {
+      const next = !prev;
+      setChimeMuted(next); // gates both the first chime and the repeat loop
+      AsyncStorage.setItem(MUTE_KEY, next ? '1' : '0').catch(() => {});
+      return next;
+    });
   }, []);
 
   // Unread-chat badge: refresh when the screen regains focus (order screens
@@ -128,6 +158,25 @@ export default function Home() {
     );
     return unsub;
   }, [ctx]);
+
+  // [H-REST3] Count of unacknowledged orders — 'placed' means the kitchen hasn't
+  // accepted/rejected it yet. Keyed effect below starts/stops the repeat chime.
+  const placedCount = useMemo(
+    () => orders.filter((o) => o.status === 'placed').length,
+    [orders],
+  );
+
+  // [H-REST3] Repeat the chime every CHIME_REPEAT_MS while ≥1 order is still
+  // 'placed'. One interval only (effect re-runs when the count crosses 0↔n, not
+  // on every count change beyond that gate). Cleared the moment the kitchen has
+  // actioned every new order, and on unmount. Mute is honoured inside
+  // playNewOrderChime, so a muted kiosk sets up no interval at all.
+  const hasUnacked = placedCount > 0;
+  useEffect(() => {
+    if (!hasUnacked || muted) return;
+    const id = setInterval(playNewOrderChime, CHIME_REPEAT_MS);
+    return () => clearInterval(id);
+  }, [hasUnacked, muted]);
 
   // Push: register the tablet for new-order notifications; a tapped notification
   // refreshes the queue.
@@ -296,6 +345,29 @@ export default function Home() {
         >
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
             {togglingOpen ? '…' : isOpen ? 'Open · pause' : 'Closed · open'}
+          </Text>
+        </Pressable>
+        {/* [H-REST3] Mute the new-order chime (and its repeat). Distinct muted
+            state so staff can see at a glance the counter is silent. */}
+        <Pressable
+          onPress={toggleMuted}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: muted }}
+          accessibilityLabel={muted ? 'Sound off — tap to turn new-order chime on' : 'Sound on — tap to mute new-order chime'}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            borderRadius: radius.pill,
+            backgroundColor: muted ? colors.redSoft : colors.greenSoft,
+            marginRight: spacing.sm,
+          }}
+        >
+          <Icon name={muted ? 'mute' : 'sound'} size={14} color={muted ? colors.red : colors.green} />
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: muted ? colors.red : colors.green }}>
+            {muted ? 'Muted' : 'Sound'}
           </Text>
         </Pressable>
         {unreadMsgs > 0 && (

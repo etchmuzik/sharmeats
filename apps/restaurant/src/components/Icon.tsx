@@ -32,7 +32,9 @@ export type IconName =
   | 'phone'
   | 'chat'
   | 'send'
-  | 'alert';
+  | 'alert'
+  | 'sound'
+  | 'mute';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -60,6 +62,8 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   chat: 'chatbubble-ellipses',
   send: 'send',
   alert: 'alert-circle',
+  sound: 'volume-high-outline',
+  mute: 'volume-mute-outline',
 };
 
 type Props = {
