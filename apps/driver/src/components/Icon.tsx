@@ -22,6 +22,7 @@ export type IconName =
   | 'receipt' // fawry
   | 'bolt' // ASAP
   | 'calendar'
+  | 'clock' // offer expiry countdown
   | 'trash'
   | 'warning'
   | 'close'
@@ -56,6 +57,7 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   receipt: 'receipt-outline',
   bolt: 'flash',
   calendar: 'calendar-outline',
+  clock: 'time-outline',
   trash: 'trash-outline',
   warning: 'warning-outline',
   close: 'close',
