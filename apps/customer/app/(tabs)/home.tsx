@@ -25,6 +25,7 @@ import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { useCart } from '../../src/store/cart';
 import { tap } from '../../src/haptics';
+import { track } from '../../src/lib/analytics';
 
 /**
  * Same predicate used in orders.tsx (Task 5): a saved-order line is unresolvable
@@ -367,6 +368,7 @@ export default function HomeTab() {
                 <Pressable
                   onPress={() => {
                     tap();
+                    track('reorder_tapped', { restaurantId: item.id });
                     router.push(`/restaurant/${item.id}` as never);
                   }}
                   style={styles.reorderChip}>

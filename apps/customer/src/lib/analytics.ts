@@ -55,6 +55,7 @@ export function initAnalytics(): void {
 
 export type AnalyticsEvent =
   | 'restaurant_viewed'
+  | 'add_to_cart'
   | 'checkout_opened'
   | 'order_placed'
   | 'order_cancelled'

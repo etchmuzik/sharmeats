@@ -11,6 +11,7 @@ import { useT } from '../../src/i18n';
 import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { useCart } from '../../src/store/cart';
+import { track } from '../../src/lib/analytics';
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   placed: 'status.placed',
@@ -46,6 +47,7 @@ export default function OrdersTab() {
   const loadFromOrder = useCart((s) => s.loadFromOrder);
 
   const reorder = (o: Order) => {
+    track('reorder_tapped', { restaurantId: o.restaurantId });
     // Guard: orders placed before mig 055 snapshot their modifier choices WITHOUT
     // optionId, so one-tap reorder would silently drop every add-on and place a
     // cheaper, wrong order. If any line has modifiers but is missing ids, send the

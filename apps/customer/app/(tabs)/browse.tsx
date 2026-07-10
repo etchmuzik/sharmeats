@@ -25,6 +25,20 @@ import { useDirection } from '../../src/lib/direction';
 import { formatEgp } from '../../src/lib/format';
 import { effectiveIsOpen } from '../../src/lib/openHours';
 import { tap } from '../../src/haptics';
+import { track } from '../../src/lib/analytics';
+
+/**
+ * Debounce a changing value so effects fire after typing settles, not on every
+ * keystroke. Used to throttle the search_performed analytics event.
+ */
+function useDebounce<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const handle = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(handle);
+  }, [value, delayMs]);
+  return debounced;
+}
 
 const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
   { key: 'all', tKey: 'cuisine.all', emoji: '' },
@@ -143,6 +157,16 @@ export default function BrowseTab() {
       cancelled = true;
     };
   }, [query]);
+
+  // Analytics: fire search_performed once typing settles (debounced ~600ms) so
+  // PostHog sees one event per search, not one per keystroke. We log only the
+  // query length — never the raw text — to avoid capturing PII.
+  const debouncedQuery = useDebounce(query, 600);
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (q.length < 2) return;
+    track('search_performed', { queryLength: q.length });
+  }, [debouncedQuery]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
