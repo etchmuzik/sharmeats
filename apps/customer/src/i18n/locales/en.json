@@ -385,6 +385,7 @@
   "checkout.contactHint": "Your driver will call this number if needed",
   "checkout.contactPlaceholder": "e.g. 010 1234 5678",
   "checkout.needPhone": "Add a contact number to place your order",
+  "checkout.feeRetry": "Couldn't confirm the delivery fee. Tap to retry.",
   "chat.title": "Chat",
   "chat.you": "You",
   "chat.driver": "Driver",

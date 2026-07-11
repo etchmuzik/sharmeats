@@ -385,6 +385,7 @@
   "checkout.contactHint": "Курьер позвонит по этому номеру при необходимости",
   "checkout.contactPlaceholder": "напр. 010 1234 5678",
   "checkout.needPhone": "Добавьте контактный номер для оформления заказа",
+  "checkout.feeRetry": "Не удалось подтвердить стоимость доставки. Нажмите, чтобы повторить.",
   "chat.title": "Чат",
   "chat.you": "Вы",
   "chat.driver": "Курьер",

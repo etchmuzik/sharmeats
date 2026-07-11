@@ -1,0 +1,13 @@
+-- 100_drop_duplicate_saved_orders_index.sql
+--
+-- The duplicate_index advisor flags two byte-identical btree indexes on
+-- public.saved_orders(restaurant_id):
+--   * saved_orders_restaurant_id_idx  — created by mig 086 (saved_orders table)
+--   * saved_orders_restaurant_idx     — created by mig 097 from a STALE advisor
+--     read that predated 086's index, so it re-added the same column.
+-- Postgres built both; every write maintains two identical btrees for no query
+-- benefit. Keep the earlier (086) one, drop the 097 duplicate.
+--
+-- Behavior-neutral: the FK-covering index remains; only the redundant copy goes.
+-- Idempotent. Rollback: recreate `saved_orders_restaurant_idx` on (restaurant_id).
+drop index if exists public.saved_orders_restaurant_idx;

@@ -64,6 +64,7 @@ export default function OrderDetail() {
     if (!order) return;
     const unsub = subscribeOrders(
       order.restaurant_id,
+      `detail:${order.id}`,
       (row) => {
         if (row.id === order.id) setOrder((prev) => (prev ? { ...prev, ...row } : prev));
       },

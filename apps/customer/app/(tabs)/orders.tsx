@@ -102,9 +102,13 @@ export default function OrdersTab() {
   // Subscribe to active orders so the list updates as status changes.
   useEffect(() => {
     const unsubs = active.map((o) =>
-      db.orders.subscribe(o.id, () => {
-        refresh();
-      }),
+      db.orders.subscribe(
+        o.id,
+        () => {
+          refresh();
+        },
+        'orders-list',
+      ),
     );
     return () => unsubs.forEach((fn) => fn());
   }, [active, refresh]);

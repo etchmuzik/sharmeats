@@ -142,16 +142,26 @@ export async function getOrder(orderId: string): Promise<RestaurantOrder | null>
 
 /**
  * Subscribe to live order changes for a restaurant. Returns an unsubscribe fn.
- * Tears down any stale same-named channel first (supabase-js reuses a channel by
- * name; calling .on() on an already-subscribed one throws).
+ *
+ * `subscriberKey` MUST be distinct per live subscriber. The home kiosk and an
+ * open order-detail screen are both mounted at once (Expo Router pushes detail
+ * over home) and both watch the SAME restaurant. If they shared a channel name,
+ * the second subscriber's `removeChannel` teardown below would rip out the
+ * first's live channel, and when detail later unmounts, ITS teardown would
+ * leave zero channels — silently killing the kiosk's live feed and new-order
+ * chime until a manual refresh (defeats the whole point of the repeat chime).
+ * A per-subscriber suffix keeps the two channels independent. The same-named
+ * teardown still guards the supabase-js "reuse an already-subscribed channel by
+ * name → .on() throws" case for a single subscriber that remounts.
  */
 export function subscribeOrders(
   restaurantId: string,
+  subscriberKey: string,
   onChange: (row: RestaurantOrder) => void,
   onResync?: () => void,
 ): () => void {
   const sb = getSupabase();
-  const name = `restaurant:${restaurantId}:orders`;
+  const name = `restaurant:${restaurantId}:orders:${subscriberKey}`;
   for (const existing of sb.getChannels()) {
     if (existing.topic === `realtime:${name}`) sb.removeChannel(existing);
   }

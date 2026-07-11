@@ -177,10 +177,24 @@ export const ordersRepoSupabase = {
     return (data ?? []).map(rowToOrder);
   },
 
-  /** Subscribe to order status changes (Realtime postgres_changes). */
-  subscribe(orderId: string, cb: (o: Order) => void): () => void {
+  /**
+   * Subscribe to order status changes (Realtime postgres_changes).
+   *
+   * `subscriberKey` MUST be distinct per live subscriber of the SAME order.
+   * Three components can watch one order at once: the always-mounted
+   * ActiveOrderBanner (tabs layout), the Orders-tab list row, and the tracking
+   * screen. Keying the channel only by orderId made all three share the name
+   * `order:{id}:status`; the same-named teardown below then had the second
+   * subscriber rip out the first's live channel, and its own unsub left the
+   * survivors on a dead channel — the banner's status pill froze (showed
+   * "Preparing" after delivery) until a tab-change refetch. A per-subscriber
+   * suffix keeps each channel independent. The teardown still guards the
+   * supabase-js "reuse an already-subscribed channel by name → .on() throws"
+   * case for a single subscriber that remounts.
+   */
+  subscribe(orderId: string, cb: (o: Order) => void, subscriberKey = 'default'): () => void {
     const sb = getSupabase();
-    const name = `order:${orderId}:status`;
+    const name = `order:${orderId}:status:${subscriberKey}`;
     // supabase-js returns an EXISTING channel if one with this name is still
     // registered. If a prior channel hasn't finished removeChannel() (async),
     // re-creating it here would hand back an already-subscribed channel, and

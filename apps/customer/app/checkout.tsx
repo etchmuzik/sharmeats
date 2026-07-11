@@ -93,6 +93,11 @@ export default function Checkout() {
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
+  // Track the delivery-fee quote lifecycle so we never show — or let the user
+  // commit to — a total the server won't honor. place_order recomputes the fee
+  // from zone rules server-side (client p_delivery_fee is ignored), so only a
+  // resolved quote guarantees the previewed total equals the door charge.
+  const [quoteState, setQuoteState] = useState<'loading' | 'ok' | 'failed'>('loading');
   const [promoInput, setPromoInput] = useState('');
   const [promoApplied, setPromoApplied] = useState<{ code: string; discount: number } | null>(null);
   const [promoError, setPromoError] = useState(false);
@@ -155,19 +160,28 @@ export default function Checkout() {
   useEffect(() => {
     if (!restaurantId || !address) return;
     let cancelled = false;
+    setQuoteState('loading');
     db.orders
       .quoteDeliveryFee(restaurantId, address.id, subtotal)
       .then((fee) => {
-        if (!cancelled) setQuotedFee(fee);
+        if (cancelled) return;
+        setQuotedFee(fee);
+        setQuoteState('ok');
       })
       .catch(() => {
-        if (!cancelled) setQuotedFee(null);
+        if (cancelled) return;
+        setQuotedFee(null);
+        setQuoteState('failed');
       });
     return () => {
       cancelled = true;
     };
   }, [restaurantId, address, subtotal]);
 
+  // Only the server-quoted fee is trustworthy. While loading / on failure we fall
+  // back to the restaurant's flat fee for a rough preview, but the Place button is
+  // gated on quoteState === 'ok' below so the user can never COMMIT to a total the
+  // server won't charge.
   const deliveryFee = quotedFee ?? restaurant?.deliveryFeeEgp ?? 30;
   // Tax-inclusive at launch — mirrors place_order (v_tax := 0). The VAT row
   // stays hidden until the platform setting flips on.
@@ -654,6 +668,17 @@ export default function Checkout() {
         {address && payment && lines.length > 0 && !phoneValid && (
           <Text style={styles.cardHint}>{t('checkout.needPhone')}</Text>
         )}
+        {/* Block placement until the delivery fee is confirmed, so the button total
+            always equals what the server charges at the door. */}
+        {address && quoteState === 'failed' && (
+          <Pressable onPress={() => setAddress((a) => (a ? { ...a } : a))}>
+            <Text style={styles.cardHint}>
+              {t('checkout.feeRetry') !== 'checkout.feeRetry'
+                ? t('checkout.feeRetry')
+                : "Couldn't confirm the delivery fee. Tap to retry."}
+            </Text>
+          </Pressable>
+        )}
         {isCard && (
           <Text style={styles.cardHint}>
             {t('checkout.cardHint') !== 'checkout.cardHint'
@@ -670,7 +695,14 @@ export default function Checkout() {
               : t('checkout.place', { amount: formatEgp(total) })
           }
           onPress={place}
-          disabled={placing || !address || !payment || lines.length === 0 || !phoneValid}
+          disabled={
+            placing ||
+            !address ||
+            !payment ||
+            lines.length === 0 ||
+            !phoneValid ||
+            quoteState !== 'ok'
+          }
         />
       </View>
     </View>
