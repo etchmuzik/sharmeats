@@ -288,6 +288,8 @@ interface OrderRow {
   subtotal_egp: number;
   delivery_fee_egp: number;
   tax_egp: number;
+  service_fee_egp?: number | null;
+  small_order_fee_egp?: number | null;
   tip_egp: number;
   discount_egp?: number | null;
   promo_code?: string | null;
@@ -335,6 +337,9 @@ export function rowToOrder(o: OrderRow): Order {
     subtotalEgp: o.subtotal_egp,
     deliveryFeeEgp: o.delivery_fee_egp,
     taxEgp: o.tax_egp,
+    // Default 0 for rows written before mig 096 added these columns.
+    serviceFeeEgp: o.service_fee_egp ?? 0,
+    smallOrderFeeEgp: o.small_order_fee_egp ?? 0,
     tipEgp: o.tip_egp,
     discountEgp: o.discount_egp ?? undefined,
     promoCode: o.promo_code ?? undefined,

@@ -504,6 +504,14 @@ export default function OrderTracking() {
               <Text style={{ flex: 1, fontSize: font.sizes.lg, color: colors.ink }}>{it.name}</Text>
             </View>
           ))}
+          {/* Service fee — reads the REAL per-order value from the DB (mig 096),
+              so it is truthful for this order regardless of the current config. */}
+          {order.serviceFeeEgp > 0 && (
+            <View style={styles.summaryFeeRow}>
+              <Text style={styles.summaryFeeLabel}>{t('checkout.serviceFee')}</Text>
+              <Text style={styles.summaryFeeVal}>{formatEgp(order.serviceFeeEgp)}</Text>
+            </View>
+          )}
           <View style={styles.summaryTotal}>
             <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink }}>
               {t('checkout.total')}
@@ -829,6 +837,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  summaryFeeRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  summaryFeeLabel: { fontSize: font.sizes.lg, color: colors.ink2 },
+  summaryFeeVal: { fontSize: font.sizes.lg, color: colors.ink2 },
   summarySub: { marginTop: 4, color: colors.ink2, fontSize: font.sizes.md },
   contactCard: {
     marginTop: 18,

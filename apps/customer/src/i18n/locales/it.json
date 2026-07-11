@@ -198,6 +198,7 @@
   "checkout.delivery": "Costo di consegna",
   "checkout.deliveryFree": "Gratis",
   "checkout.tax": "IVA",
+  "checkout.serviceFee": "Costo di servizio",
   "checkout.discount": "Promo ({code})",
   "checkout.promoTitle": "Codice promo",
   "checkout.promoPlaceholder": "Inserisci il codice",

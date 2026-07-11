@@ -198,6 +198,7 @@
   "checkout.delivery": "Доставка",
   "checkout.deliveryFree": "Бесплатно",
   "checkout.tax": "НДС",
+  "checkout.serviceFee": "Сервисный сбор",
   "checkout.discount": "Промокод ({code})",
   "checkout.promoTitle": "Промокод",
   "checkout.promoPlaceholder": "Введите код",
