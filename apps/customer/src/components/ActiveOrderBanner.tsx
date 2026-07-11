@@ -58,10 +58,14 @@ export function ActiveOrderBanner() {
   // next active order (or hide).
   useEffect(() => {
     if (!order?.id) return;
-    const unsub = db.orders.subscribe(order.id, (o) => {
-      if (TERMINAL.includes(o.status)) load();
-      else setOrder(o);
-    });
+    const unsub = db.orders.subscribe(
+      order.id,
+      (o) => {
+        if (TERMINAL.includes(o.status)) load();
+        else setOrder(o);
+      },
+      'banner',
+    );
     return unsub;
   }, [order?.id, load]);
 

@@ -79,7 +79,7 @@ export default function OrderTracking() {
   useEffect(() => {
     if (!id) return;
     db.orders.get(id).then(setOrder);
-    const unsub = db.orders.subscribe(id, setOrder);
+    const unsub = db.orders.subscribe(id, setOrder, 'tracking');
     // 10s granularity is plenty: the countdown renders whole minutes and the
     // stale-fix threshold is 45s. A 1s tick re-rendered the screen every second.
     const tick = setInterval(() => setNow(Date.now()), 10_000);
@@ -168,7 +168,12 @@ export default function OrderTracking() {
     );
   }
 
-  const stepIndex = STEPS.findIndex((s) => s.key === order.status);
+  // `picked_up` is a real lifecycle state (driver has the food, en route) but the
+  // customer-facing timeline collapses it into "on the way", exactly as the orders
+  // list does (orders.tsx). Without this, findIndex('picked_up') returns -1 and the
+  // whole progress bar resets to pending mid-delivery.
+  const displayStatus = order.status === 'picked_up' ? 'out_for_delivery' : order.status;
+  const stepIndex = STEPS.findIndex((s) => s.key === displayStatus);
   const remainingMs = order.etaAt - now;
   const remainingMin = Math.max(0, Math.ceil(remainingMs / 60_000));
   // What the engine actually credits (mig 062): 10% of SUBTOTAL, floored, 100 cap.

@@ -136,6 +136,7 @@ export default function Home() {
     if (!ctx) return;
     const unsub = subscribeOrders(
       ctx.restaurantId,
+      'home',
       (row) => {
         setOrders((prev) => {
           const visible = isVisible(row) && isActive(row.status);
