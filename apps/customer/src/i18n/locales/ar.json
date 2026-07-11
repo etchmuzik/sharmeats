@@ -385,6 +385,7 @@
   "checkout.contactHint": "سيتصل بك السائق على هذا الرقم عند الحاجة",
   "checkout.contactPlaceholder": "مثال: 010 1234 5678",
   "checkout.needPhone": "أضف رقم تواصل لإتمام الطلب",
+  "checkout.feeRetry": "تعذّر تأكيد رسوم التوصيل. اضغط لإعادة المحاولة.",
   "chat.title": "المحادثة",
   "chat.you": "أنت",
   "chat.driver": "السائق",

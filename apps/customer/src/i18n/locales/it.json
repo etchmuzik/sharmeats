@@ -385,6 +385,7 @@
   "checkout.contactHint": "Il corriere chiamerà questo numero se necessario",
   "checkout.contactPlaceholder": "es. 010 1234 5678",
   "checkout.needPhone": "Aggiungi un numero di contatto per ordinare",
+  "checkout.feeRetry": "Impossibile confermare il costo di consegna. Tocca per riprovare.",
   "chat.title": "Chat",
   "chat.you": "Tu",
   "chat.driver": "Corriere",

@@ -385,6 +385,7 @@
   "checkout.contactHint": "Dein Fahrer ruft diese Nummer bei Bedarf an",
   "checkout.contactPlaceholder": "z. B. 010 1234 5678",
   "checkout.needPhone": "Füge eine Kontaktnummer hinzu, um zu bestellen",
+  "checkout.feeRetry": "Liefergebühr konnte nicht bestätigt werden. Zum Wiederholen tippen.",
   "chat.title": "Chat",
   "chat.you": "Du",
   "chat.driver": "Fahrer",
