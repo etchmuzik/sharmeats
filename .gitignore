@@ -28,6 +28,12 @@ supabase/.temp/
 *.aab
 *.apk
 *-deploy.zip
+# Any build/export zip (e.g. landing/sharmeatslanding_*.zip) — never commit to
+# this public repo. The narrower *-deploy.zip above missed timestamped exports.
+*.zip
+# Local design-tool scratch: multi-MB mockups + licensed stock photos, not source.
+new style/
+"new style/"
 
 # Signing / store credentials — NEVER commit. ASC API keys (.p8), Google Play
 # service-account JSONs, and anything under a per-app credentials/ dir are secrets.
