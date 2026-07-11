@@ -86,6 +86,57 @@ export type Database = {
           },
         ]
       }
+      batch_candidate_log: {
+        Row: {
+          dropoff_gap_m: number | null
+          id: string
+          observed_at: string
+          order_a: string
+          order_b: string
+          pickup_gap_m: number | null
+          ready_gap_min: number | null
+          same_restaurant: boolean
+          zone: string | null
+        }
+        Insert: {
+          dropoff_gap_m?: number | null
+          id?: string
+          observed_at?: string
+          order_a: string
+          order_b: string
+          pickup_gap_m?: number | null
+          ready_gap_min?: number | null
+          same_restaurant: boolean
+          zone?: string | null
+        }
+        Update: {
+          dropoff_gap_m?: number | null
+          id?: string
+          observed_at?: string
+          order_a?: string
+          order_b?: string
+          pickup_gap_m?: number | null
+          ready_gap_min?: number | null
+          same_restaurant?: boolean
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_candidate_log_order_a_fkey"
+            columns: ["order_a"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_candidate_log_order_b_fkey"
+            columns: ["order_b"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_ledger: {
         Row: {
           actor_id: string | null
@@ -358,7 +409,6 @@ export type Database = {
           is_active: boolean
           is_verified: boolean
           last_ping_at: string | null
-          legacy_rider_id: string | null
           name: string
           phone: string
           photo: string
@@ -377,7 +427,6 @@ export type Database = {
           is_active?: boolean
           is_verified?: boolean
           last_ping_at?: string | null
-          legacy_rider_id?: string | null
           name: string
           phone?: string
           photo?: string
@@ -396,7 +445,6 @@ export type Database = {
           is_active?: boolean
           is_verified?: boolean
           last_ping_at?: string | null
-          legacy_rider_id?: string | null
           name?: string
           phone?: string
           photo?: string
@@ -413,13 +461,6 @@ export type Database = {
             columns: ["home_zone"]
             isOneToOne: false
             referencedRelation: "zones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "drivers_legacy_rider_id_fkey"
-            columns: ["legacy_rider_id"]
-            isOneToOne: false
-            referencedRelation: "riders"
             referencedColumns: ["id"]
           },
           {
@@ -891,6 +932,7 @@ export type Database = {
           created_at: string
           delivered_at: string
           delivery_fee_egp: number
+          discount_egp: number
           order_id: string
           payment_method: string
           restaurant_id: string
@@ -903,6 +945,7 @@ export type Database = {
           created_at?: string
           delivered_at: string
           delivery_fee_egp?: number
+          discount_egp?: number
           order_id: string
           payment_method: string
           restaurant_id: string
@@ -915,6 +958,7 @@ export type Database = {
           created_at?: string
           delivered_at?: string
           delivery_fee_egp?: number
+          discount_egp?: number
           order_id?: string
           payment_method?: string
           restaurant_id?: string
@@ -1127,8 +1171,10 @@ export type Database = {
           restaurant_name: string
           rider: Json | null
           scheduled_for: string | null
+          service_fee_egp: number
           short_code: string
           sla_minutes: number
+          small_order_fee_egp: number
           status: Database["public"]["Enums"]["order_status_type"]
           subtotal_egp: number
           tax_egp: number
@@ -1183,8 +1229,10 @@ export type Database = {
           restaurant_name: string
           rider?: Json | null
           scheduled_for?: string | null
+          service_fee_egp?: number
           short_code: string
           sla_minutes?: number
+          small_order_fee_egp?: number
           status?: Database["public"]["Enums"]["order_status_type"]
           subtotal_egp: number
           tax_egp: number
@@ -1239,8 +1287,10 @@ export type Database = {
           restaurant_name?: string
           rider?: Json | null
           scheduled_for?: string | null
+          service_fee_egp?: number
           short_code?: string
           sla_minutes?: number
+          small_order_fee_egp?: number
           status?: Database["public"]["Enums"]["order_status_type"]
           subtotal_egp?: number
           tax_egp?: number
@@ -1831,44 +1881,47 @@ export type Database = {
           },
         ]
       }
-      riders: {
+      saved_orders: {
         Row: {
           created_at: string
           id: string
-          is_active: boolean
+          items: Json
           name: string
-          photo: string
-          plate: string
-          rating: number
-          user_id: string | null
-          vehicle: Database["public"]["Enums"]["vehicle_type"]
-          verified: boolean
+          restaurant_id: string
+          user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          is_active?: boolean
+          items: Json
           name: string
-          photo?: string
-          plate: string
-          rating?: number
-          user_id?: string | null
-          vehicle?: Database["public"]["Enums"]["vehicle_type"]
-          verified?: boolean
+          restaurant_id: string
+          user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          is_active?: boolean
+          items?: Json
           name?: string
-          photo?: string
-          plate?: string
-          rating?: number
-          user_id?: string | null
-          vehicle?: Database["public"]["Enums"]["vehicle_type"]
-          verified?: boolean
+          restaurant_id?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "saved_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       spatial_ref_sys: {
         Row: {
@@ -2332,6 +2385,19 @@ export type Database = {
       auto_accept_sweep: { Args: never; Returns: number }
       auto_advance_sweep: { Args: never; Returns: number }
       auto_assign_order: { Args: { p_order_id: string }; Returns: string }
+      batch_candidates: {
+        Args: never
+        Returns: {
+          dropoff_gap_m: number
+          order_a: string
+          order_b: string
+          pickup_gap_m: number
+          ready_gap_min: number
+          same_restaurant: boolean
+          zone: string
+        }[]
+      }
+      batch_shadow_sweep: { Args: never; Returns: number }
       can_access_order_thread: {
         Args: { p_order_id: string }
         Returns: boolean
@@ -2834,6 +2900,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      settlement_sweep: { Args: never; Returns: number }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown
