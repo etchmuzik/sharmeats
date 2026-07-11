@@ -266,11 +266,17 @@ export function OrderQueue({
                 key={o.id}
                 order={o}
                 onPrimary={
+                  // Self-delivery follows the same state machine as driver dispatch:
+                  // ready -> picked_up -> out_for_delivery -> delivered. Skipping
+                  // straight to out_for_delivery is an ILLEGAL_TRANSITION in
+                  // advance_order_status, so the order would stall at 'ready' forever.
                   o.fulfillment_type === 'self_delivery' && o.status === 'ready'
-                    ? { label: 'Out for delivery', run: () => advance(o.id, 'out_for_delivery') }
-                    : o.fulfillment_type === 'self_delivery' && o.status === 'out_for_delivery'
-                      ? { label: 'Mark delivered', run: () => advance(o.id, 'delivered') }
-                      : undefined
+                    ? { label: 'Picked up', run: () => advance(o.id, 'picked_up') }
+                    : o.fulfillment_type === 'self_delivery' && o.status === 'picked_up'
+                      ? { label: 'Out for delivery', run: () => advance(o.id, 'out_for_delivery') }
+                      : o.fulfillment_type === 'self_delivery' && o.status === 'out_for_delivery'
+                        ? { label: 'Mark delivered', run: () => advance(o.id, 'delivered') }
+                        : undefined
                 }
               />
             ))}
