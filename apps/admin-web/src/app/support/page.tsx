@@ -70,10 +70,12 @@ export default function SupportInboxPage() {
       }
       if (!m.from_support && !m.read_at) byUser.get(m.user_id)!.unread += 1;
     }
-    // Resolve display names.
+    // Resolve display names via an admin-gated definer RPC (mig 098): the only
+    // SELECT policy on public.users is self-only, so a direct read here returns
+    // just the admin's own row and every thread shows a UUID.
     const ids = [...byUser.keys()];
     if (ids.length) {
-      const { data: users } = await supabase.from('users').select('id, display_name').in('id', ids);
+      const { data: users } = await supabase.rpc('admin_resolve_user_names', { p_ids: ids });
       for (const u of users ?? []) {
         const t = byUser.get(u.id as string);
         if (t) t.user_name = (u.display_name as string) || t.user_name;

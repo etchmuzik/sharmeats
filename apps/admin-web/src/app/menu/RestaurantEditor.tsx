@@ -60,28 +60,29 @@ export function RestaurantEditor({
     }
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase
-      .from('restaurants')
-      .update({
-        name: form.name.trim(),
-        description: form.description,
-        cuisines: form.cuisines,
-        cuisine_label: form.cuisine_label,
-        cover_image: form.cover_image.trim(),
-        logo: form.logo,
-        zone: form.zone,
-        prep_time_low: form.prep_time_low,
-        prep_time_high: form.prep_time_high,
-        delivery_fee_egp: form.delivery_fee_egp,
-        min_order_egp: form.min_order_egp,
-        tourist_safe: form.tourist_safe,
-        is_open: form.is_open,
-        is_open_24h: form.is_open_24h,
-        featured: form.featured,
-        promo: form.promo,
-        is_active: form.is_active,
-      })
-      .eq('id', form.id);
+    // Writes route through an admin-gated definer RPC (mig 098): mig 081 revoked
+    // the direct table UPDATE grant down to the is_open column only, so a direct
+    // .update() of these 16 columns fails with 42501.
+    const { error } = await supabase.rpc('admin_update_restaurant', {
+      p_id: form.id,
+      p_name: form.name.trim(),
+      p_description: form.description,
+      p_cuisines: form.cuisines,
+      p_cuisine_label: form.cuisine_label,
+      p_cover_image: form.cover_image.trim(),
+      p_logo: form.logo,
+      p_zone: form.zone,
+      p_prep_time_low: form.prep_time_low,
+      p_prep_time_high: form.prep_time_high,
+      p_delivery_fee_egp: form.delivery_fee_egp,
+      p_min_order_egp: form.min_order_egp,
+      p_tourist_safe: form.tourist_safe,
+      p_is_open: form.is_open,
+      p_is_open_24h: form.is_open_24h,
+      p_featured: form.featured,
+      p_promo: form.promo,
+      p_is_active: form.is_active,
+    });
     setSaving(false);
     if (error) {
       toast(error.message, 'error');
@@ -96,7 +97,10 @@ export function RestaurantEditor({
     if (!confirm(`Delete "${form.name}" and its entire menu? This cannot be undone.`)) return;
     setDeleting(true);
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.from('restaurants').delete().eq('id', form.id);
+    // Delete routes through an admin-gated definer RPC (mig 098): there is no
+    // DELETE policy on public.restaurants, so a direct .delete() is RLS-filtered
+    // to 0 rows and returns no error — the UI would report a false success.
+    const { error } = await supabase.rpc('admin_delete_restaurant', { p_id: form.id });
     setDeleting(false);
     if (error) {
       toast(error.message, 'error');
