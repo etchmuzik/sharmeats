@@ -1,6 +1,7 @@
 import { DEFAULT_USER } from '../mock/user';
 import { pickRandomRider } from '../mock/riders';
 import { restaurantsRepo } from './restaurants';
+import { serviceFeeEgp } from '../../lib/serviceFee';
 import type {
   Address,
   AllergyKey,
@@ -114,7 +115,9 @@ export const ordersRepo = {
     const tax = Math.round(subtotal * (input.taxRate ?? 0));
     const tip = input.tipEgp ?? 0;
     const discount = mockPromoDiscount(input.promoCode, subtotal);
-    const total = Math.max(0, subtotal + input.deliveryFeeEgp + tax + tip - discount);
+    // Mock mirrors mig 096: service fee is dark (SERVICE_FEE_PCT=0 => 0).
+    const serviceFee = serviceFeeEgp(subtotal);
+    const total = Math.max(0, subtotal + input.deliveryFeeEgp + tax + serviceFee + tip - discount);
     const id = makeId();
     const placedAt = Date.now();
     const slaMinutes = 30;
@@ -130,6 +133,8 @@ export const ordersRepo = {
       subtotalEgp: subtotal,
       deliveryFeeEgp: input.deliveryFeeEgp,
       taxEgp: tax,
+      serviceFeeEgp: serviceFee,
+      smallOrderFeeEgp: 0,
       tipEgp: tip,
       totalEgp: total,
       paymentMethodKind: input.payment.kind,

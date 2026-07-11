@@ -198,6 +198,7 @@
   "checkout.delivery": "رسوم التوصيل",
   "checkout.deliveryFree": "مجانًا",
   "checkout.tax": "ضريبة القيمة المضافة",
+  "checkout.serviceFee": "رسوم الخدمة",
   "checkout.discount": "خصم ({code})",
   "checkout.promoTitle": "كود الخصم",
   "checkout.promoPlaceholder": "أدخل الكود",

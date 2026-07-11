@@ -198,6 +198,7 @@
   "checkout.delivery": "Delivery fee",
   "checkout.deliveryFree": "Free",
   "checkout.tax": "VAT",
+  "checkout.serviceFee": "Service fee",
   "checkout.discount": "Promo ({code})",
   "checkout.promoTitle": "Promo code",
   "checkout.promoPlaceholder": "Enter code",

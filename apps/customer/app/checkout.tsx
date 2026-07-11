@@ -21,6 +21,7 @@ import { useSession, type Currency } from '../src/store/session';
 import { db } from '../src/data';
 import type { Address, AllergyKey, DropoffPreference, PaymentMethod, Restaurant } from '../src/data/types';
 import { formatEgp, formatTime } from '../src/lib/format';
+import { serviceFeeEgp } from '../src/lib/serviceFee';
 import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
 import { success, selection } from '../src/haptics';
 import { localizedPayment } from '../src/lib/payments';
@@ -171,8 +172,12 @@ export default function Checkout() {
   // Tax-inclusive at launch — mirrors place_order (v_tax := 0). The VAT row
   // stays hidden until the platform setting flips on.
   const tax: number = 0;
+  // Service fee mirrors place_order (mig 096). Dark now: SERVICE_FEE_PCT=0 => 0,
+  // so this adds nothing to the preview until the config + constant are flipped
+  // together, keeping the previewed total equal to what place_order charges.
+  const serviceFee = serviceFeeEgp(subtotal);
   const discount = promoApplied?.discount ?? 0;
-  const total = Math.max(0, subtotal + deliveryFee + tax + tipEgp - discount);
+  const total = Math.max(0, subtotal + deliveryFee + tax + serviceFee + tipEgp - discount);
 
   // Honest client-side "promised by" estimate for the v2 promise card. Server
   // authority still sets the real eta_at inside place_order (prep + travel +
@@ -602,6 +607,12 @@ export default function Checkout() {
             <View style={[styles.totRow, dir.row]}>
               <Text style={styles.totLabel}>{t('checkout.tax')}</Text>
               <Text style={styles.totVal}>{formatEgp(tax)}</Text>
+            </View>
+          )}
+          {serviceFee > 0 && (
+            <View style={[styles.totRow, dir.row]}>
+              <Text style={styles.totLabel}>{t('checkout.serviceFee')}</Text>
+              <Text style={styles.totVal}>{formatEgp(serviceFee)}</Text>
             </View>
           )}
           {discount > 0 && (

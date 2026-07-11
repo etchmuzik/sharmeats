@@ -198,6 +198,7 @@
   "checkout.delivery": "Liefergebühr",
   "checkout.deliveryFree": "Kostenlos",
   "checkout.tax": "MwSt.",
+  "checkout.serviceFee": "Servicegebühr",
   "checkout.discount": "Promo ({code})",
   "checkout.promoTitle": "Promo-Code",
   "checkout.promoPlaceholder": "Code eingeben",

@@ -292,6 +292,12 @@ export interface Order {
   subtotalEgp: number;
   deliveryFeeEgp: number;
   taxEgp: number;
+  /** Platform service fee, round(subtotal * service_fee_pct / 100) (mig 096).
+   *  0 for orders placed while the fee is dark (service_fee_pct=0). */
+  serviceFeeEgp: number;
+  /** Flat small-order fee charged in place of the min-order block when
+   *  small_order_fee_mode='fee' (mig 096). 0 in the default 'block' mode. */
+  smallOrderFeeEgp: number;
   tipEgp: number;
   /** Promo discount already subtracted from totalEgp (0/absent when no promo). */
   discountEgp?: number;
