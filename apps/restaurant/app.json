@@ -32,6 +32,7 @@
       "expo-font",
       "expo-asset",
       "./plugins/withFmtConstevalFix.js",
+      "@sentry/react-native",
       "expo-notifications",
       [
         "expo-build-properties",

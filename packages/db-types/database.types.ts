@@ -291,6 +291,126 @@ export type Database = {
           },
         ]
       }
+      driver_applications: {
+        Row: {
+          city: string | null
+          created_at: string
+          full_name: string
+          id: string
+          note: string | null
+          phone: string
+          provisioned_driver_id: string | null
+          status: string
+          vehicle: Database["public"]["Enums"]["vehicle_type"]
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          note?: string | null
+          phone: string
+          provisioned_driver_id?: string | null
+          status?: string
+          vehicle?: Database["public"]["Enums"]["vehicle_type"]
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          note?: string | null
+          phone?: string
+          provisioned_driver_id?: string | null
+          status?: string
+          vehicle?: Database["public"]["Enums"]["vehicle_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_applications_provisioned_driver_id_fkey"
+            columns: ["provisioned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "driver_applications_provisioned_driver_id_fkey"
+            columns: ["provisioned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_applications_provisioned_driver_id_fkey"
+            columns: ["provisioned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driver_cash_ledger: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          delta_egp: number
+          driver_id: string
+          id: string
+          note: string | null
+          reason: string
+          ref_order_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          delta_egp: number
+          driver_id: string
+          id?: string
+          note?: string | null
+          reason: string
+          ref_order_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          delta_egp?: number
+          driver_id?: string
+          id?: string
+          note?: string | null
+          reason?: string
+          ref_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_cash_ledger_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "driver_cash_ledger_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_cash_ledger_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_cash_ledger_ref_order_id_fkey"
+            columns: ["ref_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_earnings: {
         Row: {
           bonus: number
@@ -329,6 +449,13 @@ export type Database = {
           total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "driver_earnings_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
           {
             foreignKeyName: "driver_earnings_driver_id_fkey"
             columns: ["driver_id"]
@@ -388,6 +515,13 @@ export type Database = {
             foreignKeyName: "driver_loyalty_driver_id_fkey"
             columns: ["driver_id"]
             isOneToOne: true
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "driver_loyalty_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: true
             referencedRelation: "drivers"
             referencedColumns: ["id"]
           },
@@ -395,6 +529,76 @@ export type Database = {
             foreignKeyName: "driver_loyalty_driver_id_fkey"
             columns: ["driver_id"]
             isOneToOne: true
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driver_settlements: {
+        Row: {
+          cod_collected_egp: number
+          created_at: string
+          delivery_count: number
+          driver_id: string
+          gross_earnings_egp: number
+          id: string
+          net_payable_egp: number
+          paid_at: string | null
+          paid_reference: string | null
+          period_end: string
+          period_start: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cod_collected_egp?: number
+          created_at?: string
+          delivery_count?: number
+          driver_id: string
+          gross_earnings_egp?: number
+          id?: string
+          net_payable_egp?: number
+          paid_at?: string | null
+          paid_reference?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cod_collected_egp?: number
+          created_at?: string
+          delivery_count?: number
+          driver_id?: string
+          gross_earnings_egp?: number
+          id?: string
+          net_payable_egp?: number
+          paid_at?: string | null
+          paid_reference?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_settlements_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "driver_settlements_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_settlements_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
             referencedRelation: "public_drivers"
             referencedColumns: ["id"]
           },
@@ -410,6 +614,11 @@ export type Database = {
           is_verified: boolean
           last_ping_at: string | null
           name: string
+          payout_bank_name: string | null
+          payout_holder: string | null
+          payout_iban: string | null
+          payout_method: string | null
+          payout_wallet: string | null
           phone: string
           photo: string
           plate: string
@@ -428,6 +637,11 @@ export type Database = {
           is_verified?: boolean
           last_ping_at?: string | null
           name: string
+          payout_bank_name?: string | null
+          payout_holder?: string | null
+          payout_iban?: string | null
+          payout_method?: string | null
+          payout_wallet?: string | null
           phone?: string
           photo?: string
           plate?: string
@@ -446,6 +660,11 @@ export type Database = {
           is_verified?: boolean
           last_ping_at?: string | null
           name?: string
+          payout_bank_name?: string | null
+          payout_holder?: string | null
+          payout_iban?: string | null
+          payout_method?: string | null
+          payout_wallet?: string | null
           phone?: string
           photo?: string
           plate?: string
@@ -905,6 +1124,13 @@ export type Database = {
             foreignKeyName: "order_assignments_driver_id_fkey"
             columns: ["driver_id"]
             isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "order_assignments_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
             referencedRelation: "drivers"
             referencedColumns: ["id"]
           },
@@ -1080,6 +1306,50 @@ export type Database = {
           },
         ]
       }
+      order_refunds: {
+        Row: {
+          actor_id: string | null
+          amount_egp: number
+          created_at: string
+          id: string
+          order_id: string
+          provider_detail: Json | null
+          provider_ref: string | null
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          amount_egp: number
+          created_at?: string
+          id?: string
+          order_id: string
+          provider_detail?: Json | null
+          provider_ref?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          actor_id?: string | null
+          amount_egp?: number
+          created_at?: string
+          id?: string
+          order_id?: string
+          provider_detail?: Json | null
+          provider_ref?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_refunds_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_status_events: {
         Row: {
           actor_id: string | null
@@ -1160,6 +1430,7 @@ export type Database = {
           payment_method_kind: Database["public"]["Enums"]["payment_kind_type"]
           payment_status: string
           paymob_order_ref: string | null
+          paymob_txn_id: string | null
           picked_up_at: string | null
           placed_at: string
           promo_code: string | null
@@ -1218,6 +1489,7 @@ export type Database = {
           payment_method_kind: Database["public"]["Enums"]["payment_kind_type"]
           payment_status?: string
           paymob_order_ref?: string | null
+          paymob_txn_id?: string | null
           picked_up_at?: string | null
           placed_at?: string
           promo_code?: string | null
@@ -1276,6 +1548,7 @@ export type Database = {
           payment_method_kind?: Database["public"]["Enums"]["payment_kind_type"]
           payment_status?: string
           paymob_order_ref?: string | null
+          paymob_txn_id?: string | null
           picked_up_at?: string | null
           placed_at?: string
           promo_code?: string | null
@@ -1307,6 +1580,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "addresses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
           },
           {
             foreignKeyName: "orders_assigned_driver_id_fkey"
@@ -1778,6 +2058,11 @@ export type Database = {
           logo: string | null
           min_order_egp: number
           name: string
+          payout_bank_name: string | null
+          payout_holder: string | null
+          payout_iban: string | null
+          payout_method: string | null
+          payout_wallet: string | null
           phone: string | null
           place_id: string | null
           prep_time_high: number
@@ -1814,6 +2099,11 @@ export type Database = {
           logo?: string | null
           min_order_egp?: number
           name: string
+          payout_bank_name?: string | null
+          payout_holder?: string | null
+          payout_iban?: string | null
+          payout_method?: string | null
+          payout_wallet?: string | null
           phone?: string | null
           place_id?: string | null
           prep_time_high?: number
@@ -1850,6 +2140,11 @@ export type Database = {
           logo?: string | null
           min_order_egp?: number
           name?: string
+          payout_bank_name?: string | null
+          payout_holder?: string | null
+          payout_iban?: string | null
+          payout_method?: string | null
+          payout_wallet?: string | null
           phone?: string | null
           place_id?: string | null
           prep_time_high?: number
@@ -2007,6 +2302,8 @@ export type Database = {
           preferred_currency: Database["public"]["Enums"]["currency_type"]
           referral_code: string | null
           role: Database["public"]["Enums"]["app_role"]
+          terms_accepted_at: string | null
+          terms_accepted_version: string | null
           updated_at: string
         }
         Insert: {
@@ -2023,6 +2320,8 @@ export type Database = {
           preferred_currency?: Database["public"]["Enums"]["currency_type"]
           referral_code?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          terms_accepted_at?: string | null
+          terms_accepted_version?: string | null
           updated_at?: string
         }
         Update: {
@@ -2039,6 +2338,8 @@ export type Database = {
           preferred_currency?: Database["public"]["Enums"]["currency_type"]
           referral_code?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          terms_accepted_at?: string | null
+          terms_accepted_version?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2156,6 +2457,17 @@ export type Database = {
       }
     }
     Views: {
+      driver_cash_balance: {
+        Row: {
+          balance_egp: number | null
+          driver_id: string | null
+          driver_name: string | null
+          last_handin_at: string | null
+          lifetime_collected_egp: number | null
+          lifetime_handed_in_egp: number | null
+        }
+        Relationships: []
+      }
       geography_columns: {
         Row: {
           coord_dimension: number | null
@@ -2452,6 +2764,7 @@ export type Database = {
         Args: { p_accept: boolean; p_assignment_id: string }
         Returns: undefined
       }
+      driver_settlement_sweep: { Args: never; Returns: number }
       dropgeometrycolumn:
         | {
             Args: {
@@ -2484,9 +2797,17 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      finalize_driver_settlement: {
+        Args: { p_settlement_id: string }
+        Returns: undefined
+      }
       finalize_settlement: {
         Args: { p_settlement_id: string }
         Returns: undefined
+      }
+      generate_driver_settlements: {
+        Args: { p_period_end: string; p_period_start: string }
+        Returns: number
       }
       generate_order_short_code: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
@@ -2621,6 +2942,10 @@ export type Database = {
         Args: { p_amount: number; p_order_id: string }
         Returns: undefined
       }
+      mark_driver_settlement_paid: {
+        Args: { p_reference: string; p_settlement_id: string }
+        Returns: undefined
+      }
       mark_order_thread_read: {
         Args: { p_order_id: string }
         Returns: undefined
@@ -2633,7 +2958,32 @@ export type Database = {
         Args: { p_user_id?: string }
         Returns: undefined
       }
+      my_cash_balance: { Args: never; Returns: number }
       my_credit_balance: { Args: never; Returns: number }
+      my_driver_settlements: {
+        Args: { p_limit?: number }
+        Returns: {
+          cod_collected_egp: number
+          created_at: string
+          delivery_count: number
+          driver_id: string
+          gross_earnings_egp: number
+          id: string
+          net_payable_egp: number
+          paid_at: string | null
+          paid_reference: string | null
+          period_end: string
+          period_start: string
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "driver_settlements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       my_driver_tier: {
         Args: never
         Returns: {
@@ -2806,6 +3156,16 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      provision_driver: {
+        Args: {
+          p_name: string
+          p_phone: string
+          p_plate?: string
+          p_profile_id: string
+          p_vehicle?: Database["public"]["Enums"]["vehicle_type"]
+        }
+        Returns: string
+      }
       push_headers: { Args: never; Returns: Json }
       quote_delivery_fee: {
         Args: {
@@ -2835,6 +3195,19 @@ export type Database = {
         }
       }
       reconcile_stale_card_orders: { Args: never; Returns: number }
+      record_cash_handin: {
+        Args: {
+          p_amount_egp: number
+          p_driver_id: string
+          p_note?: string
+          p_reason?: string
+        }
+        Returns: number
+      }
+      record_terms_acceptance: {
+        Args: { p_version: string }
+        Returns: undefined
+      }
       redeem_credit: { Args: { p_amount_egp: number }; Returns: string }
       redeem_points: { Args: { p_points: number }; Returns: string }
       reply_support_message: {

@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../src/auth';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
+import { LEGAL_URLS, openLegal } from '../src/legal';
 import { AllergenBanner } from '../src/components/AllergenBanner';
 import { ContactButtons } from '../src/components/ContactButtons';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
@@ -472,6 +473,32 @@ export default function Home() {
             />
           ))}
         </Section>
+
+        {/* Legal */}
+        <View>
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', marginBottom: spacing.sm }}>
+            Legal
+          </Text>
+          <Pressable
+            onPress={() => openLegal(LEGAL_URLS.terms)}
+            accessibilityRole="link"
+            accessibilityLabel="Terms of Service"
+            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md }}
+          >
+            <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Terms of Service</Text>
+            <Icon name="chevronForward" size={16} color={colors.ink3} />
+          </Pressable>
+          <View style={{ height: 1, backgroundColor: colors.line }} />
+          <Pressable
+            onPress={() => openLegal(LEGAL_URLS.privacy)}
+            accessibilityRole="link"
+            accessibilityLabel="Privacy Policy"
+            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md }}
+          >
+            <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Privacy Policy</Text>
+            <Icon name="chevronForward" size={16} color={colors.ink3} />
+          </Pressable>
+        </View>
       </ScrollView>
     </View>
   );

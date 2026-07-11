@@ -202,6 +202,9 @@ interface UserRow {
   preferred_currency: 'EGP' | 'EUR' | 'USD' | 'GBP' | 'RUB';
   locale: 'en' | 'ar' | 'ru' | 'it' | 'de';
   allergy_profile: string[] | null;
+  // Added by migration 106 (versioned ToS acceptance). Optional here so the
+  // mapper still compiles against a users row selected before 106 is applied.
+  terms_accepted_version?: string | null;
   created_at: string;
 }
 
@@ -216,6 +219,7 @@ export function rowToUser(u: UserRow): User {
     preferredCurrency: u.preferred_currency,
     locale: u.locale,
     allergyProfile: (u.allergy_profile ?? []) as User['allergyProfile'],
+    termsAcceptedVersion: u.terms_accepted_version ?? undefined,
     createdAt: new Date(u.created_at).getTime(),
   };
 }

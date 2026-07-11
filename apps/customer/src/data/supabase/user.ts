@@ -193,6 +193,19 @@ export const userRepoSupabase = {
   },
 
   /**
+   * Record that the signed-in user accepted the given Terms of Service version.
+   *
+   * Routes through the `record_terms_acceptance` SECURITY DEFINER RPC (mig 106),
+   * which stamps users.terms_accepted_version/_at for auth.uid() with the server
+   * clock.
+   */
+  async recordTermsAcceptance(version: string): Promise<void> {
+    const sb = getSupabase();
+    const { error } = await sb.rpc('record_terms_acceptance', { p_version: version });
+    if (error) throw error;
+  },
+
+  /**
    * Permanently delete the signed-in user's account (Apple Guideline 5.1.1(v)).
    *
    * Invokes the `delete-account` Edge Function, which anonymizes + detaches the

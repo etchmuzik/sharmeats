@@ -26,6 +26,7 @@ import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
 import { success, selection } from '../src/haptics';
 import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
+import { LEGAL_URLS, openLegal } from '../src/legal';
 
 // Crash-safe idempotency key. Tries expo-crypto's randomUUID (best), but a native
 // failure (module-init throw on some device/arch combos) must NEVER break checkout
@@ -73,6 +74,7 @@ export default function Checkout() {
 
   const selectedAddressId = useSession((s) => s.selectedAddressId);
   const sessionPhone = useSession((s) => s.phone);
+  const isSignedIn = useSession((s) => s.isSignedIn);
   const currency = useSession((s) => s.currency);
   const setCurrency = useSession((s) => s.setCurrency);
   const locale = useSession((s) => s.locale);
@@ -91,6 +93,12 @@ export default function Checkout() {
   const [dropoffNote, setDropoffNote] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
+  // Guest consent gate. A guest reaches checkout via startAsGuest() without ever
+  // seeing the consent sentence a signed-in user accepts, so we require an
+  // explicit tick here before the order can be placed. Signed-in users already
+  // accepted the current Terms via the app-open consent checkpoint.
+  const isGuest = !isSignedIn || sessionPhone === 'guest';
+  const [guestConsent, setGuestConsent] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
   // Track the delivery-fee quote lifecycle so we never show — or let the user
@@ -233,6 +241,8 @@ export default function Checkout() {
 
   const place = async () => {
     if (!restaurant || !address || !payment || lines.length === 0 || !phoneValid) return;
+    // A guest must explicitly accept the Terms/Privacy before ordering.
+    if (isGuest && !guestConsent) return;
     setPlacing(true);
     try {
       // place_order (server-authoritative). Returns the created order.
@@ -686,6 +696,39 @@ export default function Checkout() {
               : "You'll complete payment securely on the next screen."}
           </Text>
         )}
+        {isGuest && (
+          <Pressable
+            onPress={() => {
+              selection();
+              setGuestConsent((v) => !v);
+            }}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: guestConsent }}
+            accessibilityLabel={t('checkout.consent')}
+            style={[styles.consentRow, dir.row]}>
+            <View style={[styles.consentBox, guestConsent && styles.consentBoxOn]}>
+              {guestConsent && <Icon name="check" size={14} color={colors.white} />}
+            </View>
+            <Text style={[styles.consentText, dir.text]}>
+              {t('checkout.consent')}{' '}
+              <Text
+                style={styles.consentLink}
+                onPress={() => openLegal(LEGAL_URLS.terms)}
+                accessibilityRole="link"
+                accessibilityLabel={t('legal.terms')}>
+                {t('legal.terms')}
+              </Text>
+              {' · '}
+              <Text
+                style={styles.consentLink}
+                onPress={() => openLegal(LEGAL_URLS.privacy)}
+                accessibilityRole="link"
+                accessibilityLabel={t('legal.privacy')}>
+                {t('legal.privacy')}
+              </Text>
+            </Text>
+          </Pressable>
+        )}
         <PrimaryButton
           label={
             isCard
@@ -701,7 +744,8 @@ export default function Checkout() {
             !payment ||
             lines.length === 0 ||
             !phoneValid ||
-            quoteState !== 'ok'
+            quoteState !== 'ok' ||
+            (isGuest && !guestConsent)
           }
         />
       </View>
@@ -882,6 +926,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
+  consentBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.line2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  consentBoxOn: { backgroundColor: colors.sea, borderColor: colors.sea },
+  consentText: { flex: 1, fontSize: font.sizes.md, color: colors.ink2, lineHeight: 18 },
+  consentLink: { color: colors.sea, fontWeight: font.weights.semibold },
   payErr: {
     backgroundColor: colors.redSoft,
     borderRadius: radius.md,

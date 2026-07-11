@@ -44,6 +44,7 @@
       "expo-asset",
       "expo-notifications",
       "./plugins/withFmtConstevalFix.js",
+      "@sentry/react-native",
       [
         "expo-build-properties",
         {

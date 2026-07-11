@@ -7,6 +7,7 @@ import type { OpsDriver, OpsOrder } from '@/lib/types';
 import { DispatchBoard } from './DispatchBoard';
 import { SignOutButton } from './SignOutButton';
 import { Skeleton, DispatchBoardSkeleton } from './Skeleton';
+import { LegalLinks } from './LegalLinks';
 
 type Phase =
   | { state: 'loading' }
@@ -130,6 +131,18 @@ export default function OpsPage() {
             Finance
           </a>
           <a
+            href="/driver-finance"
+            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            Driver Payouts
+          </a>
+          <a
+            href="/cash"
+            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            Cash
+          </a>
+          <a
             href="/kyc"
             className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
           >
@@ -158,6 +171,10 @@ export default function OpsPage() {
       </header>
 
       <DispatchBoard initialOrders={phase.orders} initialDrivers={phase.drivers} />
+
+      <footer className="border-t border-line px-6 py-6">
+        <LegalLinks />
+      </footer>
     </main>
   );
 }
