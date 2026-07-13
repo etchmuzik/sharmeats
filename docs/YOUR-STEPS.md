@@ -135,9 +135,14 @@ Not code — but they gate lawful operation at scale:
 - **Ops alert webhook** — `platform_settings.ops_alert_webhook_url` is empty, so the dispatch
   watchdog pages no one. Paste a Slack/Discord webhook via Dashboard SQL:
   `update public.platform_settings set value = to_jsonb('<webhook-url>'::text) where key='ops_alert_webhook_url';`
-- **CI** — ✅ now runs (the repo is public → free Actions). The prior failures were a real bug
-  (web-app lockfiles missing the Sentry deps → `npm ci` failed), fixed by syncing the lockfiles.
-  Nothing owner-gated here anymore.
+- **CI** — still **owner-gated**, but for a narrower reason than before. Two separate problems:
+  (1) a real job-level bug — the web-app lockfiles were missing the Sentry deps so `npm ci`
+  would fail — is **fixed** (lockfiles synced; the full matrix is green when run locally).
+  (2) the runs still `startup_failure` (jobs created but die in ~2s with 0 steps) even though the
+  repo is public and Actions is `enabled`. That signature = an **account-level Actions spending
+  block** (a lingering GitHub billing/spending-limit issue from the earlier private-repo period).
+  **Owner action:** GitHub → Settings → Billing → raise the Actions spending limit above $0 / clear
+  any balance. Once that clears, CI will actually run — and thanks to fix (1), it will pass.
 
 ---
 
