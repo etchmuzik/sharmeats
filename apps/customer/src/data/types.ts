@@ -360,6 +360,8 @@ export interface User {
   preferredCurrency: 'EGP' | 'EUR' | 'USD' | 'GBP' | 'RUB';
   locale: 'en' | 'ar' | 'ru' | 'it' | 'de';
   allergyProfile?: AllergyKey[];
+  /** ToS version this user last accepted in-app; null/undefined = never accepted. */
+  termsAcceptedVersion?: string;
   createdAt: number;
 }
 

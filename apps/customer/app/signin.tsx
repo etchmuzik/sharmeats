@@ -16,6 +16,7 @@ import { colors, font, radius } from '../src/theme';
 import { useT } from '../src/i18n';
 import { db } from '../src/data';
 import { captureError } from '../src/lib/analytics';
+import { LEGAL_URLS, openLegal } from '../src/legal';
 
 /** Normalize a typed phone to E.164-ish: keep a leading +, strip everything else. */
 function toE164(input: string): string {
@@ -74,7 +75,26 @@ export default function SignIn() {
         />
       </View>
 
-      <Text style={styles.terms}>{t('signin.terms')}</Text>
+      {/* Tappable consent sentence: the leading copy plus discrete Terms /
+          Privacy links that open the live legal pages in the in-app browser. */}
+      <Text style={styles.terms}>
+        {t('signin.terms')}{' '}
+        <Text
+          style={styles.termsLink}
+          onPress={() => openLegal(LEGAL_URLS.terms)}
+          accessibilityRole="link"
+          accessibilityLabel={t('legal.terms')}>
+          {t('legal.terms')}
+        </Text>
+        {' · '}
+        <Text
+          style={styles.termsLink}
+          onPress={() => openLegal(LEGAL_URLS.privacy)}
+          accessibilityRole="link"
+          accessibilityLabel={t('legal.privacy')}>
+          {t('legal.privacy')}
+        </Text>
+      </Text>
 
       {error ? (
         <Text style={{ paddingHorizontal: 24, marginTop: 12, color: colors.red, fontSize: font.sizes.md }}>
@@ -117,4 +137,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   terms: { paddingHorizontal: 24, marginTop: 20, fontSize: font.sizes.md, color: colors.ink3 },
+  termsLink: { color: colors.sea, fontWeight: font.weights.semibold },
 });

@@ -33,6 +33,7 @@ import { configureNotificationHandler, registerForPush, unregisterPush } from '.
 import { colors, font, radius, spacing } from '../src/theme';
 import { Icon } from '../src/components/Icon';
 import { useToast } from '../src/components/Toast';
+import { LEGAL_URLS, openLegal } from '../src/legal';
 
 export default function Home() {
   const router = useRouter();
@@ -415,6 +416,32 @@ export default function Home() {
             onExpire={() => dismissOffer(o.id)}
           />
         ))}
+      </View>
+
+      {/* Legal */}
+      <View style={{ marginTop: spacing.xxl, paddingHorizontal: spacing.xl }}>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', marginBottom: spacing.md }}>
+          Legal
+        </Text>
+        <Pressable
+          onPress={() => openLegal(LEGAL_URLS.terms)}
+          accessibilityRole="link"
+          accessibilityLabel="Terms of Service"
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md }}
+        >
+          <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Terms of Service</Text>
+          <Icon name="chevronForward" size={16} color={colors.ink3} />
+        </Pressable>
+        <View style={{ height: 1, backgroundColor: colors.line }} />
+        <Pressable
+          onPress={() => openLegal(LEGAL_URLS.privacy)}
+          accessibilityRole="link"
+          accessibilityLabel="Privacy Policy"
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md }}
+        >
+          <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Privacy Policy</Text>
+          <Icon name="chevronForward" size={16} color={colors.ink3} />
+        </Pressable>
       </View>
     </ScrollView>
   );

@@ -48,7 +48,8 @@ export type IconName =
   | 'motorbike'
   | 'bicycle'
   | 'car'
-  | 'home';
+  | 'home'
+  | 'doc'; // legal documents (terms / privacy)
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -88,6 +89,7 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   bicycle: 'bicycle-outline',
   car: 'car-outline',
   home: 'home-outline',
+  doc: 'document-text-outline',
 };
 
 // Filled variants for icons that have an active state (nav tabs mostly).

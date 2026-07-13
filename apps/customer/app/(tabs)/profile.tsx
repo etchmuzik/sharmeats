@@ -10,6 +10,7 @@ import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { tap } from '../../src/haptics';
 import { db } from '../../src/data';
+import { LegalRows } from '../../src/components/LegalRows';
 import { useUnreadBadges } from '../../src/hooks/useUnreadBadges';
 import type { User } from '../../src/data/types';
 import { unregisterPush } from '../../src/lib/push';
@@ -126,6 +127,11 @@ export default function ProfileTab() {
             </Pressable>
           ))}
         </View>
+
+        <Text style={[styles.sectionLabel, dir.text]}>{t('legal.section')}</Text>
+        <View style={styles.section}>
+          <LegalRows />
+        </View>
       </ScrollView>
     </View>
   );
@@ -156,6 +162,16 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     overflow: 'hidden',
     ...shadow.soft,
+  },
+  sectionLabel: {
+    marginHorizontal: 24,
+    marginTop: 22,
+    marginBottom: 10,
+    fontSize: font.sizes.md,
+    fontWeight: font.weights.bold,
+    color: colors.ink3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 },
   rowIcon: { width: 26, alignItems: 'center' },

@@ -9,6 +9,7 @@ import { SignOutButton } from './SignOutButton';
 import { Skeleton, OrderQueueSkeleton } from './Skeleton';
 import { TierStatusCard } from './TierStatusCard';
 import { StatementsCard } from './StatementsCard';
+import { LegalLinks } from './LegalLinks';
 
 type Phase =
   | { state: 'loading' }
@@ -207,6 +208,10 @@ export default function DashboardPage() {
       </div>
 
       <OrderQueue context={ctx} initialOrders={initialOrders} />
+
+      <footer className="border-t border-line px-6 py-6">
+        <LegalLinks />
+      </footer>
     </main>
   );
 }

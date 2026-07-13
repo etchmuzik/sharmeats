@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { LegalLinks } from '../LegalLinks';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -95,6 +96,8 @@ export default function LoginPage() {
         {notice && (
           <p className="mt-4 rounded-lg bg-greensoft px-3 py-2 text-sm text-green">{notice}</p>
         )}
+
+        <LegalLinks className="mt-6" />
       </div>
     </main>
   );

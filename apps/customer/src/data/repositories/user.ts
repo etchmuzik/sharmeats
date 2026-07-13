@@ -77,6 +77,13 @@ export const userRepo = {
     return delay('SHARM-DEMO42');
   },
 
+  /** Mock ToS acceptance — records the version on the in-memory user so a
+   * subsequent getMe() reflects it (the consent checkpoint won't re-fire). */
+  async recordTermsAcceptance(version: string): Promise<void> {
+    currentUser = { ...currentUser, termsAcceptedVersion: version };
+    return delay(undefined);
+  },
+
   /**
    * Mock account deletion. There's no backend, so this just resets the
    * in-memory user state. Mirrors the live adapter's contract so the UI can

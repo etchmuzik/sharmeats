@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
 import { colors, font, radius, spacing } from '../src/theme';
+import { LEGAL_URLS, openLegal } from '../src/legal';
 
 export default function SignIn() {
   const router = useRouter();
@@ -100,6 +101,27 @@ export default function SignIn() {
               <Text style={{ color: colors.red, fontSize: font.sizes.sm }}>{error}</Text>
             </View>
           )}
+
+          <Text style={{ marginTop: spacing.sm, fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center' }}>
+            By continuing you agree to our{' '}
+            <Text
+              style={{ color: colors.accent, fontWeight: '600' }}
+              onPress={() => openLegal(LEGAL_URLS.terms)}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Service"
+            >
+              Terms of Service
+            </Text>
+            {' · '}
+            <Text
+              style={{ color: colors.accent, fontWeight: '600' }}
+              onPress={() => openLegal(LEGAL_URLS.privacy)}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+            >
+              Privacy Policy
+            </Text>
+          </Text>
         </View>
       </View>
     </KeyboardAvoidingView>

@@ -128,7 +128,14 @@ Deno.serve(async (req: Request) => {
     // THIS call did the work. Paymob retries update 0 rows → side-effects once.
     const { data: transitioned, error: updErr } = await admin
       .from('orders')
-      .update({ payment_status: 'paid', paymob_order_ref: String(obj.order?.id ?? obj.id ?? '') })
+      .update({
+        payment_status: 'paid',
+        paymob_order_ref: String(obj.order?.id ?? ''),
+        // [107] Capture the signed transaction id (obj.id, in HMAC_FIELDS) so the
+        // paymob-refund function can target this exact transaction. Distinct from
+        // paymob_order_ref (the Paymob order id).
+        paymob_txn_id: String(obj.id ?? ''),
+      })
       .eq('id', orderId)
       .eq('payment_status', 'pending')
       .select('id, user_id, total_egp');
