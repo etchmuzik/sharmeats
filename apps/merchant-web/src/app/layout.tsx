@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ToastProvider } from './Toast';
+import { SentryInit } from './SentryInit';
 
 export const metadata: Metadata = {
   title: 'Sharm Eats — Merchant',
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <SentryInit />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
