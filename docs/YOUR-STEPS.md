@@ -22,14 +22,23 @@ the **EAS Free-plan monthly credit cap**, which resets **Aug 1, 2026**.
 Pick one:
 - **Wait for Aug 1**, then run the builds below.
 - **Upgrade the EAS plan** → <https://expo.dev/accounts/etchmuzik/settings/billing> → build now.
-- **Build locally (free)** on this Mac — run from each app dir:
+- **Build locally (free)** on this Mac — local builds do **not** consume EAS credits.
+  ⚠️ **Repo-specific trap:** these apps use `appVersionSource: "remote"` + `autoIncrement`,
+  which `--local` does NOT support (it needs the network version service → "not supported
+  with --local" error). Pin the build number first, then build:
   ```bash
-  cd apps/customer   && eas build --platform android --profile production --local
-  cd ../driver       && eas build --platform android --profile production --local
-  cd ../restaurant   && eas build --platform android --profile production --local
-  # iOS local builds may prompt for Apple signing:
-  cd ../customer     && eas build --platform ios --profile production --local
+  cd apps/customer
+  # 1. read the current remote build number and bump it by 1:
+  eas build:version:get -p android --non-interactive --json    # e.g. versionCode 15 → use 16
+  # 2. temporarily set app.json expo.android.versionCode / expo.ios.buildNumber to that value
+  #    (or flip this profile to appVersionSource:"local" in eas.json), then:
+  eas build --platform android --profile production --local     # → .aab, no credits
   ```
+  Needs the **Android SDK** (`brew install --cask android-commandlinetools` + set `ANDROID_HOME`;
+  Xcode/CocoaPods already present). Android is $0; iOS local builds still need the $99/yr Apple
+  Developer account for a *distributable* build (simulator/dev builds are free). Repeat per app.
+  **Fastest Android-only route** (85% of the market, no Apple anything): the same command scoped to
+  `--platform android` — a free `.aab` you promote in Play Console.
 - **Or, once credits are back, cloud-build all 6** (build numbers auto-increment remotely):
   ```bash
   for app in customer driver restaurant; do
@@ -126,8 +135,14 @@ Not code — but they gate lawful operation at scale:
 - **Ops alert webhook** — `platform_settings.ops_alert_webhook_url` is empty, so the dispatch
   watchdog pages no one. Paste a Slack/Discord webhook via Dashboard SQL:
   `update public.platform_settings set value = to_jsonb('<webhook-url>'::text) where key='ops_alert_webhook_url';`
-- **CI** — GitHub Actions is billing-blocked (runs `startup_failure` in ~2s). Enable Actions billing
-  (or move to an org) so the workflow actually gates merges.
+- **CI** — still **owner-gated**, but for a narrower reason than before. Two separate problems:
+  (1) a real job-level bug — the web-app lockfiles were missing the Sentry deps so `npm ci`
+  would fail — is **fixed** (lockfiles synced; the full matrix is green when run locally).
+  (2) the runs still `startup_failure` (jobs created but die in ~2s with 0 steps) even though the
+  repo is public and Actions is `enabled`. That signature = an **account-level Actions spending
+  block** (a lingering GitHub billing/spending-limit issue from the earlier private-repo period).
+  **Owner action:** GitHub → Settings → Billing → raise the Actions spending limit above $0 / clear
+  any balance. Once that clears, CI will actually run — and thanks to fix (1), it will pass.
 
 ---
 
