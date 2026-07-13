@@ -43,7 +43,14 @@
       "expo-font",
       "./plugins/withFmtConstevalFix.js",
       "./plugins/withLocalizationXcode26Fix.js",
-      "@sentry/react-native",
+      [
+        "@sentry/react-native",
+        {
+          "organization": "sharmeats",
+          "project": "sharmeats-customer",
+          "url": "https://sentry.io/"
+        }
+      ],
       "expo-localization",
       "expo-notifications",
       [

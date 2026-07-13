@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev -p 3002",
     "build": "next build",
+    "build:export": "STATIC_EXPORT=1 next build && npm run sentry:sourcemaps",
+    "sentry:sourcemaps": "node scripts/upload-sourcemaps.mjs",
     "start": "next start -p 3002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
@@ -13,10 +15,12 @@
     "next": "15.5.19",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "@sentry/nextjs": "^10.65.0",
     "@supabase/supabase-js": "^2.45.4",
     "@supabase/ssr": "^0.5.2"
   },
   "devDependencies": {
+    "@sentry/cli": "^3.6.0",
     "typescript": "^5.6.3",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

@@ -45,6 +45,14 @@
       "expo-notifications",
       "./plugins/withFmtConstevalFix.js",
       [
+        "@sentry/react-native",
+        {
+          "organization": "sharmeats",
+          "project": "sharmeats-driver",
+          "url": "https://sentry.io/"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

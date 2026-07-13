@@ -34,6 +34,14 @@
       "./plugins/withFmtConstevalFix.js",
       "expo-notifications",
       [
+        "@sentry/react-native",
+        {
+          "organization": "sharmeats",
+          "project": "sharmeats-restaurant",
+          "url": "https://sentry.io/"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
