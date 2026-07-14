@@ -22,21 +22,28 @@ the **EAS Free-plan monthly credit cap**, which resets **Aug 1, 2026**.
 Pick one:
 - **Wait for Aug 1**, then run the builds below.
 - **Upgrade the EAS plan** → <https://expo.dev/accounts/etchmuzik/settings/billing> → build now.
-- **Build locally (free)** on this Mac — local builds do **not** consume EAS credits.
-  ⚠️ **Repo-specific trap:** these apps use `appVersionSource: "remote"` + `autoIncrement`,
-  which `--local` does NOT support (it needs the network version service → "not supported
-  with --local" error). Pin the build number first, then build:
+- **Build Android locally (free) — PROVEN RECIPE** (used to build all 3 `.aab`s on 2026-07-14;
+  local builds do **not** consume EAS credits). The two gotchas that matter (both handled below):
+  **(a) JDK version** — the system default is JDK 25, which the RN gradle plugin can't resolve
+  (`Error resolving plugin [id: 'com.facebook.react.settings'] > 25.0.1`); you MUST build with
+  **JDK 17**. **(b) Sentry upload** — now defaulted off (`SENTRY_DISABLE_AUTO_UPLOAD=true`), so
+  no token is needed to build. (`appVersionSource: remote` works fine with `--local` — eas-cli
+  auto-increments the versionCode; no manual pinning needed.)
   ```bash
-  cd apps/customer
-  # 1. read the current remote build number and bump it by 1:
-  eas build:version:get -p android --non-interactive --json    # e.g. versionCode 15 → use 16
-  # 2. temporarily set app.json expo.android.versionCode / expo.ios.buildNumber to that value
-  #    (or flip this profile to appVersionSource:"local" in eas.json), then:
-  eas build --platform android --profile production --local     # → .aab, no credits
+  export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home   # JDK 17, not 25
+  export ANDROID_HOME=~/Library/Android/sdk                                          # SDK already installed
+  export ANDROID_NDK_HOME=~/Library/Android/sdk/ndk/26.1.10909125
+  export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+  export EAS_BUILD_NO_EXPO_GO_WARNING=true
+  cd apps/customer   && eas build --platform android --profile production --local --non-interactive --output ./build-customer-android.aab
+  cd ../driver       && eas build --platform android --profile production --local --non-interactive --output ./build-driver-android.aab
+  cd ../restaurant   && eas build --platform android --profile production --local --non-interactive --output ./build-restaurant-android.aab
   ```
-  Needs the **Android SDK** (`brew install --cask android-commandlinetools` + set `ANDROID_HOME`;
-  Xcode/CocoaPods already present). Android is $0; iOS local builds still need the $99/yr Apple
-  Developer account for a *distributable* build (simulator/dev builds are free). Repeat per app.
+  Each takes ~7–10 min (driver longest — native GPS modules). Output: signed, Play-ready `.aab`
+  (~41–53 MB). Upload via `eas submit -p android --profile production --path ./build-*.aab` (submit
+  doesn't consume build credits) or drag into Play Console.
+  **iOS:** same recipe with `--platform ios` (Xcode/CocoaPods already present) — you have the paid
+  Apple Developer account, so a distributable build works; then `eas submit -p ios`.
   **Fastest Android-only route** (85% of the market, no Apple anything): the same command scoped to
   `--platform android` — a free `.aab` you promote in Play Console.
 - **Or, once credits are back, cloud-build all 6** (build numbers auto-increment remotely):
