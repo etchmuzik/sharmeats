@@ -21,7 +21,7 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "false",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "SENTRY_ORG": "sharmeats",
         "SENTRY_PROJECT": "sharmeats-restaurant"
       },

@@ -25,7 +25,7 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co",
         "EXPO_PUBLIC_USE_SUPABASE": "true",
         "EXPO_PUBLIC_PAYMENTS_CARD_ENABLED": "false",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "false",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "SENTRY_ORG": "sharmeats",
         "SENTRY_PROJECT": "sharmeats-customer"
       },
