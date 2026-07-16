@@ -1268,7 +1268,7 @@ export type Database = {
           id: string
           order_id: string
           read_at: string | null
-          sender_id: string
+          sender_id: string | null
           sender_role: Database["public"]["Enums"]["app_role"]
         }
         Insert: {
@@ -1277,7 +1277,7 @@ export type Database = {
           id?: string
           order_id: string
           read_at?: string | null
-          sender_id: string
+          sender_id?: string | null
           sender_role: Database["public"]["Enums"]["app_role"]
         }
         Update: {
@@ -1286,7 +1286,7 @@ export type Database = {
           id?: string
           order_id?: string
           read_at?: string | null
-          sender_id?: string
+          sender_id?: string | null
           sender_role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: [
@@ -3267,7 +3267,7 @@ export type Database = {
           id: string
           order_id: string
           read_at: string | null
-          sender_id: string
+          sender_id: string | null
           sender_role: Database["public"]["Enums"]["app_role"]
         }
         SetofOptions: {
