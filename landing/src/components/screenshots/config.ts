@@ -65,10 +65,10 @@ export const SHOTS: Shot[] = [
   },
   {
     theme: "teal",
-    eyebrow: "However you pay",
-    headline: { lead: "Pay your way — ", accent: "card or cash." },
-    caption: "Card, cash, Fawry, Vodafone Cash & InstaPay.",
-    ar: "ادفع زي ما يناسبك — كاش أو فيزا.",
+    eyebrow: "No card needed",
+    headline: { lead: "Pay cash ", accent: "at your door." },
+    caption: "Cash on delivery — no card, no top-ups, no fuss.",
+    ar: "ادفع كاش عند باب البيت.",
     Screen: CheckoutScreen,
   },
   {

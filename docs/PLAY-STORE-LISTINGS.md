@@ -15,7 +15,9 @@ Shared facts for both apps:
 - **Default language:** English (US); add Arabic (ar) as a second listing locale later.
 - **Pricing:** Free
 - **Contains ads:** No
-- **In-app purchases:** No (all payment is COD or external Paymob — not Google Play Billing)
+- **In-app purchases:** No (all payment is cash on delivery; card via external
+  Paymob exists in code but is **not enabled** at launch — nothing uses Google
+  Play Billing)
 
 ---
 
@@ -29,7 +31,7 @@ Sharm Eats: Food Delivery
 
 ### Short description (≤ 80)
 ```
-Food delivery in Sharm el-Sheikh — to your hotel, home, or beach. Cash or card.
+Food delivery in Sharm el-Sheikh — hotel, home, or beach. Pay cash on delivery.
 ```
 *(79 chars.)*
 
@@ -40,8 +42,8 @@ room, apartment, or beach spot in Sharm el-Sheikh — whether you're a visitor o
 you live here.
 
 Browse nearby kitchens, build your order exactly how you like it, and track it
-live from the restaurant to your door. Pay with cash on delivery or by card —
-your choice.
+live from the restaurant to your door. Pay cash on delivery when your food
+arrives — no card needed.
 
 WHY SHARM EATS
 • Made for Sharm — real local restaurants, real delivery zones, honest ETAs.
@@ -51,8 +53,8 @@ WHY SHARM EATS
   a bolted-on translation.
 • Start as a guest — browse and order with no account and no sign-up. Create one
   only if you want to save addresses across devices.
-• Cash or card — pay cash on delivery, or by card through Paymob, Egypt's
-  licensed payment provider. Your card details are never stored in the app.
+• Cash on delivery — pay the courier in cash when your order arrives. No card,
+  no top-ups, no prepayment.
 
 HOW IT WORKS
 1. Open the app and start as a guest.
@@ -60,7 +62,7 @@ HOW IT WORKS
 3. Customize your dish — size, ingredients, add-ons.
 4. Add your delivery address (optionally drop a precise GPS pin so the driver
    finds you).
-5. Place your order and pay cash on delivery or by card.
+5. Place your order and pay cash on delivery.
 6. Track your order live — accepted, prepared, on the way, delivered.
 
 PRIVACY
@@ -104,8 +106,10 @@ Answer "Yes, this app collects/shares user data," then declare:
 - **Can users request deletion?** Yes — via support@sharmeats.online.
 - **Data used for tracking / advertising?** No.
 
-> Note: card data is processed by Paymob on their secure checkout and is **not**
-> collected or stored by the app — so do NOT declare payment info as collected.
+> Note: card checkout is not enabled at launch (COD only). If/when card is
+> turned on, card data is processed by Paymob on their secure checkout and is
+> **not** collected or stored by the app — so do NOT declare payment info as
+> collected either way.
 
 ---
 

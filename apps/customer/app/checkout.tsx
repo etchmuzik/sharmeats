@@ -28,6 +28,17 @@ import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
 import { LEGAL_URLS, openLegal } from '../src/legal';
 
+// A session phone is only worth prefilling when it looks like a real number:
+// starts with + or a digit and carries at least 8 digits (same bar as the
+// phoneValid check below). Guest sessions store the literal sentinel 'guest'
+// as their phone (onboarding's signIn('guest')), which must never leak into
+// the contact field.
+function isPrefillablePhone(phone: string | null): phone is string {
+  if (!phone) return false;
+  if (!/^[+\d]/.test(phone.trim())) return false;
+  return phone.replace(/\D/g, '').length >= 8;
+}
+
 // Crash-safe idempotency key. Tries expo-crypto's randomUUID (best), but a native
 // failure (module-init throw on some device/arch combos) must NEVER break checkout
 // render — falls back to a plain JS UUIDv4. The value only needs to be unique per
@@ -113,9 +124,10 @@ export default function Checkout() {
 
   useEffect(() => {
     track('checkout_opened', { subtotal, itemCount: lines.length });
-    // Prefill the contact number from the phone the user entered at sign-in
-    // (if any) so most users don't retype it.
-    if (sessionPhone) setContactPhone(sessionPhone);
+    // Prefill the contact number from the phone the user entered at sign-in,
+    // but only when it's a real number — a guest session's phone is the
+    // literal string 'guest', which must not pre-fill the field.
+    if (!isGuest && isPrefillablePhone(sessionPhone)) setContactPhone(sessionPhone);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -694,6 +706,14 @@ export default function Checkout() {
             {t('checkout.cardHint') !== 'checkout.cardHint'
               ? t('checkout.cardHint')
               : "You'll complete payment securely on the next screen."}
+          </Text>
+        )}
+        {/* COD reassurance — the cash mirror of the card hint above. */}
+        {payment?.kind === 'cash' && (
+          <Text style={styles.cardHint}>
+            {t('checkout.codHint') !== 'checkout.codHint'
+              ? t('checkout.codHint')
+              : 'Pay cash when your order arrives — no card needed.'}
           </Text>
         )}
         {isGuest && (

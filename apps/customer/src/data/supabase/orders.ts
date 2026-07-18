@@ -18,6 +18,7 @@
  */
 import { getSupabase } from './client';
 import { rowToOrder } from './mappers';
+import { t } from '../../i18n';
 import type { Order, PaymentMethodKind } from '../types';
 import type { CreateOrderInput } from '../repositories/orders';
 
@@ -298,28 +299,28 @@ export const ordersRepoSupabase = {
   },
 };
 
-/** Turn RPC check_violation codes into friendly, user-facing errors. */
+/** Turn RPC check_violation codes into friendly, localized user-facing errors. */
 function mapPlaceOrderError(error: { message?: string }): Error {
   const msg = error.message ?? '';
   const map: Record<string, string> = {
-    EMPTY_CART: 'Your cart is empty.',
-    MERCHANT_CLOSED: 'This restaurant is currently closed.',
-    MERCHANT_NOT_FOUND: 'Restaurant not found.',
-    CASH_NOT_ACCEPTED: 'This restaurant does not accept cash on delivery.',
-    CARD_NOT_ACCEPTED: 'This restaurant does not accept card payments.',
-    ADDRESS_NOT_FOUND: 'Please choose a valid delivery address.',
-    ITEM_NOT_FOUND: 'One of your items is no longer available.',
-    ITEM_UNAVAILABLE: 'One of your items is currently unavailable.',
-    BELOW_MIN_ORDER: 'Your order is below the restaurant minimum.',
-    INVALID_QTY: 'Invalid item quantity.',
-    AUTH_REQUIRED: 'Please sign in to place your order.',
-    OUT_OF_RANGE: 'This restaurant is too far from your address to deliver. Try a closer restaurant or a different address.',
-    USER_BLOCKED: 'Your account can’t place orders right now. Please contact support.',
-    TOO_MANY_ACTIVE_ORDERS: 'You have too many orders in progress. Please wait for one to arrive first.',
-    NEW_USER_ORDER_LIMIT: 'New accounts have a daily order limit. Please try again later.',
+    EMPTY_CART: 'error.emptyCart',
+    MERCHANT_CLOSED: 'error.merchantClosed',
+    MERCHANT_NOT_FOUND: 'error.merchantNotFound',
+    CASH_NOT_ACCEPTED: 'error.cashNotAccepted',
+    CARD_NOT_ACCEPTED: 'error.cardNotAccepted',
+    ADDRESS_NOT_FOUND: 'error.addressNotFound',
+    ITEM_NOT_FOUND: 'error.itemNotFound',
+    ITEM_UNAVAILABLE: 'error.itemUnavailable',
+    BELOW_MIN_ORDER: 'error.belowMinOrder',
+    INVALID_QTY: 'error.invalidQty',
+    AUTH_REQUIRED: 'error.authRequired',
+    OUT_OF_RANGE: 'error.outOfRange',
+    USER_BLOCKED: 'error.userBlocked',
+    TOO_MANY_ACTIVE_ORDERS: 'error.tooManyActiveOrders',
+    NEW_USER_ORDER_LIMIT: 'error.newUserOrderLimit',
   };
   for (const key of Object.keys(map)) {
-    if (msg.includes(key)) return new Error(map[key]);
+    if (msg.includes(key)) return new Error(t(map[key]));
   }
-  return new Error(msg || 'Could not place your order. Please try again.');
+  return new Error(msg || t('error.placeOrderFailed'));
 }

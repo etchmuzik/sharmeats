@@ -60,7 +60,7 @@ export default function Otp() {
       router.replace('/(tabs)/home');
     } catch (e) {
       captureError(e, { where: 'otp.verify' });
-      setError(e instanceof Error ? e.message : 'Invalid or expired code.');
+      setError(e instanceof Error ? e.message : t('error.otpInvalid'));
       setCode('');
     } finally {
       setVerifying(false);
@@ -75,7 +75,7 @@ export default function Otp() {
       setSeconds(42);
     } catch (e) {
       captureError(e, { where: 'otp.resend' });
-      setError(e instanceof Error ? e.message : 'Could not resend the code.');
+      setError(e instanceof Error ? e.message : t('error.otpResendFailed'));
     }
   };
 
@@ -129,7 +129,7 @@ export default function Otp() {
       </Pressable>
 
       <Text style={styles.resend}>
-        Didn't receive?{' '}
+        {t('otp.resendPrompt')}{' '}
         <Text
           onPress={resend}
           style={{ color: colors.accent, fontWeight: font.weights.bold }}>
