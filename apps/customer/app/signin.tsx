@@ -42,7 +42,7 @@ export default function SignIn() {
       router.replace(`/otp?phone=${encodeURIComponent(e164)}`);
     } catch (e) {
       captureError(e, { where: 'signin.sendOtp' });
-      setError(e instanceof Error ? e.message : 'Could not send the code. Try again.');
+      setError(e instanceof Error ? e.message : t('error.otpSendFailed'));
     } finally {
       setSending(false);
     }

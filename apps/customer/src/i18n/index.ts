@@ -15,22 +15,33 @@ const DICTS: Partial<Record<Locale, Dict>> = {
   de: de as Dict,
 };
 
+function lookup(locale: Locale, key: string, vars?: Record<string, string | number>): string {
+  const dict = DICTS[locale] ?? DICTS.en!;
+  let out = dict[key] ?? (DICTS.en as Dict)[key] ?? key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      out = out.replace(`{${k}}`, String(v));
+    }
+  }
+  return out;
+}
+
 /**
  * Tiny translation hook. Falls back to the key itself if missing.
  * Real app will use i18next + ICU plurals in Phase 3.
  */
 export function useT(): (key: string, vars?: Record<string, string | number>) => string {
   const locale = useSession((s) => s.locale);
-  return (key: string, vars?: Record<string, string | number>) => {
-    const dict = DICTS[locale] ?? DICTS.en!;
-    let out = dict[key] ?? (DICTS.en as Dict)[key] ?? key;
-    if (vars) {
-      for (const [k, v] of Object.entries(vars)) {
-        out = out.replace(`{${k}}`, String(v));
-      }
-    }
-    return out;
-  };
+  return (key: string, vars?: Record<string, string | number>) => lookup(locale, key, vars);
+}
+
+/**
+ * Non-hook translation for code that runs outside React components
+ * (repositories, error mappers). Reads the live locale from the session
+ * store at call time, so messages built here match the UI language.
+ */
+export function t(key: string, vars?: Record<string, string | number>): string {
+  return lookup(useSession.getState().locale, key, vars);
 }
 
 export const isRtl = (locale: Locale): boolean => locale === 'ar';

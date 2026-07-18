@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -52,6 +53,8 @@ export default function ItemModal() {
 
   const [item, setItem] = useState<MenuItem | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   // Dismiss to the parent restaurant when there's no history (deep link / cold
   // launch into the item modal); otherwise just pop the modal.
   const goBack = useGoBack(
@@ -66,20 +69,36 @@ export default function ItemModal() {
   const [allergyOpen, setAllergyOpen] = useState(false);
 
   useEffect(() => {
-    db.user.getMe().then((u) => {
-      const profile = u.allergyProfile ?? [];
-      setProfileAllergies(profile);
-      // Edit mode: prefer the saved line's allergens. Fresh add: seed from profile.
-      if (!editingLine) setAllergies(profile);
-    });
+    db.user.getMe()
+      .then((u) => {
+        const profile = u.allergyProfile ?? [];
+        setProfileAllergies(profile);
+        // Edit mode: prefer the saved line's allergens. Fresh add: seed from profile.
+        if (!editingLine) setAllergies(profile);
+      })
+      .catch(() => {
+        // Allergy-profile seeding is best-effort; the picker still works without it.
+      });
   }, [editingLine]);
 
   useEffect(() => {
     if (!id) return;
+    setLoadError(false);
+    // Both load-bearing calls MUST .catch: on flaky hotel wifi a rejection
+    // otherwise leaves `item`/`restaurant` null forever and freezes the modal
+    // on a blank loading view with no way out. On failure we show a retry view.
     db.menus.getItem(id).then((i) => {
       setItem(i);
+      if (!i) {
+        // Unknown/removed item resolves null — surface the error state instead
+        // of spinning forever.
+        setLoadError(true);
+      }
       if (i) {
-        db.restaurants.get(i.restaurantId).then(setRestaurant);
+        db.restaurants
+          .get(i.restaurantId)
+          .then(setRestaurant)
+          .catch(() => setLoadError(true));
         if (editingLine) {
           // Edit mode: rebuild selection state from saved line.
           const initial: SelectionMap = {};
@@ -101,13 +120,41 @@ export default function ItemModal() {
           setSel(initial);
         }
       }
-    });
-  }, [id, editingLine]);
+    }).catch(() => setLoadError(true));
+  }, [id, editingLine, reloadKey]);
+
+  if (loadError && (!item || !restaurant)) {
+    return (
+      <View style={styles.loading}>
+        <StatusBar style="dark" />
+        <View style={[styles.loadNav, { top: insets.top + 6 }]}>
+          <BackButton onPress={goBack} />
+        </View>
+        <Text style={styles.loadErrText}>{t('common.error')}</Text>
+        <Pressable
+          onPress={() => {
+            tap();
+            setLoadError(false);
+            setReloadKey((k) => k + 1);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.retry')}
+          style={styles.retryBtn}>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   if (!item || !restaurant) {
     return (
       <View style={styles.loading}>
         <StatusBar style="dark" />
+        <View style={[styles.loadNav, { top: insets.top + 6 }]}>
+          <BackButton onPress={goBack} />
+        </View>
+        <ActivityIndicator size="large" color={colors.ink2} />
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -338,7 +385,24 @@ export default function ItemModal() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: colors.bg },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg,
+    gap: 16,
+    paddingHorizontal: 32,
+  },
+  loadNav: { position: 'absolute', left: 14 },
+  loadingText: { color: colors.ink3, fontSize: font.sizes.lg },
+  loadErrText: { color: colors.ink2, fontSize: font.sizes.lg, textAlign: 'center', lineHeight: 24 },
+  retryBtn: {
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: radius.pill,
+    backgroundColor: colors.ink,
+  },
+  retryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   hero: { height: 280, backgroundColor: '#222', position: 'relative' },
   navWrap: { position: 'absolute', left: 14, zIndex: 5 },
   body: { padding: 20 },

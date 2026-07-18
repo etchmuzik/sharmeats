@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { CuisinePill } from '../../src/components/CuisinePill';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
+import { SkeletonRestaurantCard } from '../../src/components/SkeletonRestaurantCard';
+import { EmptyState } from '../../src/components/EmptyState';
 import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
 import type { Cuisine, Restaurant, Address, Hotel, Order, SavedOrder } from '../../src/data/types';
@@ -87,16 +89,20 @@ export default function HomeTab() {
   const [firstName, setFirstName] = useState<string>('');
 
   useEffect(() => {
-    db.user.getMe().then((u) => {
-      // First name for the greeting (skip the placeholder "Guest").
-      const name = (u.displayName ?? '').trim().split(/\s+/)[0];
-      setFirstName(name && name.toLowerCase() !== 'guest' ? name : '');
-      if (!allergyNudgeDismissed) {
-        setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
-      } else {
-        setShowAllergyNudge(false);
-      }
-    });
+    db.user
+      .getMe()
+      .then((u) => {
+        // First name for the greeting (skip the placeholder "Guest").
+        const name = (u.displayName ?? '').trim().split(/\s+/)[0];
+        setFirstName(name && name.toLowerCase() !== 'guest' ? name : '');
+        if (!allergyNudgeDismissed) {
+          setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
+        } else {
+          setShowAllergyNudge(false);
+        }
+      })
+      // Greeting + nudge are decorative — degrade to the anonymous greeting.
+      .catch(() => {});
   }, [allergyNudgeDismissed]);
 
   const [selectedCuisine, setSelectedCuisine] = useState<Cuisine | 'all'>('all');
@@ -109,6 +115,12 @@ export default function HomeTab() {
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
+  // Nearby list lifecycle: skeletons while loading, error + retry on failure,
+  // EmptyState when the catalog is genuinely empty. Bumping reloadKey re-runs
+  // every fetch effect (nearby list + rails) — that is the Retry path.
+  const [nearbyLoading, setNearbyLoading] = useState(true);
+  const [nearbyError, setNearbyError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const loadFromOrder = useCart((s) => s.loadFromOrder);
 
   useEffect(() => {
@@ -117,21 +129,36 @@ export default function HomeTab() {
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    const [feat, list] = await Promise.all([
-      db.restaurants.listFeatured(),
-      db.restaurants.list(selectedCuisine === 'all' ? undefined : { cuisine: selectedCuisine }),
-    ]);
-    setFeatured(feat);
-    setRestaurants(list);
-    setRefreshing(false);
+    try {
+      const [feat, list] = await Promise.all([
+        db.restaurants.listFeatured(),
+        db.restaurants.list(selectedCuisine === 'all' ? undefined : { cuisine: selectedCuisine }),
+      ]);
+      setFeatured(feat);
+      setRestaurants(list);
+      setNearbyError(false);
+    } catch {
+      // Keep whatever is already on screen; the inline error + Retry only
+      // replaces the Nearby block when there is nothing to show.
+      setNearbyError(true);
+    } finally {
+      setRefreshing(false);
+    }
   }, [selectedCuisine]);
 
   useEffect(() => {
-    db.restaurants.listFeatured().then(setFeatured);
+    db.restaurants
+      .listFeatured()
+      .then(setFeatured)
+      // Featured is a rail that hides when empty — degrade, don't block Home.
+      .catch(() => setFeatured([]));
     // Unfiltered catalog backs the offers + favourites rails — deals and saved
     // venues stay visible regardless of the cuisine filter.
-    db.restaurants.list().then(setAllForRails);
-  }, []);
+    db.restaurants
+      .list()
+      .then(setAllForRails)
+      .catch(() => setAllForRails([]));
+  }, [reloadKey]);
 
   const offers = useMemo(() => allForRails.filter((r) => !!r.promo), [allForRails]);
   const favoriteRail = useMemo(
@@ -140,22 +167,26 @@ export default function HomeTab() {
   );
 
   useEffect(() => {
-    db.orders.listPast().then(async (past: Order[]) => {
-      const seen = new Set<string>();
-      const ids: string[] = [];
-      for (const o of past) {
-        if (!seen.has(o.restaurantId)) {
-          seen.add(o.restaurantId);
-          ids.push(o.restaurantId);
+    db.orders
+      .listPast()
+      .then(async (past: Order[]) => {
+        const seen = new Set<string>();
+        const ids: string[] = [];
+        for (const o of past) {
+          if (!seen.has(o.restaurantId)) {
+            seen.add(o.restaurantId);
+            ids.push(o.restaurantId);
+          }
+          if (ids.length >= 3) break;
         }
-        if (ids.length >= 3) break;
-      }
-      const venues = (
-        await Promise.all(ids.map((id) => db.restaurants.get(id)))
-      ).filter((r): r is Restaurant => !!r);
-      setReorderRail(venues);
-    });
-  }, []);
+        const venues = (
+          await Promise.all(ids.map((id) => db.restaurants.get(id)))
+        ).filter((r): r is Restaurant => !!r);
+        setReorderRail(venues);
+      })
+      // Reorder rail hides when empty — degrade, don't block Home.
+      .catch(() => setReorderRail([]));
+  }, [reloadKey]);
 
   const openSaved = (s: SavedOrder) => {
     tap();
@@ -165,6 +196,13 @@ export default function HomeTab() {
     }
     loadFromOrder({ restaurantId: s.restaurantId, restaurantName: s.restaurantName, lines: s.items });
     router.push('/(tabs)/cart');
+  };
+
+  const retryLoad = () => {
+    tap();
+    setNearbyError(false);
+    setNearbyLoading(true);
+    setReloadKey((k) => k + 1);
   };
 
   const removeSaved = (s: SavedOrder) => {
@@ -181,22 +219,39 @@ export default function HomeTab() {
   };
 
   useEffect(() => {
+    // The nearby list is Home's load-bearing content. On flaky hotel wifi a
+    // rejection would otherwise leave the screen stuck with no list and no way
+    // out — mirror restaurant/[id].tsx: catch → inline error + Retry.
+    setNearbyLoading(true);
     db.restaurants
       .list(selectedCuisine === 'all' ? undefined : { cuisine: selectedCuisine })
-      .then(setRestaurants);
-  }, [selectedCuisine]);
+      .then((list) => {
+        setRestaurants(list);
+        setNearbyError(false);
+      })
+      .catch(() => {
+        // Clear any stale (previous-filter) list so the error view shows.
+        setRestaurants([]);
+        setNearbyError(true);
+      })
+      .finally(() => setNearbyLoading(false));
+  }, [selectedCuisine, reloadKey]);
 
   useEffect(() => {
     if (!selectedAddressId) {
       setAddress(null);
       return;
     }
-    db.user.listAddresses().then((addrs) => {
-      const a = addrs.find((x) => x.id === selectedAddressId) ?? addrs[0] ?? null;
-      setAddress(a);
-      if (a?.hotelId) db.hotels.get(a.hotelId).then(setHotel);
-      else setHotel(null);
-    });
+    db.user
+      .listAddresses()
+      .then((addrs) => {
+        const a = addrs.find((x) => x.id === selectedAddressId) ?? addrs[0] ?? null;
+        setAddress(a);
+        if (a?.hotelId) db.hotels.get(a.hotelId).then(setHotel).catch(() => setHotel(null));
+        else setHotel(null);
+      })
+      // Header falls back to the "choose address" prompt.
+      .catch(() => setAddress(null));
   }, [selectedAddressId]);
 
   const tod = timeOfDay();
@@ -492,9 +547,27 @@ export default function HomeTab() {
             <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
           </View>
           <View style={{ gap: 12, marginTop: 12 }}>
-            {restaurants.map((r) => (
-              <RestaurantCard key={r.id} restaurant={r} />
-            ))}
+            {nearbyLoading && restaurants.length === 0 ? (
+              [0, 1, 2].map((i) => <SkeletonRestaurantCard key={i} />)
+            ) : nearbyError && restaurants.length === 0 ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{t('common.error')}</Text>
+                <Pressable
+                  onPress={retryLoad}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.retry')}
+                  style={styles.retryBtn}>
+                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                </Pressable>
+              </View>
+            ) : restaurants.length === 0 ? (
+              <EmptyState
+                title={t('empty.generic.title')}
+                body={selectedCuisine === 'all' ? t('home.emptyBody') : t('browse.empty')}
+              />
+            ) : (
+              restaurants.map((r) => <RestaurantCard key={r.id} restaurant={r} />)
+            )}
           </View>
         </View>
       </ScrollView>
@@ -664,4 +737,15 @@ const styles = StyleSheet.create({
   savedName: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.ink },
   savedSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 4 },
   savedMeta: { fontSize: font.sizes.sm, color: colors.ink3, marginTop: 6 },
+  // Inline load-failure state for the nearby list — same error + retry
+  // treatment as restaurant/[id].tsx.
+  errorBox: { alignItems: 'center', gap: 14, paddingVertical: 28, paddingHorizontal: 16 },
+  errorText: { color: colors.ink2, fontSize: font.sizes.lg, textAlign: 'center', lineHeight: 24 },
+  retryBtn: {
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: radius.pill,
+    backgroundColor: colors.ink,
+  },
+  retryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
 });

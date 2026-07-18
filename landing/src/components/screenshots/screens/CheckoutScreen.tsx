@@ -2,11 +2,12 @@ import { StatusBar } from "../StatusBar";
 
 /**
  * Shot 4 — Checkout / payment. Ported from the design's screenCheckout().
- * Payment methods (Visa selected, Cash, Fawry, Vodafone Cash), order
- * summary, multi-currency chips, coral "Place order" CTA.
+ * Payment methods (Cash on delivery selected, subdued "Card — coming soon"),
+ * order summary, multi-currency chips, coral "Place order" CTA.
  *
- * Note: the design had a `.replace(' credit-card','credit-card')` string
- * artefact on the Visa row — dropped here; the icon is passed directly.
+ * The launch app is COD-only (card checkout is dark in prod), so the poster
+ * must not show Visa/Fawry/Vodafone Cash rows — store screenshots may not
+ * contradict the shipped app (App Review risk).
  */
 
 /** Payment-method row. Ported from the inline pay(label,sub,icon,sel) closure. */
@@ -15,14 +16,24 @@ function PayRow({
   sub,
   icon,
   selected,
+  muted,
 }: {
   label: string;
   sub: string;
   icon: string;
   selected?: boolean;
+  muted?: boolean;
 }) {
   return (
-    <div className="row" style={{ gap: 30, padding: "38px 44px", borderBottom: "2px solid var(--hairline)" }}>
+    <div
+      className="row"
+      style={{
+        gap: 30,
+        padding: "38px 44px",
+        borderBottom: "2px solid var(--hairline)",
+        opacity: muted ? 0.55 : 1,
+      }}
+    >
       <div
         style={{
           width: 96,
@@ -76,10 +87,8 @@ export function CheckoutScreen() {
           </h1>
 
           <div className="s-card" style={{ overflow: "hidden", marginBottom: 44 }}>
-            <PayRow label="Visa · 4242" sub="Card" icon="credit-card" selected />
-            <PayRow label="Cash on delivery" sub="Pay the rider" icon="money" />
-            <PayRow label="Fawry" sub="Reference code" icon="barcode" />
-            <PayRow label="Vodafone Cash" sub="Mobile wallet" icon="wallet" />
+            <PayRow label="Cash on delivery" sub="Pay the rider" icon="money" selected />
+            <PayRow label="Card" sub="Coming soon" icon="credit-card" muted />
           </div>
 
           <div className="s-card" style={{ padding: 48 }}>
@@ -126,7 +135,7 @@ export function CheckoutScreen() {
           </div>
 
           <div className="btn-primary" style={{ marginTop: 48 }}>
-            Place order · Card <span style={{ marginLeft: "auto", fontWeight: 900 }}>EGP 298</span>
+            Place order · Cash <span style={{ marginLeft: "auto", fontWeight: 900 }}>EGP 298</span>
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   View,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  ImageSourcePropType,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -27,7 +28,7 @@ const { width } = Dimensions.get('window');
 type Slide = {
   kind: 'mascot' | 'image';
   pose?: 'wave' | 'cheer';
-  img?: string;
+  img?: ImageSourcePropType;
   titleKey: string;
   accentKey: string;
   descKey: string;
@@ -50,7 +51,9 @@ const SLIDES: Slide[] = [
   },
   {
     kind: 'image',
-    img: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=900&h=1200&fit=crop&auto=format&q=80',
+    // Bundled locally (was a runtime Unsplash URL) so the first-run screen
+    // renders offline / on flaky hotel wifi.
+    img: require('../assets/onboarding-dine.jpg'),
     titleKey: 'onboarding.title3',
     accentKey: 'onboarding.accent3',
     descKey: 'onboarding.desc3',
@@ -111,7 +114,7 @@ export default function Onboarding() {
                   <Mascot pose={s.pose} size={220} />
                 </View>
               ) : (
-                <Image source={{ uri: s.img }} style={styles.image} />
+                <Image source={s.img} style={styles.image} />
               )}
               <LinearGradient
                 colors={['transparent', 'transparent', colors.bg]}
