@@ -38,10 +38,10 @@ npx vitest run src/lib/rewards.test.ts   # single test file
 npm run lint             # Next.js apps only
 ```
 
-Edge functions (Deno, not Node):
+Edge functions (Deno, not Node — run from repo root so the root `deno.json` is picked up):
 
 ```bash
-deno test --allow-none supabase/functions/
+deno test --permit-no-files supabase/functions/
 ```
 
 Database:
