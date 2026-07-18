@@ -47,6 +47,14 @@ export function DispatchBoard({
   // Order pending cancellation confirmation (id), and whether the RPC is in flight.
   const [cancelling, setCancelling] = useState<OpsOrder | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
+  // Shared clock for the elapsed-since-placed chips on the needs-a-driver list —
+  // one 60s interval for the whole board, not one per card.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Realtime: orders + driver status.
   useEffect(() => {
@@ -175,9 +183,12 @@ export function DispatchBoard({
                       <span className="font-bold">{o.short_code}</span>
                       <span className="ml-2 text-sm text-ink2">{o.restaurant_name}</span>
                     </div>
-                    <span className="rounded-full bg-sand px-2 py-0.5 text-xs font-semibold">
-                      {o.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <ElapsedChip placedAt={o.placed_at} nowMs={nowMs} />
+                      <span className="rounded-full bg-sand px-2 py-0.5 text-xs font-semibold">
+                        {o.status}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-1 text-xs text-ink3">
                     {o.zone ?? 'zone ?'} · {o.payment_method === 'cash_on_delivery' ? 'COD' : 'card'}{' '}
@@ -361,6 +372,17 @@ function CancelDialog({
       </div>
     </div>
   );
+}
+
+/**
+ * Minutes since the order was placed, color-stepped so a stale unassigned
+ * order screams: neutral under 5m, amber 5-10m, red past 10m.
+ */
+function ElapsedChip({ placedAt, nowMs }: { placedAt: string; nowMs: number }) {
+  const mins = Math.max(0, Math.floor((nowMs - new Date(placedAt).getTime()) / 60_000));
+  const style =
+    mins > 10 ? 'bg-redsoft text-red' : mins >= 5 ? 'bg-amber/10 text-amber' : 'bg-sand text-ink2';
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${style}`}>{mins}m</span>;
 }
 
 function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {

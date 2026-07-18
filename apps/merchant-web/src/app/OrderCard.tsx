@@ -12,12 +12,15 @@ interface PrimaryAction {
 export function OrderCard({
   order,
   isNew,
+  nowMs,
   onAccept,
   onReject,
   onPrimary,
 }: {
   order: MerchantOrder;
   isNew?: boolean;
+  /** When set (incoming column), shows the elapsed-since-placed urgency chip. */
+  nowMs?: number;
   onAccept?: () => void;
   onReject?: (reason?: string) => void;
   onPrimary?: PrimaryAction;
@@ -44,7 +47,10 @@ export function OrderCard({
     >
       <div className="flex items-start justify-between">
         <div>
-          <div className="font-bold">{order.short_code}</div>
+          <div className="flex items-center gap-2">
+            <div className="font-bold">{order.short_code}</div>
+            {nowMs !== undefined && <ElapsedChip placedAt={order.placed_at} nowMs={nowMs} />}
+          </div>
           <div className="text-xs text-ink3">
             {new Date(order.placed_at).toLocaleTimeString([], {
               hour: '2-digit',
@@ -157,6 +163,17 @@ export function OrderCard({
       )}
     </div>
   );
+}
+
+/**
+ * Minutes since the order was placed, color-stepped so a stale NEW order
+ * screams: neutral under 5m, amber 5-10m, red past 10m.
+ */
+function ElapsedChip({ placedAt, nowMs }: { placedAt: string; nowMs: number }) {
+  const mins = Math.max(0, Math.floor((nowMs - new Date(placedAt).getTime()) / 60_000));
+  const style =
+    mins > 10 ? 'bg-redsoft text-red' : mins >= 5 ? 'bg-amber/10 text-amber' : 'bg-sand text-ink2';
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${style}`}>{mins}m</span>;
 }
 
 function PaymentBadge({ order }: { order: MerchantOrder }) {
