@@ -9,6 +9,7 @@ import { SignOutButton } from './SignOutButton';
 import { Skeleton, OrderQueueSkeleton } from './Skeleton';
 import { TierStatusCard } from './TierStatusCard';
 import { StatementsCard } from './StatementsCard';
+import { TodayStrip } from './TodayStrip';
 import { LegalLinks } from './LegalLinks';
 
 type Phase =
@@ -202,12 +203,18 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 px-6 pt-4 md:grid-cols-2">
-        <TierStatusCard />
-        <StatementsCard />
+      {/* Live orders first — on a phone mid-shift the queue must be the first
+          thing staff see; tier/payout cards moved below it. */}
+      <div className="mx-auto max-w-6xl px-4 pt-4">
+        <TodayStrip restaurantId={ctx.restaurantId} />
       </div>
 
       <OrderQueue context={ctx} initialOrders={initialOrders} />
+
+      <div className="grid gap-4 px-6 pb-4 md:grid-cols-2">
+        <TierStatusCard />
+        <StatementsCard />
+      </div>
 
       <footer className="border-t border-line px-6 py-6">
         <LegalLinks />

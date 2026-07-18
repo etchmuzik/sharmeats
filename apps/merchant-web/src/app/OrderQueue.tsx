@@ -39,6 +39,14 @@ export function OrderQueue({
   // only in the browser) because AudioContext can't be constructed during SSR
   // and browsers block audio until a user gesture. Reused across chimes.
   const audioCtxRef = useRef<AudioContext | null>(null);
+  // Shared clock for the elapsed-since-placed chips on NEW orders — one 60s
+  // interval for the whole list, not one per card.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isVisibleToMerchant = useCallback((o: MerchantOrder) => {
     // COD shows immediately; card orders only once paid.
@@ -240,6 +248,7 @@ export function OrderQueue({
                 key={o.id}
                 order={o}
                 isNew={newIds.has(o.id)}
+                nowMs={nowMs}
                 onAccept={() => advance(o.id, 'accepted')}
                 onReject={(reason) => advance(o.id, 'rejected', reason)}
               />

@@ -16,7 +16,14 @@ const tajawal = Tajawal({
   variable: '--font-tajawal',
 });
 
+const SITE_URL = 'https://sharmeats.online';
+// Mirrors APP_STORE_URL and the footer Instagram link in page.tsx (a client
+// component, so the values are duplicated here for server-rendered metadata).
+const APP_STORE_URL = 'https://apps.apple.com/eg/app/id6776864451';
+const INSTAGRAM_URL = 'https://www.instagram.com/sharmeats';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'sharmeats — food delivery built for Sharm El Sheikh',
   description:
     'Five languages. Hotel-room delivery. Honest ETAs with credits when we miss them. The food app tourists and residents actually want.',
@@ -25,7 +32,10 @@ export const metadata: Metadata = {
     description:
       'Five languages. Hotel-room delivery. Honest ETAs with credits when we miss them.',
     type: 'website',
+    url: SITE_URL,
+    images: [{ url: '/brand/og.jpg', width: 1200, height: 630 }],
   },
+  twitter: { card: 'summary_large_image' },
   // iOS Smart App Banner — the customer app is live on the App Store, so
   // Safari visitors get the native install/open banner (renders the
   // apple-itunes-app meta tag).
@@ -41,10 +51,40 @@ export const metadata: Metadata = {
   },
 };
 
+// Structured data for search results: the customer app install card plus the
+// organization identity. Rendered in the layout (a server component) so it
+// lands in the static HTML — page.tsx is 'use client'.
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Sharm Eats',
+      operatingSystem: 'iOS',
+      applicationCategory: 'FoodBeverageApplication',
+      installUrl: APP_STORE_URL,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'EGP' },
+    },
+    {
+      '@type': 'Organization',
+      name: 'Sharm Eats',
+      url: SITE_URL,
+      logo: `${SITE_URL}/brand/icon-512.png`,
+      sameAs: [INSTAGRAM_URL],
+    },
+  ],
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${urbanist.variable} ${tajawal.variable}`}>
-      <body>{children}</body>
+      <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
