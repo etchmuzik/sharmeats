@@ -67,5 +67,9 @@ jobs:
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
         with:
           deno-version: v2.x
+      # Type-check entrypoints too — deno test only checks the test import graph,
+      # so index.ts files would otherwise never be type-checked.
+      - name: Type-check edge functions
+        run: deno check supabase/functions/
       - name: Test edge functions
-        run: deno test --allow-none supabase/functions/
+        run: deno test --permit-no-files supabase/functions/

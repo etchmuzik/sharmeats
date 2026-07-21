@@ -150,8 +150,8 @@ Deno.serve(async (req: Request) => {
       await admin
         .from('order_status_events')
         .insert({ order_id: ord.id, status: 'placed', note: 'Payment confirmed (card)' })
-        .then(() => {})
-        .catch(() => {});
+        // Two-arg then: the postgrest builder is a PromiseLike without .catch.
+        .then(() => {}, () => {});
 
       // Notify the merchant their (now paid) order is live, via expo-push fn.
       // [M4] Send the internal shared secret so expo-push accepts the call.
