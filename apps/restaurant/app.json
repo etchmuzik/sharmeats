@@ -37,7 +37,7 @@
       [
         "@sentry/react-native",
         {
-          "organization": "sharmeats",
+          "organization": "beyond-mngmt",
           "project": "sharmeats-restaurant",
           "url": "https://sentry.io/"
         }

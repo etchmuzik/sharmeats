@@ -22,8 +22,9 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-        "SENTRY_ORG": "sharmeats",
-        "SENTRY_PROJECT": "sharmeats-driver"
+        "SENTRY_ORG": "beyond-mngmt",
+        "SENTRY_PROJECT": "sharmeats-driver",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://ca8002113c6ab176e9c60f26d496d8be@o4509518072512512.ingest.de.sentry.io/4511775709397072"
       },
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
