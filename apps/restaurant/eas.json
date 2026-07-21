@@ -22,8 +22,9 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
-        "SENTRY_ORG": "sharmeats",
-        "SENTRY_PROJECT": "sharmeats-restaurant"
+        "SENTRY_ORG": "beyond-mngmt",
+        "SENTRY_PROJECT": "sharmeats-restaurant",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://efe6f29125932a80d59aab8dac67cd66@o4509518072512512.ingest.de.sentry.io/4511775715098704"
       },
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"

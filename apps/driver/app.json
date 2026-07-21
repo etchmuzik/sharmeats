@@ -48,7 +48,7 @@
       [
         "@sentry/react-native",
         {
-          "organization": "sharmeats",
+          "organization": "beyond-mngmt",
           "project": "sharmeats-driver",
           "url": "https://sentry.io/"
         }
