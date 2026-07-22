@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -101,9 +102,9 @@ export default function MenuPage() {
           <h1 className="text-xl font-bold">Admin only</h1>
           <p className="mt-2 text-ink2">Editing restaurants and menus requires an admin account.</p>
           <div className="mt-6 flex justify-center gap-3">
-            <a href="/" className="rounded-lg border border-line px-4 py-2 text-sm font-semibold">
+            <Link href="/" className="rounded-lg border border-line px-4 py-2 text-sm font-semibold">
               Back to dispatch
-            </a>
+            </Link>
             <SignOutButton />
           </div>
         </div>
@@ -123,9 +124,9 @@ export default function MenuPage() {
               <Icon name="back" size={16} /> All restaurants
             </button>
           ) : (
-            <a href="/" className="flex items-center gap-1 text-sm font-semibold text-ink2 hover:text-ink">
+            <Link href="/" className="flex items-center gap-1 text-sm font-semibold text-ink2 hover:text-ink">
               <Icon name="back" size={16} /> Dispatch
-            </a>
+            </Link>
           )}
           <div>
             <div className="text-lg font-extrabold">
