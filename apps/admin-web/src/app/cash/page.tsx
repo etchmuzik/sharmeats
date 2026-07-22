@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -165,9 +166,9 @@ export default function CashPage() {
           <h1 className="text-xl font-bold">Admin only</h1>
           <p className="mt-2 text-ink2">Driver cash reconciliation requires an admin account.</p>
           <div className="mt-6 flex justify-center gap-3">
-            <a href="/" className="rounded-lg border border-line px-4 py-2 text-sm font-semibold">
+            <Link href="/" className="rounded-lg border border-line px-4 py-2 text-sm font-semibold">
               Back to dispatch
-            </a>
+            </Link>
             <SignOutButton />
           </div>
         </div>
@@ -200,12 +201,12 @@ export default function CashPage() {
           >
             Finance
           </a>
-          <a
+          <Link
             href="/"
             className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
           >
             Dispatch
-          </a>
+          </Link>
           <SignOutButton />
         </div>
       </header>
