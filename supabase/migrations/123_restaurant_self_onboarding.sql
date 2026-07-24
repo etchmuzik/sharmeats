@@ -117,7 +117,7 @@ begin
   end if;
 
   -- Unique slug from the name; collision gets a short random suffix.
-  v_base_slug := btrim(both '-' from regexp_replace(lower(btrim(p_name)), '[^a-z0-9]+', '-', 'g'));
+  v_base_slug := btrim(regexp_replace(lower(btrim(p_name)), '[^a-z0-9]+', '-', 'g'), '-');
   if v_base_slug = '' then v_base_slug := 'restaurant'; end if;
   v_slug := v_base_slug;
   while exists (select 1 from public.restaurants where slug = v_slug) loop
