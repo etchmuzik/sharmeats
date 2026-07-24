@@ -31,6 +31,11 @@ describe('draft persistence', () => {
     clearDraft(s);
     expect(s.getItem('sharmeats-merchant-onboarding-draft')).toBeNull();
   });
+  it('type-corrupt storage yields a fresh draft', () => {
+    const s = memStorage();
+    s.setItem('sharmeats-merchant-onboarding-draft', JSON.stringify({ name: 12345, phone: '123456' }));
+    expect(loadDraft(s)).toEqual(emptyDraft());
+  });
 });
 
 describe('validateStep', () => {

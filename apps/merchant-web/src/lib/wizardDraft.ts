@@ -6,6 +6,33 @@ import type { RestaurantApplication } from './onboarding';
 
 const KEY = 'sharmeats-merchant-onboarding-draft';
 
+function isDraftShaped(v: unknown): v is Partial<WizardDraft> {
+  if (typeof v !== 'object' || v === null) return false;
+
+  const obj = v as Record<string, unknown>;
+  const empty = emptyDraft();
+
+  for (const key of Object.keys(obj)) {
+    if (!(key in empty)) continue; // Skip unknown keys
+
+    const val = obj[key];
+    const emptyVal = empty[key as keyof WizardDraft];
+
+    // Validate type compatibility
+    if (typeof emptyVal === 'string' && typeof val !== 'string') return false;
+    if (typeof emptyVal === 'boolean' && typeof val !== 'boolean') return false;
+    if (typeof emptyVal === 'number' && (typeof val !== 'number' || !Number.isFinite(val))) return false;
+    if (Array.isArray(emptyVal)) {
+      if (!Array.isArray(val)) return false;
+      if (!val.every((item) => typeof item === 'string')) return false;
+    }
+    if ((key === 'lat' || key === 'lng') && val !== null && (typeof val !== 'number' || !Number.isFinite(val))) return false;
+    if (key === 'payoutMethod' && val !== 'bank' && val !== 'wallet') return false;
+  }
+
+  return true;
+}
+
 export interface WizardDraft {
   name: string;
   description: string;
@@ -40,7 +67,9 @@ export function loadDraft(storage: Pick<Storage, 'getItem'>): WizardDraft {
   try {
     const raw = storage.getItem(KEY);
     if (!raw) return emptyDraft();
-    return { ...emptyDraft(), ...(JSON.parse(raw) as Partial<WizardDraft>) };
+    const parsed = JSON.parse(raw);
+    if (!isDraftShaped(parsed)) return emptyDraft();
+    return { ...emptyDraft(), ...parsed };
   } catch {
     return emptyDraft();
   }
