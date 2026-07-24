@@ -17,6 +17,29 @@ export const DRIVER_DOC_TYPES: { key: string; label: string }[] = [
   { key: 'driving_license', label: 'Driving licence' },
   { key: 'vehicle_reg', label: 'Vehicle registration' },
 ];
+const DRIVER_DOC_TYPE_KEYS = new Set(DRIVER_DOC_TYPES.map(({ key }) => key));
+const MAX_KYC_FILE_BYTES = 5 * 1024 * 1024;
+const KYC_IMAGE_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+export function validateDriverKycUpload(
+  docType: string,
+  mimeType: string,
+  size: number,
+): { contentType: string; extension: string } {
+  if (!DRIVER_DOC_TYPE_KEYS.has(docType)) {
+    throw new Error('Unsupported driver document type');
+  }
+  const normalizedMime = mimeType.trim().toLowerCase();
+  const extension = KYC_IMAGE_TYPES[normalizedMime];
+  if (!extension) throw new Error('Upload a JPEG, PNG, or WebP image');
+  if (!Number.isFinite(size) || size <= 0) throw new Error('The selected document is empty');
+  if (size > MAX_KYC_FILE_BYTES) throw new Error('Choose an image smaller than 5 MB');
+  return { contentType: normalizedMime, extension };
+}
 
 async function myDriverId(): Promise<string | null> {
   const supabase = getSupabase();
@@ -45,7 +68,13 @@ export async function listMyKycDocuments(): Promise<KycDocument[]> {
  * (path-scoped RLS from mig 076), then record the kyc_documents row. Returns the
  * created document. `uri` is a local file URI from the image picker.
  */
-export async function uploadKycDocument(docType: string, uri: string, ts: number): Promise<void> {
+export async function uploadKycDocument(
+  docType: string,
+  uri: string,
+  ts: number,
+  selectedMimeType?: string | null,
+  selectedFileSize?: number | null,
+): Promise<void> {
   const supabase = getSupabase();
   const {
     data: { user },
@@ -57,11 +86,20 @@ export async function uploadKycDocument(docType: string, uri: string, ts: number
   // Fetch the local file as a blob for upload.
   const res = await fetch(uri);
   const blob = await res.blob();
-  const path = `${user.id}/driver-${docType}-${ts}.jpg`;
+  const { contentType, extension } = validateDriverKycUpload(
+    docType,
+    selectedMimeType ?? blob.type,
+    Math.max(blob.size, selectedFileSize ?? 0),
+  );
+  if (!Number.isSafeInteger(ts) || ts <= 0) throw new Error('Invalid upload timestamp');
+  const path = `${user.id}/driver-${docType}-${ts}.${extension}`;
+  const bucket = supabase.storage.from('kyc');
 
-  const { error: upErr } = await supabase.storage.from('kyc').upload(path, blob, {
-    contentType: 'image/jpeg',
-    upsert: true,
+  const { error: upErr } = await bucket.upload(path, blob, {
+    contentType,
+    // KYC evidence is immutable: a replacement creates a new timestamped
+    // object + pending row, never overwrites bytes an admin already reviewed.
+    upsert: false,
   });
   if (upErr) throw upErr;
 
@@ -71,5 +109,10 @@ export async function uploadKycDocument(docType: string, uri: string, ts: number
     doc_type: docType,
     storage_path: path,
   });
-  if (insErr) throw insErr;
+  if (insErr) {
+    // The bucket permits deleting only unindexed objects owned by this user.
+    // Once the row exists, KYC evidence remains immutable.
+    await bucket.remove([path]).catch(() => undefined);
+    throw insErr;
+  }
 }

@@ -8,21 +8,21 @@
  *      the authoritative position for dispatch (nearest_drivers) + admin board.
  *
  * Battery discipline: Accuracy.Balanced + ~25m distance interval, and we only
- * stream while on an ACTIVE delivery. Caller starts on pickup, stops on
- * delivered/handoff or when going offline.
+ * stream while on an ACTIVE delivery. Expo Task Manager keeps the job alive in
+ * the background; the active order id is persisted for an OS-launched task.
  */
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  ACTIVE_ORDER_STORAGE_KEY,
+  DRIVER_LOCATION_TASK,
+} from './backgroundLocationTask';
 import { getSupabase } from './supabase';
 
-const PING_INTERVAL_MS = 25_000; // throttle for the authoritative current_geo write
 const DISTANCE_INTERVAL_M = 25; // emit a fix roughly every 25 meters of movement
 
 interface ActiveStream {
   orderId: string;
-  watcher: Location.LocationSubscription;
-  channel: ReturnType<ReturnType<typeof getSupabase>['channel']>;
-  lastPingAt: number;
-  /** Whether the Realtime channel is currently live (drives the live dot). */
   connected: boolean;
 }
 
@@ -47,107 +47,68 @@ export async function requestLocationPermission(): Promise<boolean> {
 }
 
 /**
- * Start streaming this driver's location for an order. Broadcasts every fix to
- * the customer channel and throttles the authoritative current_geo write.
+ * Start background-capable streaming for an active order. The task definition
+ * is imported at bundle initialization, which is required when the OS launches
+ * the app headlessly for a location update.
  */
 export async function startStreaming(orderId: string): Promise<void> {
-  if (active?.orderId === orderId) return; // already streaming this order
+  const normalizedOrderId = orderId.trim();
+  if (!normalizedOrderId) throw new Error('Order id is required for live tracking');
+  if (
+    active?.orderId === normalizedOrderId &&
+    (await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK))
+  ) {
+    return;
+  }
   await stopStreaming(); // ensure only one active stream
 
   const granted = await requestLocationPermission();
   if (!granted) throw new Error('Location permission denied');
 
-  const sb = getSupabase();
-  const channel = sb.channel(`order:${orderId}:driver_loc`);
+  const background = await Location.requestBackgroundPermissionsAsync();
+  if (background.status !== 'granted') {
+    throw new Error(
+      'Background location is required during an active delivery. Allow location all the time in Settings.',
+    );
+  }
 
-  // Resolve on first SUBSCRIBED; reject if the initial connect errors or times
-  // out (so the caller surfaces a real failure instead of hanging forever).
-  // After the initial connect, later CHANNEL_ERROR/CLOSED/TIMED_OUT events while
-  // we're still the active stream trigger a re-subscribe so the customer's live
-  // dot self-heals. The authoritative driver_ping write is a direct RPC and
-  // keeps working regardless, so dispatch never loses the driver.
-  await new Promise<void>((resolve, reject) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        reject(new Error('Live-tracking channel timed out'));
-      }
-    }, 10_000);
-
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        emitHealth('connected');
-        if (!settled) {
-          settled = true;
-          clearTimeout(timer);
-          resolve();
-        }
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        if (!settled) {
-          // Initial connect failed.
-          settled = true;
-          clearTimeout(timer);
-          reject(new Error(`Live-tracking channel failed: ${status}`));
-        } else if (active && active.orderId === orderId) {
-          // Mid-stream drop — surface it and let supabase-js auto-rejoin.
-          emitHealth('reconnecting');
-        }
-      }
-    });
-  });
-
-  const watcher = await Location.watchPositionAsync(
-    {
+  await AsyncStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, normalizedOrderId);
+  try {
+    await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
       accuracy: Location.Accuracy.Balanced,
       distanceInterval: DISTANCE_INTERVAL_M,
       timeInterval: 5_000,
-    },
-    (pos) => {
-      const { latitude, longitude, heading } = pos.coords;
-      const now = Date.now();
+      deferredUpdatesDistance: DISTANCE_INTERVAL_M,
+      deferredUpdatesInterval: 5_000,
+      activityType: Location.ActivityType.AutomotiveNavigation,
+      pausesUpdatesAutomatically: false,
+      showsBackgroundLocationIndicator: true,
+      foregroundService: {
+        notificationTitle: 'Sharm Eats delivery in progress',
+        notificationBody: 'Sharing your live location for the active delivery.',
+        notificationColor: '#0E7C91',
+        killServiceOnDestroy: false,
+      },
+    });
+  } catch (error) {
+    await AsyncStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+    throw error;
+  }
 
-      // 1) Broadcast the live dot (ephemeral, no DB write).
-      channel
-        .send({
-          type: 'broadcast',
-          event: 'loc',
-          payload: { lat: latitude, lng: longitude, heading: heading ?? undefined, at: now },
-        })
-        .catch(() => {});
-
-      // 2) Throttled authoritative write (dispatch/admin freshness).
-      if (!active || now - active.lastPingAt >= PING_INTERVAL_MS) {
-        if (active) active.lastPingAt = now;
-        // Fire-and-forget; wrap so .catch exists (the RPC builder is thenable,
-        // not a real Promise). A failed ping must not crash streaming.
-        // [H-DRV3] Pass status='' so driver_ping PRESERVES the current status
-        // (coalesce(nullif(p_status,''), status)). Hardcoding 'on_job' here
-        // re-stamped a driver who had just gone offline back to on_job within
-        // ~25s — they could never actually go offline while a stale stream ran.
-        Promise.resolve(
-          sb.rpc('driver_ping', { p_lng: longitude, p_lat: latitude, p_status: '' }),
-        ).catch(() => {});
-      }
-    },
-  );
-
-  active = { orderId, watcher, channel, lastPingAt: 0, connected: true };
+  active = { orderId: normalizedOrderId, connected: true };
+  emitHealth('connected');
+  await pingOnce();
 }
 
 /** Stop streaming (on delivery handoff or going offline). */
 export async function stopStreaming(): Promise<void> {
-  if (!active) return;
-  try {
-    active.watcher.remove();
-  } catch {
-    /* ignore */
+  const started = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK).catch(
+    () => false,
+  );
+  if (started) {
+    await Location.stopLocationUpdatesAsync(DRIVER_LOCATION_TASK);
   }
-  try {
-    await getSupabase().removeChannel(active.channel);
-  } catch {
-    /* ignore */
-  }
+  await AsyncStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
   active = null;
   emitHealth('disconnected');
 }

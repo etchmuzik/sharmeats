@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +29,7 @@ export default function JobScreen() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const trackingErrorShown = useRef(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -47,19 +48,34 @@ export default function JobScreen() {
     if (!job || !id) return;
     const shouldStream = job.status === 'picked_up' || job.status === 'out_for_delivery';
     if (shouldStream) {
-      startStreaming(id).catch(() => {});
+      startStreaming(id).catch((error) => {
+        if (trackingErrorShown.current) return;
+        trackingErrorShown.current = true;
+        toast(
+          error instanceof Error
+            ? error.message
+            : 'Live location could not start. Check location permissions.',
+          'error',
+        );
+      });
     } else {
       stopStreaming().catch(() => {});
     }
-  }, [job?.status, id]);
+  }, [job?.status, id, toast]);
 
   const doAdvance = useCallback(
     async (next: Job['status']) => {
       if (!id) return;
       setBusy(true);
       try {
-        // Start GPS right as we pick up so the customer sees movement immediately.
-        if (next === 'picked_up') await startStreaming(id).catch(() => {});
+        // Give the driver a prominent disclosure immediately before Android/iOS
+        // asks for background access. Do not advance to picked_up if tracking
+        // cannot start: the customer and dispatch would otherwise see stale GPS.
+        if (next === 'picked_up') {
+          const accepted = await confirmBackgroundTracking();
+          if (!accepted) return;
+          await startStreaming(id);
+        }
         await advance(id, next);
         await load();
       } catch (e) {
@@ -185,6 +201,8 @@ export default function JobScreen() {
             return (
               <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                 <View
+                  accessible
+                  accessibilityLabel={`${stepLabel(s)}: ${done ? 'complete' : 'not complete'}`}
                   style={{
                     width: 18,
                     height: 18,
@@ -356,11 +374,28 @@ export default function JobScreen() {
   );
 }
 
+function confirmBackgroundTracking(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Live delivery location',
+      'While this delivery is active, Sharm Eats uses your location in the background so the customer can follow the driver and dispatch can keep the delivery safe. Android shows a persistent notification. Tracking stops when the delivery ends or you go offline.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Continue', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
 function Action({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: busy, busy }}
       style={{ backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center', opacity: busy ? 0.6 : 1 }}
     >
       {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ color: colors.white, fontSize: font.sizes.lg, fontWeight: '700' }}>{label}</Text>}
@@ -423,6 +458,7 @@ function ContactButton({
         borderWidth: 1,
         borderColor: colors.accent,
         borderRadius: radius.lg,
+        minHeight: 48,
         paddingVertical: spacing.md,
       }}
     >

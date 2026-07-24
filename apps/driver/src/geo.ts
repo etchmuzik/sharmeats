@@ -29,8 +29,8 @@ export interface LatLng {
  */
 export function parseWkbPoint(wkbHex: string | null | undefined): LatLng | null {
   if (!wkbHex || typeof wkbHex !== 'string') return null;
-  // A 2D point with SRID is 21 bytes = 42 hex chars; allow trailing chars defensively.
-  if (wkbHex.length < 42 || !/^[0-9a-fA-F]+$/.test(wkbHex)) return null;
+  // A 2D EWKB point with SRID is exactly 25 bytes = 50 hex chars.
+  if (wkbHex.length !== 50 || !/^[0-9a-fA-F]+$/.test(wkbHex)) return null;
 
   try {
     const bytes = new Uint8Array(wkbHex.length / 2);
@@ -38,7 +38,13 @@ export function parseWkbPoint(wkbHex: string | null | undefined): LatLng | null 
       bytes[i] = parseInt(wkbHex.substr(i * 2, 2), 16);
     }
     const view = new DataView(bytes.buffer);
-    const littleEndian = view.getUint8(0) === 1;
+    // This column is emitted by Postgres as little-endian Point+SRID (4326).
+    // Reject any other geometry instead of interpreting arbitrary bytes as a
+    // plausible coordinate and navigating a driver to the wrong destination.
+    if (view.getUint8(0) !== 1) return null;
+    const littleEndian = true;
+    if (view.getUint32(1, littleEndian) !== 0x20000001) return null;
+    if (view.getUint32(5, littleEndian) !== 4326) return null;
     // X (lng) at offset 9, Y (lat) at offset 17.
     const lng = view.getFloat64(9, littleEndian);
     const lat = view.getFloat64(17, littleEndian);

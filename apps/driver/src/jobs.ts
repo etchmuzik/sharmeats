@@ -68,7 +68,7 @@ export interface Job {
  * row (place_order does to_jsonb), but the app reads camelCase. Without this the
  * driver's hotel name/room/street all render BLANK. Idempotent (reads camel first).
  */
-function normalizeAddressSnapshot(raw: unknown): Job['address_snapshot'] {
+export function normalizeAddressSnapshot(raw: unknown): Job['address_snapshot'] {
   if (!raw || typeof raw !== 'object') return {};
   const a = raw as Record<string, unknown>;
   const pick = (camel: string, snake: string) => (a[camel] ?? a[snake]) as string | undefined;
@@ -95,7 +95,7 @@ const JOB_SELECT =
   'assigned_driver_id, eta_at, restaurants(geo)';
 
 /** Normalize a raw order row (with nested restaurants) into a Job. */
-function toJob(row: Record<string, unknown> | null): Job | null {
+export function normalizeJob(row: Record<string, unknown> | null): Job | null {
   if (!row) return null;
   const rest = row.restaurants as { geo?: string } | { geo?: string }[] | null;
   const restaurant_geo = Array.isArray(rest) ? (rest[0]?.geo ?? null) : (rest?.geo ?? null);
@@ -147,6 +147,8 @@ export interface Assignment {
    * stay hidden until the driver accepts.
    */
   restaurant_name: string;
+  /** Broad service zone only, safe to show before accept without exposing an address. */
+  dropoff_zone: string | null;
   delivery_fee_egp: number;
   tip_egp: number;
 }
@@ -202,13 +204,13 @@ export async function setOnline(online: boolean): Promise<void> {
  * pickup + payout preview so the driver can decide before accepting. The order
  * columns come from a PostgREST embed on order_assignments.order_id -> orders
  * (many-to-one, so `orders` is a single object). RLS permits it for an OFFERED
- * driver — see the Assignment doc comment. Only the restaurant name + money are
- * read here; the customer address/phone stay hidden until accept ([H-DRV2]).
+ * driver. The broad service zone helps the driver judge the route while the
+ * customer address and phone stay hidden until accept ([H-DRV2]).
  */
 export async function getOffers(driverId: string): Promise<Assignment[]> {
   const { data, error } = await getSupabase()
     .from('order_assignments')
-    .select('id, order_id, status, offer_expires_at, orders(restaurant_name, delivery_fee_egp, tip_egp)')
+    .select('id, order_id, status, offer_expires_at, orders(restaurant_name, zone, delivery_fee_egp, tip_egp)')
     .eq('driver_id', driverId)
     .eq('status', 'offered');
   if (error) throw error;
@@ -220,8 +222,8 @@ function toAssignment(row: Record<string, unknown>): Assignment {
   // The embed is many-to-one, so supabase-js should return a single object, but
   // its generated typing sometimes widens the shape to an array — handle both.
   const embed = row.orders as
-    | { restaurant_name?: string; delivery_fee_egp?: number; tip_egp?: number }
-    | { restaurant_name?: string; delivery_fee_egp?: number; tip_egp?: number }[]
+    | { restaurant_name?: string; zone?: string | null; delivery_fee_egp?: number; tip_egp?: number }
+    | { restaurant_name?: string; zone?: string | null; delivery_fee_egp?: number; tip_egp?: number }[]
     | null;
   const ord = Array.isArray(embed) ? embed[0] : embed;
   return {
@@ -230,6 +232,7 @@ function toAssignment(row: Record<string, unknown>): Assignment {
     status: row.status as Assignment['status'],
     offer_expires_at: (row.offer_expires_at as string | null) ?? null,
     restaurant_name: ord?.restaurant_name ?? 'Restaurant',
+    dropoff_zone: ord?.zone ?? null,
     delivery_fee_egp: ord?.delivery_fee_egp ?? 0,
     tip_egp: ord?.tip_egp ?? 0,
   };
@@ -293,11 +296,16 @@ export function subscribeOffers(
  */
 export async function getActiveJob(driverId: string): Promise<Job | null> {
   const sb = getSupabase();
+  // Accepted assignments accumulate forever (one per delivered order), so
+  // bound the scan to the newest few — an assignment whose order is still
+  // non-terminal is always recent (a driver holds at most 1-2 active jobs).
   const { data: accepted, error: aErr } = await sb
     .from('order_assignments')
     .select('order_id')
     .eq('driver_id', driverId)
-    .eq('status', 'accepted');
+    .eq('status', 'accepted')
+    .order('assigned_at', { ascending: false })
+    .limit(20);
   if (aErr) throw aErr;
   const acceptedIds = (accepted ?? []).map((r) => (r as { order_id: string }).order_id);
   if (acceptedIds.length === 0) return null;
@@ -311,7 +319,7 @@ export async function getActiveJob(driverId: string): Promise<Job | null> {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return toJob(data as Record<string, unknown> | null);
+  return normalizeJob(data as Record<string, unknown> | null);
 }
 
 export async function fetchJob(orderId: string): Promise<Job | null> {
@@ -321,7 +329,7 @@ export async function fetchJob(orderId: string): Promise<Job | null> {
     .eq('id', orderId)
     .maybeSingle();
   if (error) throw error;
-  return toJob(data as Record<string, unknown> | null);
+  return normalizeJob(data as Record<string, unknown> | null);
 }
 
 export async function respondToOffer(assignmentId: string, accept: boolean): Promise<void> {

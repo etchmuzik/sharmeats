@@ -263,7 +263,7 @@ export default function Home() {
     >
       {/* Header */}
       <View style={{ paddingHorizontal: spacing.xl, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
+        <View style={{ flex: 1, minWidth: 0, paddingRight: spacing.md }}>
           <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
             Hi, {driver.name?.split(' ')[0] ?? 'Driver'}
           </Text>
@@ -286,7 +286,13 @@ export default function Home() {
             <Text style={{ color: colors.accent, fontWeight: '600', fontSize: font.sizes.sm }}>My tier</Text>
           </Pressable>
         </View>
-        <Pressable onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="Sign out">
+        <Pressable
+          onPress={handleSignOut}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+          hitSlop={8}
+          style={{ minWidth: 44, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' }}
+        >
           <Text style={{ color: colors.ink3, fontSize: font.sizes.sm }}>Sign out</Text>
         </Pressable>
       </View>
@@ -318,13 +324,16 @@ export default function Home() {
           onValueChange={toggleOnline}
           trackColor={{ true: colors.accent, false: colors.line }}
           disabled={!driver.is_verified}
+          accessibilityLabel="Receive delivery offers"
+          accessibilityHint={driver.is_verified ? 'Turns new delivery offers on or off' : 'Complete verification before going online'}
+          accessibilityState={{ checked: online, disabled: !driver.is_verified }}
         />
       </View>
 
       {/* Earnings */}
       {earnings && (
         <>
-          <View style={{ flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
             <Stat label="Today" value={`${earnings.todayTotal} EGP`} />
             <Stat label="Deliveries" value={`${earnings.todayCount}`} />
             <Stat label="Tips today" value={`${earnings.todayTips} EGP`} />
@@ -359,6 +368,8 @@ export default function Home() {
       {activeJob && (
         <Pressable
           onPress={() => router.push(`/job/${activeJob.id}`)}
+          accessibilityRole="button"
+          accessibilityLabel={`Continue delivery ${activeJob.short_code} from ${activeJob.restaurant_name}`}
           style={{
             marginHorizontal: spacing.xl,
             marginBottom: spacing.lg,
@@ -405,8 +416,35 @@ export default function Home() {
       {/* Offers */}
       <View style={{ paddingHorizontal: spacing.xl }}>
         <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', marginBottom: spacing.md }}>
-          {offers.length > 0 ? 'New offers' : 'No offers right now'}
+          {offers.length > 0 ? 'New offers' : online ? 'Waiting for offers' : 'Offers paused'}
         </Text>
+        {offers.length === 0 && (
+          <View
+            accessibilityLabel={
+              online
+                ? 'No offers right now. You are online and ready for nearby deliveries.'
+                : 'Offers are paused. Go online to receive deliveries.'
+            }
+            style={{
+              minHeight: 128,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.white,
+              borderWidth: 1,
+              borderColor: colors.line,
+              borderRadius: radius.xl,
+              padding: spacing.xl,
+            }}
+          >
+            <Icon name={online ? 'bell' : 'quiet'} size={28} color={online ? colors.accent : colors.ink3} />
+            <Text style={{ marginTop: spacing.sm, color: colors.ink, fontSize: font.sizes.base, fontWeight: '700', textAlign: 'center' }}>
+              {online ? 'You’re ready for nearby deliveries' : 'Go online when you’re ready'}
+            </Text>
+            <Text style={{ marginTop: 4, color: colors.ink2, fontSize: font.sizes.sm, textAlign: 'center' }}>
+              {online ? 'New offers will appear here with a notification.' : 'Use the switch above to start receiving offers.'}
+            </Text>
+          </View>
+        )}
         {offers.map((o) => (
           <OfferCard
             key={o.id}
@@ -549,12 +587,33 @@ function OfferCard({
       <Text style={{ color: colors.green, fontSize: font.sizes.base, fontWeight: '700', marginTop: spacing.md }}>
         You earn {payout} EGP
       </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm }}>
+        <Icon name="navigate" size={16} color={colors.accentDark} />
+        <Text style={{ flex: 1, color: colors.ink2, fontSize: font.sizes.sm }}>
+          {offer.dropoff_zone
+            ? `Drop-off area: ${formatZone(offer.dropoff_zone)}`
+            : 'Drop-off area appears when dispatch confirms it.'}
+        </Text>
+      </View>
+      <Text style={{ color: colors.ink3, fontSize: font.sizes.xs, marginTop: 4 }}>
+        The exact address and customer contact unlock after you accept.
+      </Text>
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-        <Pressable onPress={onDecline} style={{ flex: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' }}>
+        <Pressable
+          onPress={onDecline}
+          accessibilityRole="button"
+          accessibilityLabel={`Decline offer from ${offer.restaurant_name}`}
+          style={{ flex: 1, minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' }}
+        >
           <Text style={{ color: colors.red, fontWeight: '600' }}>Decline</Text>
         </Pressable>
-        <Pressable onPress={onAccept} style={{ flex: 1, backgroundColor: colors.green, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center' }}>
+        <Pressable
+          onPress={onAccept}
+          accessibilityRole="button"
+          accessibilityLabel={`Accept offer from ${offer.restaurant_name} for ${payout} EGP`}
+          style={{ flex: 1, minHeight: 48, backgroundColor: colors.green, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' }}
+        >
           <Text style={{ color: colors.white, fontWeight: '700' }}>Accept</Text>
         </Pressable>
       </View>
@@ -564,11 +623,19 @@ function OfferCard({
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <View style={{ flex: 1, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md }}>
+    <View style={{ flexGrow: 1, flexBasis: '46%', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md }}>
       <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: warn ? colors.amber : colors.ink }}>{value}</Text>
       <Text style={{ fontSize: font.sizes.xs, color: colors.ink2 }}>{label}</Text>
     </View>
   );
+}
+
+function formatZone(zone: string): string {
+  return zone
+    .split('_')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 function statusLabel(s: Job['status']): string {

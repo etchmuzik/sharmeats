@@ -2,13 +2,16 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
 import { colors, font, radius, spacing } from '../src/theme';
@@ -41,7 +44,11 @@ export default function SignIn() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.accent }}
     >
-      <View style={{ flex: 1, justifyContent: 'flex-end', paddingTop: insets.top + 40 }}>
+      <StatusBar style="light" />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', paddingTop: insets.top + 40 }}
+      >
         <View style={{ paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxl }}>
           <Text style={{ color: colors.white, fontSize: font.sizes.huge, fontWeight: '800' }}>
             Sharm Eats
@@ -65,7 +72,9 @@ export default function SignIn() {
             Sign in
           </Text>
           <Text style={{ color: colors.ink2 }}>Use the email and password from dispatch.</Text>
+          <Text style={fieldLabel}>Email address</Text>
           <TextInput
+            testID="driver-email-input"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -74,21 +83,29 @@ export default function SignIn() {
             textContentType="username"
             placeholder="driver@sharmeats.eg"
             placeholderTextColor={colors.ink3}
+            accessibilityLabel="Email address"
             style={inputStyle}
           />
+          <Text style={fieldLabel}>Password</Text>
           <TextInput
+            testID="driver-password-input"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             textContentType="password"
             placeholder="Password"
             placeholderTextColor={colors.ink3}
+            accessibilityLabel="Password"
             style={inputStyle}
             onSubmitEditing={() => email && password && submit()}
           />
           <Pressable
+            testID="driver-signin-button"
             onPress={submit}
             disabled={busy || !email || !password}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+            accessibilityState={{ disabled: busy || !email || !password, busy }}
             style={[btnStyle, (busy || !email || !password) && { opacity: 0.5 }]}
           >
             {busy ? (
@@ -99,10 +116,23 @@ export default function SignIn() {
           </Pressable>
 
           {error && (
-            <View style={{ backgroundColor: colors.redSoft, borderRadius: radius.md, padding: spacing.md }}>
+            <View accessibilityRole="alert" style={{ backgroundColor: colors.redSoft, borderRadius: radius.md, padding: spacing.md }}>
               <Text style={{ color: colors.red, fontSize: font.sizes.sm }}>{error}</Text>
             </View>
           )}
+
+          <Pressable
+            onPress={() =>
+              Linking.openURL(
+                'mailto:support@sharmeats.online?subject=Driver%20app%20access%20help',
+              )
+            }
+            accessibilityRole="link"
+            accessibilityLabel="Contact Sharm Eats support for sign-in help"
+            style={helpLink}
+          >
+            <Text style={helpLinkText}>Can’t sign in? Contact driver support</Text>
+          </Pressable>
 
           <Text style={{ marginTop: spacing.sm, fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center' }}>
             By continuing you agree to our{' '}
@@ -125,7 +155,7 @@ export default function SignIn() {
             </Text>
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -139,6 +169,25 @@ const inputStyle = {
   fontSize: font.sizes.lg,
   color: colors.ink,
   backgroundColor: colors.white,
+} as const;
+
+const fieldLabel = {
+  color: colors.ink,
+  fontSize: font.sizes.sm,
+  fontWeight: '700',
+  marginBottom: -spacing.sm,
+} as const;
+
+const helpLink = {
+  minHeight: 44,
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const;
+
+const helpLinkText = {
+  color: colors.accentDark,
+  fontSize: font.sizes.sm,
+  fontWeight: '700',
 } as const;
 
 const btnStyle = {

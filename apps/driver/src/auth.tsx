@@ -21,14 +21,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const sb = getSupabase();
-    sb.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    let mounted = true;
+    sb.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (mounted) setSession(data.session);
+      })
+      .catch(() => {
+        if (mounted) setSession(null);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
     const {
       data: { subscription },
     } = sb.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const value: AuthState = {

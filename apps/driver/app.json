@@ -2,23 +2,24 @@
   "expo": {
     "name": "Sharm Eats Driver",
     "slug": "sharmeats-driver",
-    "version": "1.0.3",
+    "version": "1.1.0",
     "orientation": "portrait",
     "scheme": "sharmeatsdriver",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0e7c91"
+    "runtimeVersion": {
+      "policy": "appVersion"
     },
+    "updates": {
+      "url": "https://u.expo.dev/85b2822a-7672-4a68-b7af-364773c5500c"
+    },
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "eg.sharmeats.driver",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location to assign nearby deliveries and share your live position with customers while you deliver."
+        "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location to assign nearby deliveries and share your live position with customers while you deliver.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "During an active delivery, Sharm Eats uses your location in the background to keep the customer informed and dispatch accurate."
       }
     },
     "android": {
@@ -29,38 +30,41 @@
       "package": "eg.sharmeats.driver",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0e7c91"
+        }
+      ],
+      [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Sharm Eats shares your live location with the customer while a delivery is in progress."
+          "locationWhenInUsePermission": "Sharm Eats uses your location to assign nearby deliveries.",
+          "locationAlwaysAndWhenInUsePermission": "During an active delivery, Sharm Eats shares your live location with the customer and dispatch even when the app is in the background.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       "expo-asset",
       "expo-notifications",
-      "./plugins/withFmtConstevalFix.js",
-      "@sentry/react-native",
       [
         "@sentry/react-native",
         {
           "organization": "beyond-mngmt",
           "project": "sharmeats-driver",
           "url": "https://sentry.io/"
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
-            "buildToolsVersion": "35.0.0"
-          }
         }
       ],
       [

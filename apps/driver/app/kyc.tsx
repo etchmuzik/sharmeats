@@ -64,7 +64,14 @@ export default function DriverKyc() {
     if (result.canceled || !result.assets?.[0]?.uri) return;
     setUploading(docType);
     try {
-      await uploadKycDocument(docType, result.assets[0].uri, Date.now());
+      const asset = result.assets[0];
+      await uploadKycDocument(
+        docType,
+        asset.uri,
+        Date.now(),
+        asset.mimeType,
+        asset.fileSize,
+      );
       await load();
     } catch (e) {
       Alert.alert('Upload failed', e instanceof Error ? e.message : 'Please try again.');
