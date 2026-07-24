@@ -30,6 +30,35 @@ const KYC_IMAGE_TYPES: Record<string, string> = {
 };
 const FRIENDLY_TYPE_ERROR = 'Please upload a JPG, PNG or WebP image (max 5 MB).';
 
+export interface ResolvedKycImage {
+  ext: 'jpg' | 'png' | 'webp';
+  contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+}
+
+/**
+ * Pure resolver: validates size + derives the storage extension/contentType
+ * for a KYC upload, or throws the friendly error. Kept side-effect free (no
+ * Supabase client) so it's unit-testable in isolation. Mirrors
+ * apps/restaurant/src/kyc.ts's validateRestaurantKycUpload — MIME first (the
+ * declared file.type), filename extension as a fallback for browsers that
+ * report an empty/generic type on <input type="file">.
+ */
+export function resolveKycImage(file: { name: string; type: string; size: number }): ResolvedKycImage {
+  if (file.size > MAX_KYC_FILE_BYTES) throw new Error(FRIENDLY_TYPE_ERROR);
+
+  const normalizedMime = (file.type || '').trim().toLowerCase();
+  let ext = KYC_IMAGE_TYPES[normalizedMime];
+  if (!ext) {
+    const nameExt = file.name.split('.').pop()?.toLowerCase();
+    const candidate = nameExt === 'jpeg' ? 'jpg' : nameExt;
+    if (candidate === 'jpg' || candidate === 'png' || candidate === 'webp') ext = candidate;
+  }
+  if (!ext) throw new Error(FRIENDLY_TYPE_ERROR);
+
+  const contentType = ext === 'jpg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : 'image/webp';
+  return { ext: ext as 'jpg' | 'png' | 'webp', contentType };
+}
+
 export async function listMyKycDocuments(
   supabase: SupabaseClient,
   restaurantId: string,
@@ -48,27 +77,14 @@ export async function uploadKycDocument(
   docType: string,
   file: File,
 ): Promise<void> {
-  if (file.size > MAX_KYC_FILE_BYTES) throw new Error(FRIENDLY_TYPE_ERROR);
-
-  // Derive the extension from the declared MIME type (normalizing jpeg→jpg);
-  // fall back to the filename's own extension for browsers that report an
-  // empty/octet-stream type. Anything outside the bucket's allowlist is
-  // rejected client-side before we ever attempt the upload.
-  const normalizedMime = (file.type || '').trim().toLowerCase();
-  let ext = KYC_IMAGE_TYPES[normalizedMime];
-  if (!ext) {
-    const nameExt = file.name.split('.').pop()?.toLowerCase();
-    const candidate = nameExt === 'jpeg' ? 'jpg' : nameExt;
-    if (candidate === 'jpg' || candidate === 'png' || candidate === 'webp') ext = candidate;
-  }
-  if (!ext) throw new Error(FRIENDLY_TYPE_ERROR);
-  const contentType = ext === 'jpg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : 'image/webp';
+  const { ext, contentType } = resolveKycImage(file);
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not signed in');
   const path = `${user.id}/restaurant-${docType}-${Date.now()}.${ext}`;
+  const bucket = supabase.storage.from('kyc');
 
-  const { error: upErr } = await supabase.storage.from('kyc').upload(path, file, {
+  const { error: upErr } = await bucket.upload(path, file, {
     contentType,
     // KYC evidence is immutable: a replacement creates a new timestamped
     // object + pending row, never overwrites bytes an admin already reviewed.
@@ -82,5 +98,11 @@ export async function uploadKycDocument(
     doc_type: docType,
     storage_path: path,
   });
-  if (insErr) throw new Error(insErr.message);
+  if (insErr) {
+    // Best-effort cleanup: the object is unindexed at this point, so
+    // kyc_delete_unindexed_own permits the owner to remove it (mirrors
+    // apps/restaurant/src/kyc.ts's bucket.remove([path]).catch(() => undefined)).
+    await bucket.remove([path]).catch(() => undefined);
+    throw new Error(insErr.message);
+  }
 }
