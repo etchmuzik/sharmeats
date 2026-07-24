@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { LegalLinks } from '../LegalLinks';
 
@@ -96,6 +97,13 @@ export default function LoginPage() {
         {notice && (
           <p className="mt-4 rounded-lg bg-greensoft px-3 py-2 text-sm text-green">{notice}</p>
         )}
+
+        <p className="mt-4 text-center text-sm text-ink2">
+          New restaurant?{' '}
+          <Link className="underline" href="/signup">
+            Partner with Sharm Eats
+          </Link>
+        </p>
 
         <LegalLinks className="mt-6" />
       </div>
