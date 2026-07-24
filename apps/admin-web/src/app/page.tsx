@@ -149,6 +149,13 @@ export default function OpsPage() {
             KYC
           </a>
           <a
+            href="/onboarding"
+            title="Approve new restaurants"
+            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            Onboarding
+          </a>
+          <a
             href="/scorecards"
             className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
           >

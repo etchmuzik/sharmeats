@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { LegalLinks } from '../LegalLinks';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const [email, setEmail] = useState('');
@@ -15,37 +15,21 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function signIn() {
+  async function signUp() {
     setBusy(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
     });
     setBusy(false);
     if (error) return setError(error.message);
-    router.replace('/');
-    router.refresh();
-  }
-
-  // Send a reset email whose link returns to /reset-password on THIS dashboard,
-  // where the recovery token is exchanged and a new password can be set. A
-  // locked-out restaurant owner can now self-recover (previously impossible).
-  async function sendReset() {
-    const addr = email.trim().toLowerCase();
-    if (!addr) {
-      setError('Enter your email first, then tap “Forgot password”.');
+    // With email confirmation ON, no session exists yet — tell them to confirm.
+    if (!data.session) {
+      setNotice('Check your inbox to confirm your email, then log in to continue your application.');
       return;
     }
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(addr, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setBusy(false);
-    if (error) return setError(error.message);
-    setNotice(`If an account exists for ${addr}, a reset link is on its way.`);
+    router.replace('/');
   }
 
   return (
@@ -53,8 +37,12 @@ export default function LoginPage() {
       <div className="w-full max-w-sm rounded-2xl border border-line bg-white p-8 shadow-sm">
         <div className="mb-6 text-center">
           <div className="text-2xl font-extrabold text-accent">Sharm Eats</div>
-          <div className="text-sm text-ink2">Merchant dashboard</div>
+          <div className="text-sm text-ink2">Partner with Sharm Eats</div>
         </div>
+
+        <p className="mb-4 text-sm text-ink2">
+          Create your account, tell us about your restaurant, and start selling after a quick review.
+        </p>
 
         <div className="space-y-3">
           <label className="block text-sm font-medium text-ink2">Email</label>
@@ -62,8 +50,8 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="owner@restaurant.com"
-            autoComplete="username"
+            placeholder="Business email"
+            autoComplete="email"
             className="w-full rounded-xl border border-line px-4 py-3 outline-none focus:border-accent"
           />
           <label className="block text-sm font-medium text-ink2">Password</label>
@@ -71,25 +59,17 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            autoComplete="current-password"
+            placeholder="Password (8+ characters)"
+            autoComplete="new-password"
             className="w-full rounded-xl border border-line px-4 py-3 outline-none focus:border-accent"
-            onKeyDown={(e) => e.key === 'Enter' && email && password && signIn()}
+            onKeyDown={(e) => e.key === 'Enter' && email && password.length >= 8 && signUp()}
           />
           <button
-            disabled={busy || !email || !password}
-            onClick={signIn}
+            disabled={busy || !email || password.length < 8}
+            onClick={signUp}
             className="w-full rounded-xl bg-accent py-3 font-semibold text-white disabled:opacity-50"
           >
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={sendReset}
-            className="w-full text-center text-sm font-medium text-ink2 hover:text-accent disabled:opacity-50"
-          >
-            Forgot password?
+            {busy ? 'Creating account…' : 'Create account'}
           </button>
         </div>
 
@@ -98,11 +78,8 @@ export default function LoginPage() {
           <p className="mt-4 rounded-lg bg-greensoft px-3 py-2 text-sm text-green">{notice}</p>
         )}
 
-        <p className="mt-4 text-center text-sm text-ink2">
-          New restaurant?{' '}
-          <Link className="underline" href="/signup">
-            Partner with Sharm Eats
-          </Link>
+        <p className="mt-6 text-center text-sm text-ink2">
+          Already a partner? <Link className="font-medium text-accent hover:underline" href="/login">Log in</Link>
         </p>
 
         <LegalLinks className="mt-6" />

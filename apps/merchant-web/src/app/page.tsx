@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { MerchantContext, MerchantOrder } from '@/lib/types';
@@ -11,10 +12,14 @@ import { TierStatusCard } from './TierStatusCard';
 import { StatementsCard } from './StatementsCard';
 import { TodayStrip } from './TodayStrip';
 import { LegalLinks } from './LegalLinks';
+import { Wizard } from './onboarding/Wizard';
+import { ApplicationStatus } from './onboarding/ApplicationStatus';
+import { resolveOnboardingPhase, type StaffOnboardingRow } from '@/lib/onboarding';
 
 type Phase =
   | { state: 'loading' }
-  | { state: 'no-restaurant' }
+  | { state: 'apply' } // no merchant_staff link yet → onboarding wizard
+  | { state: 'pending'; staff: StaffOnboardingRow; sub: 'submitted' | 'rejected' }
   | { state: 'error' } // [H-BIZ1] transient fetch failure — retry, not "no restaurant"
   | { state: 'ready'; ctx: MerchantContext; initialOrders: MerchantOrder[] };
 
@@ -52,7 +57,9 @@ export default function DashboardPage() {
       // Resolve which merchant this staffer belongs to (RLS-scoped).
       const { data: staffRows, error: staffErr } = await supabase
         .from('merchant_staff')
-        .select('restaurant_id, staff_role, restaurants(name, is_open)')
+        .select(
+          'restaurant_id, staff_role, restaurants(name, is_open, onboarding_status, onboarding_rejection_reason)',
+        )
         .limit(1);
 
       if (cancelled) return;
@@ -71,12 +78,23 @@ export default function DashboardPage() {
         | {
             restaurant_id: string;
             staff_role: string;
-            restaurants: { name: string; is_open: boolean };
+            restaurants: {
+              name: string;
+              is_open: boolean;
+              onboarding_status: string;
+              onboarding_rejection_reason: string | null;
+            };
           }
         | undefined;
 
       if (!staff) {
-        setPhase({ state: 'no-restaurant' });
+        setPhase({ state: 'apply' });
+        return;
+      }
+
+      const onboarding = resolveOnboardingPhase(staff as unknown as StaffOnboardingRow);
+      if (onboarding === 'submitted' || onboarding === 'rejected') {
+        setPhase({ state: 'pending', staff: staff as unknown as StaffOnboardingRow, sub: onboarding });
         return;
       }
 
@@ -141,21 +159,12 @@ export default function DashboardPage() {
     );
   }
 
-  if (phase.state === 'no-restaurant') {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-bg px-4 text-center">
-        <div className="max-w-md">
-          <h1 className="text-xl font-bold">No restaurant linked</h1>
-          <p className="mt-2 text-ink2">
-            Your account is not yet linked to a restaurant. Ask the Sharm Eats team to add you as
-            staff.
-          </p>
-          <div className="mt-6">
-            <SignOutButton />
-          </div>
-        </div>
-      </main>
-    );
+  if (phase.state === 'apply') {
+    return <Wizard onSubmitted={() => setReloadKey((k) => k + 1)} />;
+  }
+
+  if (phase.state === 'pending') {
+    return <ApplicationStatus staff={phase.staff} phase={phase.sub} />;
   }
 
   const { ctx, initialOrders } = phase;
@@ -199,6 +208,7 @@ export default function DashboardPage() {
           >
             {togglingOpen ? '…' : isOpen ? 'Open · tap to pause' : 'Closed · tap to open'}
           </button>
+          <Link className="rounded-lg border px-3 py-1 text-sm font-bold" href="/menu">Menu</Link>
           <SignOutButton />
         </div>
       </header>

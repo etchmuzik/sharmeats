@@ -49,6 +49,7 @@ export interface Dictionary {
   partner_t: string;
   partner_b: string;
   partner_cta: string;
+  partner_email: string;
   drv_k: string;
   drv_t: string;
   drv_b: string;
@@ -107,7 +108,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     w3b: "Fifty kitchens we visit and trust, not five hundred we've never seen. Every menu translated by humans, with clear allergen flags.",
     partner_k: 'For restaurants', partner_t: 'Put your kitchen on Sharm Eats.',
     partner_b: 'Start selling with a browser — a full merchant portal, no hardware to buy. Three-lane kitchen queue, same-day menu onboarding, commission discounts for top partners.',
-    partner_cta: 'Write to us',
+    partner_cta: 'Add your restaurant',
+    partner_email: 'or email hello@sharmeats.online',
     drv_k: 'For drivers', drv_t: 'Drive with Sharm Eats.',
     drv_b: 'Work when you want — offers come to the nearest driver. Keep 100% of your tips, and Silver & Gold tiers add 5–10 EGP on every delivery.',
     drv_cta: 'Apply on WhatsApp',
@@ -147,7 +149,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     w3b: 'خمسين مطبخ بنزورهم وواثقين فيهم، مش خمسمية عمرنا ما شفناهم. كل منيو مترجم بإيد بشر، ومسببات الحساسية متعلّمة بوضوح.',
     partner_k: 'للمطاعم', partner_t: 'حط مطبخك على شارم إيتس.',
     partner_b: 'ابدأ البيع من المتصفح — بورتال كامل للتاجر من غير أي أجهزة تشتريها. طابور مطبخ بتلات خانات، والمنيو بيطلع لايف في نفس اليوم، وأحسن الشركاء بياخدوا خصم على العمولة.',
-    partner_cta: 'راسلنا',
+    partner_cta: 'سجّل مطعمك',
+    partner_email: 'أو راسلنا على hello@sharmeats.online',
     drv_k: 'للطيارين', drv_t: 'اشتغل مع شارم إيتس.',
     drv_b: 'اشتغل وقت ما تحب — الطلبات بتيجي لأقرب طيار. البقشيش كله ليك 100%، ومستويات السيلفر والجولد بتزوّد 5–10 جنيه على كل توصيلة.',
     drv_cta: 'قدّم على واتساب',
@@ -187,7 +190,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     w3b: 'Пятьдесят кухонь, которые мы знаем лично, а не пятьсот, которых никогда не видели. Меню переведены людьми, аллергены отмечены.',
     partner_k: 'Ресторанам', partner_t: 'Подключите свою кухню к Sharm Eats.',
     partner_b: 'Продавайте через браузер — полный портал партнёра, без оборудования. Очередь заказов в три колонки, меню публикуется в тот же день, лучшие партнёры получают скидку на комиссию.',
-    partner_cta: 'Написать нам',
+    partner_cta: 'Подключить ресторан',
+    partner_email: 'или напишите на hello@sharmeats.online',
     drv_k: 'Курьерам', drv_t: 'Работайте с Sharm Eats.',
     drv_b: 'Работайте когда хотите — заказы приходят ближайшему курьеру. 100% чаевых ваши, а уровни Silver и Gold добавляют 5–10 EGP к каждой доставке.',
     drv_cta: 'Написать в WhatsApp',
@@ -227,7 +231,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     w3b: 'Cinquanta cucine che visitiamo e di cui ci fidiamo, non cinquecento mai viste. Menu tradotti da persone, allergeni ben segnalati.',
     partner_k: 'Per i ristoranti', partner_t: 'Porta la tua cucina su Sharm Eats.',
     partner_b: 'Vendi da un browser — portale partner completo, nessun hardware da comprare. Coda cucina a tre corsie, menu online in giornata, sconti sulla commissione per i migliori partner.',
-    partner_cta: 'Scrivici',
+    partner_cta: 'Aggiungi il tuo ristorante',
+    partner_email: 'o scrivi a hello@sharmeats.online',
     drv_k: 'Per i rider', drv_t: 'Guida con Sharm Eats.',
     drv_b: 'Lavora quando vuoi — gli ordini arrivano al rider più vicino. Il 100% delle mance è tuo, e i livelli Silver e Gold aggiungono 5–10 EGP a ogni consegna.',
     drv_cta: 'Scrivici su WhatsApp',
@@ -267,7 +272,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     w3b: 'Fünfzig Küchen, die wir besuchen und denen wir vertrauen — nicht fünfhundert, die wir nie gesehen haben. Menüs von Menschen übersetzt, Allergene klar markiert.',
     partner_k: 'Für Restaurants', partner_t: 'Bring deine Küche auf Sharm Eats.',
     partner_b: 'Verkaufe direkt im Browser — volles Partner-Portal, keine Hardware nötig. Drei-Spuren-Küchenboard, Menü noch am selben Tag online, Kommissionsrabatt für Top-Partner.',
-    partner_cta: 'Schreib uns',
+    partner_cta: 'Restaurant hinzufügen',
+    partner_email: 'oder schreib an hello@sharmeats.online',
     drv_k: 'Für Fahrer', drv_t: 'Fahr mit Sharm Eats.',
     drv_b: 'Arbeite, wann du willst — Aufträge kommen zum nächsten Fahrer. 100% deiner Trinkgelder bleiben bei dir, Silver- und Gold-Stufen bringen 5–10 EGP extra pro Lieferung.',
     drv_cta: 'Auf WhatsApp bewerben',

@@ -2058,6 +2058,8 @@ export type Database = {
           logo: string | null
           min_order_egp: number
           name: string
+          onboarding_rejection_reason: string | null
+          onboarding_status: string
           payout_bank_name: string | null
           payout_holder: string | null
           payout_iban: string | null
@@ -2071,6 +2073,8 @@ export type Database = {
           rating: number
           rating_count: number
           slug: string
+          terms_accepted_at: string | null
+          terms_version: string | null
           tourist_safe: boolean
           updated_at: string
           vertical_id: string | null
@@ -2099,6 +2103,8 @@ export type Database = {
           logo?: string | null
           min_order_egp?: number
           name: string
+          onboarding_rejection_reason?: string | null
+          onboarding_status?: string
           payout_bank_name?: string | null
           payout_holder?: string | null
           payout_iban?: string | null
@@ -2112,6 +2118,8 @@ export type Database = {
           rating?: number
           rating_count?: number
           slug: string
+          terms_accepted_at?: string | null
+          terms_version?: string | null
           tourist_safe?: boolean
           updated_at?: string
           vertical_id?: string | null
@@ -2140,6 +2148,8 @@ export type Database = {
           logo?: string | null
           min_order_egp?: number
           name?: string
+          onboarding_rejection_reason?: string | null
+          onboarding_status?: string
           payout_bank_name?: string | null
           payout_holder?: string | null
           payout_iban?: string | null
@@ -2153,6 +2163,8 @@ export type Database = {
           rating?: number
           rating_count?: number
           slug?: string
+          terms_accepted_at?: string | null
+          terms_version?: string | null
           tourist_safe?: boolean
           updated_at?: string
           vertical_id?: string | null
@@ -2671,6 +2683,10 @@ export type Database = {
           id: string
         }[]
       }
+      admin_set_commission: {
+        Args: { p_pct: number; p_restaurant_id: string }
+        Returns: undefined
+      }
       admin_update_restaurant: {
         Args: {
           p_cover_image: string
@@ -2717,6 +2733,32 @@ export type Database = {
         }[]
       }
       anonymize_my_account: { Args: never; Returns: undefined }
+      apply_as_restaurant: {
+        Args: {
+          p_address: string
+          p_cuisines: Database["public"]["Enums"]["cuisine_type"][]
+          p_description: string
+          p_is_open_24h: boolean
+          p_lat: number
+          p_lng: number
+          p_name: string
+          p_payout_bank_name: string
+          p_payout_holder: string
+          p_payout_iban: string
+          p_payout_method: string
+          p_payout_wallet: string
+          p_phone: string
+          p_prep_high: number
+          p_prep_low: number
+          p_terms_version: string
+          p_zone: Database["public"]["Enums"]["zone_type"]
+        }
+        Returns: string
+      }
+      approve_restaurant: {
+        Args: { p_decision: string; p_reason?: string; p_restaurant_id: string }
+        Returns: undefined
+      }
       assign_driver: {
         Args: { p_driver_id: string; p_order_id: string }
         Returns: undefined
@@ -3095,6 +3137,8 @@ export type Database = {
         }[]
       }
       ops_alert: { Args: { p_text: string }; Returns: undefined }
+      ops_daily_digest: { Args: never; Returns: undefined }
+      ops_stats_text: { Args: { p_scope: string }; Returns: string }
       place_order: {
         Args: {
           p_address_id: string

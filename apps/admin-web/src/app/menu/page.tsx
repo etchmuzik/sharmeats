@@ -31,6 +31,16 @@ export default function MenuPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Preselect from ?restaurant=<id> (onboarding queue's "Seed menu" link).
+  // Reads window.location.search directly in a mount effect rather than
+  // next/navigation's useSearchParams — this is a client-only static export,
+  // and useSearchParams requires a <Suspense> boundary at build time that the
+  // rest of this app doesn't use.
+  useEffect(() => {
+    const preselect = new URLSearchParams(window.location.search).get('restaurant');
+    if (preselect) setSelectedId(preselect);
+  }, []);
+
   const loadRestaurants = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase

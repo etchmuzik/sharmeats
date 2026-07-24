@@ -57,3 +57,30 @@ export interface MerchantContext {
   isOpen: boolean;
   staffRole: string;
 }
+
+// Menu editor types — mirrored from admin-web (menu/MenuManager port, Task 8)
+export const ITEM_FLAGS = [
+  'vegetarian', 'vegan', 'contains_pork', 'contains_alcohol',
+  'contains_nuts', 'spicy', 'glutenfree',
+] as const;
+export type ItemFlag = (typeof ITEM_FLAGS)[number];
+
+export interface MenuSection {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  sort_order: number;
+}
+
+export interface MenuItem {
+  id: string;
+  restaurant_id: string;
+  section_id: string;
+  name: string;
+  description: string;
+  price_egp: number;
+  image: string;
+  flags: ItemFlag[];
+  is_available: boolean;
+  sort_order: number;
+}
