@@ -1,0 +1,44 @@
+# Sharm Eats — Lean Audit + Fix Prompts
+
+> **⚠️ STALE NUMBERS — written ~2026-07-05.** "New migration ≥087 (max is 086)"
+> is outdated: local migrations now run through **122**. Check the real chain max
+> and `docs/AUDIT-REPORT-2026-07-24.md` before reuse.
+
+Paste into Claude Code at repo root, Supabase MCP on (project `ilqpsebcfbaoaogimhud`).
+
+## ═══ AUDIT (read-only) ═══
+
+Staff-level auditor. **Sharm Eats**: live 4-surface delivery app (customer/driver/restaurant = Expo; merchant-web/admin-web = Next.js), one Supabase backend, real money (Paymob card + COD). Adversarial, evidence-based.
+
+**Rules:** READ-ONLY — no edits/writes/deploys; `execute_sql` = SELECT/EXPLAIN only. Every finding cites `file:line` / migration / query / advisor-lint / log. Verify LIVE (running DB is truth; flag drift vs `supabase/migrations/*` + `packages/db-types`). Don't re-report known-deferred items in `docs/PLATFORM-GAPS.md` (do report regressions). No secrets/PII.
+
+**Invariants to confirm hold:** ① `place_order` recomputes all money server-side, ignores client total; ② `advance_order_status` = only `orders.status` writer, role-gated; ③ authority cols (status/financials/credit/loyalty/assignment) have NO client UPDATE grant; ④ RLS per role (customer/driver/merchant_staff/dispatcher/admin/guest); ⑤ Paymob webhook HMAC-verified + idempotent; ⑥ money = int/numeric, never float.
+
+**State machine:** pending→placed→accepted→preparing→ready→picked_up→out_for_delivery→delivered; terminal cancelled/rejected/refunded/failed. Extract real table from `advance_order_status`.
+
+**Phase 0:** `list_migrations`/`list_tables`/`list_edge_functions`/`list_extensions`; diff vs source; run `get_advisors` security + performance; scan `get_logs`.
+
+**Then check (cite evidence):**
+- **Logic/money:** price recompute; `place_order` idempotent + per-user serialize (031/036/082); ledgers conserve (credit_ledger→balance; loyalty_points_ledger→balances, 051); redeem no over/double/replay (049/061); auto-10% late credit actually fires (062); commission snapshot immutable; promo caps/entropy/owner-bind (047/058); **COD fraud caps enforced inside place_order** (065).
+- **Lifecycle/dispatch:** no illegal skips, role-gated; status sole-writer (037/081); terminal releases driver (054); 2-drivers-accept race → 1 winner (056); sweeps/auto-accept/reoffer can't loop/strand (025/026/039/060); watchdog alerts a human (066); driver_ping throttled (032).
+- **Schema:** FKs + delete-cascade no orphans (022/023); money types; timestamptz + updated_at triggers; enums match apps; indexes on FKs/realtime/`orders(status)`/geo; invariant unique constraints; live == migrations (note dup `026_*`).
+- **RLS/authz (top severity):** every user table RLS-ENABLED + policy (advisor `rls_disabled`); prove isolation via `execute_sql` per role (A can't see B; merchant scoping; driver sees only assigned; guest scoped); authority cols not writable (037/053/052/081); SECURITY DEFINER pins search_path + rechecks role; support/message forgery stays closed (072); KYC storage private (076); realtime respects RLS.
+- **Notifications/push:** build event×recipient×language coverage matrix, find holes (040/068/070/071/073); fanout→`expo-push` auth by Vault secret (034/035/038), not client-callable; expo-push prunes DeviceNotRegistered, batches, retries, no PII; push failure isolated from txn; no dup/missed; token lifecycle on logout + delete; copy localized EN/AR/RU/IT/DE + RTL.
+- **Payments:** intention amount server-side; webhook HMAC (`verify.ts`/`verify.test.ts`) + idempotent; card guards + `reconcile_stale_card_orders` (033) cover lost/failed/refunded/abandoned; `mark_cod_collected` authorized + amount-validated (029) + single-call; EGP charged, foreign currency display-only.
+- **Realtime:** publication (013/056) matches subscriptions, nothing sensitive over-published; GPS via Broadcast not write-storm; apps reconnect/backfill.
+- **Apps ×4:** no client-invented money/status; every screen handles all terminal + loading/empty/error/offline; guest isolated; i18n complete + real RTL; only anon key client-side (grep service-role); `EXPO_PUBLIC_USE_SUPABASE=true` in prod (no mock); Sentry + OTA gate.
+- **Design/UX** (source of truth `apps/customer/src/theme.ts`; mirrored driver; web/landing Tailwind; `packages/tokens`): tokens NOT drifted across those 4 (grep hard-coded hex/px outside theme/tokens/tailwind); color strategy holds — coral `#ff5a3c` = ≤~10% action accent only (not decoration), teal `#0e7c91` = trust/track/verify/info only, neutrals never pure white/black, `accentGlow` on primary CTA/hero only; hierarchy via weight×scale not color, adjacent type sizes not stacked (steps ≥1.25), prices/titles extrabold/black; Arabic uses Cairo + Eastern-Arabic numerals in AR price/address, Latin in EN; **RTL mirrors layout, not translated LTR** (`dir=rtl` only on AR wrappers); motion ease-out, no bounce/elastic, animate transform/opacity not layout; haptics purposeful (add-to-cart/place-order/pin); reuse components (PrimaryButton/BackButton/QuantityStepper/ModifierGroup/FlagBadge/AllergyChipRow), MV no-ViewModels (logic in `src/data`+`src/store`, not components). **Grep the absolute bans:** no side-stripe borders, gradient text, glassmorphism, hero-metric template, identical-card-grid monotony, modal-as-first-thought, em dashes in copy. **Brand (PRODUCT.md):** warm-coastal not generic-delivery-clone; guest-first (core flow never gated); tourist-legible (zones/currency/hotel-handoff obvious); appetite(coral)⇄trust(teal) balanced. **UX heuristics:** feedback on every action, branded (not blank) empty/loading/skeleton states, WCAG-AA contrast on ink/accent over sand, touch targets ≥44pt (driver bigger), one-handed reach for primary actions. **Delight pass (PR #43):** animations ease-out (no bounce/elastic); haptics purposeful; **reconcile "Sunny" mascot + order-placed celebration with PRODUCT.md anti-refs ("no mascots/bouncy anim/confetti") — intentional documented evolution vs drift; celebration ≠ confetti**; onboarding COD-trust slide + empty states + celebration copy localized ×5 + RTL.
+- **Ops:** cron sweeps scheduled + not silently failing (084, logs, ops_alert); edge fns log + correct codes; perf advisors triaged (EXPLAIN dispatch/order-list); backup/PITR noted; **CI billing-locked — GitHub Actions instant-fails; merges ride on local tsc + tests + review, not CI**; **EAS OTA: main ahead of users — delight pass not live until `eas update` pushed; verify runtimeVersion + force-update gate**.
+- **Compliance (EG):** UI auto-late-credit promise == code (CPL 181/2018); `anonymize_my_account` truly removes PII + reachable; VAT (075) consistent.
+
+**Severity:** P0 = data leak / broken authz / money-loss/double-charge/negative-balance / forgeable-or-non-idempotent webhook / legal liability / order-strand. P1 = bounded-wrong money / missing-dup notifications / silent sweep failure / missing index at scale. P2 = hardening. Confidence: Verified/Strong/Inferred.
+
+**Write `docs/AUDIT-REPORT-<date>.md`:** exec summary + invariants ✅/❌; findings table (ID·Sev·Dim·Title·Evidence·Impact·Fix-sketch·Confidence, P0→P2); per-finding detail (fix *sketch* only); real transition matrix; notification coverage matrix; RLS coverage table; live-vs-source drift; advisor triage; "couldn't verify"; 1-line verdict. **Begin Phase 0. Modify nothing.**
+
+## ═══ FIX (second, separate session) ═══
+
+Senior engineer. Read `docs/AUDIT-REPORT-<date>.md`. Fix **only approved finding IDs** (else propose P0-first plan and STOP for approval before editing).
+
+**Rules:** 1 finding = 1 branch (`fix/<id>-<slug>` off main) = 1 commit w/ ID; no scope creep. DB forward-only: **new migration ≥087** (max is 086; avoid `026_*` collision), idempotent + note rollback; never edit applied migrations. Test on Supabase dev branch (`create_branch`→`apply_migration`→verify `execute_sql`/`get_advisors`); **no prod push/merge without explicit confirm** — hand the human the apply command. Never weaken RLS / grant authority-col writes / drop idempotency / expose service-role. New RPCs SECURITY DEFINER + pinned search_path. Preserve the 6 invariants. After schema change: `npm run db:types` + sync 4 apps; localize new strings ×5 + RTL. Test-first (money/promo/loyalty/webhook must ship a test). UI fixes: tokens only (no hard-coded hex/px), reuse components, obey DESIGN.md absolute bans. Uncertain on money/auth/payments → stop and ask.
+
+**Per fix:** restate (cause/invariant) → minimal plan + rollback (👍 if P0/money/auth/payments) → branch → test-first then implement → verify on dev branch (re-run originating check before❌/after✅ + advisors clean) → sync types/apps/i18n → commit + PR body (finding, cause, fix, files/migration#, invariants preserved+how, verification, rollback, prod-apply cmd). Pause for next; never batch. **FINAL:** table finding→branch→status→verification + safe-to-ship verdict per branch.
