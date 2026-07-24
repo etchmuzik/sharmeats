@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { MerchantContext, MerchantOrder } from '@/lib/types';
@@ -207,6 +208,7 @@ export default function DashboardPage() {
           >
             {togglingOpen ? '…' : isOpen ? 'Open · tap to pause' : 'Closed · tap to open'}
           </button>
+          <Link className="rounded-lg border px-3 py-1 text-sm font-bold" href="/menu">Menu</Link>
           <SignOutButton />
         </div>
       </header>

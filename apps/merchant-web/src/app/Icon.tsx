@@ -8,7 +8,8 @@
  *
  * Stroke icons use currentColor, so set color via the parent's text color.
  */
-type IconName = 'location' | 'scooter' | 'star' | 'check' | 'x' | 'clock' | 'utensils';
+// 'plus' | 'trash' | 'edit' — mirrored from admin-web (menu/MenuManager port, Task 8)
+type IconName = 'location' | 'scooter' | 'star' | 'check' | 'x' | 'clock' | 'utensils' | 'plus' | 'trash' | 'edit';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   location: (
@@ -38,6 +39,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M5 3v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M7 12v9" />
       <path d="M17 3c-1.7 0-3 2-3 4.5S15.3 12 17 12v9" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+  trash: (
+    <>
+      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
     </>
   ),
 };
