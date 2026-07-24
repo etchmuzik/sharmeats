@@ -19,6 +19,7 @@ expo-env.d.ts
 /apps/*/ios/
 /apps/*/android/
 .previews/
+.maestro/artifacts/
 # Supabase CLI scratch
 supabase/.temp/
 # Build artifacts — signed binaries and deploy bundles must never be committed
@@ -45,3 +46,7 @@ new style/
 .superpowers/
 __pycache__/
 *.pyc
+
+# Agent-session debris (screenshots, page snapshots) — never commit.
+output/
+.playwright-cli/

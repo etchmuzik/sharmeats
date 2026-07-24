@@ -1,0 +1,17 @@
+appId: eg.sharmeats.restaurant
+name: Restaurant login screen smoke
+tags:
+  - smoke
+  - restaurant
+  - boot
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: restaurant-email-input
+    timeout: 15000
+- assertVisible:
+    id: restaurant-password-input
+- assertVisible:
+    id: restaurant-signin-button

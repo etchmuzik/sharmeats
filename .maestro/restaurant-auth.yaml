@@ -1,0 +1,31 @@
+appId: eg.sharmeats.restaurant
+name: Restaurant authentication and KYC smoke
+tags:
+  - smoke
+  - restaurant
+  - authenticated
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: restaurant-email-input
+    timeout: 15000
+- tapOn:
+    id: restaurant-email-input
+- inputText: ${RESTAURANT_E2E_EMAIL}
+- tapOn:
+    id: restaurant-password-input
+- inputText: ${RESTAURANT_E2E_PASSWORD}
+- tapOn:
+    id: restaurant-signin-button
+- extendedWaitUntil:
+    visible: "Verification documents"
+    timeout: 20000
+- tapOn: "Verification documents"
+- extendedWaitUntil:
+    visible: "Commercial registration"
+    timeout: 20000
+- assertVisible: "Tax card"
+- assertVisible: "Food licence"
+- takeScreenshot: .maestro/artifacts/restaurant-kyc

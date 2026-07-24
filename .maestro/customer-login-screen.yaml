@@ -1,0 +1,16 @@
+appId: eg.sharmeats.customer
+name: Customer login screen smoke
+tags:
+  - smoke
+  - customer
+  - boot
+---
+- launchApp:
+    clearState: true
+- openLink: sharmeats://signin
+- extendedWaitUntil:
+    visible:
+      id: customer-phone-input
+    timeout: 15000
+- assertVisible:
+    id: customer-send-otp

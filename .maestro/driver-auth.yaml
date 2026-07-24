@@ -1,0 +1,31 @@
+appId: eg.sharmeats.driver
+name: Driver authentication and KYC smoke
+tags:
+  - smoke
+  - driver
+  - authenticated
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: driver-email-input
+    timeout: 15000
+- tapOn:
+    id: driver-email-input
+- inputText: ${DRIVER_E2E_EMAIL}
+- tapOn:
+    id: driver-password-input
+- inputText: ${DRIVER_E2E_PASSWORD}
+- tapOn:
+    id: driver-signin-button
+- extendedWaitUntil:
+    visible: "Verification documents"
+    timeout: 20000
+- tapOn: "Verification documents"
+- extendedWaitUntil:
+    visible: "National ID"
+    timeout: 20000
+- assertVisible: "Driving licence"
+- assertVisible: "Vehicle registration"
+- takeScreenshot: .maestro/artifacts/driver-kyc

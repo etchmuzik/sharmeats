@@ -2,8 +2,8 @@ name: CI
 
 # Runs typecheck (all surfaces), tests, and lint (where present) on every PR and
 # push to main. Each app installs independently (its own lockfile), so we matrix
-# per surface and run only the checks that surface actually defines — a missing
-# `test`/`lint` script is skipped, not failed.
+# per surface. Mobile typecheck/test scripts are mandatory and their Expo SDK
+# compatibility is checked; optional checks remain optional for other surfaces.
 on:
   push:
     branches: [main]
@@ -34,16 +34,28 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: ${{ matrix.surface }}/package-lock.json
 
-      - name: Install
+      - name: Install mobile app (lockfile exact)
+        if: contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface)
+        working-directory: ${{ matrix.surface }}
+        run: npm ci
+
+      - name: Install non-mobile surface
+        if: ${{ !contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface) }}
         working-directory: ${{ matrix.surface }}
         # Prefer a clean, lockfile-exact install; fall back to `npm install` for
         # any surface whose lockfile has drifted (keeps CI unblocking, not silent
         # — the fallback is logged).
         run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
+
+      - name: Require mobile quality scripts
+        if: contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface)
+        working-directory: ${{ matrix.surface }}
+        run: |
+          node -e "const s=require('./package.json').scripts ?? {}; for (const n of ['typecheck','test']) if (!s[n]) throw new Error('Missing required script: '+n)"
 
       - name: Typecheck
         working-directory: ${{ matrix.surface }}
@@ -56,6 +68,11 @@ jobs:
       - name: Lint
         working-directory: ${{ matrix.surface }}
         run: npm run lint --if-present
+
+      - name: Expo compatibility
+        if: contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface)
+        working-directory: ${{ matrix.surface }}
+        run: npx --yes expo-doctor@1.20.1
 
   # Edge functions run on Deno, not Node — test them separately.
   edge-functions:
@@ -73,3 +90,13 @@ jobs:
         run: deno check supabase/functions/
       - name: Test edge functions
         run: deno test --permit-no-files supabase/functions/
+
+  database-security-migrations:
+    name: database security migrations (postgres)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify PostgreSQL test runtime
+        run: pg_config --version
+      - name: Test payment and KYC migrations in isolation
+        run: ./scripts/test-security-migrations.sh

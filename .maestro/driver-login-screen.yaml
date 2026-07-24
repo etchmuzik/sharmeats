@@ -1,0 +1,17 @@
+appId: eg.sharmeats.driver
+name: Driver login screen smoke
+tags:
+  - smoke
+  - driver
+  - boot
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: driver-email-input
+    timeout: 15000
+- assertVisible:
+    id: driver-password-input
+- assertVisible:
+    id: driver-signin-button

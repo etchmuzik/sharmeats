@@ -12,18 +12,19 @@ and action; Red Sea teal signals trust and calm. **Two-accent system** — coral
 (`accent`) and teal (`sea`) are both first-class; most other hues are status only.
 
 ### Neutrals (warm, sand-tinted — never pure white/black)
-- `bg` `#fafaf7` — app background (warm off-white)
-- `bgSoft` `#f5f0e1`, `bgSoft2` `#fbf6e8` — raised/inset warm surfaces
-- `sand` `#f3ead7`, `sand2` `#ebe0c5` — section bands, chips
-- `ink` `#0a0a0c` — primary text (near-black, faintly warm)
-- `ink2` `#5b5b66` — secondary text
-- `ink3` `#9494a0` — tertiary / placeholder
+- `bg` `#faf9f6` — app background (warm off-white)
+- `bgSoft` `#f2efea`, `bgSoft2` `#f6f2ec` — raised/inset warm surfaces
+- `sand` `#eee8de`, `sand2` `#e4dccf` — section bands, chips
+- `ink` `#141210` — primary text (near-black, faintly warm)
+- `ink2` `#554f49` — secondary text, 7.9:1 on cards
+- `ink3` `#706a64` — tertiary / placeholder, 5.2:1 on cards
 - `line` `#e8e3d4`, `line2` `#dad3bf` — borders/dividers (sand-tinted)
-- `white` `#ffffff` — cards/inputs only (the one true white, on warm bg)
+- `white` `#fffdfa` — cards/inputs only (warm near-white, never pure white)
 
 ### Accents (the two carriers)
-- `accent` `#ff5a3c` (coral) — primary CTAs, active nav, food energy, selection.
-  `accentDark` `#e8482b` (pressed), `accentSoft` `#ffeae4` (tint backgrounds).
+- `accent` `#c8452f` (coral) — primary CTAs, active nav, food energy, selection;
+  it keeps white button text at WCAG AA contrast.
+  `accentDark` `#963222` (pressed), `accentSoft` `#fbeae4` (tint backgrounds).
 - `sea` `#0e7c91` (Red Sea teal) — trust, tracking, verification, info, the
   driver app's identity color. `seaSoft` `#dff0f3` (tint).
 
@@ -45,8 +46,8 @@ Food photography supplies the saturation; the chrome stays calm so food pops.
 
 - Apps: system font (SF Pro on iOS) for UI; **Cairo** for Arabic. Landing uses
   Sora (display) / Plus Jakarta Sans (UI) / Cairo (Arabic).
-- Scale (`font.sizes`, in pt): base `13`, lg `14`, xl `15`, 2xl `16`, up through
-  display 9xl `32` / 10xl `38` / 11xl `48`. Steps are fine-grained — when
+- Scale (`font.sizes`, in pt): xs `12`, base `15`, lg `16`, xl `17`, 2xl `18`,
+  up through display 9xl `34` / 10xl `40` / 11xl `48`. Steps are fine-grained — when
   building hierarchy pick steps ≥1.25 apart (e.g. body `15` → heading `22`/`28`),
   don't stack adjacent sizes.
 - Weights: `regular 400` body, `semibold 600`/`bold 700` labels+headings,

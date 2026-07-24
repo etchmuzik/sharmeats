@@ -1,0 +1,32 @@
+appId: eg.sharmeats.customer
+name: Customer authentication smoke
+tags:
+  - smoke
+  - customer
+  - authenticated
+---
+- launchApp:
+    clearState: true
+- openLink: sharmeats://signin
+- extendedWaitUntil:
+    visible:
+      id: customer-phone-input
+    timeout: 15000
+- tapOn:
+    id: customer-phone-input
+- eraseText
+- inputText: ${CUSTOMER_E2E_PHONE}
+- tapOn:
+    id: customer-send-otp
+- extendedWaitUntil:
+    visible:
+      id: customer-otp-input
+    timeout: 20000
+- tapOn:
+    id: customer-otp-input
+- inputText: ${CUSTOMER_E2E_OTP}
+- extendedWaitUntil:
+    notVisible:
+      id: customer-otp-input
+    timeout: 20000
+- takeScreenshot: .maestro/artifacts/customer-authenticated
