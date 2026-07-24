@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 19.0.0",
+    "version": ">= 21.2.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -10,6 +10,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "ios": {
         "simulator": false
       },
@@ -19,15 +20,13 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ilqpsebcfbaoaogimhud.supabase.co",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "SENTRY_ORG": "beyond-mngmt",
         "SENTRY_PROJECT": "sharmeats-restaurant",
         "EXPO_PUBLIC_SENTRY_DSN": "https://efe6f29125932a80d59aab8dac67cd66@o4509518072512512.ingest.de.sentry.io/4511775715098704"
-      },
-      "ios": {
-        "image": "macos-sequoia-15.6-xcode-26.2"
       },
       "android": {
         "buildType": "app-bundle"

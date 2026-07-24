@@ -199,7 +199,7 @@ export default function Chat() {
                         {m.body}
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 10, color: colors.ink3, marginTop: 2, marginHorizontal: spacing.sm }}>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, marginTop: 2, marginHorizontal: spacing.sm }}>
                       {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </View>

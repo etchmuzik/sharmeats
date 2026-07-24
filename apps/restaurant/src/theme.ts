@@ -9,7 +9,7 @@ export const colors = {
   sand: '#f3ead7',
   ink: '#0a0a0c',
   ink2: '#5b5b66',
-  ink3: '#9494a0',
+  ink3: '#6b6770',
   line: '#e8e3d4',
   accent: '#7a3cff', // violet — restaurant primary
   accentDark: '#5b26cc',
@@ -23,7 +23,7 @@ export const colors = {
   amber: '#b8791a',
   amberSoft: '#fbf2dd',
   star: '#e8a317',
-  white: '#ffffff',
+  white: '#fffdfa',
 } as const;
 
 export const spacing = {

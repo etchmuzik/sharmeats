@@ -3,9 +3,11 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  ScrollView,
+  SectionList,
+  StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -45,6 +47,7 @@ const MUTE_KEY = 'chime:muted';
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -258,6 +261,16 @@ export default function Home() {
     () => orders.filter((o) => ['ready', 'picked_up', 'out_for_delivery'].includes(o.status)),
     [orders],
   );
+  const compactHeader = width < 560;
+  const queueSections = useMemo(
+    () =>
+      [
+        { key: 'new' as const, title: 'New', accent: true, data: incoming },
+        { key: 'kitchen' as const, title: 'In kitchen', accent: false, data: inKitchen },
+        { key: 'ready' as const, title: 'Ready / picked up', accent: false, data: ready },
+      ].filter((section) => section.data.length > 0),
+    [incoming, inKitchen, ready],
+  );
 
   if (loading) {
     return (
@@ -312,38 +325,46 @@ export default function Home() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Header */}
-      <View
-        style={{
-          paddingTop: insets.top + spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: spacing.md,
-          backgroundColor: colors.white,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: font.sizes.xl, fontWeight: '800', color: colors.ink }} numberOfLines={1}>
-            {ctx?.restaurantName}
-          </Text>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
-            Restaurant · {ctx?.staffRole}
-          </Text>
+      <View style={[homeStyles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={homeStyles.headerTop}>
+          <View style={homeStyles.restaurantIdentity}>
+            <Text style={homeStyles.restaurantName} numberOfLines={2}>
+              {ctx?.restaurantName}
+            </Text>
+            <Text style={homeStyles.restaurantRole}>Restaurant · {ctx?.staffRole}</Text>
+          </View>
+          {unreadMsgs > 0 && (
+            <View
+              accessibilityLabel={`${unreadMsgs} unread customer messages. Open an order to reply.`}
+              style={homeStyles.unreadBadge}
+            >
+              <Icon name="chat" size={16} color={colors.accentDark} />
+              <Text style={homeStyles.unreadText}>{unreadMsgs}</Text>
+            </View>
+          )}
+          <Pressable
+            onPress={handleSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+            hitSlop={8}
+            style={homeStyles.signOutButton}
+          >
+            <Icon name="signout" size={22} color={colors.ink2} />
+          </Pressable>
         </View>
+
+        <View style={homeStyles.headerActions}>
         <Pressable
           onPress={toggleOpen}
           disabled={togglingOpen}
-          accessibilityRole="button"
-          style={{
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: radius.pill,
-            backgroundColor: isOpen ? colors.greenSoft : colors.redSoft,
-            marginRight: spacing.sm,
-          }}
+          accessibilityRole="switch"
+          accessibilityLabel="Restaurant accepting orders"
+          accessibilityState={{ checked: isOpen, disabled: togglingOpen, busy: togglingOpen }}
+          style={[
+            homeStyles.statusControl,
+            { backgroundColor: isOpen ? colors.greenSoft : colors.redSoft },
+            compactHeader && homeStyles.compactStatusControl,
+          ]}
         >
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
             {togglingOpen ? '…' : isOpen ? 'Open · pause' : 'Closed · open'}
@@ -356,45 +377,22 @@ export default function Home() {
           accessibilityRole="switch"
           accessibilityState={{ checked: muted }}
           accessibilityLabel={muted ? 'Sound off — tap to turn new-order chime on' : 'Sound on — tap to mute new-order chime'}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: radius.pill,
-            backgroundColor: muted ? colors.redSoft : colors.greenSoft,
-            marginRight: spacing.sm,
-          }}
+          style={[
+            homeStyles.statusControl,
+            { backgroundColor: muted ? colors.redSoft : colors.greenSoft },
+            compactHeader && homeStyles.compactStatusControl,
+          ]}
         >
           <Icon name={muted ? 'mute' : 'sound'} size={14} color={muted ? colors.red : colors.green} />
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: muted ? colors.red : colors.green }}>
             {muted ? 'Muted' : 'Sound'}
           </Text>
         </Pressable>
-        {unreadMsgs > 0 && (
-          <View
-            accessibilityLabel={`${unreadMsgs} unread customer messages — open an order to reply`}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 3,
-              borderRadius: radius.pill,
-              backgroundColor: colors.accentSoft,
-              marginRight: spacing.xs,
-            }}
-          >
-            <Icon name="chat" size={14} color={colors.accent} />
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', color: colors.accent }}>{unreadMsgs}</Text>
-          </View>
-        )}
         <Pressable
           onPress={() => router.push('/menu')}
           accessibilityRole="button"
           accessibilityLabel="Menu availability"
-          style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+          style={[homeStyles.navControl, compactHeader && homeStyles.compactNavControl]}
         >
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Menu</Text>
         </Pressable>
@@ -402,7 +400,7 @@ export default function Home() {
           onPress={() => router.push('/kyc')}
           accessibilityRole="button"
           accessibilityLabel="Verification documents"
-          style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+          style={[homeStyles.navControl, compactHeader && homeStyles.compactNavControl]}
         >
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Docs</Text>
         </Pressable>
@@ -410,72 +408,71 @@ export default function Home() {
           onPress={() => router.push('/tier')}
           accessibilityRole="button"
           accessibilityLabel="View tier status"
-          style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+          style={[homeStyles.navControl, compactHeader && homeStyles.compactNavControl]}
         >
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Tier</Text>
         </Pressable>
-        <Pressable onPress={handleSignOut} accessibilityRole="button" accessibilityLabel="Sign out" style={{ padding: spacing.xs }}>
-          <Icon name="signout" size={22} color={colors.ink2} accessibilityLabel="Sign out" />
-        </Pressable>
+        </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.xl }}
+      <SectionList
+        sections={queueSections}
+        keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        contentContainerStyle={{
+          padding: spacing.lg,
+          paddingBottom: insets.bottom + spacing.xxl,
+          flexGrow: orders.length === 0 ? 1 : undefined,
+        }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} />}
-      >
-        {orders.length === 0 && (
-          <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl * 2, gap: spacing.md }}>
+        renderSectionHeader={({ section }) => (
+          <QueueSectionHeader title={section.title} count={section.data.length} accent={section.accent} />
+        )}
+        renderItem={({ item, section }) => (
+          <View style={homeStyles.orderItem}>
+            {section.key === 'new' ? (
+              <OrderRow
+                order={item}
+                busy={busyIds.has(item.id)}
+                onOpenDetail={() => router.push(`/order/${item.id}`)}
+                onAccept={() => doAdvance(item, 'accepted')}
+                onReject={(reason) => doAdvance(item, 'rejected', reason)}
+              />
+            ) : section.key === 'kitchen' ? (
+              <OrderRow
+                order={item}
+                busy={busyIds.has(item.id)}
+                onOpenDetail={() => router.push(`/order/${item.id}`)}
+                primary={
+                  item.status === 'accepted'
+                    ? { label: 'Start preparing', next: 'preparing' }
+                    : { label: 'Mark ready', next: 'ready' }
+                }
+                onPrimary={(next) => doAdvance(item, next)}
+              />
+            ) : (
+              <OrderRow
+                order={item}
+                busy={busyIds.has(item.id)}
+                onOpenDetail={() => router.push(`/order/${item.id}`)}
+              />
+            )}
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={homeStyles.emptyQueue}>
             <Icon name="bell" size={40} color={colors.ink3} accessibilityLabel="No orders" />
-            <Text style={{ fontSize: font.sizes.lg, color: colors.ink2 }}>Waiting for orders…</Text>
-            <Text style={{ fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center' }}>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>Waiting for orders</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, textAlign: 'center' }}>
               New orders appear here instantly with a sound alert.
             </Text>
           </View>
-        )}
-
-        <Section title="New" count={incoming.length} accent>
-          {incoming.map((o) => (
-            <OrderRow
-              key={o.id}
-              order={o}
-              busy={busyIds.has(o.id)}
-              onOpenDetail={() => router.push(`/order/${o.id}`)}
-              onAccept={() => doAdvance(o, 'accepted')}
-              onReject={(reason) => doAdvance(o, 'rejected', reason)}
-            />
-          ))}
-        </Section>
-
-        <Section title="In kitchen" count={inKitchen.length}>
-          {inKitchen.map((o) => (
-            <OrderRow
-              key={o.id}
-              order={o}
-              busy={busyIds.has(o.id)}
-              onOpenDetail={() => router.push(`/order/${o.id}`)}
-              primary={
-                o.status === 'accepted'
-                  ? { label: 'Start preparing', next: 'preparing' }
-                  : { label: 'Mark ready', next: 'ready' }
-              }
-              onPrimary={(next) => doAdvance(o, next)}
-            />
-          ))}
-        </Section>
-
-        <Section title="Ready / picked up" count={ready.length}>
-          {ready.map((o) => (
-            <OrderRow
-              key={o.id}
-              order={o}
-              busy={busyIds.has(o.id)}
-              onOpenDetail={() => router.push(`/order/${o.id}`)}
-            />
-          ))}
-        </Section>
-
-        {/* Legal */}
-        <View>
+        }
+        ListFooterComponent={
+          <View style={homeStyles.legal}>
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', marginBottom: spacing.sm }}>
             Legal
           </Text>
@@ -498,27 +495,25 @@ export default function Home() {
             <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Privacy Policy</Text>
             <Icon name="chevronForward" size={16} color={colors.ink3} />
           </Pressable>
-        </View>
-      </ScrollView>
+          </View>
+        }
+      />
     </View>
   );
 }
 
 // ── Section ──────────────────────────────────────────────────────────────────
-function Section({
+function QueueSectionHeader({
   title,
   count,
   accent,
-  children,
 }: {
   title: string;
   count: number;
   accent?: boolean;
-  children: React.ReactNode;
 }) {
-  if (count === 0) return null;
   return (
-    <View style={{ gap: spacing.md }}>
+    <View style={homeStyles.sectionHeader}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: accent ? colors.accent : colors.ink2 }}>
           {title}
@@ -527,7 +522,6 @@ function Section({
           <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: accent ? colors.accentDark : colors.ink2 }}>{count}</Text>
         </View>
       </View>
-      {children}
     </View>
   );
 }
@@ -555,7 +549,7 @@ function OrderRow({
   const addr = order.address_snapshot;
   const addrLine =
     addr?.kind === 'hotel'
-      ? `${addr.hotelName ?? 'Hotel'} · Room ${addr.roomNumber ?? '—'}`
+      ? `${addr.hotelName ?? 'Hotel'} · Room ${addr.roomNumber ?? 'not provided'}`
       : addr?.kind === 'street'
         ? `${addr.streetText ?? ''} ${addr.building ?? ''}`.trim() || 'Address'
         : addr?.kind === 'beach_pin'
@@ -627,9 +621,9 @@ function OrderRow({
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: spacing.sm }}>
         <Icon name="location" size={13} color={colors.ink3} />
-        <Text style={{ flex: 1, fontSize: font.sizes.xs, color: colors.ink2 }} numberOfLines={1}>{addrLine}</Text>
+        <Text style={{ flex: 1, flexShrink: 1, fontSize: font.sizes.xs, color: colors.ink2 }}>{addrLine}</Text>
         <View style={{ borderRadius: radius.sm, backgroundColor: colors.sand, paddingHorizontal: 6, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 9, textTransform: 'uppercase', color: colors.ink2 }}>
+          <Text style={{ fontSize: font.sizes.xs, textTransform: 'uppercase', color: colors.ink2 }}>
             {order.fulfillment_type === 'self_delivery' ? 'self-delivery' : 'platform fleet'}
           </Text>
         </View>
@@ -648,13 +642,24 @@ function OrderRow({
             onChangeText={setReason}
             placeholder="e.g. out of stock, kitchen closing"
             placeholderTextColor={colors.ink3}
+            accessibilityLabel="Reason for rejecting"
             style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.white, color: colors.ink }}
           />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Pressable onPress={() => { setRejecting(false); setReason(''); }} style={{ flex: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center' }}>
+            <Pressable
+              onPress={() => { setRejecting(false); setReason(''); }}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel rejection"
+              style={{ flex: 1, minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' }}
+            >
               <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2 }}>Cancel</Text>
             </Pressable>
-            <Pressable onPress={() => onReject(reason.trim() || undefined)} style={{ flex: 1, backgroundColor: colors.red, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center' }}>
+            <Pressable
+              onPress={() => onReject(reason.trim() || undefined)}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm rejection"
+              style={{ flex: 1, minHeight: 48, backgroundColor: colors.red, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' }}
+            >
               <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.white }}>Confirm reject</Text>
             </Pressable>
           </View>
@@ -662,17 +667,38 @@ function OrderRow({
       ) : (onAccept || onReject || primary) ? (
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           {onReject && (
-            <Pressable onPress={() => setRejecting(true)} disabled={busy} style={{ flex: 1, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', opacity: busy ? 0.5 : 1 }}>
+            <Pressable
+              onPress={() => setRejecting(true)}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={`Reject order ${order.short_code}`}
+              accessibilityState={{ disabled: busy, busy }}
+              style={{ flex: 1, minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.5 : 1 }}
+            >
               <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.red }}>Reject</Text>
             </Pressable>
           )}
           {onAccept && (
-            <Pressable onPress={onAccept} disabled={busy} style={{ flex: 1, backgroundColor: colors.green, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', opacity: busy ? 0.6 : 1 }}>
+            <Pressable
+              onPress={onAccept}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={`Accept order ${order.short_code}`}
+              accessibilityState={{ disabled: busy, busy }}
+              style={{ flex: 1, minHeight: 48, backgroundColor: colors.green, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}
+            >
               {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.white }}>Accept</Text>}
             </Pressable>
           )}
           {primary && onPrimary && (
-            <Pressable onPress={() => onPrimary(primary.next)} disabled={busy} style={{ flex: 1, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', opacity: busy ? 0.6 : 1 }}>
+            <Pressable
+              onPress={() => onPrimary(primary.next)}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={`${primary.label} for order ${order.short_code}`}
+              accessibilityState={{ disabled: busy, busy }}
+              style={{ flex: 1, minHeight: 48, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}
+            >
               {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.white }}>{primary.label}</Text>}
             </Pressable>
           )}
@@ -681,3 +707,107 @@ function OrderRow({
     </View>
   );
 }
+
+const homeStyles = StyleSheet.create({
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    gap: spacing.sm,
+  },
+  headerTop: {
+    width: '100%',
+    maxWidth: 840,
+    alignSelf: 'center',
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  restaurantIdentity: { flex: 1, minWidth: 0 },
+  restaurantName: { fontSize: font.sizes.xl, fontWeight: '800', color: colors.ink },
+  restaurantRole: { marginTop: 2, fontSize: font.sizes.xs, color: colors.ink3 },
+  unreadBadge: {
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentSoft,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  unreadText: { fontSize: font.sizes.sm, fontWeight: '800', color: colors.accentDark },
+  signOutButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.bgSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    width: '100%',
+    maxWidth: 840,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  statusControl: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  compactStatusControl: { flexGrow: 1, flexBasis: '46%' },
+  navControl: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.bgSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactNavControl: { flexGrow: 1, flexBasis: '28%' },
+  sectionHeader: {
+    width: '100%',
+    maxWidth: 840,
+    alignSelf: 'center',
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.bg,
+  },
+  orderItem: {
+    width: '100%',
+    maxWidth: 840,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  emptyQueue: {
+    width: '100%',
+    maxWidth: 520,
+    minHeight: 220,
+    alignSelf: 'center',
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xxxl,
+  },
+  legal: {
+    width: '100%',
+    maxWidth: 840,
+    alignSelf: 'center',
+    marginTop: spacing.xxl,
+  },
+});

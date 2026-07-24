@@ -92,6 +92,41 @@ const ORDER_SELECT =
   ' aggregate_allergens, customer_phone';
 
 /**
+ * place_order snapshots the original addresses row with to_jsonb(), so the
+ * persisted keys are snake_case. The React Native UI uses camelCase. Normalize
+ * every query and Realtime payload at this boundary so hotel/room/street details
+ * do not silently render blank on the kitchen tablet.
+ */
+function normalizeAddressSnapshot(raw: unknown): AddressSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const address = raw as Record<string, unknown>;
+  const pick = (camel: string, snake: string): string | undefined => {
+    const value = address[camel] ?? address[snake];
+    return typeof value === 'string' ? value : undefined;
+  };
+  return {
+    kind: pick('kind', 'kind') as AddressSnapshot['kind'],
+    label: pick('label', 'label'),
+    hotelName: pick('hotelName', 'hotel_name'),
+    roomNumber: pick('roomNumber', 'room_number'),
+    handoff: pick('handoff', 'handoff'),
+    streetText: pick('streetText', 'street_text'),
+    building: pick('building', 'building'),
+    apartment: pick('apartment', 'apartment'),
+    landmark: pick('landmark', 'landmark'),
+    beachName: pick('beachName', 'beach_name'),
+  };
+}
+
+/** Normalize a database or Realtime row before it reaches restaurant UI. */
+export function normalizeRestaurantOrder(row: Record<string, unknown>): RestaurantOrder {
+  return {
+    ...(row as unknown as RestaurantOrder),
+    address_snapshot: normalizeAddressSnapshot(row.address_snapshot),
+  };
+}
+
+/**
  * Resolve which restaurant this staffer belongs to (RLS-scoped via
  * merchant_staff). Mirrors the merchant-web dashboard's resolution.
  */
@@ -126,7 +161,9 @@ export async function getActiveOrders(restaurantId: string): Promise<RestaurantO
     .or('payment_method.eq.cash_on_delivery,payment_status.eq.paid')
     .order('placed_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as unknown as RestaurantOrder[];
+  return (data ?? []).map((row) =>
+    normalizeRestaurantOrder(row as unknown as Record<string, unknown>),
+  );
 }
 
 /** Read a single order by id (RLS-scoped to the staffer's restaurant). */
@@ -137,7 +174,9 @@ export async function getOrder(orderId: string): Promise<RestaurantOrder | null>
     .eq('id', orderId)
     .maybeSingle();
   if (error) throw error;
-  return (data as unknown as RestaurantOrder) ?? null;
+  return data
+    ? normalizeRestaurantOrder(data as unknown as Record<string, unknown>)
+    : null;
 }
 
 /**
@@ -171,8 +210,8 @@ export function subscribeOrders(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` },
       (payload) => {
-        const row = payload.new as RestaurantOrder;
-        if (row?.id) onChange(row);
+        const raw = payload.new as Record<string, unknown>;
+        if (raw?.id) onChange(normalizeRestaurantOrder(raw));
       },
     )
     .subscribe((status) => {
