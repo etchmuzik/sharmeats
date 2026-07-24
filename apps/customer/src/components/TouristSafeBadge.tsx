@@ -20,9 +20,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     gap: 4,
   },
-  star: { color: colors.sea, fontSize: 11, fontWeight: font.weights.bold },
+  star: { color: colors.sea, fontSize: font.sizes.xs, fontWeight: font.weights.bold },
   t: {
-    fontSize: 10.5,
+    fontSize: font.sizes.xs,
     fontWeight: font.weights.bold,
     color: colors.sea,
     letterSpacing: 0.5,

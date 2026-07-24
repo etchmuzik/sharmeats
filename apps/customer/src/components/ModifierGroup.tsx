@@ -207,7 +207,7 @@ const s = StyleSheet.create({
   cardPrice: { fontSize: font.sizes.md, color: colors.ink2, fontWeight: font.weights.bold, marginTop: 2 },
   cardFree: { fontSize: font.sizes.md, color: colors.ink3, marginTop: 2 },
   popular: { backgroundColor: colors.star, borderRadius: radius.sm, paddingHorizontal: 5, paddingVertical: 1 },
-  popularText: { fontSize: 9, color: colors.white, fontWeight: font.weights.bold },
+  popularText: { fontSize: font.sizes.xs, color: colors.white, fontWeight: font.weights.bold },
   cardCheck: {
     width: 24,
     height: 24,

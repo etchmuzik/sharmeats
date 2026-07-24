@@ -4,6 +4,7 @@ import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 import { selection } from '../haptics';
 import type { AddressKind, DropoffPreference } from '../data/types';
+import { Icon, type IconName } from './Icon';
 
 interface Props {
   addressKind: AddressKind | undefined;
@@ -13,7 +14,7 @@ interface Props {
 
 interface ChipDef {
   value: DropoffPreference;
-  icon: string;
+  icon: IconName;
   labelKey:
     | 'checkout.dropoffHandToMe'
     | 'checkout.dropoffLeaveAtDoor'
@@ -24,11 +25,11 @@ interface ChipDef {
 }
 
 const CHIPS: ChipDef[] = [
-  { value: 'hand_to_me', icon: '🤝', labelKey: 'checkout.dropoffHandToMe', hideForAddressKinds: [] },
-  { value: 'leave_at_door', icon: '🚪', labelKey: 'checkout.dropoffLeaveAtDoor', hideForAddressKinds: ['hotel', 'beach_pin'] },
-  { value: 'meet_outside', icon: '🚶', labelKey: 'checkout.dropoffMeetOutside', hideForAddressKinds: [] },
-  { value: 'no_bell', icon: '🔕', labelKey: 'checkout.dropoffNoBell', hideForAddressKinds: [] },
-  { value: 'call_on_arrival', icon: '📞', labelKey: 'checkout.dropoffCallOnArrival', hideForAddressKinds: [] },
+  { value: 'hand_to_me', icon: 'handoff', labelKey: 'checkout.dropoffHandToMe', hideForAddressKinds: [] },
+  { value: 'leave_at_door', icon: 'door', labelKey: 'checkout.dropoffLeaveAtDoor', hideForAddressKinds: ['hotel', 'beach_pin'] },
+  { value: 'meet_outside', icon: 'walk', labelKey: 'checkout.dropoffMeetOutside', hideForAddressKinds: [] },
+  { value: 'no_bell', icon: 'quiet', labelKey: 'checkout.dropoffNoBell', hideForAddressKinds: [] },
+  { value: 'call_on_arrival', icon: 'phone', labelKey: 'checkout.dropoffCallOnArrival', hideForAddressKinds: [] },
 ];
 
 const QUIET_VALUES: DropoffPreference[] = ['leave_at_door', 'no_bell'];
@@ -62,20 +63,20 @@ export function DropoffPreferenceCard({ addressKind, value, onChange }: Props) {
                 selection();
                 onChange(active ? null : chip.value);
               }}
-              accessibilityRole="button"
+              accessibilityRole="radio"
               accessibilityState={{ selected: active }}
               accessibilityLabel={t(chip.labelKey)}
               style={[styles.chip, active && styles.chipActive]}>
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {chip.icon} {t(chip.labelKey)}
-              </Text>
+              <Icon name={chip.icon} size={17} color={active ? colors.white : colors.ink2} />
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(chip.labelKey)}</Text>
             </Pressable>
           );
         })}
       </View>
       {showQuietBanner && (
         <View style={styles.banner}>
-          <Text style={styles.bannerText}>🤫 {t('checkout.dropoffQuietBanner')}</Text>
+          <Icon name="quiet" size={18} color={colors.amber} />
+          <Text style={styles.bannerText}>{t('checkout.dropoffQuietBanner')}</Text>
         </View>
       )}
     </View>
@@ -95,6 +96,10 @@ const styles = StyleSheet.create({
   title: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   chip: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: radius.pill,
@@ -106,12 +111,15 @@ const styles = StyleSheet.create({
   chipText: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold },
   chipTextActive: { color: colors.white },
   banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginTop: 10,
     padding: 10,
     borderRadius: radius.md,
-    backgroundColor: '#fff4e8',
+    backgroundColor: colors.amberSoft,
     borderWidth: 1,
-    borderColor: '#f3d9b8',
+    borderColor: colors.amber,
   },
-  bannerText: { fontSize: font.sizes.sm, color: '#8a5a1c', lineHeight: 18 },
+  bannerText: { flex: 1, fontSize: font.sizes.sm, color: colors.amber, lineHeight: 20 },
 });

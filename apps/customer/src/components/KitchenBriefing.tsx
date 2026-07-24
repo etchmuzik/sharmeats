@@ -2,6 +2,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, font, radius, shadow } from '../theme';
 import { useT } from '../i18n';
 import type { AllergyKey } from '../data/types';
+import { Icon } from './Icon';
 
 interface Props {
   allergens: AllergyKey[];
@@ -15,13 +16,17 @@ export function KitchenBriefing({ allergens, notes, onChangeNotes }: Props) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>👩‍🍳 {t('checkout.kitchenBriefingTitle')}</Text>
+      <View style={styles.titleRow}>
+        <Icon name="receipt" size={20} color={colors.ink} />
+        <Text style={styles.title}>{t('checkout.kitchenBriefingTitle')}</Text>
+      </View>
       <Text style={styles.desc}>{t('checkout.kitchenBriefingDesc')}</Text>
 
       {hasAllergens && (
         <View style={styles.allergyBox}>
+          <Icon name="warning" size={20} color={colors.red} />
           <Text style={styles.allergyText}>
-            ⚠ {t('checkout.allergiesSummary', {
+            {t('checkout.allergiesSummary', {
               allergens: allergens.map((a) => t(`allergy.${a}`)).join(', '),
             })}
           </Text>
@@ -34,6 +39,7 @@ export function KitchenBriefing({ allergens, notes, onChangeNotes }: Props) {
         placeholder={t('checkout.orderWideNotesPlaceholder')}
         placeholderTextColor={colors.ink3}
         multiline
+        accessibilityLabel={t('checkout.kitchenBriefingTitle')}
         style={styles.input}
       />
     </View>
@@ -50,9 +56,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     ...shadow.soft,
   },
-  title: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { flex: 1, fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
   desc: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 4, lineHeight: 18 },
   allergyBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
     marginTop: 12,
     padding: 10,
     borderRadius: radius.md,
@@ -61,6 +71,7 @@ const styles = StyleSheet.create({
     borderColor: colors.red,
   },
   allergyText: {
+    flex: 1,
     fontSize: font.sizes.lg,
     color: colors.red,
     fontWeight: font.weights.bold,

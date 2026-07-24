@@ -14,6 +14,7 @@
  * (Authentication → Providers → Anonymous). If disabled, ensureSession() throws
  * a clear, actionable error instead of failing deep in checkout.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabase } from './client';
 
 export interface SessionInfo {
@@ -21,13 +22,74 @@ export interface SessionInfo {
   isAnonymous: boolean;
 }
 
-/**
- * Which verifyOtp() type the pending code expects, decided by sendOtp() based on
- * whether the session was anonymous. 'phone_change' links the phone to the
- * current (anon) user preserving auth.uid(); 'sms' signs into the phone user.
- * Module-scoped because sign-in is a single screen with one code in flight.
- */
-let pendingVerifyType: 'sms' | 'phone_change' = 'sms';
+const PENDING_VERIFICATION_KEY = '@sharmeats:pending-phone-verification:v1';
+const PENDING_VERIFICATION_TTL_MS = 10 * 60 * 1000;
+
+interface PendingVerification {
+  type: 'sms' | 'phone_change';
+  phone: string;
+  originatingUserId: string | null;
+  expiresAt: number;
+}
+
+function normalizePhone(phone: string): string {
+  return phone.replace(/\s+/g, '');
+}
+
+async function persistPendingVerification(
+  type: PendingVerification['type'],
+  phone: string,
+  originatingUserId: string | null,
+): Promise<void> {
+  const pending: PendingVerification = {
+    type,
+    phone: normalizePhone(phone),
+    originatingUserId,
+    expiresAt: Date.now() + PENDING_VERIFICATION_TTL_MS,
+  };
+  try {
+    await AsyncStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pending));
+  } catch {
+    // The OTP may already have been sent, but verifying without knowing whether
+    // it is an SMS sign-in or an anonymous-user phone change can switch auth.uid()
+    // and orphan orders. Fail closed and let the customer request another code.
+    throw new Error('Could not save verification state. Request a new code.');
+  }
+}
+
+async function clearPendingVerification(): Promise<void> {
+  await AsyncStorage.removeItem(PENDING_VERIFICATION_KEY);
+}
+
+async function readPendingVerification(phone: string): Promise<PendingVerification> {
+  let raw: string | null;
+  try {
+    raw = await AsyncStorage.getItem(PENDING_VERIFICATION_KEY);
+  } catch {
+    throw new Error('Could not restore verification state. Request a new code.');
+  }
+  if (!raw) throw new Error('Verification flow expired. Request a new code.');
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PendingVerification>;
+    const validType = parsed.type === 'sms' || parsed.type === 'phone_change';
+    const validPhone = parsed.phone === normalizePhone(phone);
+    const validExpiry =
+      typeof parsed.expiresAt === 'number' && parsed.expiresAt > Date.now();
+    const validOrigin =
+      parsed.type === 'sms' ||
+      (typeof parsed.originatingUserId === 'string' && parsed.originatingUserId.length > 0);
+    if (!validType || !validPhone || !validExpiry || !validOrigin) {
+      await clearPendingVerification().catch(() => {});
+      throw new Error('Verification flow expired. Request a new code.');
+    }
+    return parsed as PendingVerification;
+  } catch (error) {
+    if (error instanceof Error && /request a new code/i.test(error.message)) throw error;
+    await clearPendingVerification().catch(() => {});
+    throw new Error('Verification flow expired. Request a new code.');
+  }
+}
 
 export const authRepoSupabase = {
   /** Current session's user id, or null if not signed in. */
@@ -75,11 +137,12 @@ export const authRepoSupabase = {
    * LINK the phone to that anon user via updateUser() + verifyOtp(phone_change)
    * so auth.uid() is preserved and the guest's in-flight order, addresses, and
    * favourites carry over. Using signInWithOtp/verifyOtp(sms) here would create
-   * a *different* user and swap the session, orphaning all of it. We stash which
-   * flow was used so verifyOtp() below picks the matching verify type.
+   * a *different* user and swap the session, orphaning all of it. We persist
+   * which flow was used so verifyOtp() below picks the matching verify type.
    */
   async sendOtp(phone: string): Promise<void> {
     const sb = getSupabase();
+    const normalizedPhone = normalizePhone(phone);
     const {
       data: { session },
     } = await sb.auth.getSession();
@@ -87,9 +150,13 @@ export const authRepoSupabase = {
 
     if (isAnon) {
       // Link the phone to the current anonymous user (preserves auth.uid()).
-      const { error } = await sb.auth.updateUser({ phone });
+      const { error } = await sb.auth.updateUser({ phone: normalizedPhone });
       if (!error) {
-        pendingVerifyType = 'phone_change';
+        await persistPendingVerification(
+          'phone_change',
+          normalizedPhone,
+          session?.user?.id ?? null,
+        );
         return;
       }
       // updateUser fails if the phone already belongs to another account
@@ -106,14 +173,14 @@ export const authRepoSupabase = {
 
     // Non-anonymous session, or a returning phone that already has an account:
     // sign into / create the phone user directly.
-    pendingVerifyType = 'sms';
-    const { error } = await sb.auth.signInWithOtp({ phone });
+    const { error } = await sb.auth.signInWithOtp({ phone: normalizedPhone });
     if (error) {
       const hint = /provider|not enabled|disabled|sms/i.test(error.message)
         ? ' — enable a Phone provider in Supabase → Authentication → Providers → Phone.'
         : '';
       throw new Error(`Could not send the code${hint} (${error.message})`);
     }
+    await persistPendingVerification('sms', normalizedPhone, null);
   },
 
   /**
@@ -126,26 +193,47 @@ export const authRepoSupabase = {
    */
   async verifyOtp(phone: string, code: string): Promise<{ userId: string; phone: string }> {
     const sb = getSupabase();
+    const normalizedPhone = normalizePhone(phone);
+    const pending = await readPendingVerification(normalizedPhone);
+
+    if (pending.type === 'phone_change') {
+      const {
+        data: { session },
+      } = await sb.auth.getSession();
+      if (!session?.user || session.user.id !== pending.originatingUserId) {
+        await clearPendingVerification().catch(() => {});
+        throw new Error('Your verification session changed. Request a new code.');
+      }
+    }
+
     const { data, error } = await sb.auth.verifyOtp(
-      pendingVerifyType === 'phone_change'
-        ? { phone, token: code, type: 'phone_change' }
-        : { phone, token: code, type: 'sms' },
+      pending.type === 'phone_change'
+        ? { phone: normalizedPhone, token: code, type: 'phone_change' }
+        : { phone: normalizedPhone, token: code, type: 'sms' },
     );
     if (error) throw new Error(`Invalid or expired code (${error.message})`);
     const user = data.user;
     if (!user) throw new Error('Verification returned no user.');
+    await clearPendingVerification().catch(() => {});
 
     // Mirror the verified number onto the profile row (best-effort; the order
     // flow doesn't depend on it succeeding).
     try {
-      await sb.from('users').update({ phone: user.phone ?? phone }).eq('id', user.id);
+      await sb
+        .from('users')
+        .update({ phone: user.phone ?? normalizedPhone })
+        .eq('id', user.id);
     } catch {
       /* non-fatal */
     }
-    return { userId: user.id, phone: user.phone ?? phone };
+    return { userId: user.id, phone: user.phone ?? normalizedPhone };
   },
 
   async signOut(): Promise<void> {
-    await getSupabase().auth.signOut();
+    try {
+      await getSupabase().auth.signOut();
+    } finally {
+      await clearPendingVerification().catch(() => {});
+    }
   },
 };

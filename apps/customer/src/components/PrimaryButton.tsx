@@ -8,11 +8,22 @@ type Props = {
   variant?: 'primary' | 'secondary' | 'ghost';
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
-export function PrimaryButton({ label, onPress, variant = 'primary', disabled, style }: Props) {
+export function PrimaryButton({
+  label,
+  onPress,
+  variant = 'primary',
+  disabled,
+  style,
+  testID,
+}: Props) {
   return (
     <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       disabled={disabled}
       onPress={() => {
         press();

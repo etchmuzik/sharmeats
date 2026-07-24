@@ -2,11 +2,10 @@
   "expo": {
     "name": "Sharm Eats",
     "slug": "sharmeats-customer",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "orientation": "portrait",
     "scheme": "sharmeats",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -14,11 +13,6 @@
       "url": "https://u.expo.dev/d3628b78-b35a-4d15-a48a-c12b9579b682"
     },
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#100e12"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "eg.sharmeats.customer",
@@ -41,8 +35,14 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "./plugins/withFmtConstevalFix.js",
-      "./plugins/withLocalizationXcode26Fix.js",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#100e12"
+        }
+      ],
       [
         "@sentry/react-native",
         {
@@ -52,17 +52,7 @@
         }
       ],
       "expo-localization",
-      "expo-notifications",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
-            "buildToolsVersion": "35.0.0"
-          }
-        }
-      ]
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": false

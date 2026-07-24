@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   hotelName: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
   hotelMeta: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },
   verifiedTag: { backgroundColor: colors.seaSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  verifiedText: { color: colors.sea, fontSize: 10.5, fontWeight: font.weights.bold },
+  verifiedText: { color: colors.sea, fontSize: font.sizes.xs, fontWeight: font.weights.bold },
   segment: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   segBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: colors.bgSoft },
   segBtnActive: { backgroundColor: colors.ink },

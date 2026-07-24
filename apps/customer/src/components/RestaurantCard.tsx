@@ -116,12 +116,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2.5,
     borderRadius: 5,
   },
-  promoText: { fontSize: 10, color: colors.accentDark, fontWeight: font.weights.bold },
+  promoText: { fontSize: font.sizes.xs, color: colors.accentDark, fontWeight: font.weights.bold },
   open24Pill: {
     backgroundColor: colors.green,
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 5,
   },
-  open24Text: { fontSize: 10, color: colors.white, fontWeight: font.weights.bold, letterSpacing: 0.3 },
+  open24Text: { fontSize: font.sizes.xs, color: colors.white, fontWeight: font.weights.bold, letterSpacing: 0.3 },
 });

@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center' },
   statDivider: { borderLeftWidth: 1, borderLeftColor: 'rgba(0,0,0,0.06)' },
   statV: { fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.ink },
-  statL: { fontSize: 10.5, color: colors.ink2, marginTop: 2, textTransform: 'uppercase', fontWeight: font.weights.bold, letterSpacing: 0.5 },
+  statL: { fontSize: font.sizes.xs, color: colors.ink2, marginTop: 2, textTransform: 'uppercase', fontWeight: font.weights.bold, letterSpacing: 0.5 },
   descr: { fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 20, marginTop: 14 },
   promoBanner: {
     marginTop: 12,

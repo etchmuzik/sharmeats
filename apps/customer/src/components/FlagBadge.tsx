@@ -30,7 +30,7 @@ export function FlagBadge({ flag }: { flag: ItemFlag }) {
 const styles = StyleSheet.create({
   b: { paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 5 },
   t: {
-    fontSize: 10,
+    fontSize: font.sizes.xs,
     fontWeight: font.weights.bold,
     letterSpacing: 0.4,
     textTransform: 'uppercase',

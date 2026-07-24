@@ -113,6 +113,7 @@ export default function Otp() {
           </View>
         ))}
         <TextInput
+          testID="customer-otp-input"
           ref={input}
           value={code}
           onChangeText={(txt) => {
@@ -148,7 +149,7 @@ export default function Otp() {
       <View style={{ flex: 1 }} />
 
       <View style={{ paddingHorizontal: 24, paddingBottom: 36 }}>
-        <PrimaryButton label={t('otp.cta')} onPress={verify} />
+        <PrimaryButton testID="customer-verify-otp" label={t('otp.cta')} onPress={verify} />
       </View>
     </KeyboardAvoidingView>
   );

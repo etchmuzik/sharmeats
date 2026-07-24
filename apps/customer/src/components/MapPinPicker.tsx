@@ -134,7 +134,7 @@ export function MapPinPicker({
         onTouchCancel={() => onInteractionChange?.(false)}>
         <MapView
           ref={mapRef}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           initialRegion={region}
           showsUserLocation
           showsMyLocationButton={false}

@@ -80,6 +80,9 @@ export default function AddressPicker() {
               selection();
               setActive(k);
             }}
+            accessibilityRole="tab"
+            accessibilityLabel={k === 'hotel' ? t('address.hotel') : k === 'street' ? t('address.street') : t('address.beach')}
+            accessibilityState={{ selected: active === k }}
             style={[styles.tab, active === k && styles.tabActive]}>
             <Text style={[styles.tabText, active === k && { color: colors.white }]}>
               {k === 'hotel' ? t('address.hotel') : k === 'street' ? t('address.street') : t('address.beach')}
@@ -104,11 +107,17 @@ export default function AddressPicker() {
                 setSelectedAddressId(a.id);
               }}
               onLongPress={() => removeAddress(a.id)}
+              accessibilityRole="radio"
+              accessibilityLabel={`${a.label}. ${a.kind === 'hotel' ? `${a.hotelName}, ${t('address.room')} ${a.roomNumber}` : a.kind === 'street' ? `${a.streetText}, ${a.building ?? ''} ${a.apartment ?? ''}`.trim() : a.beachName ?? t('address.beachPin')}`}
+              accessibilityHint={t('address.delete')}
+              accessibilityState={{ selected: isSel }}
               style={[styles.card, isSel && styles.cardActive]}>
               <View style={styles.cardLeft}>
-                <Text style={styles.cardIcon}>
-                  {a.kind === 'hotel' ? '🏨' : a.kind === 'street' ? '🏢' : '🏖️'}
-                </Text>
+                <Icon
+                  name={a.kind === 'hotel' ? 'hotel' : a.kind === 'street' ? 'home' : 'beach'}
+                  size={22}
+                  color={colors.sea}
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{a.label}</Text>

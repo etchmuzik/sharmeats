@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addrLbl: {
-    fontSize: 10,
+    fontSize: font.sizes.xs,
     color: colors.ink2,
     fontWeight: font.weights.bold,
     letterSpacing: 0.7,
@@ -651,12 +651,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(20,18,16,0.42)',
   },
   featMeta: { position: 'absolute', left: 14, right: 14, bottom: 12 },
   featEyebrow: {
     color: colors.white,
-    fontSize: 10,
+    fontSize: font.sizes.xs,
     fontWeight: font.weights.bold,
     letterSpacing: 0.6,
     opacity: 0.9,

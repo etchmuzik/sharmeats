@@ -65,6 +65,7 @@ export default function SignIn() {
 
       <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
         <TextInput
+          testID="customer-phone-input"
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
@@ -106,6 +107,7 @@ export default function SignIn() {
 
       <View style={{ paddingHorizontal: 24, paddingBottom: 36 }}>
         <PrimaryButton
+          testID="customer-send-otp"
           label={sending ? t('common.loading') : t('signin.cta')}
           onPress={send}
           disabled={!canSend}

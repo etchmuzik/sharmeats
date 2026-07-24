@@ -129,17 +129,18 @@ export const userRepoSupabase = {
   },
 
   /**
-   * Register this device's Expo push token. Idempotent — (user_id, token) is
-   * unique, so re-registering on every launch just touches updated_at.
-   * RLS: push_tokens_owner_all lets a user manage only their own rows.
+   * Register this device's Expo push token. The server RPC atomically transfers
+   * an existing device token to the current account, so a shared device cannot
+   * keep receiving the previous account's private order notifications.
    */
   async registerPushToken(token: string, platform: 'ios' | 'android' | 'web'): Promise<void> {
     const sb = getSupabase();
     const { data: { user } } = await sb.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    const { error } = await sb
-      .from('push_tokens')
-      .upsert({ user_id: user.id, token, platform }, { onConflict: 'user_id,token' });
+    const { error } = await sb.rpc('register_push_token', {
+      p_token: token,
+      p_platform: platform,
+    });
     if (error) throw error;
   },
 

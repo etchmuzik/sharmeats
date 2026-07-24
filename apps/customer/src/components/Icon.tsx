@@ -31,6 +31,10 @@ export type IconName =
   | 'chevronDown'
   | 'hotel'
   | 'beach'
+  | 'handoff'
+  | 'door'
+  | 'walk'
+  | 'quiet'
   | 'compass'
   | 'phone'
   | 'chat'
@@ -71,6 +75,10 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   chevronDown: 'chevron-down',
   hotel: 'business-outline',
   beach: 'umbrella-outline',
+  handoff: 'hand-left-outline',
+  door: 'log-out-outline',
+  walk: 'walk-outline',
+  quiet: 'notifications-off-outline',
   compass: 'compass-outline',
   phone: 'call',
   chat: 'chatbubble-ellipses',

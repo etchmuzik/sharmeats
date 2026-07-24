@@ -6,6 +6,7 @@ import { BackButton } from '../src/components/BackButton';
 import { colors, font, radius, shadow } from '../src/theme';
 import { useT } from '../src/i18n';
 import { tap } from '../src/haptics';
+import { Icon } from '../src/components/Icon';
 
 const SUPPORT_PHONE = '201005551234'; // Placeholder; real number set at launch.
 
@@ -60,12 +61,24 @@ export default function Help() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 + insets.bottom, gap: 16 }}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('help.contact')}</Text>
-          <Pressable onPress={openWhatsApp} style={styles.waBtn}>
-            <Text style={styles.waBtnText}>💬 {t('help.openWhatsApp')}</Text>
+          <Pressable
+            onPress={openWhatsApp}
+            accessibilityRole="button"
+            accessibilityLabel={t('help.openWhatsApp')}
+            style={styles.waBtn}
+          >
+            <Icon name="chat" size={20} color={colors.white} />
+            <Text style={styles.waBtnText}>{t('help.openWhatsApp')}</Text>
             {orderCode && <Text style={styles.waBtnSub}>#{orderCode}</Text>}
           </Pressable>
-          <Text style={styles.contactRow}>✉️ hello@sharmeats.example</Text>
-          <Text style={styles.contactRow}>🕐 Daily 8 AM – 2 AM EET</Text>
+          <View style={styles.contactLine}>
+            <Icon name="send" size={18} color={colors.sea} />
+            <Text style={styles.contactRow}>support@sharmeats.online</Text>
+          </View>
+          <View style={styles.contactLine}>
+            <Icon name="help" size={18} color={colors.sea} />
+            <Text style={styles.contactRow}>Daily, 8 AM to 2 AM EET</Text>
+          </View>
         </View>
 
         <Text style={styles.faqHead}>{t('help.faq')}</Text>
@@ -115,4 +128,5 @@ const styles = StyleSheet.create({
   faqHead: { fontSize: font.sizes.xs, fontWeight: font.weights.bold, color: colors.ink2, letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 },
   q: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
   a: { fontSize: font.sizes.lg, color: colors.ink2, marginTop: 6, lineHeight: 21 },
+  contactLine: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

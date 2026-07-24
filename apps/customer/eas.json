@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 19.0.0",
+    "version": ">= 21.2.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -29,9 +29,6 @@
         "SENTRY_ORG": "beyond-mngmt",
         "SENTRY_PROJECT": "sharmeats-customer",
         "EXPO_PUBLIC_SENTRY_DSN": "https://e35f188c65269ae52eb0581340444f84@o4509518072512512.ingest.de.sentry.io/4511775703171152"
-      },
-      "ios": {
-        "image": "macos-sequoia-15.6-xcode-26.2"
       },
       "android": {
         "buildType": "app-bundle"

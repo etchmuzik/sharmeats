@@ -348,7 +348,12 @@ export default function Checkout() {
         <View style={styles.card}>
           <View style={[styles.cardHead, dir.row]}>
             <Text style={styles.cardTitle}>{t('checkout.deliverTo')}</Text>
-            <Pressable onPress={() => router.push('/address/picker')}>
+            <Pressable
+              onPress={() => router.push('/address/picker')}
+              accessibilityRole="button"
+              accessibilityLabel={t('checkout.change')}
+              hitSlop={10}
+              style={styles.compactAction}>
               <Text style={styles.edit}>{t('checkout.change')}</Text>
             </Pressable>
           </View>
@@ -460,6 +465,9 @@ export default function Checkout() {
                 selection();
                 setScheduledFor(null);
               }}
+              accessibilityRole="radio"
+              accessibilityLabel={t('checkout.timingAsap')}
+              accessibilityState={{ selected: scheduledFor === null }}
               style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
               <Icon name="bolt" size={14} color={scheduledFor === null ? colors.white : colors.accent} />
               <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.white }]}>
@@ -475,6 +483,9 @@ export default function Checkout() {
                     selection();
                     setScheduledFor(slot);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityLabel={formatTime(new Date(slot))}
+                  accessibilityState={{ selected: isSel }}
                   style={[styles.timingChip, isSel && styles.timingChipActive]}>
                   <Text style={[styles.timingChipText, isSel && { color: colors.white }]}>
                     {formatTime(new Date(slot))}
@@ -508,7 +519,9 @@ export default function Checkout() {
               <Pressable
                 onPress={() => setCurrencyOpen((o) => !o)}
                 accessibilityRole="button"
-                accessibilityLabel={t('checkout.changeCurrency')}>
+                accessibilityLabel={t('checkout.changeCurrency')}
+                accessibilityState={{ expanded: currencyOpen }}
+                style={styles.compactAction}>
                 <View style={styles.currencyChip}>
                   <Text style={styles.currencyText}>{currency}</Text>
                   <Icon name="transfer" size={13} color={colors.sea} />
@@ -526,6 +539,9 @@ export default function Checkout() {
                     setCurrency(c as Currency);
                     setCurrencyOpen(false);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityLabel={c}
+                  accessibilityState={{ selected: currency === c }}
                   style={[styles.curBtn, currency === c && styles.curBtnActive]}>
                   <Text style={[styles.curBtnText, currency === c && { color: colors.white }]}>{c}</Text>
                 </Pressable>
@@ -561,6 +577,9 @@ export default function Checkout() {
                   selection();
                   setTipEgp(amt);
                 }}
+                accessibilityRole="radio"
+                accessibilityLabel={amt === 0 ? t('checkout.tipNone') : formatEgp(amt)}
+                accessibilityState={{ selected: tipEgp === amt }}
                 style={[styles.tipBtn, tipEgp === amt && styles.tipBtnActive]}>
                 <Text style={[styles.tipText, tipEgp === amt && { color: colors.white }]}>
                   {amt === 0 ? t('checkout.tipNone') : formatEgp(amt)}
@@ -820,6 +839,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
   edit: { fontSize: font.sizes.md, color: colors.sea, fontWeight: font.weights.bold },
+  compactAction: { minHeight: 44, justifyContent: 'center' },
   addr: { flexDirection: 'row', gap: 12 },
   addAddr: {
     flexDirection: 'row',
@@ -838,7 +858,7 @@ const styles = StyleSheet.create({
   tag: {
     backgroundColor: colors.seaSoft,
     color: colors.sea,
-    fontSize: 10.5,
+    fontSize: font.sizes.xs,
     fontWeight: font.weights.bold,
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -861,7 +881,14 @@ const styles = StyleSheet.create({
   },
   currencyText: { color: colors.sea, fontSize: font.sizes.md, fontWeight: font.weights.bold },
   currencyRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
-  curBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.bgSoft },
+  curBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bgSoft,
+  },
   curBtnActive: { backgroundColor: colors.ink },
   curBtnText: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold },
   payChosen: {
@@ -879,6 +906,8 @@ const styles = StyleSheet.create({
   chev: { fontSize: 22, color: colors.ink3 },
   timingRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 10 },
   timingChip: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: radius.pill,
@@ -887,6 +916,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   timingChipAsap: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -907,6 +937,8 @@ const styles = StyleSheet.create({
   },
   tipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   tipBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: radius.pill,

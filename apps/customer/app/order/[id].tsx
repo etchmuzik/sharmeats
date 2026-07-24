@@ -210,12 +210,12 @@ export default function OrderTracking() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <View style={styles.map}>
         <MapView
           ref={mapRef}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           onPanDrag={() => {
             // The user took control — stop auto-fitting so the camera never
             // fights their fingers for the rest of this tracking session.
@@ -424,12 +424,18 @@ export default function OrderTracking() {
         {/* Kitchen briefing echo */}
         {((order.aggregateAllergens && order.aggregateAllergens.length > 0) || order.kitchenNotes) && (
           <View style={styles.briefingCard}>
-            <Text style={styles.briefingTitle}>👩‍🍳 {t('order.kitchenSees')}</Text>
+            <View style={styles.briefingTitleRow}>
+              <Icon name="receipt" size={20} color={colors.ink} />
+              <Text style={styles.briefingTitle}>{t('order.kitchenSees')}</Text>
+            </View>
             {order.aggregateAllergens && order.aggregateAllergens.length > 0 && (
-              <Text style={styles.briefingAllergens}>
-                ⚠ {t('cart.allergensPrefix')}:{' '}
-                {order.aggregateAllergens.map((a) => t(`allergy.${a}`)).join(', ')}
-              </Text>
+              <View style={styles.briefingAllergenRow}>
+                <Icon name="warning" size={20} color={colors.red} />
+                <Text style={styles.briefingAllergens}>
+                  {t('cart.allergensPrefix')}:{' '}
+                  {order.aggregateAllergens.map((a) => t(`allergy.${a}`)).join(', ')}
+                </Text>
+              </View>
             )}
             {order.kitchenNotes && <Text style={styles.briefingNotes}>{order.kitchenNotes}</Text>}
           </View>
@@ -536,9 +542,10 @@ export default function OrderTracking() {
         {!isCancelled && restaurant && (
           <View style={styles.contactCard}>
             {restaurant.address && (
-              <Text style={styles.contactAddr} numberOfLines={2}>
-                📍 {restaurant.address}
-              </Text>
+              <View style={styles.contactAddressRow}>
+                <Icon name="location" size={18} color={colors.sea} />
+                <Text style={styles.contactAddr} numberOfLines={2}>{restaurant.address}</Text>
+              </View>
             )}
             <View style={styles.contactActions}>
               <Pressable
@@ -549,7 +556,8 @@ export default function OrderTracking() {
                 accessibilityRole="button"
                 accessibilityLabel={t('order.messageRestaurant')}
                 style={styles.contactBtn}>
-                <Text style={styles.contactBtnText}>💬 {t('order.messageRestaurant')}</Text>
+                <Icon name="chat" size={18} color={colors.ink} />
+                <Text style={styles.contactBtnText}>{t('order.messageRestaurant')}</Text>
               </Pressable>
               {restaurant.phone && (
                 <Pressable
@@ -560,7 +568,8 @@ export default function OrderTracking() {
                   accessibilityRole="button"
                   accessibilityLabel={t('restaurant.callRestaurant')}
                   style={styles.contactBtn}>
-                  <Text style={styles.contactBtnText}>📞 {t('restaurant.callRestaurant')}</Text>
+                  <Icon name="phone" size={18} color={colors.ink} />
+                  <Text style={styles.contactBtnText}>{t('restaurant.callRestaurant')}</Text>
                 </Pressable>
               )}
               {restaurant.address && (
@@ -575,7 +584,8 @@ export default function OrderTracking() {
                   accessibilityRole="button"
                   accessibilityLabel={t('restaurant.viewOnMap')}
                   style={styles.contactBtn}>
-                  <Text style={styles.contactBtnText}>🗺 {t('restaurant.viewOnMap')}</Text>
+                  <Icon name="compass" size={18} color={colors.ink} />
+                  <Text style={styles.contactBtnText}>{t('restaurant.viewOnMap')}</Text>
                 </Pressable>
               )}
             </View>
@@ -585,6 +595,8 @@ export default function OrderTracking() {
         {order.status === 'delivered' && (
           <Pressable
             onPress={() => router.push(`/order/${order.id}/review`)}
+            accessibilityRole="button"
+            accessibilityLabel={t('order.rateOrder')}
             style={styles.reviewBtn}>
             <Text style={styles.reviewBtnText}>★ {t('order.rateOrder')}</Text>
           </Pressable>
@@ -726,7 +738,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green },
-  liveText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  liveText: { color: colors.white, fontSize: font.sizes.xs, fontWeight: '800', letterSpacing: 0.5 },
   mapNav: { position: 'absolute', left: 14 },
 
   sheet: {
@@ -773,9 +785,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  briefingTitle: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
+  briefingTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  briefingTitle: { flex: 1, fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
+  briefingAllergenRow: { marginTop: 8, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   briefingAllergens: {
-    marginTop: 8,
+    flex: 1,
     fontSize: font.sizes.lg,
     color: colors.red,
     fontWeight: font.weights.bold,
@@ -819,8 +833,8 @@ const styles = StyleSheet.create({
   riderMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   riderMetaText: { fontSize: font.sizes.md, color: colors.ink2 },
   plate: { backgroundColor: colors.ink, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 4 },
-  plateText: { color: colors.white, fontSize: 10.5, fontWeight: '900' as const, letterSpacing: 0.6 },
-  actBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  plateText: { color: colors.white, fontSize: font.sizes.xs, fontWeight: '900' as const, letterSpacing: 0.6 },
+  actBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   actIcon: { fontSize: 18 },
 
   summary: {
@@ -859,9 +873,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     gap: 10,
   },
-  contactAddr: { fontSize: font.sizes.md, color: colors.ink2, lineHeight: 19 },
+  contactAddressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  contactAddr: { flex: 1, fontSize: font.sizes.md, color: colors.ink2, lineHeight: 20 },
   contactActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   contactBtn: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: radius.pill,

@@ -187,5 +187,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     marginHorizontal: 4,
   },
-  rowBadgeText: { color: colors.white, fontSize: 11, fontWeight: font.weights.bold },
+  rowBadgeText: { color: colors.white, fontSize: font.sizes.xs, fontWeight: font.weights.bold },
 });

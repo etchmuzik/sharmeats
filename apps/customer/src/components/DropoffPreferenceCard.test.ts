@@ -25,6 +25,12 @@ vi.mock('expo-haptics', () => ({
   impactAsync: vi.fn(async () => {}),
   notificationAsync: vi.fn(async () => {}),
 }));
+// The component uses the production Ionicons wrapper. Vitest runs without
+// Metro's asset/Flow transforms, so mock the package boundary instead of
+// evaluating every icon module in @expo/vector-icons.
+vi.mock('@expo/vector-icons', () => ({
+  Ionicons: () => null,
+}));
 
 import { getVisibleChips, isQuietPreference } from './DropoffPreferenceCard';
 
