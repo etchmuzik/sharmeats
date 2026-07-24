@@ -1,154 +1,256 @@
-// Supabase Edge Function — Paymob card REFUND (Sharm Eats).
+// Supabase Edge Function — full Paymob card refund.
 //
-// P0 #4 (2026-07-11 gap analysis): the platform could take card money but had no
-// path to return it — `'refunded'` was an orphaned status and support could only
-// grant store credit (a consumer-rights + chargeback problem). This function issues
-// a real Paymob refund against the captured transaction.
-//
-// AUTH: admin-only. The caller must present a Supabase JWT whose user has role
-// 'admin' (verified server-side against public.users). This is NOT a public webhook.
-//
-// FLOW:
-//   1. Verify the caller is an admin.
-//   2. Load the order server-side; must be a PAID CARD order with a stored
-//      paymob_txn_id (mig 107). Amount is server-derived from the order (or a
-//      partial amount ≤ the order total, admin-supplied).
-//   3. POST Paymob's refund API with PAYMOB_SECRET_KEY.
-//   4. Record the attempt in order_refunds and, on success, flip payment_status
-//      to 'refunded'. Idempotent-ish: a prior succeeded refund short-circuits.
-//
-// Deploy (owner):
-//   supabase functions deploy paymob-refund --project-ref <REF>
-// Reuses the same PAYMOB_SECRET_KEY secret as paymob-create-intention.
-// NOTE: this is built but should be deployed + tested by the owner alongside
-// enabling card payments; under COD-only there is nothing to refund yet.
+// Admin-only. Partial refunds are intentionally rejected until the accounting
+// model can represent multiple captures/refunds. A unique requested/succeeded
+// row claims each order before Paymob is called, and a database RPC finalizes
+// the provider response and order status atomically.
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { parseFullRefundRequest } from "./logic.ts";
 
-const PAYMOB_REFUND_URL = 'https://accept.paymob.com/api/acceptance/void_refund/refund';
+const PAYMOB_REFUND_URL =
+  "https://accept.paymob.com/api/acceptance/void_refund/refund";
+const MAX_BODY_BYTES = 8 * 1024;
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+function corsHeaders(req: Request): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+  const origin = req.headers.get("Origin");
+  const allowed = (Deno.env.get("PAYMENT_ALLOWED_ORIGINS") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (origin && allowed.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
+
+async function readJson(req: Request): Promise<unknown> {
+  const declaredLength = Number(req.headers.get("Content-Length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    throw new Error("BODY_TOO_LARGE");
+  }
+  const text = await req.text();
+  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
+    throw new Error("BODY_TOO_LARGE");
+  }
+  return JSON.parse(text);
+}
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-
-  try {
-    const secretKey = Deno.env.get('PAYMOB_SECRET_KEY');
-    if (!secretKey) return json({ error: 'Paymob key not configured on the server' }, 500);
-
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'unauthorized' }, 401);
-
-    let orderId: string | undefined;
-    let amountEgp: number | undefined; // optional partial refund; defaults to full order total
-    let reason: string | undefined;
-    try {
-      ({ orderId, amountEgp, reason } = await req.json());
-    } catch {
-      return json({ error: 'bad json' }, 400);
-    }
-    if (!orderId) return json({ error: 'orderId required' }, 400);
-
-    // Caller-scoped client — verify the JWT and the caller's admin role via RLS-safe read.
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData?.user) return json({ error: 'unauthorized' }, 401);
-    const { data: me } = await userClient
-      .from('users')
-      .select('role')
-      .eq('id', userData.user.id)
-      .single();
-    if ((me?.role as string | undefined) !== 'admin') {
-      return json({ error: 'forbidden: admin only' }, 403);
-    }
-
-    // Service-role client for the authoritative reads/writes (bypasses RLS; gated by the
-    // admin check above).
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    const { data: order, error: orderErr } = await admin
-      .from('orders')
-      .select('id, total_egp, payment_method, payment_status, paymob_txn_id')
-      .eq('id', orderId)
-      .single();
-    if (orderErr || !order) return json({ error: 'Order not found' }, 404);
-    if (order.payment_method !== 'card') return json({ error: 'Not a card order' }, 409);
-    if (order.payment_status === 'refunded') return json({ ok: true, alreadyRefunded: true }, 200);
-    if (order.payment_status !== 'paid') {
-      return json({ error: `Order payment is ${order.payment_status}, not refundable` }, 409);
-    }
-    if (!order.paymob_txn_id) {
-      return json({ error: 'No captured Paymob transaction id on this order (mig 107 / webhook)' }, 422);
-    }
-
-    // Amount: server-derived. A partial amount, if provided, must be a positive integer
-    // no greater than the order total.
-    const fullCents = Math.round(order.total_egp * 100);
-    let refundCents = fullCents;
-    if (amountEgp != null) {
-      if (!Number.isFinite(amountEgp) || amountEgp <= 0 || amountEgp > order.total_egp) {
-        return json({ error: 'Invalid partial refund amount' }, 422);
-      }
-      refundCents = Math.round(amountEgp * 100);
-    }
-
-    // Record the attempt before calling the provider (so a crash mid-call is visible).
-    const { data: refundRow } = await admin
-      .from('order_refunds')
-      .insert({
-        order_id: order.id,
-        amount_egp: Math.round(refundCents / 100),
-        reason: reason ?? null,
-        status: 'requested',
-        actor_id: userData.user.id,
-      })
-      .select('id')
-      .single();
-
-    const refundRes = await fetch(PAYMOB_REFUND_URL, {
-      method: 'POST',
-      headers: { Authorization: `Token ${secretKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transaction_id: order.paymob_txn_id, amount_cents: refundCents }),
-    });
-    const refundBody = await refundRes.json().catch(() => ({}));
-
-    if (!refundRes.ok || refundBody?.success === false) {
-      if (refundRow?.id) {
-        await admin.from('order_refunds')
-          .update({ status: 'failed', provider_detail: refundBody })
-          .eq('id', refundRow.id);
-      }
-      return json({ error: 'Paymob refund failed', detail: refundBody }, 502);
-    }
-
-    // Success: mark the order refunded and complete the audit row.
-    await admin.from('orders').update({ payment_status: 'refunded' }).eq('id', order.id);
-    if (refundRow?.id) {
-      await admin.from('order_refunds')
-        .update({ status: 'succeeded', provider_ref: String(refundBody?.id ?? ''), provider_detail: refundBody })
-        .eq('id', refundRow.id);
-    }
-
-    return json({ ok: true, refundedEgp: Math.round(refundCents / 100) }, 200);
-  } catch (e) {
-    return json({ error: String(e) }, 500);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders(req) });
   }
+  if (req.method !== "POST") {
+    return json(req, { error: "method_not_allowed" }, 405, {
+      Allow: "POST, OPTIONS",
+    });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const secretKey = Deno.env.get("PAYMOB_SECRET_KEY");
+  if (!supabaseUrl || !anonKey || !serviceRoleKey || !secretKey) {
+    return json(req, { error: "service_unavailable" }, 503);
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return json(req, { error: "unauthorized" }, 401);
+  }
+
+  let refundRequest: ReturnType<typeof parseFullRefundRequest>;
+  try {
+    refundRequest = parseFullRefundRequest(await readJson(req));
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "BODY_TOO_LARGE") {
+      return json(req, { error: "body_too_large" }, 413);
+    }
+    if (code === "FULL_REFUNDS_ONLY") {
+      return json(req, { error: "full_refunds_only" }, 422);
+    }
+    return json(req, { error: "invalid_request" }, 400);
+  }
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const token = authHeader.slice("Bearer ".length);
+  const { data: userData, error: userError } = await userClient.auth.getUser(
+    token,
+  );
+  if (userError || !userData.user) {
+    return json(req, { error: "unauthorized" }, 401);
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: actor, error: actorError } = await admin
+    .from("users")
+    .select("role")
+    .eq("id", userData.user.id)
+    .single();
+  if (actorError || actor?.role !== "admin") {
+    return json(req, { error: "forbidden" }, 403);
+  }
+
+  const { data: order, error: orderError } = await admin
+    .from("orders")
+    .select("id, total_egp, payment_method, payment_status, paymob_txn_id")
+    .eq("id", refundRequest.orderId)
+    .single();
+  if (orderError || !order) return json(req, { error: "order_not_found" }, 404);
+  if (order.payment_method !== "card") {
+    return json(req, { error: "not_a_card_order" }, 409);
+  }
+  if (order.payment_status === "refunded") {
+    return json(req, { ok: true, alreadyRefunded: true });
+  }
+  if (order.payment_status !== "paid") {
+    return json(req, { error: "order_not_refundable" }, 409);
+  }
+  if (
+    !order.paymob_txn_id || !Number.isInteger(order.total_egp) ||
+    order.total_egp <= 0
+  ) {
+    return json(req, { error: "order_not_refundable" }, 422);
+  }
+
+  // This insert is the provider-call claim. The partial unique index in
+  // migration 121 lets exactly one concurrent request proceed.
+  const { data: refund, error: claimError } = await admin
+    .from("order_refunds")
+    .insert({
+      order_id: order.id,
+      amount_egp: order.total_egp,
+      reason: refundRequest.reason,
+      status: "requested",
+      actor_id: userData.user.id,
+    })
+    .select("id")
+    .single();
+  if (claimError || !refund) {
+    if (claimError?.code === "23505") {
+      const { data: existing } = await admin
+        .from("order_refunds")
+        .select("status")
+        .eq("order_id", order.id)
+        .in("status", ["requested", "succeeded"])
+        .maybeSingle();
+      if (existing?.status === "succeeded") {
+        return json(req, { ok: true, alreadyRefunded: true });
+      }
+      return json(req, { error: "refund_in_progress" }, 409);
+    }
+    return json(req, { error: "refund_initialization_failed" }, 500);
+  }
+
+  const amountCents = order.total_egp * 100;
+  let providerResponse: Response;
+  try {
+    providerResponse = await fetch(PAYMOB_REFUND_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${secretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        transaction_id: order.paymob_txn_id,
+        amount_cents: amountCents,
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    // The provider may have accepted the refund before the connection failed.
+    // Leave status=requested so automatic retries cannot double-refund.
+    await admin
+      .from("order_refunds")
+      .update({
+        provider_detail: {
+          error: "Provider outcome unknown; reconcile manually",
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", refund.id);
+    return json(req, { error: "refund_reconciliation_required" }, 502);
+  }
+
+  const providerBody = await providerResponse.json().catch(
+    () => ({}),
+  ) as Record<string, unknown>;
+  if (!providerResponse.ok || providerBody.success === false) {
+    await admin
+      .from("order_refunds")
+      .update({
+        status: "failed",
+        provider_detail: {
+          httpStatus: providerResponse.status,
+          providerId: providerBody.id ?? null,
+          success: providerBody.success ?? null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", refund.id);
+    return json(req, { error: "refund_provider_rejected" }, 502);
+  }
+
+  const providerReference = typeof providerBody.id === "string" ||
+      typeof providerBody.id === "number"
+    ? String(providerBody.id).trim()
+    : "";
+  if (!providerReference) {
+    await admin
+      .from("order_refunds")
+      .update({
+        provider_detail: {
+          error: "Successful response missing provider reference",
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", refund.id);
+    return json(req, { error: "refund_reconciliation_required" }, 502);
+  }
+
+  const { error: finalizeError } = await admin.rpc(
+    "finalize_full_card_refund",
+    {
+      p_refund_id: refund.id,
+      p_provider_ref: providerReference,
+      p_provider_detail: providerBody,
+    },
+  );
+  if (finalizeError) {
+    // The unique requested claim remains in place. An operator can reconcile
+    // the successful provider refund without issuing a second one.
+    return json(req, { error: "refund_reconciliation_required" }, 500);
+  }
+
+  return json(req, { ok: true, refundedEgp: order.total_egp });
 });
 
-function json(body: unknown, status = 200): Response {
+function json(
+  req: Request,
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
+    headers: {
+      ...corsHeaders(req),
+      ...extraHeaders,
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }

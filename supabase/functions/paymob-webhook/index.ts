@@ -1,176 +1,215 @@
-// Supabase Edge Function — Paymob transaction webhook (Sharm Eats).
+// Supabase Edge Function — Paymob transaction webhook.
 //
-// Ported from Go Sharm. Paymob POSTs here after a card payment attempt. We
-// verify the HMAC signature (so a forged request can't mark an order paid),
-// then flip payment_status. This is the ONLY place a CARD order becomes 'paid'
-// — the client is never trusted. (COD orders settle via mark_cod_collected.)
-//
-// IDEMPOTENT: only pending → paid, with a row-count check, so Paymob's retries
-// run side-effects exactly once.
-//
-// Deploy:
-//   supabase functions deploy paymob-webhook --no-verify-jwt --project-ref <REF>
-// Set the callback URL in the Paymob dashboard to:
-//   https://<REF>.supabase.co/functions/v1/paymob-webhook
-// Secret (set once):
-//   supabase secrets set PAYMOB_HMAC_SECRET=... --project-ref <REF>
-//
-// --no-verify-jwt is required: Paymob calls this without a Supabase JWT.
-// We use the service-role key for the DB write, gated by HMAC verification.
+// Paymob calls this endpoint without a Supabase JWT, so deployment intentionally
+// uses --no-verify-jwt. Every state change is gated by the Paymob SHA-512 HMAC.
+// The callback is bound to payment_attempts.provider_order_id using only the
+// HMAC-covered obj.order.id; unsigned merchant references are ignored.
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { Buffer } from 'node:buffer';
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import { amountMatches, buildHmacString, isSuccess, resolveOrderId } from './verify.ts';
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { Buffer } from "node:buffer";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  attemptStatusAfterFailedTransaction,
+  amountMatches,
+  buildHmacString,
+  isSuccess,
+  resolveSignedProviderOrderId,
+  signedTransactionId,
+} from "./verify.ts";
+
+const MAX_BODY_BYTES = 64 * 1024;
+
+async function readPayload(req: Request): Promise<Record<string, unknown>> {
+  const declaredLength = Number(req.headers.get("Content-Length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    throw new Error("BODY_TOO_LARGE");
+  }
+  const text = await req.text();
+  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
+    throw new Error("BODY_TOO_LARGE");
+  }
+  const payload = JSON.parse(text);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("INVALID_BODY");
+  }
+  return payload as Record<string, unknown>;
+}
 
 Deno.serve(async (req: Request) => {
-  try {
-    const hmacSecret = Deno.env.get('PAYMOB_HMAC_SECRET');
-    if (!hmacSecret) return new Response('not configured', { status: 500 });
-
-    const url = new URL(req.url);
-    const providedHmac = url.searchParams.get('hmac') ?? '';
-    let payload: Record<string, unknown>;
-    try {
-      payload = await req.json();
-    } catch {
-      return new Response('bad json', { status: 400 });
-    }
-    const obj = (payload.obj ?? payload) as Record<string, any>;
-
-    // Build the concatenation string from the documented fields (see verify.ts).
-    const concatenated = buildHmacString(obj);
-
-    const computed = createHmac('sha512', hmacSecret).update(concatenated).digest('hex');
-    // [AUDIT-1] Constant-time comparison. Amount-binding + the idempotent
-    // pending→paid transition below already make a forged signature
-    // non-exploitable, but a plain `!==` short-circuits on the first differing
-    // byte (a timing side channel in principle); timingSafeEqual removes it.
-    // Guard the hex decode + length so a malformed `hmac` param can't throw.
-    let providedBuf: Buffer;
-    let computedBuf: Buffer;
-    try {
-      providedBuf = Buffer.from(providedHmac, 'hex');
-      computedBuf = Buffer.from(computed, 'hex');
-    } catch {
-      return new Response('invalid hmac', { status: 401 });
-    }
-    if (providedBuf.length !== computedBuf.length || !timingSafeEqual(providedBuf, computedBuf)) {
-      return new Response('invalid hmac', { status: 401 });
-    }
-
-    const success = isSuccess(obj);
-    const orderId = resolveOrderId(obj);
-    if (!orderId) return new Response('no order ref', { status: 400 });
-
-    // Service-role client (bypasses RLS) — safe because HMAC is verified above.
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    if (!success) {
-      const { data: failedRows } = await admin
-        .from('orders')
-        .update({ payment_status: 'failed' })
-        .eq('id', orderId)
-        .eq('payment_status', 'pending')
-        .select('id, user_id');
-      // Tell the customer their card payment did not go through (best-effort).
-      const failed = failedRows && failedRows.length > 0 ? failedRows[0] : null;
-      if (failed?.user_id) {
-        const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/expo-push`;
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        };
-        const secret = Deno.env.get('PUSH_INTERNAL_SECRET');
-        if (secret) headers['x-internal-secret'] = secret;
-        fetch(fnUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ event: 'payment_failed', orderId: failed.id, recipientUserIds: [failed.user_id] }),
-        }).catch(() => {});
-      }
-      return new Response('ok', { status: 200 });
-    }
-
-    // SECURITY: locate the pending order BEFORE any state change so we can
-    // assert the SIGNED amount matches what this order owes. The order selector
-    // (special_reference / merchant_order_id / extras.order_id) is derived from
-    // UNSIGNED webhook fields, so without this check an attacker could replay a
-    // valid {signed-fields, hmac} pair against a victim's order id. amount_cents
-    // IS in HMAC_FIELDS, so it is trustworthy; total_egp is read from our DB.
-    const { data: pendingRows, error: selErr } = await admin
-      .from('orders')
-      .select('id, user_id, total_egp')
-      .eq('id', orderId)
-      .eq('payment_status', 'pending');
-
-    if (selErr) {
-      return new Response(`db error: ${selErr.message}`, { status: 500 });
-    }
-
-    // Not found or not pending → graceful no-op (preserves Paymob retry
-    // idempotency: a second delivery for an already-paid order does nothing).
-    const pending = pendingRows && pendingRows.length > 0 ? pendingRows[0] : null;
-    if (!pending) {
-      return new Response('ok', { status: 200 });
-    }
-
-    // AMOUNT ASSERTION (decisive control): signed piastres must equal what the
-    // located order owes. total_egp is integer EGP; piastres = total_egp * 100.
-    if (!amountMatches(obj.amount_cents, pending.total_egp)) {
-      return new Response('amount mismatch', { status: 400 });
-    }
-
-    // IDEMPOTENT transition: only pending → paid. Returned rows tell us whether
-    // THIS call did the work. Paymob retries update 0 rows → side-effects once.
-    const { data: transitioned, error: updErr } = await admin
-      .from('orders')
-      .update({
-        payment_status: 'paid',
-        paymob_order_ref: String(obj.order?.id ?? ''),
-        // [107] Capture the signed transaction id (obj.id, in HMAC_FIELDS) so the
-        // paymob-refund function can target this exact transaction. Distinct from
-        // paymob_order_ref (the Paymob order id).
-        paymob_txn_id: String(obj.id ?? ''),
-      })
-      .eq('id', orderId)
-      .eq('payment_status', 'pending')
-      .select('id, user_id, total_egp');
-
-    if (updErr) {
-      return new Response(`db error: ${updErr.message}`, { status: 500 });
-    }
-
-    const ord = transitioned && transitioned.length > 0 ? transitioned[0] : null;
-    if (ord) {
-      // Append a paid status event (audit + drives "payment confirmed" UI).
-      await admin
-        .from('order_status_events')
-        .insert({ order_id: ord.id, status: 'placed', note: 'Payment confirmed (card)' })
-        // Two-arg then: the postgrest builder is a PromiseLike without .catch.
-        .then(() => {}, () => {});
-
-      // Notify the merchant their (now paid) order is live, via expo-push fn.
-      // [M4] Send the internal shared secret so expo-push accepts the call.
-      const fnUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/expo-push`;
-      const pushHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-      };
-      const pushSecret = Deno.env.get('PUSH_INTERNAL_SECRET');
-      if (pushSecret) pushHeaders['x-internal-secret'] = pushSecret;
-      fetch(fnUrl, {
-        method: 'POST',
-        headers: pushHeaders,
-        body: JSON.stringify({ event: 'order_paid', orderId: ord.id }),
-      }).catch(() => {});
-    }
-
-    return new Response('ok', { status: 200 });
-  } catch (e) {
-    return new Response(`error: ${e}`, { status: 500 });
+  if (req.method !== "POST") {
+    return response("method not allowed", 405, { Allow: "POST" });
   }
+
+  const hmacSecret = Deno.env.get("PAYMOB_HMAC_SECRET");
+  const integrationId = Deno.env.get("PAYMOB_INTEGRATION_ID");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!hmacSecret || !integrationId || !supabaseUrl || !serviceRoleKey) {
+    return response("service unavailable", 503);
+  }
+
+  const providedHmac = new URL(req.url).searchParams.get("hmac") ?? "";
+  if (!/^[0-9a-fA-F]{128}$/.test(providedHmac)) {
+    return response("invalid hmac", 401);
+  }
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = await readPayload(req);
+  } catch (error) {
+    return response(
+      error instanceof Error && error.message === "BODY_TOO_LARGE"
+        ? "body too large"
+        : "bad json",
+      error instanceof Error && error.message === "BODY_TOO_LARGE" ? 413 : 400,
+    );
+  }
+  const obj = (payload.obj ?? payload) as Record<string, unknown>;
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+    return response("bad payload", 400);
+  }
+
+  const computedHmac = createHmac("sha512", hmacSecret)
+    .update(buildHmacString(obj))
+    .digest("hex");
+  const providedBuffer = Buffer.from(providedHmac, "hex");
+  const computedBuffer = Buffer.from(computedHmac, "hex");
+  if (
+    providedBuffer.length !== computedBuffer.length ||
+    !timingSafeEqual(providedBuffer, computedBuffer)
+  ) {
+    return response("invalid hmac", 401);
+  }
+
+  const providerOrderId = resolveSignedProviderOrderId(obj);
+  const providerTransactionId = signedTransactionId(obj);
+  const signedIntegrationId = String(obj.integration_id ?? "").trim();
+  const signedCurrency = String(obj.currency ?? "").trim().toUpperCase();
+  if (!providerOrderId || !providerTransactionId) {
+    return response("missing signed reference", 400);
+  }
+  if (signedIntegrationId !== integrationId || signedCurrency !== "EGP") {
+    return response("payment scope mismatch", 400);
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // Load only by the HMAC-covered provider order id. This lookup also supplies
+  // the authoritative amount used to reject a replay against another order.
+  const { data: attempt, error: attemptError } = await admin
+    .from("payment_attempts")
+    .select("id, order_id, user_id, amount_egp, integration_id, status, provider_txn_id")
+    .eq("provider_order_id", providerOrderId)
+    .maybeSingle();
+  if (attemptError) return response("database unavailable", 500);
+  if (!attempt) return response("unknown payment", 400);
+  if (
+    attempt.integration_id !== integrationId ||
+    !amountMatches(obj.amount_cents, attempt.amount_egp)
+  ) {
+    return response("payment scope mismatch", 400);
+  }
+
+  if (!isSuccess(obj)) {
+    const failedAt = new Date().toISOString();
+    await admin
+      .from("payment_attempts")
+      .update({
+        status: attemptStatusAfterFailedTransaction(attempt.status),
+        provider_txn_id: providerTransactionId,
+        last_error: "Provider reported an unsuccessful transaction",
+        updated_at: failedAt,
+      })
+      .eq("id", attempt.id);
+
+    if (attempt.user_id) {
+      sendPush({
+        event: "payment_failed",
+        orderId: attempt.order_id,
+        recipientUserIds: [attempt.user_id],
+      });
+    }
+    return response("ok");
+  }
+
+  const amountCents = Number(obj.amount_cents);
+  if (!Number.isSafeInteger(amountCents)) {
+    return response("invalid amount", 400);
+  }
+
+  // One SQL transaction locks the attempt and order, rechecks every binding,
+  // and performs the pending/failed -> paid transition exactly once.
+  const { data: settlement, error: settlementError } = await admin.rpc(
+    "settle_paymob_payment",
+    {
+      p_provider_order_id: providerOrderId,
+      p_provider_txn_id: providerTransactionId,
+      p_amount_cents: amountCents,
+      p_integration_id: integrationId,
+    },
+  );
+  if (settlementError) {
+    const message = settlementError.message ?? "";
+    if (/AMOUNT_MISMATCH|INTEGRATION_MISMATCH|METHOD_MISMATCH/.test(message)) {
+      return response("payment scope mismatch", 400);
+    }
+    if (/ALREADY_PAID|NOT_PAYABLE/.test(message)) {
+      return response("payment conflict", 409);
+    }
+    return response("database unavailable", 500);
+  }
+
+  const settled = settlement as {
+    orderId?: string;
+    userId?: string;
+    transitioned?: boolean;
+  } | null;
+  if (settled?.transitioned && settled.orderId) {
+    await admin
+      .from("order_status_events")
+      .insert({
+        order_id: settled.orderId,
+        status: "placed",
+        note: "Payment confirmed (card)",
+      })
+      .then(() => {}, () => {});
+    sendPush({ event: "order_paid", orderId: settled.orderId });
+  }
+
+  return response("ok");
 });
+
+function sendPush(body: Record<string, unknown>): void {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) return;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${serviceRoleKey}`,
+  };
+  const internalSecret = Deno.env.get("PUSH_INTERNAL_SECRET");
+  if (internalSecret) headers["x-internal-secret"] = internalSecret;
+  fetch(`${supabaseUrl}/functions/v1/expo-push`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  }).catch(() => {});
+}
+
+function response(
+  body: string,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
+  return new Response(body, {
+    status,
+    headers: {
+      ...extraHeaders,
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
