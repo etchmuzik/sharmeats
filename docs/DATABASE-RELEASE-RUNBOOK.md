@@ -51,10 +51,25 @@ and zero daily snapshots. `walg_enabled: true` is internal infrastructure and is
 
 Until the plan is upgraded, off-site logical dumps are the only protection:
 
+**One-time setup** (store the password in the Keychain so backups can run
+unattended — it never touches a plaintext file, the plist, or `ps` output):
+
 ```sh
-export SUPABASE_DB_PASSWORD='...'     # Dashboard → Settings → Database
-./scripts/backup-prod.sh              # → ~/sharmeats-backups/<UTC stamp>/
+security add-generic-password -a "$USER" -s 'sharmeats-db-password' -w 'YOUR-DB-PASSWORD'
+./scripts/backup-prod.sh                     # verify it works → ~/sharmeats-backups/<UTC stamp>/
 ```
+
+**Schedule it daily** (03:00; catches up after sleep rather than skipping):
+
+```sh
+cp scripts/com.sharmeats.backup.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.sharmeats.backup.plist
+launchctl start com.sharmeats.backup     # run once now, don't wait for 03:00
+tail -20 ~/sharmeats-backups/backup.log  # confirm it succeeded
+```
+
+An ad-hoc run without the Keychain item still works via
+`export SUPABASE_DB_PASSWORD='...'`.
 
 The script dumps roles + schema + data, writes a MANIFEST, refuses to silently
 produce a truncated dump, keeps the newest 14 runs, and writes 0600 into a 0700

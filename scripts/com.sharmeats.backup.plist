@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Daily off-site backup of the Sharm Eats production database.
+
+  The project is on the Supabase free plan, which has no managed backups and no
+  PITR, so this scheduled job is the only thing producing a restorable copy.
+
+  The database password is NOT in this file — backup-prod.sh reads it from the
+  macOS Keychain item "sharmeats-db-password".
+
+  Install:
+    cp scripts/com.sharmeats.backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.sharmeats.backup.plist
+
+  Run once now (don't wait for 03:00):
+    launchctl start com.sharmeats.backup
+
+  Check it:
+    launchctl list | grep sharmeats
+    tail -20 ~/sharmeats-backups/backup.log
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.sharmeats.backup.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.sharmeats.backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/etch/Downloads/sharmeats/scripts/backup-prod.sh</string>
+  </array>
+
+  <!-- 03:00 local time, daily. RunAtLoad is deliberately false so installing
+       this at midday doesn't fire an immediate dump; use `launchctl start`. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+
+  <!-- If the Mac was asleep at 03:00, run once it wakes rather than skipping. -->
+  <key>StartInterval</key>
+  <integer>86400</integer>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/etch/Downloads/sharmeats</string>
+
+  <!-- Homebrew paths for pg_dump/supabase; launchd's default PATH is minimal. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <!-- Both streams to one log so a failure is visible rather than silent. -->
+  <key>StandardOutPath</key>
+  <string>/Users/etch/sharmeats-backups/backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/etch/sharmeats-backups/backup.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+</dict>
+</plist>

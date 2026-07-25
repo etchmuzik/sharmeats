@@ -39,17 +39,30 @@ KEEP="${KEEP:-14}"                      # how many timestamped backups to retain
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="${BACKUP_DIR}/${STAMP}"
 
+# Password resolution, in order:
+#   1. SUPABASE_DB_PASSWORD in the environment (ad-hoc runs)
+#   2. macOS Keychain item "sharmeats-db-password" (how the scheduled run gets it)
+# The Keychain is used so the password never sits in a plaintext env file or in
+# the LaunchAgent plist, and never appears in `ps` output.
+if [[ -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
+  SUPABASE_DB_PASSWORD="$(security find-generic-password -s 'sharmeats-db-password' -w 2>/dev/null || true)"
+fi
+
 if [[ -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
   cat >&2 <<'EOF'
-ERROR: SUPABASE_DB_PASSWORD is not set.
+ERROR: no database password available.
 
 Get it from: Supabase Dashboard → Project Settings → Database → Database password
-(reset it there if unknown — resetting is safe, it does not affect the anon or
-service-role API keys the apps use).
+(resetting it there is safe — it does not affect the anon or service-role API
+keys the apps use).
 
-Then:
-  export SUPABASE_DB_PASSWORD='your-db-password'
-  ./scripts/backup-prod.sh
+Store it once in the Keychain so scheduled backups can run unattended:
+
+  security add-generic-password -a "$USER" -s 'sharmeats-db-password' -w 'YOUR-DB-PASSWORD'
+
+...or set it just for this run:
+
+  export SUPABASE_DB_PASSWORD='YOUR-DB-PASSWORD'
 EOF
   exit 1
 fi
