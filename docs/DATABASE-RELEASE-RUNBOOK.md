@@ -42,11 +42,45 @@ upsert can hit the new unique(token) index and fail silently. All are
 onboarding/edge flows, acceptable during the release window — do not widen
 policies to avoid them.
 
+## Backups (there are none from Supabase — read this)
+
+Verified against the Management API on 2026-07-25: the project is on the
+**Free plan**, so it has **no managed backups at all** — `pitr_enabled: false`
+and zero daily snapshots. `walg_enabled: true` is internal infrastructure and is
+**not** an operator-restorable backup. Nothing automatic protects this database.
+
+Until the plan is upgraded, off-site logical dumps are the only protection:
+
+```sh
+export SUPABASE_DB_PASSWORD='...'     # Dashboard → Settings → Database
+./scripts/backup-prod.sh              # → ~/sharmeats-backups/<UTC stamp>/
+```
+
+The script dumps roles + schema + data, writes a MANIFEST, refuses to silently
+produce a truncated dump, keeps the newest 14 runs, and writes 0600 into a 0700
+directory. Output is gitignored — the dumps contain every customer row.
+
+Two things the script cannot do for you:
+
+- **Copy the backup off this machine.** A backup stored only on the laptop that
+  could die with it is not a backup.
+- **Back up Storage.** The `kyc` bucket holds merchant/driver identity documents
+  and a database dump does not contain the files. Export it separately.
+
+**A backup you have never restored is an assumption, not a backup.** Rehearse a
+restore into a scratch database (`roles.sql` → `schema.sql` → `data.sql`) at
+least once, and confirm row counts against the manifest.
+
+Upgrading to Pro is what actually fixes this: it turns on daily backups and
+makes PITR available, and it is the prerequisite for the "enable a recoverable
+backup/PITR plan" gate below.
+
 ## Mandatory gates
 
 1. Freeze production DDL and keep `CARD_PAYMENTS_ENABLED=false`.
 2. Enable a recoverable database backup/PITR plan and test a restore. A schema
-   dump alone is not a customer-data backup.
+   dump alone is not a customer-data backup. **Status: NOT satisfied — free plan,
+   no managed backups. `scripts/backup-prod.sh` is the interim mitigation.**
 3. Save a schema-only production snapshot outside the public repository:
 
    ```sh

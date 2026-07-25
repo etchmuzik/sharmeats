@@ -51,3 +51,7 @@ __pycache__/
 output/
 .playwright-cli/
 deploy-zips/
+
+# Local database backups — contain full customer data, never commit.
+sharmeats-backups/
+*.dump
