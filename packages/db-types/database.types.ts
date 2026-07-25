@@ -2049,6 +2049,7 @@ export type Database = {
           description: string
           distance_meters: number
           featured: boolean | null
+          founding_rate_until: string | null
           fulfillment_type: string
           geo: unknown
           id: string
@@ -2094,6 +2095,7 @@ export type Database = {
           description?: string
           distance_meters?: number
           featured?: boolean | null
+          founding_rate_until?: string | null
           fulfillment_type?: string
           geo?: unknown
           id?: string
@@ -2139,6 +2141,7 @@ export type Database = {
           description?: string
           distance_meters?: number
           featured?: boolean | null
+          founding_rate_until?: string | null
           fulfillment_type?: string
           geo?: unknown
           id?: string
@@ -2687,6 +2690,10 @@ export type Database = {
         Args: { p_pct: number; p_restaurant_id: string }
         Returns: undefined
       }
+      admin_set_founding_rate_until: {
+        Args: { p_restaurant_id: string; p_until: string }
+        Returns: undefined
+      }
       admin_update_restaurant: {
         Args: {
           p_cover_image: string
@@ -2847,6 +2854,22 @@ export type Database = {
         Args: { p_settlement_id: string }
         Returns: undefined
       }
+      founding_rate_report: {
+        Args: never
+        Returns: {
+          commission_pct: number
+          days_remaining: number
+          delivered_orders: number
+          food_egp_30d: number
+          forgone_egp_30d: number
+          founding_rate_until: string
+          is_active: boolean
+          name: string
+          restaurant_id: string
+          status: string
+          zone: string
+        }[]
+      }
       generate_driver_settlements: {
         Args: { p_period_end: string; p_period_start: string }
         Returns: number
@@ -2978,6 +3001,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      kyc_storage_path_indexed: { Args: { p_name: string }; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
       loyalty_tier_sweep: { Args: never; Returns: number }
       mark_cod_collected: {
