@@ -113,9 +113,16 @@ export default function PartnerTermsPage() {
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>
                 <strong>Commission is 15% of the food value</strong> of each
-                delivered order (the standard rate). Restaurants in our founding
-                cohort pay an agreed reduced rate for the period set out in their
-                LOI.
+                delivered order. This is the standard rate and the one that
+                applies unless we have agreed otherwise with you in writing.
+              </li>
+              <li>
+                <strong>Founding cohort — 12%.</strong> Our launch cohort pays a
+                reduced <strong>12%</strong> for the first three months from
+                their go-live date, after which the standard 15% applies. This
+                offer is limited to a fixed number of launch partners and is not
+                automatic: it applies only if we confirm it with you in writing
+                before you go live. If you are not offered it, your rate is 15%.
               </li>
               <li>
                 <strong>No signup fee and no monthly fee.</strong> We do not
