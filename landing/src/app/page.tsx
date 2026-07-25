@@ -243,6 +243,9 @@ export default function HomePage() {
             <div>
               <a className="btn dbtn" href="https://merchant.sharmeats.online/signup">{t.partner_cta}</a>
               <p className="pk mt8">
+                <a href="/partner-terms">{t.partner_terms}</a>
+              </p>
+              <p className="pk mt8">
                 <a href="mailto:hello@sharmeats.online">{t.partner_email}</a>
               </p>
             </div>

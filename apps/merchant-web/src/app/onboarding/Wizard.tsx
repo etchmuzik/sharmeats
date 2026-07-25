@@ -186,8 +186,7 @@ export function Wizard({ onSubmitted }: { onSubmitted: () => void }) {
             <input type="checkbox" checked={draft.termsAccepted}
               onChange={(e) => set({ termsAccepted: e.target.checked })} />
             <span>
-              {/* TODO: dedicated partner-terms page — see PR description */}
-              I accept the <a className="font-medium text-accent hover:underline" href="https://sharmeats.online/terms" target="_blank" rel="noopener noreferrer">partner terms</a> on behalf of this business.
+              I accept the <a className="font-medium text-accent hover:underline" href="https://sharmeats.online/partner-terms" target="_blank" rel="noopener noreferrer">partner terms</a> on behalf of this business.
             </span>
           </label>
         </section>
