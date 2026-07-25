@@ -149,6 +149,13 @@ export default function OpsPage() {
             KYC
           </a>
           <a
+            href="/founding-rates"
+            title="Founding commission windows and expiry"
+            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            Rates
+          </a>
+          <a
             href="/onboarding"
             title="Approve new restaurants"
             className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
