@@ -83,6 +83,13 @@ export function clearDraft(storage: Pick<Storage, 'removeItem'>): void {
   storage.removeItem(KEY);
 }
 
+// ADVISORY COPY ONLY — pre-submit UX validation so applicants get instant
+// feedback. The AUTHORITATIVE service-area gate is Postgres:
+// is_within_service_area() reading the service_area_bbox platform_settings
+// row (mig 129); apply_as_restaurant re-checks server-side and raises
+// GEO_OUT_OF_AREA regardless of what this constant says. If the service area
+// ever changes (city #2), update the settings row first — this constant only
+// needs to follow for cosmetic accuracy.
 const IN_SHARM = (lat: number, lng: number) =>
   lat >= 27.7 && lat <= 28.35 && lng >= 34.2 && lng <= 34.7;
 

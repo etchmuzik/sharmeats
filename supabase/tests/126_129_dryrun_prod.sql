@@ -1,21 +1,18 @@
--- 126_cloud_kitchen_dryrun_prod.sql  (GENERATED -- do not hand-edit)
+-- 126_129_dryrun_prod.sql  (GENERATED -- do not hand-edit)
 --
--- Transaction-wrapped dry run of the REAL migration 126 against the REAL
--- production schema, with asserts that call the actual functions -- including
--- admin_set_merchant_type with a NULL kitchen, the case the shim test suite
--- missed (it crashed the record-based first version; adversarial review,
--- 2026-07-27).
+-- Transaction-wrapped dry run of the ENTIRE pending migration stack
+-- (126 cloud kitchen, 127 vertical fee, 128 zone guard, 129 service-area
+-- single source) against the REAL production schema, with asserts that call
+-- the actual functions. All four migrations are idempotent, so this file is
+-- safe to run whether none, some, or all of them are already applied.
 --
--- HOW TO RUN (owner, Supabase Dashboard -> SQL editor):
---   paste this entire file, Run once. It BEGINs, applies the migration,
---   runs every assert, and ROLLBACKs -- nothing persists. Success = the
---   final "DRY RUN COMPLETE" row. Any error = the migration must not be
---   applied until fixed.
+-- HOW TO RUN (owner, Supabase Dashboard -> SQL editor): paste this entire
+-- file, Run once. It BEGINs, applies 126-129, runs every assert, ROLLBACKs --
+-- nothing persists. Success = the final "DRY RUN COMPLETE" row. Any error =
+-- do not apply until fixed.
 --
--- REGENERATE after any edit to the migration or the asserts:
---   cat supabase/migrations/126_cloud_kitchen_foundation.sql \
---       <asserts section below>  > this file (see scripts note in
---   docs/DATABASE-RELEASE-RUNBOOK.md).
+-- REGENERATE after editing any of the four migrations (cat them + the assert
+-- blocks in order, wrapped in begin/rollback -- see git history of this file).
 --
 begin;
 
@@ -1073,6 +1070,376 @@ revoke all on function public.batch_shadow_sweep() from public, anon, authentica
 comment on function public.batch_shadow_sweep() is
   'CRON (every 2 min): log currently-eligible batch pairs when batch_shadow_logging is on. Records same_pickup (kitchen-aware) alongside same_restaurant. Migs 085, 126.';
 
+-- 127_quote_fee_vertical.sql
+--
+-- Fix: quote_delivery_fee hardcoded vertical_id = 'food', so a fee rule for
+-- any other vertical could never fire (docs/VERTICALS-ROADMAP.md Phase 0 item
+-- 1 — a live bug, not a feature). Resolve the merchant's actual vertical_id
+-- and prefer a (zone, that-vertical) rule, falling back to the zone's
+-- NULL-vertical rule, exactly as the delivery_fee_rules unique index
+-- (zone_id, coalesce(vertical_id,'')) was designed for (mig 010).
+--
+-- Body taken from PRODUCTION via pg_get_functiondef (house rule 2 — the repo
+-- is not the source of truth for bodies), one change: the vertical
+-- resolution. Signature UNCHANGED (uuid, geography, integer default 0) ->
+-- CREATE OR REPLACE cannot create a second overload (house rule 1), and the
+-- existing ACL is preserved untouched — this function is on the guest
+-- checkout quoting path, so grants are deliberately not restated here.
+--
+-- Standalone, additive, idempotent. No binary coupling. Rollback: re-apply
+-- the previous body (prod dump archived in this file's git history).
+
+create or replace function public.quote_delivery_fee(p_restaurant_id uuid, p_dropoff geography, p_subtotal integer default 0)
+returns integer
+language plpgsql
+stable
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_zone     zone_type;
+  v_vertical text;
+  v_rule     public.delivery_fee_rules;
+  v_fee      int;
+begin
+  v_zone := public.resolve_zone_nearest(p_dropoff);
+
+  -- [127] The merchant's actual vertical, not a hardcoded 'food'. coalesce is
+  -- belt-and-braces: restaurants.vertical_id defaults 'food' and was
+  -- backfilled in mig 006, but a NULL must not turn the preference filter off.
+  select coalesce(r.vertical_id, 'food') into v_vertical
+    from public.restaurants r where r.id = p_restaurant_id;
+  v_vertical := coalesce(v_vertical, 'food');  -- merchant not found -> behave as before
+
+  -- Prefer a (zone, merchant-vertical) rule; fall back to (zone, null vertical).
+  select * into v_rule from public.delivery_fee_rules
+   where zone_id = v_zone and (vertical_id = v_vertical or vertical_id is null)
+   order by vertical_id nulls last
+   limit 1;
+
+  if not found then
+    return 30;  -- safe default if no rule configured
+  end if;
+
+  -- MVP: flat base (per_km_fee defaults 0). Free over threshold honored.
+  if v_rule.free_over is not null and p_subtotal >= v_rule.free_over then
+    return 0;
+  end if;
+  v_fee := greatest(v_rule.base_fee, v_rule.min_fee);
+  return v_fee;
+end;
+$function$;
+
+comment on function public.quote_delivery_fee(uuid, geography, integer) is
+  'Delivery fee quote for a merchant + dropoff. Vertical-aware since mig 127: prefers the (zone, merchant vertical) rule, falls back to the zone''s NULL-vertical rule, then a 30 EGP default. Called by place_order and checkout preview.';
+
+-- 128_zone_distance_guard.sql
+--
+-- Fix: resolve_zone_nearest silently assigned ANY point on Earth to the
+-- nearest Sharm zone — there was no "out of service area" answer. Today the
+-- blast radius is bounded (place_order independently rejects out-of-radius
+-- dropoffs via delivery_feasibility, mig 079), so the exposure was quoting
+-- previews and address/zone resolution — plus the latent city-#2 bug where a
+-- Hurghada pin would resolve to a Sharm zone.
+--
+-- Fix shape (the pragmatic option): beyond a max distance from the nearest
+-- active centroid, return NULL and let callers reject/fallback. Zone polygon
+-- boundaries (the "correct" fix) need real geometry for 11 zones that does
+-- not exist — boundary is populated in 0 of 11 prod rows, so the ST_Contains
+-- branch is retained but currently dead; if boundaries are ever drawn it
+-- starts working with no further change.
+--
+-- The threshold is a platform_settings knob (house config pattern, cf.
+-- batch_max_pickup_gap_m) so city #2 is a data change: 15 km default is
+-- generous for Sharm's ~25 km corridor of 11 zone centroids.
+--
+-- Caller behaviour on NULL, verified: quote_delivery_fee finds no rule for a
+-- NULL zone and returns its 30 EGP default (harmless preview); place_order
+-- writes orders.zone (nullable) but its delivery_feasibility gate rejects the
+-- order first with OUT_OF_RANGE.
+--
+-- Body taken from PRODUCTION via pg_get_functiondef (house rule 2).
+-- Signature UNCHANGED (geography) -> no second overload (house rule 1); ACL
+-- preserved untouched.
+--
+-- Standalone, additive, idempotent.
+
+insert into public.platform_settings (key, value)
+values ('service_zone_max_distance_m', to_jsonb(15000))
+on conflict (key) do nothing;
+
+create or replace function public.resolve_zone_nearest(p_geo geography)
+returns zone_type
+language sql
+stable
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+  select coalesce(
+    (select id from public.zones
+       where boundary is not null and st_contains(boundary::geometry, p_geo::geometry)
+       limit 1),
+    (select id from public.zones
+       where centroid is not null and is_active
+         -- [128] Beyond the service radius there is NO zone: return NULL and
+         -- let callers reject, instead of assigning a Cairo pin to Naama.
+         and st_distance(centroid, p_geo) <= coalesce(
+               (select (value #>> '{}')::int from public.platform_settings
+                 where key = 'service_zone_max_distance_m'), 15000)
+       order by st_distance(centroid, p_geo) asc
+       limit 1)
+  );
+$function$;
+
+comment on function public.resolve_zone_nearest(geography) is
+  'Zone for a point: containing boundary if one is drawn (none are today), else the nearest active centroid WITHIN service_zone_max_distance_m (platform_settings, default 15 km) — NULL beyond that. NULL means "not in the service area"; callers must handle it. Migs 005, 128.';
+
+-- 129_service_area_single_source.sql
+--
+-- Consolidate the Sharm service-area bounding box into ONE source of truth.
+--
+-- The box (lat 27.70-28.35, lng 34.20-34.70) existed as three independent
+-- copies: apply_as_restaurant (mig 123), admin_upsert_kitchen (mig 126), and
+-- a client-side advisory copy in apps/merchant-web/src/lib/wizardDraft.ts.
+-- Three copies drift, and expanding to city #2 (Hurghada: docs/FINANCIALS.md
+-- §5's growth path) would mean hunting hardcoded geography. After this
+-- migration the box is a platform_settings row read by one helper; city #2
+-- becomes a data change. The client copy remains, marked advisory-only --
+-- the server is authoritative.
+--
+-- SQL bodies: apply_as_restaurant taken from PRODUCTION via
+-- pg_get_functiondef (house rule 2); admin_upsert_kitchen from migration 126
+-- (not yet in prod -- 129 applies after 126 in sequence). One change each:
+-- the inline box test becomes a call to is_within_service_area(). Signatures
+-- UNCHANGED (17 args / 11 args) -> no second overload (house rule 1); ACLs
+-- preserved by CREATE OR REPLACE except where explicitly restated.
+--
+-- Standalone, additive, idempotent.
+
+-- ---------------------------------------------------------------------------
+-- 1) The box as data.
+-- ---------------------------------------------------------------------------
+insert into public.platform_settings (key, value)
+values ('service_area_bbox',
+        jsonb_build_object('lat_min', 27.70, 'lat_max', 28.35,
+                           'lng_min', 34.20, 'lng_max', 34.70))
+on conflict (key) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- 2) The one reader. SECURITY INVOKER on purpose: it holds no privilege --
+-- inside a SECURITY DEFINER caller it runs as that definer and reads the
+-- settings row; the hardcoded fallback keeps it fail-safe if the row is ever
+-- deleted or unreadable. A NULL input is OUT of area (fail closed).
+-- ---------------------------------------------------------------------------
+create or replace function public.is_within_service_area(p_lat double precision, p_lng double precision)
+returns boolean
+language sql
+stable
+set search_path to 'public', 'pg_temp'
+as $function$
+  select p_lat is not null and p_lng is not null
+     and p_lat between coalesce((select (value ->> 'lat_min')::float8 from public.platform_settings where key = 'service_area_bbox'), 27.70)
+                   and coalesce((select (value ->> 'lat_max')::float8 from public.platform_settings where key = 'service_area_bbox'), 28.35)
+     and p_lng between coalesce((select (value ->> 'lng_min')::float8 from public.platform_settings where key = 'service_area_bbox'), 34.20)
+                   and coalesce((select (value ->> 'lng_max')::float8 from public.platform_settings where key = 'service_area_bbox'), 34.70);
+$function$;
+
+revoke all on function public.is_within_service_area(double precision, double precision) from public, anon;
+grant execute on function public.is_within_service_area(double precision, double precision) to authenticated;
+
+comment on function public.is_within_service_area(double precision, double precision) is
+  'THE service-area gate: point inside the service_area_bbox platform_settings row (hardcoded Sharm fallback). NULL input = false (fail closed). City #2 = update the settings row. Single source of truth since mig 129 -- do not re-inline the box anywhere.';
+
+-- ---------------------------------------------------------------------------
+-- 3) apply_as_restaurant -- prod body verbatim, box check swapped.
+-- ---------------------------------------------------------------------------
+create or replace function public.apply_as_restaurant(
+  p_name text, p_description text, p_cuisines cuisine_type[], p_phone text,
+  p_address text, p_zone zone_type, p_lat double precision, p_lng double precision,
+  p_is_open_24h boolean, p_prep_low integer, p_prep_high integer,
+  p_payout_method text, p_payout_bank_name text, p_payout_iban text,
+  p_payout_wallet text, p_payout_holder text, p_terms_version text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_uid uuid := auth.uid();
+  v_role text;
+  v_existing uuid;
+  v_slug text;
+  v_base_slug text;
+  v_restaurant_id uuid;
+begin
+  if v_uid is null then
+    raise exception 'AUTH_REQUIRED' using errcode = 'check_violation';
+  end if;
+
+  -- Idempotent: an account already linked to a restaurant returns that id.
+  select restaurant_id into v_existing
+    from public.merchant_staff where profile_id = v_uid limit 1;
+  if v_existing is not null then
+    return v_existing;
+  end if;
+
+  -- Fail closed on role: only plain customers may apply (admin/driver/dispatcher
+  -- accounts are operational identities, not merchant prospects).
+  select coalesce(role::text, '') into v_role from public.users where id = v_uid;
+  if v_role is distinct from 'customer' then
+    raise exception 'NOT_ELIGIBLE' using errcode = 'check_violation';
+  end if;
+
+  -- Input validation (fail fast, typed codes the web maps to copy).
+  if p_name is null or length(btrim(p_name)) not between 2 and 120 then
+    raise exception 'INVALID_NAME' using errcode = 'check_violation';
+  end if;
+  if p_phone is null or length(btrim(p_phone)) not between 6 and 20 then
+    raise exception 'INVALID_PHONE' using errcode = 'check_violation';
+  end if;
+  if not exists (select 1 from public.zones where id = p_zone and is_active) then
+    raise exception 'ZONE_NOT_SERVED' using errcode = 'check_violation';
+  end if;
+  -- Service-area plausibility gate, not a service-radius proof (admin verifies
+  -- on review). [129] Single source: is_within_service_area().
+  if not public.is_within_service_area(p_lat, p_lng) then
+    raise exception 'GEO_OUT_OF_AREA' using errcode = 'check_violation';
+  end if;
+  if p_terms_version is null or btrim(p_terms_version) = '' then
+    raise exception 'TERMS_REQUIRED' using errcode = 'check_violation';
+  end if;
+
+  -- Unique slug from the name; collision gets a short random suffix.
+  v_base_slug := btrim(regexp_replace(lower(btrim(p_name)), '[^a-z0-9]+', '-', 'g'), '-');
+  if v_base_slug = '' then v_base_slug := 'restaurant'; end if;
+  v_slug := v_base_slug;
+  while exists (select 1 from public.restaurants where slug = v_slug) loop
+    v_slug := v_base_slug || '-' || substr(md5(clock_timestamp()::text || random()::text), 1, 4);
+  end loop;
+
+  insert into public.restaurants (
+    slug, name, description, cuisines, cuisine_label, cover_image, zone, geo,
+    phone, address, is_open_24h, prep_time_low, prep_time_high,
+    payout_method, payout_bank_name, payout_iban, payout_wallet, payout_holder,
+    is_active, is_open, onboarding_status, commission_pct, tourist_safe,
+    terms_version, terms_accepted_at
+  ) values (
+    v_slug, btrim(p_name), coalesce(btrim(p_description), ''), coalesce(p_cuisines, '{}'), '',
+    '',  -- cover_image seeded by admin during menu review (RestaurantEditor)
+    p_zone,
+    st_setsrid(st_makepoint(p_lng, p_lat), 4326)::geography,
+    btrim(p_phone), nullif(btrim(coalesce(p_address, '')), ''),
+    coalesce(p_is_open_24h, false),
+    coalesce(nullif(p_prep_low, 0), 10), coalesce(nullif(p_prep_high, 0), 30),
+    nullif(btrim(coalesce(p_payout_method, '')), ''),
+    nullif(btrim(coalesce(p_payout_bank_name, '')), ''),
+    nullif(btrim(coalesce(p_payout_iban, '')), ''),
+    nullif(btrim(coalesce(p_payout_wallet, '')), ''),
+    nullif(btrim(coalesce(p_payout_holder, '')), ''),
+    false,  -- is_active: invisible to customers until approve_restaurant
+    false,  -- is_open: merchant flips Open from the dashboard once actually ready
+    'submitted',
+    15.0,
+    false,
+    btrim(p_terms_version),
+    now()
+  )
+  returning id into v_restaurant_id;
+
+  insert into public.merchant_staff (profile_id, restaurant_id, staff_role)
+  values (v_uid, v_restaurant_id, 'owner');
+
+  update public.users set role = 'merchant_staff', updated_at = now()
+   where id = v_uid;
+
+  -- Ops heads-up (Telegram via ops_alert). Best-effort: never block the apply.
+  begin
+    perform public.ops_alert(
+      '🍽️ New restaurant application: ' || btrim(p_name) || ' (' || p_zone::text || ')'
+    );
+  exception when others then null;
+  end;
+
+  return v_restaurant_id;
+end;
+$function$;
+
+-- ---------------------------------------------------------------------------
+-- 4) admin_upsert_kitchen -- mig-126 body, box check swapped.
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_upsert_kitchen(
+  p_slug             text,
+  p_name             text,
+  p_zone             zone_type,
+  p_address          text    default null,
+  p_lat              numeric default null,
+  p_lng              numeric default null,
+  p_monthly_rent_egp int     default null,
+  p_lease_start      date    default null,
+  p_lease_end        date    default null,
+  p_is_active        boolean default null,
+  p_notes            text    default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_id  uuid;
+  v_geo geography(Point, 4326);
+begin
+  if auth.uid() is null then
+    raise exception 'AUTH_REQUIRED' using errcode = 'check_violation';
+  end if;
+  if coalesce(public.auth_role()::text, '') <> 'admin' then
+    raise exception 'NOT_AUTHORIZED' using errcode = 'check_violation';
+  end if;
+  if p_slug is null or btrim(p_slug) = '' or p_name is null or btrim(p_name) = '' then
+    raise exception 'SLUG_AND_NAME_REQUIRED' using errcode = 'check_violation';
+  end if;
+  if coalesce(p_monthly_rent_egp, 0) < 0 then
+    raise exception 'INVALID_RENT' using errcode = 'check_violation';
+  end if;
+
+  -- Service-area gate. [129] Single source: is_within_service_area().
+  if p_lat is not null and p_lng is not null then
+    if not public.is_within_service_area(p_lat::float8, p_lng::float8) then
+      raise exception 'GEO_OUT_OF_AREA' using errcode = 'check_violation';
+    end if;
+    v_geo := st_setsrid(st_makepoint(p_lng::float8, p_lat::float8), 4326)::geography;
+  end if;
+
+  insert into public.kitchens (slug, name, zone, address, geo, monthly_rent_egp,
+                               lease_start, lease_end, is_active, notes)
+  values (btrim(p_slug), btrim(p_name), p_zone, p_address, v_geo,
+          coalesce(p_monthly_rent_egp, 0), p_lease_start, p_lease_end,
+          coalesce(p_is_active, true), p_notes)
+  on conflict (slug) do update set
+    name             = excluded.name,
+    zone             = excluded.zone,
+    -- NULL param = keep the stored value (referencing the raw p_* params, not
+    -- excluded.*, because the VALUES row already coalesced the NOT NULL
+    -- columns and would masquerade as a real value). To CLEAR an optional
+    -- field, update the row directly -- this RPC only sets or keeps.
+    address          = coalesce(p_address, public.kitchens.address),
+    geo              = coalesce(v_geo, public.kitchens.geo),
+    monthly_rent_egp = coalesce(p_monthly_rent_egp, public.kitchens.monthly_rent_egp),
+    lease_start      = coalesce(p_lease_start, public.kitchens.lease_start),
+    lease_end        = coalesce(p_lease_end, public.kitchens.lease_end),
+    is_active        = coalesce(p_is_active, public.kitchens.is_active),
+    notes            = coalesce(p_notes, public.kitchens.notes),
+    updated_at       = now()
+  returning id into v_id;
+
+  return v_id;
+end;
+$function$;
+
+comment on function public.admin_upsert_kitchen(text, text, zone_type, text, numeric, numeric, int, date, date, boolean, text) is
+  'ADMIN: create or update a physical kitchen, keyed on slug. NULL optionals preserve stored values. Service area via is_within_service_area (mig 129). Only writer of public.kitchens. Migs 126, 129.';
+
 -- =========================================================================
 -- DRY-RUN ASSERTS (run inside the same transaction, after the migration).
 -- These call the REAL functions against the REAL schema -- the validation
@@ -1195,6 +1562,100 @@ begin
   raise notice 'ALL DRY-RUN ASSERTS PASSED (everything rolls back next)';
 end;
 $assert$;
+
+-- =========================================================================
+-- 127-129 ASSERTS (same transaction; jwt is still the admin from above).
+-- =========================================================================
+do $assert2$
+declare
+  v_zone      zone_type;
+  v_centroid  geography;
+  v_rid       uuid;
+  v_fee       int;
+  v_customer  uuid;
+  v_new       uuid;
+begin
+  -- 10) Zone guard: Cairo resolves to NO zone; a real centroid resolves.
+  if public.resolve_zone_nearest(st_setsrid(st_makepoint(31.24, 30.04), 4326)::geography) is not null then
+    raise exception 'DRYRUN FAIL: Cairo still resolves to a Sharm zone';
+  end if;
+  select centroid into v_centroid from public.zones
+   where centroid is not null and is_active limit 1;
+  if v_centroid is null or public.resolve_zone_nearest(v_centroid) is null then
+    raise exception 'DRYRUN FAIL: a real zone centroid no longer resolves';
+  end if;
+  raise notice 'assert 10 OK: zone guard -- Cairo NULL, real centroid resolves';
+
+  -- 11) Vertical-aware fee against the REAL tables.
+  select r.id into v_rid from public.restaurants r
+   where r.geo is not null and r.is_active limit 1;
+  v_zone := public.resolve_zone_nearest((select geo from public.restaurants where id = v_rid));
+  if v_zone is null then
+    raise exception 'DRYRUN FAIL: test restaurant does not resolve to a zone';
+  end if;
+  delete from public.delivery_fee_rules where zone_id = v_zone;  -- tx-local
+  insert into public.delivery_fee_rules (zone_id, vertical_id, base_fee) values
+    (v_zone, null, 25), (v_zone, 'grocery', 40);
+  update public.restaurants set vertical_id = 'grocery' where id = v_rid;
+  select public.quote_delivery_fee(v_rid, (select geo from public.restaurants where id = v_rid), 0) into v_fee;
+  if v_fee <> 40 then
+    raise exception 'DRYRUN FAIL: grocery merchant quoted % not the grocery rule 40', v_fee;
+  end if;
+  update public.restaurants set vertical_id = 'food' where id = v_rid;
+  select public.quote_delivery_fee(v_rid, (select geo from public.restaurants where id = v_rid), 0) into v_fee;
+  if v_fee <> 25 then
+    raise exception 'DRYRUN FAIL: food merchant quoted % not the fallback 25', v_fee;
+  end if;
+  raise notice 'assert 11 OK: vertical-aware fee (grocery 40, food fallback 25) on real tables';
+
+  -- 12) Service-area helper on real settings.
+  if not public.is_within_service_area(27.9, 34.4) or public.is_within_service_area(30.04, 31.24) then
+    raise exception 'DRYRUN FAIL: is_within_service_area truth table wrong';
+  end if;
+  raise notice 'assert 12 OK: is_within_service_area (Sharm yes, Cairo no)';
+
+  -- 13) admin_upsert_kitchen rejects out-of-area through the helper.
+  begin
+    perform public.admin_upsert_kitchen('dryrun-cairo', 'Cairo Kitchen', 'hadaba',
+                                        p_lat => 30.04, p_lng => 31.24);
+    raise exception 'DRYRUN FAIL: out-of-area kitchen was accepted';
+  exception when check_violation then
+    raise notice 'assert 13 OK: admin_upsert_kitchen raises GEO_OUT_OF_AREA via the helper';
+  end;
+
+  -- 14) apply_as_restaurant wired to the helper (impersonate a real customer;
+  -- skipped with a notice if none exists).
+  select u.id into v_customer
+    from public.users u
+   where u.role = 'customer'
+     and not exists (select 1 from public.merchant_staff ms where ms.profile_id = u.id)
+   limit 1;
+  if v_customer is null then
+    raise notice 'assert 14 SKIPPED: no unlinked customer user to impersonate';
+  else
+    perform set_config('request.jwt.claims',
+                       json_build_object('sub', v_customer, 'role', 'authenticated')::text,
+                       true);
+    begin
+      perform public.apply_as_restaurant('Dry Run Diner', '', '{}'::cuisine_type[],
+        '0123456789', null, 'hadaba', 30.04, 31.24, false, 10, 30,
+        null, null, null, null, null, 'v1');
+      raise exception 'DRYRUN FAIL: out-of-area application was accepted';
+    exception when check_violation then
+      raise notice 'assert 14a OK: out-of-area application raises GEO_OUT_OF_AREA';
+    end;
+    v_new := public.apply_as_restaurant('Dry Run Diner', '', '{}'::cuisine_type[],
+      '0123456789', null, 'hadaba', 27.9, 34.4, false, 10, 30,
+      null, null, null, null, null, 'v1');
+    if v_new is null then
+      raise exception 'DRYRUN FAIL: in-area application did not return an id';
+    end if;
+    raise notice 'assert 14b OK: in-area application accepted (rolled back)';
+  end if;
+
+  raise notice 'ALL 127-129 DRY-RUN ASSERTS PASSED';
+end;
+$assert2$;
 
 rollback;
 select 'DRY RUN COMPLETE - everything rolled back' as result;

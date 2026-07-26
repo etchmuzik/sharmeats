@@ -30,17 +30,23 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
-**Exception — `126_cloud_kitchen_foundation.sql` qualifies for the same
-standalone route as 122** (additive, idempotent, no binary coupling: apps
-tolerate the columns being absent). Apply procedure, in order:
+**Exception — the pending stack `126_cloud_kitchen_foundation.sql` +
+`127_quote_fee_vertical.sql` + `128_zone_distance_guard.sql` +
+`129_service_area_single_source.sql` qualifies for the same standalone route
+as 122** (each additive, idempotent, no binary coupling: apps tolerate the
+columns/functions being absent). Apply procedure, in order:
 
 1. `./scripts/backup-prod.sh` (there are NO managed backups — see below).
-2. Dashboard → SQL editor: paste `supabase/tests/126_cloud_kitchen_dryrun_prod.sql`
-   whole and Run. It BEGINs, applies the real migration, asserts against the
+2. Dashboard → SQL editor: paste `supabase/tests/126_129_dryrun_prod.sql`
+   whole and Run. It BEGINs, applies all four migrations, asserts against the
    real functions (including the NULL-kitchen conversion case the shim suite
-   missed), and ROLLBACKs. Success = the final `DRY RUN COMPLETE` row.
-3. Only if step 2 succeeded: paste `supabase/migrations/126_cloud_kitchen_foundation.sql`
-   and Run (this time it persists).
+   missed, the Cairo-pin zone guard, and the vertical-aware fee), and
+   ROLLBACKs. Success = the final `DRY RUN COMPLETE` row. Safe to re-run at
+   any point — the migrations are idempotent, so it works whether none, some,
+   or all are already applied.
+3. Only if step 2 succeeded: paste each of
+   `supabase/migrations/126…129_*.sql` and Run, in numeric order (this time
+   they persist).
 4. Run the Supabase security advisors; then `npm run db:types` from repo root.
 5. Seed via the new RPCs — `admin_upsert_kitchen(...)` then
    `admin_set_merchant_type(id, 'own_brand', kitchen_id)` per brand. Zone id

@@ -1,8 +1,15 @@
 export type Currency = 'EGP' | 'EUR' | 'USD' | 'GBP' | 'RUB';
 
 /**
- * Hardcoded FX rates (EGP per 1 unit of currency).
- * In production this is fetched daily by a Supabase Edge Function.
+ * Static planning rates (EGP per 1 unit of currency), reviewed MANUALLY.
+ *
+ * There is NO live FX feed — the previous comment claiming a daily edge
+ * function was aspirational fiction (removed 2026-07-27). Every UI surface
+ * must therefore present conversions as indicative/approximate, never as
+ * "today's rate" (checkout.conversion and onboarding.desc3 were reworded to
+ * match). Customers always pay in EGP; these numbers are display-only.
+ * Build a real daily feed when card payments go live; until then, updating
+ * this table is a manual ops task.
  */
 const RATES_PER_UNIT: Record<Currency, number> = {
   EGP: 1,
