@@ -106,6 +106,13 @@ export interface Restaurant {
   phone?: string;
   address?: string;
   website?: string;
+  /**
+   * Company-owned virtual brand (cloud kitchen). Drives the mandatory
+   * "Sharm Eats Kitchen" disclosure chip — customers must always be able to
+   * tell an own brand from an independent partner (mig 126; CPL 181/2018
+   * honesty standard). Undefined until the backend column exists.
+   */
+  isOwnBrand?: boolean;
 }
 
 export interface ModifierOption {

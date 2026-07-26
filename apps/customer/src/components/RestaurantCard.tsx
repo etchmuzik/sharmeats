@@ -8,6 +8,7 @@ import { closedReasonKey, effectiveIsOpen } from '../lib/openHours';
 import { useFavorite } from '../lib/favorites';
 import type { Restaurant } from '../data/types';
 import { TouristSafeBadge } from './TouristSafeBadge';
+import { OwnBrandBadge } from './OwnBrandBadge';
 import { useT } from '../i18n';
 
 export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
@@ -59,6 +60,7 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
             </View>
           )}
           {restaurant.touristSafe && <TouristSafeBadge />}
+          {restaurant.isOwnBrand && <OwnBrandBadge />}
           {restaurant.promo && (
             <View style={styles.promoPill}>
               <Text style={styles.promoText}>{restaurant.promo}</Text>

@@ -89,6 +89,8 @@ interface RestaurantRow {
   phone: string | null;
   address: string | null;
   website: string | null;
+  /** Absent until migration 126 is applied — the mapper must tolerate that. */
+  merchant_type?: 'third_party' | 'own_brand' | null;
 }
 
 export function rowToRestaurant(r: RestaurantRow): Restaurant {
@@ -117,6 +119,9 @@ export function rowToRestaurant(r: RestaurantRow): Restaurant {
     phone: r.phone ?? undefined,
     address: r.address ?? undefined,
     website: r.website ?? undefined,
+    // Strict equality: undefined/null/'third_party' all mean "not ours", so a
+    // pre-126 backend simply renders no chip.
+    isOwnBrand: r.merchant_type === 'own_brand' ? true : undefined,
   };
 }
 

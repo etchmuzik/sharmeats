@@ -25,13 +25,14 @@ import { initChime, playNewOrderChime, releaseChime, setChimeMuted } from '../sr
 import {
   advanceStatus,
   getActiveOrders,
-  getMyRestaurant,
+  getMyKitchen,
   isActive,
   isVisible,
   setRestaurantOpen,
-  subscribeOrders,
+  subscribeOrdersMulti,
+  type KitchenBrand,
+  type KitchenContext,
   type OrderStatus,
-  type RestaurantContext,
   type RestaurantOrder,
 } from '../src/orders';
 import { myUnreadMessageCount } from '../src/messages';
@@ -51,31 +52,43 @@ export default function Home() {
   const { signOut } = useAuth();
   const { toast } = useToast();
 
-  const [ctx, setCtx] = useState<RestaurantContext | null>(null);
+  const [kitchen, setKitchen] = useState<KitchenContext | null>(null);
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [noRestaurant, setNoRestaurant] = useState(false);
   const [loadError, setLoadError] = useState(false); // [H-BIZ1] network vs no-restaurant
-  const [isOpen, setIsOpen] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [muted, setMuted] = useState(false);
+  // Multi-brand: which brand's tickets to show. 'all' is the default and the
+  // reset target — a filter that hides a new ticket is a bug (see the
+  // brand-filter reset effect below).
+  const [brandFilter, setBrandFilter] = useState<'all' | string>('all');
+
+  const brandIds = useMemo(
+    () => (kitchen ? kitchen.brands.map((b) => b.restaurantId) : []),
+    [kitchen],
+  );
+  const brandById = useMemo(() => {
+    const map = new Map<string, KitchenBrand>();
+    for (const b of kitchen?.brands ?? []) map.set(b.restaurantId, b);
+    return map;
+  }, [kitchen]);
 
   const load = useCallback(async () => {
     try {
-      const c = await getMyRestaurant();
+      const k = await getMyKitchen();
       // A successful call that returns no context = genuinely not linked.
-      setNoRestaurant(!c);
+      setNoRestaurant(!k);
       setLoadError(false);
-      if (!c) {
+      if (!k) {
         setLoading(false);
         return;
       }
-      setCtx(c);
-      setIsOpen(c.isOpen);
-      const rows = await getActiveOrders(c.restaurantId);
+      setKitchen(k);
+      const rows = await getActiveOrders(k.brands.map((b) => b.restaurantId));
       setOrders(rows);
       // Badge is advisory — a count failure must not fail the queue load.
       setUnreadMsgs(await myUnreadMessageCount().catch(() => 0));
@@ -135,11 +148,13 @@ export default function Home() {
     return () => clearInterval(id);
   }, [refreshUnread]);
 
-  // Live order updates via Realtime once we know the restaurant.
+  // Live order updates via Realtime once we know the brands. One channel per
+  // brand (postgres_changes has no `in.()` filter); a single-brand merchant
+  // gets exactly one channel, same as before.
   useEffect(() => {
-    if (!ctx) return;
-    const unsub = subscribeOrders(
-      ctx.restaurantId,
+    if (brandIds.length === 0) return;
+    const unsub = subscribeOrdersMulti(
+      brandIds,
       'home',
       (row) => {
         setOrders((prev) => {
@@ -156,13 +171,22 @@ export default function Home() {
       // [H-CUST2] Refetch the active list on (re)connect so orders placed during
       // a network drop — or before the channel joined — still appear.
       () => {
-        getActiveOrders(ctx.restaurantId)
+        getActiveOrders(brandIds)
           .then((rows) => setOrders(rows))
           .catch(() => {});
       },
     );
     return unsub;
-  }, [ctx]);
+  }, [brandIds]);
+
+  // A filter that hides a new ticket is a bug: if an order arrives for a brand
+  // that is currently filtered out, snap back to All so it cannot be missed.
+  useEffect(() => {
+    if (brandFilter === 'all') return;
+    if (orders.some((o) => o.status === 'placed' && o.restaurant_id !== brandFilter)) {
+      setBrandFilter('all');
+    }
+  }, [orders, brandFilter]);
 
   // [H-REST3] Count of unacknowledged orders — 'placed' means the kitchen hasn't
   // accepted/rejected it yet. Keyed effect below starts/stops the repeat chime.
@@ -231,20 +255,42 @@ export default function Home() {
     [toast],
   );
 
+  // Any brand open = the kitchen is taking orders. The toggle drives ALL
+  // brands at once: when the fryer dies, five storefronts must close in one
+  // tap, not five. (For a single-brand merchant this is identical to before.)
+  const isOpen = useMemo(
+    () => (kitchen ? kitchen.brands.some((b) => b.isOpen) : false),
+    [kitchen],
+  );
+
   const toggleOpen = useCallback(async () => {
-    if (!ctx || togglingOpen) return;
+    if (!kitchen || togglingOpen) return;
     setTogglingOpen(true);
     const next = !isOpen;
-    setIsOpen(next);
+    // Optimistic: flip every brand locally.
+    const prevKitchen = kitchen;
+    setKitchen({
+      ...kitchen,
+      brands: kitchen.brands.map((b) => ({ ...b, isOpen: next })),
+    });
     try {
-      await setRestaurantOpen(ctx.restaurantId, next);
+      await Promise.all(
+        prevKitchen.brands
+          .filter((b) => b.isOpen !== next)
+          .map((b) => setRestaurantOpen(b.restaurantId, next)),
+      );
     } catch (e) {
-      setIsOpen(!next);
+      // Partial failure is possible (Promise.all: some brand writes succeeded,
+      // some didn't) — reverting to the pre-toggle snapshot would disagree
+      // with the server for the brands that DID flip, and the kiosk would
+      // show storefronts as open that are closed (or vice versa) until the
+      // next reload. Re-sync from the server instead of guessing.
       toast(e instanceof Error ? e.message : 'Could not update status', 'error');
+      await load();
     } finally {
       setTogglingOpen(false);
     }
-  }, [ctx, isOpen, togglingOpen, toast]);
+  }, [kitchen, isOpen, togglingOpen, toast, load]);
 
   const handleSignOut = useCallback(async () => {
     await unregisterPush();
@@ -252,14 +298,23 @@ export default function Home() {
     router.replace('/signin');
   }, [signOut, router]);
 
-  const incoming = useMemo(() => orders.filter((o) => o.status === 'placed'), [orders]);
+  // The brand filter FILTERS the one list; it never replaces it with per-brand
+  // tabs. A ticket in an unselected tab is an invisible ticket.
+  const visibleOrders = useMemo(
+    () => (brandFilter === 'all' ? orders : orders.filter((o) => o.restaurant_id === brandFilter)),
+    [orders, brandFilter],
+  );
+  const incoming = useMemo(
+    () => visibleOrders.filter((o) => o.status === 'placed'),
+    [visibleOrders],
+  );
   const inKitchen = useMemo(
-    () => orders.filter((o) => o.status === 'accepted' || o.status === 'preparing'),
-    [orders],
+    () => visibleOrders.filter((o) => o.status === 'accepted' || o.status === 'preparing'),
+    [visibleOrders],
   );
   const ready = useMemo(
-    () => orders.filter((o) => ['ready', 'picked_up', 'out_for_delivery'].includes(o.status)),
-    [orders],
+    () => visibleOrders.filter((o) => ['ready', 'picked_up', 'out_for_delivery'].includes(o.status)),
+    [visibleOrders],
   );
   const compactHeader = width < 560;
   const queueSections = useMemo(
@@ -281,7 +336,7 @@ export default function Home() {
   }
 
   // [H-BIZ1] A fetch failed (network) — retry, don't show "not linked".
-  if (loadError && !ctx) {
+  if (loadError && !kitchen) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md }}>
         <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
@@ -329,9 +384,15 @@ export default function Home() {
         <View style={homeStyles.headerTop}>
           <View style={homeStyles.restaurantIdentity}>
             <Text style={homeStyles.restaurantName} numberOfLines={2}>
-              {ctx?.restaurantName}
+              {kitchen?.isMultiBrand
+                ? `Kitchen · ${kitchen.brands.length} brands`
+                : kitchen?.brands[0]?.name}
             </Text>
-            <Text style={homeStyles.restaurantRole}>Restaurant · {ctx?.staffRole}</Text>
+            <Text style={homeStyles.restaurantRole}>
+              {kitchen?.isMultiBrand
+                ? kitchen.brands.map((b) => b.shortName).join(' · ')
+                : `Restaurant · ${kitchen?.brands[0]?.staffRole}`}
+            </Text>
           </View>
           {unreadMsgs > 0 && (
             <View
@@ -358,7 +419,11 @@ export default function Home() {
           onPress={toggleOpen}
           disabled={togglingOpen}
           accessibilityRole="switch"
-          accessibilityLabel="Restaurant accepting orders"
+          accessibilityLabel={
+            kitchen?.isMultiBrand
+              ? 'All brands accepting orders'
+              : 'Restaurant accepting orders'
+          }
           accessibilityState={{ checked: isOpen, disabled: togglingOpen, busy: togglingOpen }}
           style={[
             homeStyles.statusControl,
@@ -367,7 +432,15 @@ export default function Home() {
           ]}
         >
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
-            {togglingOpen ? '…' : isOpen ? 'Open · pause' : 'Closed · open'}
+            {togglingOpen
+              ? '…'
+              : kitchen?.isMultiBrand
+                ? isOpen
+                  ? 'Open · pause all'
+                  : 'Closed · open all'
+                : isOpen
+                  ? 'Open · pause'
+                  : 'Closed · open'}
           </Text>
         </Pressable>
         {/* [H-REST3] Mute the new-order chime (and its repeat). Distinct muted
@@ -413,6 +486,57 @@ export default function Home() {
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Tier</Text>
         </Pressable>
         </View>
+
+        {/* Multi-brand filter chips: filter the ONE list, never replace it with
+            per-brand tabs. Auto-resets to All when a new order lands in a
+            filtered-out brand (see the effect above). */}
+        {kitchen?.isMultiBrand && (
+          <View style={homeStyles.brandFilterRow}>
+            <Pressable
+              onPress={() => setBrandFilter('all')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: brandFilter === 'all' }}
+              accessibilityLabel={`Show all brands, ${orders.length} active orders`}
+              style={[
+                homeStyles.brandChip,
+                brandFilter === 'all' && homeStyles.brandChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  homeStyles.brandChipText,
+                  brandFilter === 'all' && homeStyles.brandChipTextActive,
+                ]}
+              >
+                All · {orders.length}
+              </Text>
+            </Pressable>
+            {kitchen.brands.map((b) => {
+              const count = orders.filter((o) => o.restaurant_id === b.restaurantId).length;
+              const selected = brandFilter === b.restaurantId;
+              return (
+                <Pressable
+                  key={b.restaurantId}
+                  onPress={() => setBrandFilter(selected ? 'all' : b.restaurantId)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`Filter to ${b.name}, ${count} active orders${b.isOpen ? '' : ', paused'}`}
+                  style={[homeStyles.brandChip, selected && homeStyles.brandChipActive]}
+                >
+                  <Text
+                    style={[
+                      homeStyles.brandChipText,
+                      selected && homeStyles.brandChipTextActive,
+                      !b.isOpen && homeStyles.brandChipTextClosed,
+                    ]}
+                  >
+                    {b.shortName} · {count}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       <SectionList
@@ -431,37 +555,47 @@ export default function Home() {
         renderSectionHeader={({ section }) => (
           <QueueSectionHeader title={section.title} count={section.data.length} accent={section.accent} />
         )}
-        renderItem={({ item, section }) => (
-          <View style={homeStyles.orderItem}>
-            {section.key === 'new' ? (
-              <OrderRow
-                order={item}
-                busy={busyIds.has(item.id)}
-                onOpenDetail={() => router.push(`/order/${item.id}`)}
-                onAccept={() => doAdvance(item, 'accepted')}
-                onReject={(reason) => doAdvance(item, 'rejected', reason)}
-              />
-            ) : section.key === 'kitchen' ? (
-              <OrderRow
-                order={item}
-                busy={busyIds.has(item.id)}
-                onOpenDetail={() => router.push(`/order/${item.id}`)}
-                primary={
-                  item.status === 'accepted'
-                    ? { label: 'Start preparing', next: 'preparing' }
-                    : { label: 'Mark ready', next: 'ready' }
-                }
-                onPrimary={(next) => doAdvance(item, next)}
-              />
-            ) : (
-              <OrderRow
-                order={item}
-                busy={busyIds.has(item.id)}
-                onOpenDetail={() => router.push(`/order/${item.id}`)}
-              />
-            )}
-          </View>
-        )}
+        renderItem={({ item, section }) => {
+          // Brand identity rides on the ticket, not the container. Only tag in
+          // multi-brand kitchens — a single-brand merchant sees no chip.
+          const brandTag = kitchen?.isMultiBrand
+            ? brandById.get(item.restaurant_id)?.shortName
+            : undefined;
+          return (
+            <View style={homeStyles.orderItem}>
+              {section.key === 'new' ? (
+                <OrderRow
+                  order={item}
+                  busy={busyIds.has(item.id)}
+                  brandTag={brandTag}
+                  onOpenDetail={() => router.push(`/order/${item.id}`)}
+                  onAccept={() => doAdvance(item, 'accepted')}
+                  onReject={(reason) => doAdvance(item, 'rejected', reason)}
+                />
+              ) : section.key === 'kitchen' ? (
+                <OrderRow
+                  order={item}
+                  busy={busyIds.has(item.id)}
+                  brandTag={brandTag}
+                  onOpenDetail={() => router.push(`/order/${item.id}`)}
+                  primary={
+                    item.status === 'accepted'
+                      ? { label: 'Start preparing', next: 'preparing' }
+                      : { label: 'Mark ready', next: 'ready' }
+                  }
+                  onPrimary={(next) => doAdvance(item, next)}
+                />
+              ) : (
+                <OrderRow
+                  order={item}
+                  busy={busyIds.has(item.id)}
+                  brandTag={brandTag}
+                  onOpenDetail={() => router.push(`/order/${item.id}`)}
+                />
+              )}
+            </View>
+          );
+        }}
         ListEmptyComponent={
           <View style={homeStyles.emptyQueue}>
             <Icon name="bell" size={40} color={colors.ink3} accessibilityLabel="No orders" />
@@ -530,6 +664,7 @@ function QueueSectionHeader({
 function OrderRow({
   order,
   busy,
+  brandTag,
   onOpenDetail,
   onAccept,
   onReject,
@@ -538,6 +673,9 @@ function OrderRow({
 }: {
   order: RestaurantOrder;
   busy: boolean;
+  /** Short brand tag ("SMASH") — only rendered in multi-brand kitchens. Text is
+   *  the primary signal: colour alone fails on greasy, glare-washed tablets. */
+  brandTag?: string;
   onOpenDetail?: () => void;
   onAccept?: () => void;
   onReject?: (reason?: string) => void;
@@ -566,6 +704,22 @@ function OrderRow({
         style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {brandTag ? (
+            <View
+              accessibilityLabel={`Brand ${brandTag}`}
+              style={{
+                backgroundColor: colors.accentSoft,
+                borderRadius: radius.sm,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                alignSelf: 'flex-start',
+              }}
+            >
+              <Text style={{ fontSize: font.sizes.xs, fontWeight: '800', color: colors.accentDark }}>
+                {brandTag}
+              </Text>
+            </View>
+          ) : null}
           <View>
             <Text style={{ fontWeight: '800', fontSize: font.sizes.lg, color: colors.ink }}>{order.short_code}</Text>
             <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
@@ -757,6 +911,43 @@ const homeStyles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  // Multi-brand filter chips (cloud kitchen). 44pt touch targets — kitchen
+  // tablets are operated with wet or gloved fingers.
+  brandFilterRow: {
+    width: '100%',
+    maxWidth: 840,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  brandChip: {
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandChipActive: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+  },
+  brandChipText: {
+    fontSize: font.sizes.sm,
+    fontWeight: '700',
+    color: colors.ink2,
+  },
+  brandChipTextActive: {
+    color: colors.accentDark,
+  },
+  brandChipTextClosed: {
+    textDecorationLine: 'line-through',
   },
   statusControl: {
     minHeight: 44,

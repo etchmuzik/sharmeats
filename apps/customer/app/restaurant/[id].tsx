@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { FlagBadge } from '../../src/components/FlagBadge';
 import { TouristSafeBadge } from '../../src/components/TouristSafeBadge';
+import { OwnBrandBadge } from '../../src/components/OwnBrandBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { colors, font, radius, shadow } from '../../src/theme';
 import { db } from '../../src/data';
@@ -155,6 +156,7 @@ export default function RestaurantDetail() {
           <View style={styles.subRow}>
             <Text style={styles.sub}>{restaurant.cuisineLabel}</Text>
             {restaurant.touristSafe && <TouristSafeBadge />}
+            {restaurant.isOwnBrand && <OwnBrandBadge />}
           </View>
 
           <View style={styles.stats}>

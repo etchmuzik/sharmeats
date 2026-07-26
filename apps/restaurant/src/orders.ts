@@ -86,6 +86,42 @@ export interface RestaurantContext {
   staffRole: string;
 }
 
+/** One storefront this account staffs. A cloud kitchen runs several. */
+export interface KitchenBrand {
+  restaurantId: string;
+  name: string;
+  /** Uppercase short tag for the ticket chip, e.g. "SMASH". */
+  shortName: string;
+  isOpen: boolean;
+  staffRole: string;
+}
+
+/**
+ * Every storefront this account staffs.
+ *
+ * `isMultiBrand` is derived from cardinality, NOT from a user-facing toggle: a
+ * mode someone forgets to switch on at 8pm on a Friday is a missed-ticket
+ * generator. One brand renders exactly as before; two or more render the
+ * combined queue.
+ */
+export interface KitchenContext {
+  brands: KitchenBrand[];
+  isMultiBrand: boolean;
+}
+
+/**
+ * Short tag for a ticket chip. Colour must never be the only signal — kitchen
+ * tablets are greasy and glare-washed — so this text chip is the primary
+ * brand marker.
+ */
+export function brandShortName(name: string): string {
+  const cleaned = name.trim();
+  if (!cleaned) return '—';
+  const words = cleaned.split(/\s+/);
+  const pick = words.length > 1 ? words[words.length - 1] : words[0];
+  return pick.slice(0, 8).toUpperCase();
+}
+
 const ORDER_SELECT =
   'id, short_code, restaurant_id, status, payment_method, payment_status, fulfillment_type,' +
   ' total_egp, address_snapshot, items, kitchen_notes, scheduled_for, placed_at,' +
@@ -131,32 +167,86 @@ export function normalizeRestaurantOrder(row: Record<string, unknown>): Restaura
  * merchant_staff). Mirrors the merchant-web dashboard's resolution.
  */
 export async function getMyRestaurant(): Promise<RestaurantContext | null> {
-  const sb = getSupabase();
-  const { data, error } = await sb
-    .from('merchant_staff')
-    .select('restaurant_id, staff_role, restaurants(name, is_open)')
-    .limit(1);
-  if (error) throw error;
-  // supabase-js infers the embedded `restaurants` join loosely (array/any); the
-  // runtime shape is a single related row. Narrow via unknown to our known shape.
-  const staff = data?.[0] as unknown as
-    | { restaurant_id: string; staff_role: string; restaurants: { name: string; is_open: boolean } | null }
-    | undefined;
-  if (!staff) return null;
+  const kitchen = await getMyKitchen();
+  if (!kitchen) return null;
+  // Lowest restaurant_id, matching merchant-web's `.order('restaurant_id')
+  // .limit(1)` resolution, so per-restaurant screens (menu, KYC) and the web
+  // dashboard always operate on the SAME brand for a multi-brand account.
+  const first = [...kitchen.brands].sort((a, b) =>
+    a.restaurantId.localeCompare(b.restaurantId),
+  )[0];
   return {
-    restaurantId: staff.restaurant_id,
-    restaurantName: staff.restaurants?.name ?? 'Your restaurant',
-    isOpen: staff.restaurants?.is_open ?? false,
-    staffRole: staff.staff_role,
+    restaurantId: first.restaurantId,
+    restaurantName: first.name,
+    isOpen: first.isOpen,
+    staffRole: first.staffRole,
   };
 }
 
-/** Active orders for a restaurant (COD shows immediately; card only once paid). */
-export async function getActiveOrders(restaurantId: string): Promise<RestaurantOrder[]> {
+type StaffRow = {
+  restaurant_id: string;
+  staff_role: string;
+  restaurants: { name: string; is_open: boolean } | null;
+};
+
+/**
+ * Resolve EVERY storefront this account staffs (RLS-scoped via merchant_staff).
+ *
+ * This previously did `.limit(1)` with no ORDER BY. With one row that is fine;
+ * with five (a cloud kitchen running five virtual brands) Postgres returns an
+ * ARBITRARY row that can differ between reloads — so four brands' tickets were
+ * silently invisible and *which* brand you saw was nondeterministic. The
+ * merchant_staff PK is (profile_id, restaurant_id), i.e. already many-to-many;
+ * only the client capped it.
+ *
+ * Ordered by name so the brand list, chips and colours are stable across
+ * reloads and across devices.
+ */
+export async function getMyKitchen(): Promise<KitchenContext | null> {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from('merchant_staff')
+    .select('restaurant_id, staff_role, restaurants(name, is_open)');
+  if (error) throw error;
+
+  // supabase-js infers the embedded `restaurants` join loosely (array/any); the
+  // runtime shape is a single related row. Narrow via unknown to our known shape.
+  const rows = (data ?? []) as unknown as StaffRow[];
+  const brands: KitchenBrand[] = rows
+    .map((row) => {
+      const name = row.restaurants?.name ?? 'Your restaurant';
+      return {
+        restaurantId: row.restaurant_id,
+        name,
+        shortName: brandShortName(name),
+        isOpen: row.restaurants?.is_open ?? false,
+        staffRole: row.staff_role,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (brands.length === 0) return null;
+  return { brands, isMultiBrand: brands.length > 1 };
+}
+
+/**
+ * Active orders across one or more storefronts (COD shows immediately; card
+ * only once paid).
+ *
+ * Accepts a single id or a list so a cloud kitchen sees ONE combined queue.
+ * Ordered by placed_at across all brands: the oldest ticket is the most urgent
+ * regardless of which brand it belongs to. RLS already restricts the caller to
+ * their own restaurants, so `.in()` cannot widen visibility.
+ */
+export async function getActiveOrders(
+  restaurantIds: string | string[],
+): Promise<RestaurantOrder[]> {
+  const ids = Array.isArray(restaurantIds) ? restaurantIds : [restaurantIds];
+  if (ids.length === 0) return [];
   const { data, error } = await getSupabase()
     .from('orders')
     .select(ORDER_SELECT)
-    .eq('restaurant_id', restaurantId)
+    .in('restaurant_id', ids)
     .not('status', 'in', '(delivered,cancelled,rejected)')
     .or('payment_method.eq.cash_on_delivery,payment_status.eq.paid')
     .order('placed_at', { ascending: true });
@@ -224,6 +314,32 @@ export function subscribeOrders(
     });
   return () => {
     sb.removeChannel(channel);
+  };
+}
+
+/**
+ * Subscribe to live order changes for SEVERAL storefronts at once (a cloud
+ * kitchen running multiple virtual brands).
+ *
+ * postgres_changes has no `in.(...)` filter, so this opens one channel per
+ * brand — trivial at five — reusing subscribeOrders so the per-subscriber
+ * channel-name discipline documented above carries over unchanged (the brand id
+ * is already part of each channel name).
+ *
+ * `onResync` fires when ANY brand's channel (re)connects; callers should
+ * refetch the whole combined list, which is exactly what they already do.
+ */
+export function subscribeOrdersMulti(
+  restaurantIds: string[],
+  subscriberKey: string,
+  onChange: (row: RestaurantOrder) => void,
+  onResync?: () => void,
+): () => void {
+  const unsubscribes = restaurantIds.map((id) =>
+    subscribeOrders(id, subscriberKey, onChange, onResync),
+  );
+  return () => {
+    for (const unsubscribe of unsubscribes) unsubscribe();
   };
 }
 

@@ -30,6 +30,27 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**Exception — `126_cloud_kitchen_foundation.sql` qualifies for the same
+standalone route as 122** (additive, idempotent, no binary coupling: apps
+tolerate the columns being absent). Apply procedure, in order:
+
+1. `./scripts/backup-prod.sh` (there are NO managed backups — see below).
+2. Dashboard → SQL editor: paste `supabase/tests/126_cloud_kitchen_dryrun_prod.sql`
+   whole and Run. It BEGINs, applies the real migration, asserts against the
+   real functions (including the NULL-kitchen conversion case the shim suite
+   missed), and ROLLBACKs. Success = the final `DRY RUN COMPLETE` row.
+3. Only if step 2 succeeded: paste `supabase/migrations/126_cloud_kitchen_foundation.sql`
+   and Run (this time it persists).
+4. Run the Supabase security advisors; then `npm run db:types` from repo root.
+5. Seed via the new RPCs — `admin_upsert_kitchen(...)` then
+   `admin_set_merchant_type(id, 'own_brand', kitchen_id)` per brand. Zone id
+   for Mercato: confirm against `select id from zones` (likely `hadaba`;
+   `naama_bay` does not exist).
+
+The shim harness (`scripts/test-security-migrations.sh`) validates the logic in
+CI; step 2 validates the actual SQL against the actual schema. Keep both — the
+shim suite alone demonstrably missed a real crash (2026-07-27 review).
+
 ## Old-binary compatibility windows (accepted, close as binaries roll out)
 
 Applying 120 + `20260724120946` before the SDK-57 binaries reach devices opens

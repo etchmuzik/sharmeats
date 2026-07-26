@@ -202,3 +202,25 @@ group by day order by day desc;
 shows eligible pairs happening regularly (especially same-restaurant), batching is
 worth building the UI for. If pairs are rare, hold — the ROI isn't there yet, and
 you learned that for the cost of one migration instead of a two-week build.
+
+---
+
+## Appendix B — Cloud kitchen: same-kitchen = ONE pickup stop (mig 126, 2026-07-27)
+
+Five own brands share one physical kitchen (`restaurants.kitchen_id`, mig 126).
+Two consequences for this design:
+
+1. **Measurement (live).** `batch_candidates()` now also returns `same_pickup` —
+   pickup identity is `coalesce(kitchen_id, restaurant_id)`, so two orders from two
+   different brands in one kitchen are recognised as one pickup point instead of
+   relying on float-equal geo. `batch_candidate_log.same_pickup` records it (NULL for
+   pre-126 rows, deliberately not backfilled). The Phase-1 decision gate should read
+   `same_pickup`, not `same_restaurant`: the kitchen is the single best batching
+   source there is (guaranteed same-point pairs), and `same_restaurant` alone
+   systematically understates it.
+
+2. **Sequencing (Phase 1, when built).** §2's example route models
+   `pickup A(seq0), pickup B(seq1)`. For same-`pickup_id` orders the sequencer must
+   collapse those into ONE `pickup` stop carrying both orders — one counter visit,
+   two bags — not two pickup legs at the same coordinates. Driver UX: a single
+   "collect 2 orders" stop card.

@@ -2,6 +2,9 @@
 
 *Decided 2026-07-03 (owner session). All rates below are the source of truth; code and LOI follow this document. USD figures at ≈ EGP 50/USD.*
 
+*Amended 2026-07-27: §7 adds the own-brand (cloud kitchen) revenue line and its
+recognition rule (migration 126). Marketplace rates in §1–§5 are unchanged.*
+
 ---
 
 ## 1. Decisions (locked)
@@ -83,3 +86,30 @@ At ~EGP 100k/mo fixed:
 - **VAT/tax:** `tax_pct = 0`, prices tax-inclusive. Egyptian VAT + e-invoicing treatment of commission revenue needs an accountant before meaningful volume.
 - **Referral abuse cap:** EGP 100 CAC is fine only while min-basket (150 EGP) and per-user limits hold; monitor for self-referral rings.
 - **Loyalty history note:** redemption was 100–150% cashback between migrations 049 and 061; zero LOY- codes were minted in that window (verified in prod 2026-07-03) — no exposure.
+
+## 7. Own brands (cloud kitchen) — second revenue line (2026-07-27)
+
+Five company-owned virtual brands from the Mercato kitchen (`merchant_type =
+'own_brand'`, migration 126). Full operating detail: `docs/CLOUD-KITCHEN-PLAN.md`.
+
+**Revenue recognition (the rule everything must follow):**
+- Third party: our revenue = `commission_egp`; the subtotal is the merchant's.
+- Own brand: our revenue = `subtotal_egp`; `commission_egp` is an **internal
+  transfer**, never summed into anything.
+- **Net revenue = Σ commission (third parties) + Σ subtotal (own brands).**
+  `platform_revenue_report(date, date)` is the only sanctioned computation.
+
+**Settlement:** own brands are excluded from settlement entirely (both writers +
+trigger, mig 126). No rate produces a correct payout — at 0% the weekly draft would be
+100% of card sales *to ourselves*. `commission_pct` is a 100.00 sentinel, not a term.
+
+**Per-order economics (target, pending live menu costing):**
+`300 AOV − 90 food (30%) − 10 packaging − 8 platform variable = ~EGP 192` contribution
+before labour — vs ~37 marketplace. Kitchen labour is **fixed** (~EGP 32k/mo), not
+per-order. Cash fixed base ≈ EGP 85k/mo incl. the 40k rent → break-even
+**~15–20 orders/day across five brands** (not "under 10" — that covered rent only).
+Delivery fees remain 100% driver pass-through: own brands add **no** delivery margin.
+
+**Take rate:** blended gross = 0.15 + 0.85 × own-brand mix (10% mix → 23.5%). Quote the
+**marketplace** rate as "take rate"; blended only alongside the kitchen cost base — it
+is revenue ÷ GMV, not a margin.

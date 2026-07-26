@@ -30,9 +30,12 @@ export default function MerchantMenuPage() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
+      // Ordered so a multi-brand account (cloud kitchen) resolves the SAME
+      // brand on every load — matches the dashboard's resolution.
       const { data, error } = await supabase
         .from('merchant_staff')
         .select('restaurant_id, restaurants(name, is_open, onboarding_status, onboarding_rejection_reason)')
+        .order('restaurant_id', { ascending: true })
         .limit(1);
 
       if (cancelled) return;

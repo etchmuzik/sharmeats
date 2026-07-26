@@ -55,11 +55,17 @@ export default function DashboardPage() {
       }
 
       // Resolve which merchant this staffer belongs to (RLS-scoped).
+      // Ordered so a multi-brand account (cloud kitchen) resolves the SAME
+      // brand on every load — bare .limit(1) with no order returned an
+      // arbitrary row that could change between reloads. The kitchen's
+      // combined order queue lives in apps/restaurant; this dashboard
+      // deterministically manages the first brand alphabetically.
       const { data: staffRows, error: staffErr } = await supabase
         .from('merchant_staff')
         .select(
           'restaurant_id, staff_role, restaurants(name, is_open, onboarding_status, onboarding_rejection_reason)',
         )
+        .order('restaurant_id', { ascending: true })
         .limit(1);
 
       if (cancelled) return;

@@ -19,6 +19,27 @@ interface Row extends RestaurantSettlement {
   restaurant_name: string;
 }
 
+/**
+ * platform_revenue_report(date, date) — migration 126. The ONE correct blended
+ * take-rate calculation: net revenue = third-party commission + own-brand food
+ * revenue; own-brand commission_egp is an internal transfer and is never
+ * summed. Blended and marketplace rates are BOTH shown — blended jumps once
+ * own brands trade, and the investor-facing "marketplace take rate" is the
+ * third-party number.
+ */
+interface RevenueReport {
+  gmv_egp: number;
+  third_party_gmv_egp: number;
+  own_brand_gmv_egp: number;
+  third_party_commission_egp: number;
+  own_brand_revenue_egp: number;
+  net_revenue_egp: number;
+  blended_take_rate_pct: number | null;
+  marketplace_take_rate_pct: number | null;
+  third_party_orders: number;
+  own_brand_orders: number;
+}
+
 // Default the period to the most recent complete Sun–Sat week (the LOI's
 // weekly-Sunday payout cadence). Returns ISO yyyy-mm-dd strings.
 function lastWeek(): { start: string; end: string } {
@@ -43,9 +64,13 @@ export default function FinancePage() {
   const [{ start, end }, setPeriod] = useState(lastWeek());
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
+  const [revenue, setRevenue] = useState<RevenueReport | null>(null);
 
   const loadRows = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
+    // Clear the revenue panel up front: a failed reload must never leave the
+    // PREVIOUS period's numbers rendered under the new period's header.
+    setRevenue(null);
     // Statements for the selected period, joined to restaurant name.
     const { data, error } = await supabase
       .from('restaurant_settlements')
@@ -62,6 +87,26 @@ export default function FinancePage() {
       return { ...rec, restaurant_name: rec.restaurants?.name ?? 'Unknown' };
     });
     setRows(mapped);
+
+    // Platform revenue (mig 126). Settlements alone are now correct but
+    // INCOMPLETE: own brands are excluded from settlement by design, so their
+    // revenue only appears here.
+    const { data: rev, error: revErr } = await supabase.rpc('platform_revenue_report', {
+      p_period_start: start,
+      p_period_end: end,
+    });
+    if (revErr) {
+      // Only "the function does not exist" means the migration hasn't been
+      // applied yet (web deploys independently of the DB) — hide the panel
+      // quietly for that case alone. Anything else is a REAL failure and must
+      // surface, or a transient error post-126 silently hides revenue.
+      const missing =
+        revErr.code === 'PGRST202' || /could not find the function/i.test(revErr.message);
+      if (!missing) toast(`Revenue report failed: ${revErr.message}`, 'error');
+      return;
+    }
+    const report = (Array.isArray(rev) ? rev[0] : rev) as RevenueReport | undefined;
+    setRevenue(report ?? null);
   }, [start, end, toast]);
 
   useEffect(() => {
@@ -291,12 +336,65 @@ export default function FinancePage() {
               <div className="text-2xl font-extrabold">{rows.length}</div>
             </div>
             <div className="rounded-2xl border border-line bg-white p-4">
-              <div className="text-xs text-ink3">Total commission (our revenue)</div>
+              {/* Third-party only by design: own brands never get a settlement
+                  row (mig 126), so this is marketplace commission — the full
+                  revenue picture is the Platform revenue panel below. */}
+              <div className="text-xs text-ink3">Third-party commission</div>
               <div className="text-2xl font-extrabold text-accent">{money(totalCommission)}</div>
             </div>
             <div className="rounded-2xl border border-line bg-white p-4">
               <div className="text-xs text-ink3">Total net payable (card)</div>
               <div className="text-2xl font-extrabold">{money(totalPayable)}</div>
+            </div>
+          </section>
+        )}
+
+        {/* Platform revenue (mig 126) — the one correct blended-take view.
+            Own-brand revenue appears ONLY here: own brands are excluded from
+            settlement so a self-payout can never be drafted. */}
+        {revenue && revenue.gmv_egp > 0 && (
+          <section className="rounded-2xl border border-line bg-white p-5">
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-ink2">
+                Platform revenue
+              </h2>
+              <span className="text-xs text-ink3">
+                delivered orders · {start} → {end}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div>
+                <div className="text-xs text-ink3">Net revenue</div>
+                <div className="text-2xl font-extrabold text-accent">{money(revenue.net_revenue_egp)}</div>
+                <div className="text-[11px] text-ink3">
+                  commission {money(revenue.third_party_commission_egp)} + own-brand{' '}
+                  {money(revenue.own_brand_revenue_egp)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-ink3">GMV</div>
+                <div className="text-2xl font-extrabold">{money(revenue.gmv_egp)}</div>
+                <div className="text-[11px] text-ink3">
+                  {revenue.third_party_orders} marketplace · {revenue.own_brand_orders} own-brand orders
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-ink3">Marketplace take rate</div>
+                <div className="text-2xl font-extrabold">
+                  {revenue.marketplace_take_rate_pct != null ? `${revenue.marketplace_take_rate_pct}%` : '—'}
+                </div>
+                <div className="text-[11px] text-ink3">third-party commission ÷ third-party GMV</div>
+              </div>
+              <div>
+                <div className="text-xs text-ink3">Blended take rate</div>
+                <div className="text-2xl font-extrabold">
+                  {revenue.blended_take_rate_pct != null ? `${revenue.blended_take_rate_pct}%` : '—'}
+                </div>
+                {/* Not a margin: own-brand revenue carries food, labour and rent
+                    costs that commission does not. Quote the marketplace rate
+                    to investors; this one only with the kitchen cost base. */}
+                <div className="text-[11px] text-ink3">revenue ÷ GMV — not a margin</div>
+              </div>
             </div>
           </section>
         )}
