@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      __pre_mig126_129_snapshot: {
+        Row: {
+          acl: string | null
+          args: string | null
+          def: string | null
+          proname: unknown
+          taken_at: string | null
+        }
+        Insert: {
+          acl?: string | null
+          args?: string | null
+          def?: string | null
+          proname?: unknown
+          taken_at?: string | null
+        }
+        Update: {
+          acl?: string | null
+          args?: string | null
+          def?: string | null
+          proname?: unknown
+          taken_at?: string | null
+        }
+        Relationships: []
+      }
       addresses: {
         Row: {
           apartment: string | null
@@ -95,6 +119,7 @@ export type Database = {
           order_b: string
           pickup_gap_m: number | null
           ready_gap_min: number | null
+          same_pickup: boolean | null
           same_restaurant: boolean
           zone: string | null
         }
@@ -106,6 +131,7 @@ export type Database = {
           order_b: string
           pickup_gap_m?: number | null
           ready_gap_min?: number | null
+          same_pickup?: boolean | null
           same_restaurant: boolean
           zone?: string | null
         }
@@ -117,6 +143,7 @@ export type Database = {
           order_b?: string
           pickup_gap_m?: number | null
           ready_gap_min?: number | null
+          same_pickup?: boolean | null
           same_restaurant?: boolean
           zone?: string | null
         }
@@ -712,6 +739,13 @@ export type Database = {
             foreignKeyName: "favorites_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "favorites_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -755,6 +789,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "hotels_zone_fkey"
+            columns: ["zone"]
+            isOneToOne: false
+            referencedRelation: "zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kitchens: {
+        Row: {
+          address: string | null
+          created_at: string
+          geo: unknown
+          id: string
+          is_active: boolean
+          lease_end: string | null
+          lease_start: string | null
+          monthly_rent_egp: number
+          name: string
+          notes: string | null
+          slug: string
+          updated_at: string
+          zone: Database["public"]["Enums"]["zone_type"]
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          geo?: unknown
+          id?: string
+          is_active?: boolean
+          lease_end?: string | null
+          lease_start?: string | null
+          monthly_rent_egp?: number
+          name: string
+          notes?: string | null
+          slug: string
+          updated_at?: string
+          zone: Database["public"]["Enums"]["zone_type"]
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          geo?: unknown
+          id?: string
+          is_active?: boolean
+          lease_end?: string | null
+          lease_start?: string | null
+          monthly_rent_egp?: number
+          name?: string
+          notes?: string | null
+          slug?: string
+          updated_at?: string
+          zone?: Database["public"]["Enums"]["zone_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kitchens_zone_fkey"
             columns: ["zone"]
             isOneToOne: false
             referencedRelation: "zones"
@@ -904,6 +994,13 @@ export type Database = {
             foreignKeyName: "menu_items_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "menu_items_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -940,6 +1037,13 @@ export type Database = {
             foreignKeyName: "menu_sections_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "menu_sections_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -971,6 +1075,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "merchant_staff_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
           },
           {
             foreignKeyName: "merchant_staff_restaurant_id_fkey"
@@ -1197,6 +1308,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_financials_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
           },
           {
             foreignKeyName: "order_financials_restaurant_id_fkey"
@@ -1606,6 +1724,13 @@ export type Database = {
             foreignKeyName: "orders_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1968,6 +2093,13 @@ export type Database = {
             foreignKeyName: "restaurant_loyalty_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: true
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_loyalty_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -2030,6 +2162,13 @@ export type Database = {
             foreignKeyName: "restaurant_settlements_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_settlements_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -2056,7 +2195,9 @@ export type Database = {
           is_active: boolean
           is_open: boolean
           is_open_24h: boolean | null
+          kitchen_id: string | null
           logo: string | null
+          merchant_type: Database["public"]["Enums"]["merchant_type"]
           min_order_egp: number
           name: string
           onboarding_rejection_reason: string | null
@@ -2102,7 +2243,9 @@ export type Database = {
           is_active?: boolean
           is_open?: boolean
           is_open_24h?: boolean | null
+          kitchen_id?: string | null
           logo?: string | null
+          merchant_type?: Database["public"]["Enums"]["merchant_type"]
           min_order_egp?: number
           name: string
           onboarding_rejection_reason?: string | null
@@ -2148,7 +2291,9 @@ export type Database = {
           is_active?: boolean
           is_open?: boolean
           is_open_24h?: boolean | null
+          kitchen_id?: string | null
           logo?: string | null
+          merchant_type?: Database["public"]["Enums"]["merchant_type"]
           min_order_egp?: number
           name?: string
           onboarding_rejection_reason?: string | null
@@ -2175,6 +2320,13 @@ export type Database = {
           zone?: Database["public"]["Enums"]["zone_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "restaurants_kitchen_id_fkey"
+            columns: ["kitchen_id"]
+            isOneToOne: false
+            referencedRelation: "kitchens"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "restaurants_vertical_id_fkey"
             columns: ["vertical_id"]
@@ -2217,6 +2369,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "saved_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
           {
             foreignKeyName: "saved_orders_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -2549,6 +2708,18 @@ export type Database = {
         }
         Relationships: []
       }
+      ranking_integrity_audit: {
+        Row: {
+          featured: boolean | null
+          is_active: boolean | null
+          kitchen_name: string | null
+          merchant_type: Database["public"]["Enums"]["merchant_type"] | null
+          name: string | null
+          ranking_promise_held: boolean | null
+          restaurant_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _postgis_deprecate: {
@@ -2694,6 +2865,15 @@ export type Database = {
         Args: { p_restaurant_id: string; p_until: string }
         Returns: undefined
       }
+      admin_set_merchant_type: {
+        Args: {
+          p_inherit_geo?: boolean
+          p_kitchen_id?: string
+          p_restaurant_id: string
+          p_type: Database["public"]["Enums"]["merchant_type"]
+        }
+        Returns: undefined
+      }
       admin_update_restaurant: {
         Args: {
           p_cover_image: string
@@ -2716,6 +2896,22 @@ export type Database = {
           p_zone: Database["public"]["Enums"]["zone_type"]
         }
         Returns: undefined
+      }
+      admin_upsert_kitchen: {
+        Args: {
+          p_address?: string
+          p_is_active?: boolean
+          p_lat?: number
+          p_lease_end?: string
+          p_lease_start?: string
+          p_lng?: number
+          p_monthly_rent_egp?: number
+          p_name: string
+          p_notes?: string
+          p_slug: string
+          p_zone: Database["public"]["Enums"]["zone_type"]
+        }
+        Returns: string
       }
       advance_order_status: {
         Args: {
@@ -2785,6 +2981,7 @@ export type Database = {
           order_b: string
           pickup_gap_m: number
           ready_gap_min: number
+          same_pickup: boolean
           same_restaurant: boolean
           zone: string
         }[]
@@ -2991,6 +3188,10 @@ export type Database = {
       gettransactionid: { Args: never; Returns: unknown }
       has_completed_order: { Args: { p_user: string }; Returns: boolean }
       is_merchant_staff: { Args: { p_restaurant_id: string }; Returns: boolean }
+      is_within_service_area: {
+        Args: { p_lat: number; p_lng: number }
+        Returns: boolean
+      }
       issue_credit: {
         Args: {
           p_amount_egp: number
@@ -3182,6 +3383,21 @@ export type Database = {
           id: string
           short_code: string
           total_egp: number
+        }[]
+      }
+      platform_revenue_report: {
+        Args: { p_period_end: string; p_period_start: string }
+        Returns: {
+          blended_take_rate_pct: number
+          gmv_egp: number
+          marketplace_take_rate_pct: number
+          net_revenue_egp: number
+          own_brand_gmv_egp: number
+          own_brand_orders: number
+          own_brand_revenue_egp: number
+          third_party_commission_egp: number
+          third_party_gmv_egp: number
+          third_party_orders: number
         }[]
       }
       populate_geometry_columns:
@@ -4023,6 +4239,7 @@ export type Database = {
       kyc_doc_status: "pending" | "approved" | "rejected"
       kyc_subject_type: "driver" | "restaurant"
       locale_type: "en" | "ar" | "ru" | "it" | "de"
+      merchant_type: "third_party" | "own_brand"
       order_status_type:
         | "placed"
         | "accepted"
@@ -4239,6 +4456,7 @@ export const Constants = {
       kyc_doc_status: ["pending", "approved", "rejected"],
       kyc_subject_type: ["driver", "restaurant"],
       locale_type: ["en", "ar", "ru", "it", "de"],
+      merchant_type: ["third_party", "own_brand"],
       order_status_type: [
         "placed",
         "accepted",

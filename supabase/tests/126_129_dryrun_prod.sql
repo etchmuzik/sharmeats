@@ -1,18 +1,16 @@
 -- 126_129_dryrun_prod.sql  (GENERATED -- do not hand-edit)
 --
--- Transaction-wrapped dry run of the ENTIRE pending migration stack
--- (126 cloud kitchen, 127 vertical fee, 128 zone guard, 129 service-area
--- single source) against the REAL production schema, with asserts that call
--- the actual functions. All four migrations are idempotent, so this file is
--- safe to run whether none, some, or all of them are already applied.
+-- Transaction-wrapped dry run of the migration stack (126 cloud kitchen,
+-- 127 vertical fee, 128 zone guard, 129 service-area single source) against
+-- the REAL production schema, with asserts that call the actual functions.
+-- All four migrations are idempotent, so this file is safe to run whether
+-- none, some, or all of them are already applied.
 --
--- HOW TO RUN (owner, Supabase Dashboard -> SQL editor): paste this entire
--- file, Run once. It BEGINs, applies 126-129, runs every assert, ROLLBACKs --
--- nothing persists. Success = the final "DRY RUN COMPLETE" row. Any error =
--- do not apply until fixed.
---
--- REGENERATE after editing any of the four migrations (cat them + the assert
--- blocks in order, wrapped in begin/rollback -- see git history of this file).
+-- STATUS: 126-129 were APPLIED to prod on 2026-07-27 via the MCP md5-guarded
+-- protocol (see docs/DATABASE-RELEASE-RUNBOOK.md). This file remains the
+-- re-verification tool: paste into the Dashboard SQL editor, Run once --
+-- BEGINs, re-applies (no-op), asserts, ROLLBACKs. Success = the final
+-- "DRY RUN COMPLETE" row.
 --
 begin;
 
@@ -127,22 +125,10 @@ comment on column public.kitchens.monthly_rent_egp is
   'Whole EGP/month. REPORTING ONLY -- deliberately never allocated per order. Per-order cost allocation is an accounting-policy decision, not a schema one. See docs/FINANCIALS.md.';
 
 alter table public.kitchens enable row level security;
-
--- A kitchen row exposes our cost base, so it is not public. Admins read all;
--- staff of a brand produced in the kitchen read their own kitchen (they need
--- the pickup address).
-drop policy if exists kitchens_read on public.kitchens;
-create policy kitchens_read on public.kitchens for select using (
-  coalesce((select public.auth_role())::text, '') = 'admin'
-  or exists (
-    select 1
-      from public.restaurants r
-      join public.merchant_staff ms on ms.restaurant_id = r.id
-     where r.kitchen_id = kitchens.id
-       and ms.profile_id = (select auth.uid())
-  )
-);
 -- No INSERT/UPDATE/DELETE policy and no write grants: admin RPCs only.
+-- (The SELECT policy is created AFTER section 3 -- it references
+-- restaurants.kitchen_id, which does not exist yet at this point. Caught by
+-- the real-schema BEGIN/ROLLBACK dry run, 2026-07-27.)
 revoke all on public.kitchens from anon, authenticated;
 grant select on public.kitchens to authenticated;
 
@@ -163,6 +149,22 @@ comment on column public.restaurants.kitchen_id is
   'Physical kitchen this storefront is produced in. NULL = merchant''s own premises (every third party today). The five own brands share ONE kitchen_id. Mig 126.';
 comment on column public.restaurants.merchant_type is
   'Ownership / P&L axis. own_brand = company-owned virtual brand: revenue is 100% ours, "commission" is an internal transfer, NO settlement row may exist, and it can never be featured. Written only by admin_set_merchant_type. Mig 126.';
+
+-- Kitchen read policy -- HERE, not in section 2: its USING clause references
+-- restaurants.kitchen_id, which only exists after the ALTER above. A kitchen
+-- row exposes our cost base, so it is not public: admins read all; staff of a
+-- brand produced in the kitchen read their own kitchen (pickup address).
+drop policy if exists kitchens_read on public.kitchens;
+create policy kitchens_read on public.kitchens for select using (
+  coalesce((select public.auth_role())::text, '') = 'admin'
+  or exists (
+    select 1
+      from public.restaurants r
+      join public.merchant_staff ms on ms.restaurant_id = r.id
+     where r.kitchen_id = kitchens.id
+       and ms.profile_id = (select auth.uid())
+  )
+);
 
 -- ---------------------------------------------------------------------------
 -- 4) Column-grant restatement (house rule 5 -- RLS cannot restrict columns).
@@ -367,6 +369,11 @@ drop trigger if exists trg_reject_own_brand_settlement on public.restaurant_sett
 create trigger trg_reject_own_brand_settlement
   before insert on public.restaurant_settlements
   for each row execute function public.reject_own_brand_settlement();
+
+-- Trigger functions are never client-callable, but a freshly created function
+-- still gets default PUBLIC EXECUTE and shows up on /rest/v1/rpc (house rule
+-- 3; flagged by the security advisor post-apply, 2026-07-27).
+revoke all on function public.reject_own_brand_settlement() from public, anon, authenticated;
 
 comment on function public.reject_own_brand_settlement() is
   'Invariant (mig 126): no NEW settlement row may be created for a merchant_type = own_brand restaurant. INSERT-only: rows earned during a merchant''s third-party period stay payable after conversion.';

@@ -30,28 +30,37 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
-**Exception — the pending stack `126_cloud_kitchen_foundation.sql` +
-`127_quote_fee_vertical.sql` + `128_zone_distance_guard.sql` +
-`129_service_area_single_source.sql` qualifies for the same standalone route
-as 122** (each additive, idempotent, no binary coupling: apps tolerate the
-columns/functions being absent). Apply procedure, in order:
+**APPLIED — migrations 126–129 went to production on 2026-07-27** via the
+same standalone route as 122 (each additive, idempotent, no binary coupling),
+executed over the Supabase MCP with an md5-guarded protocol: each migration's
+bytes were dollar-quoted into a DO block that verified `md5(src)` against the
+repo file's hash server-side BEFORE `EXECUTE`, dry-run first
+(BEGIN…ROLLBACK with asserts calling the real functions), then applied
+(…COMMIT). The dry run caught one real ordering bug pre-apply (the kitchens
+RLS policy referenced `restaurants.kitchen_id` before the column existed —
+invisible to the shim suite). Post-apply: 15 functions with zero duplicate
+overloads, all 11 crons active, zone guard live (Cairo pin → no zone),
+ranking_integrity_audit clean, security advisors show no new findings (one
+missed trigger-function EXECUTE revoke was caught by the advisor and fixed
+in-place + in the file).
 
-1. `./scripts/backup-prod.sh` (there are NO managed backups — see below).
-2. Dashboard → SQL editor: paste `supabase/tests/126_129_dryrun_prod.sql`
-   whole and Run. It BEGINs, applies all four migrations, asserts against the
-   real functions (including the NULL-kitchen conversion case the shim suite
-   missed, the Cairo-pin zone guard, and the vertical-aware fee), and
-   ROLLBACKs. Success = the final `DRY RUN COMPLETE` row. Safe to re-run at
-   any point — the migrations are idempotent, so it works whether none, some,
-   or all are already applied.
-3. Only if step 2 succeeded: paste each of
-   `supabase/migrations/126…129_*.sql` and Run, in numeric order (this time
-   they persist).
-4. Run the Supabase security advisors; then `npm run db:types` from repo root.
-5. Seed via the new RPCs — `admin_upsert_kitchen(...)` then
-   `admin_set_merchant_type(id, 'own_brand', kitchen_id)` per brand. Zone id
-   for Mercato: confirm against `select id from zones` (likely `hadaba`;
-   `naama_bay` does not exist).
+**Rollback artifact:** `public.__pre_mig126_129_snapshot` (10 rows) holds the
+exact pre-apply `pg_get_functiondef` + ACL of every replaced function —
+created in the same transaction as the apply, because the off-site backup
+script was blocked on the missing Keychain password. Drop the table after the
+ledger reconciliation. **Set up `sharmeats-db-password` in the Keychain and
+run `./scripts/backup-prod.sh` — the standing no-managed-backups risk below
+is unchanged.**
+
+Re-verification at any time: paste `supabase/tests/126_129_dryrun_prod.sql`
+into the Dashboard SQL editor and Run — it BEGINs, re-applies (no-op),
+asserts, ROLLBACKs; success = the `DRY RUN COMPLETE` row.
+
+Seeding the kitchen (owner, when brand data is real):
+`admin_upsert_kitchen(...)` then
+`admin_set_merchant_type(id, 'own_brand', kitchen_id)` per brand. Zone id for
+Mercato: confirm against `select id from zones` (likely `hadaba`;
+`naama_bay` does not exist).
 
 The shim harness (`scripts/test-security-migrations.sh`) validates the logic in
 CI; step 2 validates the actual SQL against the actual schema. Keep both — the

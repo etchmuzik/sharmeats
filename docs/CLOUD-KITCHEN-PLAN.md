@@ -190,7 +190,7 @@ walk in 7 days anyway."*
 
 | Piece | State |
 |---|---|
-| Migration `126_cloud_kitchen_foundation.sql` | Written; survived a 15-agent adversarial review (2026-07-27) that found + fixed 3 real defects (NULL-kitchen conversion crash, settlement-freeze on converted merchants, upsert field-wipe); shim suite green (8 tests + negative control); **not yet applied to prod** — follow the 126 procedure in `docs/DATABASE-RELEASE-RUNBOOK.md` (backup → prod dry-run artifact `supabase/tests/126_129_dryrun_prod.sql` → apply); never `db push` |
+| Migration `126_cloud_kitchen_foundation.sql` | **APPLIED to prod 2026-07-27** (with 127–129) via the md5-guarded MCP protocol — dry-run-verified against the real schema (which caught a policy-ordering bug), post-apply checks + advisors clean. Survived a 15-agent adversarial review that found + fixed 3 real defects (NULL-kitchen conversion crash, settlement-freeze on converted merchants, upsert field-wipe). Pre-apply function snapshot: `public.__pre_mig126_129_snapshot`. Owner step remaining: seed the kitchen + 5 brands via `admin_upsert_kitchen` / `admin_set_merchant_type` when brand data is real |
 | Settlement self-payout exclusion (both writers + trigger) | In mig 126 |
 | Ranking integrity (CHECK + sweep exclusion + audit view) | In mig 126 |
 | `admin_upsert_kitchen` / `admin_set_merchant_type` / `platform_revenue_report` | In mig 126 |
