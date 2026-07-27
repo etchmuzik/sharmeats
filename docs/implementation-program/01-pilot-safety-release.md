@@ -116,6 +116,15 @@ same RPCs/apps operators use.
 
 ### 3. Release provenance
 
+> **Status 2026-07-27.** Web tooling is **built** (`scripts/write-version-manifest.mjs`,
+> `prebuild` wired in all three surfaces, `production-drift.yml`), but **no
+> surface serves a manifest yet** — landing 404s and both dashboards return
+> HTTP 200 with their SPA HTML 404 page. That is a deploy gap, not a code gap.
+> The drift workflow already rejects a non-JSON 200, so it reports this
+> correctly. Deploy steps and the body-checking verification command are in
+> [`../RELEASE-PROVENANCE.md`](../RELEASE-PROVENANCE.md). The mobile half below
+> is still entirely missing.
+
 Add a shared build-time script:
 
 - `scripts/write-version-manifest.mjs`
