@@ -438,6 +438,130 @@ export type Database = {
           },
         ]
       }
+      driver_cod_limit_events: {
+        Row: {
+          created_at: string
+          driver_id: string
+          hard_limit_egp: number
+          held_egp: number
+          id: string
+          mode: string
+          order_id: string | null
+          outcome: string
+          prospective_egp: number
+          soft_limit_egp: number
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          hard_limit_egp: number
+          held_egp: number
+          id?: string
+          mode: string
+          order_id?: string | null
+          outcome: string
+          prospective_egp: number
+          soft_limit_egp: number
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          hard_limit_egp?: number
+          held_egp?: number
+          id?: string
+          mode?: string
+          order_id?: string | null
+          outcome?: string
+          prospective_egp?: number
+          soft_limit_egp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_cod_limit_events_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "driver_cod_limit_events_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_cod_limit_events_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_cod_limit_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driver_cod_overrides: {
+        Row: {
+          created_at: string
+          driver_id: string
+          expires_at: string
+          granted_by: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          expires_at: string
+          granted_by: string
+          id?: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          expires_at?: string
+          granted_by?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_cod_overrides_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "driver_cod_overrides_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_cod_overrides_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_cod_overrides_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_earnings: {
         Row: {
           bonus: number
@@ -3043,6 +3167,10 @@ export type Database = {
             Returns: string
           }
       admin_delete_restaurant: { Args: { p_id: string }; Returns: undefined }
+      admin_grant_cod_override: {
+        Args: { p_driver_id: string; p_hours?: number; p_reason: string }
+        Returns: string
+      }
       admin_issue_credit: {
         Args: {
           p_amount_egp: number
@@ -3206,6 +3334,17 @@ export type Database = {
       disablelongtransactions: { Args: never; Returns: string }
       dispatch_sweep: { Args: never; Returns: number }
       dispatch_watchdog: { Args: never; Returns: undefined }
+      driver_cod_capacity: {
+        Args: { p_driver_id: string; p_order_id?: string }
+        Returns: {
+          hard_limit_egp: number
+          held_egp: number
+          mode: string
+          outcome: string
+          prospective_egp: number
+          soft_limit_egp: number
+        }[]
+      }
       driver_ping: {
         Args: { p_lat: number; p_lng: number; p_status?: string }
         Returns: undefined
@@ -3435,6 +3574,19 @@ export type Database = {
         Returns: undefined
       }
       kyc_storage_path_indexed: { Args: { p_name: string }; Returns: boolean }
+      log_cod_limit_event: {
+        Args: {
+          p_driver_id: string
+          p_hard: number
+          p_held: number
+          p_mode: string
+          p_order_id: string
+          p_outcome: string
+          p_prospective: number
+          p_soft: number
+        }
+        Returns: undefined
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       loyalty_tier_sweep: { Args: never; Returns: number }
       mark_cod_collected: {
@@ -3464,6 +3616,17 @@ export type Database = {
       }
       menu_items_staff_writable_columns: { Args: never; Returns: string[] }
       my_cash_balance: { Args: never; Returns: number }
+      my_cod_capacity: {
+        Args: never
+        Returns: {
+          hard_limit_egp: number
+          held_egp: number
+          mode: string
+          over_hard: boolean
+          over_soft: boolean
+          soft_limit_egp: number
+        }[]
+      }
       my_credit_balance: { Args: never; Returns: number }
       my_driver_settlements: {
         Args: { p_limit?: number }
