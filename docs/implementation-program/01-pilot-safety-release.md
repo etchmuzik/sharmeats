@@ -82,6 +82,12 @@ Owner evidence:
 
 ### 2. Pilot lifecycle test pack
 
+> **Status 2026-07-27.** Both artifacts **built and validated against
+> production** (read-only): passes on a real delivered COD order, and correctly
+> fails on a cancelled order carrying a stuck `offered` assignment. The 10
+> controlled runs remain an owner action — see the empty results log in
+> [`../PILOT-LIFECYCLE-TEST.md`](../PILOT-LIFECYCLE-TEST.md).
+
 Add:
 
 - `docs/PILOT-LIFECYCLE-TEST.md`
