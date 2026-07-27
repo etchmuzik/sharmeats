@@ -6,7 +6,13 @@ reviewable, implementation-ready work for Claude.
 
 This directory is the engineering source of truth for planned work. The
 business roadmap still owns sequencing and operating gates; these documents own
-interfaces, files, migrations, tests, rollout and acceptance.
+interfaces, files, migrations, tests, rollout and acceptance. For Packages 07
+and 08, the roadmap's high-level phase numbers are not a requirement to finish
+all pharmacy/city work before courier work: the explicit E0–E8 activation
+sequence in
+[`EXPANSION-OWNER-DECISIONS.md`](EXPANSION-OWNER-DECISIONS.md) and
+[`CLAUDE-EXPANSION-REVIEW-AND-IMPLEMENT.md`](CLAUDE-EXPANSION-REVIEW-AND-IMPLEMENT.md)
+is the controlling cross-package order.
 
 ## Current-state corrections
 
@@ -19,7 +25,9 @@ Already implemented:
 - Reorder modifier identity: migration 055 snapshots `optionId` and
   `modifierId`; current orders can be reconstructed without dropping add-ons.
 - Guest/returning-account restaurant favourites merge at sign-in in commit
-  `0173832`; a durable offline-removal tombstone/queue still needs hardening.
+  `0173832`; durable offline-removal hardening shipped in `db6e255`.
+- Menu-item favourites and the Saved screen shipped with migrations 139/140 in
+  commit `6e60681`.
 - Customer OTA/runtimeVersion configuration across all three mobile apps.
 - Full card-refund backend primitives: `order_refunds`,
   `paymob-refund`, and `finalize_full_card_refund`.
@@ -28,8 +36,9 @@ Already implemented:
 - Static approximate multi-currency display. It is not a live FX system.
 - PostHog key in the customer production build profile. It still needs a fresh
   device build and a real ingested-event verification.
-- Unattended database and Storage backups in commit `2dc7027`; restore rehearsal
-  and encrypted off-machine retention remain open.
+- Unattended database and Storage backups in commit `2dc7027`; the first
+  isolated restore drill passed in commit `0061cfd`. Encrypted off-machine
+  retention remains an owner action.
 
 Implemented and live on 2026-07-27:
 
@@ -66,6 +75,10 @@ remains to be corrected.
 | 5 | [Tourist trust, currency and measurable growth](05-tourist-trust-growth.md) | Remove misleading copy and make the tourist wedge measurable |
 | 6 | [Cloud-kitchen operating package](06-cloud-kitchen.md) | Separate capex/food operation behind evidence gates |
 | 7 | [Verticals and city expansion](07-expansion.md) | Real product programs, explicitly gated after Sharm food proof |
+| 8 | [Delivery as a service (“Send”)](08-delivery-as-a-service.md) | Separate point-to-point courier product; never a fake restaurant/vertical |
+
+Rows 7–8 identify engineering packages, not a strictly serial expansion
+release. Follow E0–E8 for their safe interleaving.
 
 ## Shared implementation rules
 
@@ -102,6 +115,12 @@ Every Claude implementation session must obey these rules:
     order for every contract change.
 12. **Claims match evidence.** “Accepted by Expo” is not “received by device”;
     “receipt ok” is only handoff to APNs/FCM, not proof the user saw it.
+13. **Regulated evidence stays restricted.** Git stores a control/evidence
+    register, not confidential licence, insurance, identity, prescription or
+    policy documents.
+14. **Commerce and courier accounting stay separate.** Grocery/pharmacy use
+    vertical catalog orders; point-to-point delivery uses delivery jobs and
+    must not contaminate restaurant GMV, commission or settlement.
 
 ## Definition of ready for implementation
 
@@ -146,10 +165,17 @@ The exhaustive row-by-row audit is
 | Honest currency, live-rate option, review prompt, attribution and release copy | 05 |
 | Own-brand menus, costing, food ops and launch gates | 06 |
 | Vertical foundation, grocery, pharmacy and city dimension | 07 |
+| Point-to-point delivery quotes, custody, proof, return, fleet and finance | 08 |
 
 ## Claude entry point
 
 Give Claude
 [`CLAUDE-REVIEW-AND-IMPLEMENT.md`](CLAUDE-REVIEW-AND-IMPLEMENT.md), then name
-exactly one package. Do not ask one session to implement all seven packages in
+exactly one package. Do not ask one session to implement all eight packages in
 parallel against `main`.
+
+For grocery, pharmacy or delivery-service work, use the dedicated
+[`CLAUDE-EXPANSION-REVIEW-AND-IMPLEMENT.md`](CLAUDE-EXPANSION-REVIEW-AND-IMPLEMENT.md)
+and
+[`EXPANSION-OWNER-DECISIONS.md`](EXPANSION-OWNER-DECISIONS.md). Its default
+first assignment is Package 07 Program A/E0 only.

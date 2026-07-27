@@ -61,7 +61,7 @@ Status meanings:
 | Home/Orders “Order again” entry | Built; verify | [02 current evidence](02-second-order-and-saved-intent.md#current-evidence) |
 | Reorder impression-to-delivery analytics | Planned | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate) |
 | Consented 7/14-day reminder | Planned after Package 03 | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
-| Merge guest/server favorites without loss | Built/partial; offline removal hardening planned | [02 § B](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
+| Merge guest/server favorites without loss | Built, including durable offline removal (commit `db6e255`) | [02 § B](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Real notification controls | Built (migs 142/143, `expo-push` v15, prod-verified 2026-07-27) | [03 § A status](03-notifications-and-crm.md#slice-a-status) |
 | Consent provenance, quiet hours, locale | Partial — quiet hours built and corrected; consent **event trail** (A3) still missing | [03 § A3](03-notifications-and-crm.md#a3-consent-model) |
 | Server campaign consent enforcement | Built/partial; harden | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
@@ -79,9 +79,9 @@ Status meanings:
 | Test send, draft, scheduling, failure detail | Planned | [03 § A4/G](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Allow-listed payload routes | Partial/planned | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
 | Notification inbox after transport | Deferred by gate | [03 § H](03-notifications-and-crm.md#slice-h--notification-inbox-last) |
-| Menu-item favorites and Saved screen | Planned | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
-| Separate restaurant/item favorites | Planned | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
-| Cross-device saved sync and offline merge | Partial/planned | [02 § B–C](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
+| Menu-item favorites and Saved screen | Built (migrations 139/140, commit `6e60681`) | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
+| Separate restaurant/item favorites | Built | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
+| Cross-device saved sync and offline merge | Built/partial; server item sync + restaurant removal hardening built, full offline item mutation proof remains | [02 § B–C](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Reopened/back-in-stock/real offer triggers | Planned after outbox | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Cross-device cart snapshots | Planned | [02 § D](02-second-order-and-saved-intent.md#slice-d--server-backed-active-cart) |
 | Safe abandoned-cart reminder | Planned | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
@@ -132,16 +132,35 @@ Status meanings:
 
 | Roadmap commitment | Status | Specification / acceptance |
 |---|---|---|
+| Fail-closed vertical launch/kill switch | Missing/planned | [07 A0](07-expansion.md#a0-server-authoritative-launch-gate) |
 | Vertical identity end to end | Partial | [07 Program A](07-expansion.md#program-a--make-vertical-identity-load-bearing) |
-| Decimal/minor-unit/weighted pricing | Planned foundational RFC | [07 Program B](07-expansion.md#program-b--money-precision-rfc-before-grocery) |
+| Fixed-pack private grocery pilot | Planned quickest safe expansion | [07 C0](07-expansion.md#c0-fastest-safe-grocery-pilot--fixed-packs-only) |
+| Decimal/minor-unit/weighted pricing | Planned foundational RFC | [07 Program B](07-expansion.md#program-b--money-precision-rfc-before-measured-grocery) |
 | Grocery catalog, stock, bulk import | Planned | [07 C1–C2](07-expansion.md#program-c--grocery) |
 | Grocery measured fulfillment/substitutions | Planned | [07 C3–C4](07-expansion.md#c3-basket-preparation-and-final-price) |
 | Grocery picker and vertical UX | Planned | [07 C5–C6](07-expansion.md#c5-picker-role) |
-| Pharmacy legal gate | Owner/legal | [07 D0](07-expansion.md#d0-legal-gate) |
+| Health/personal-care fixed-pack pilot | Planned behind classification/evidence map | [07 D0.5](07-expansion.md#d05-safest-pre-pharmacy-pilot) |
+| Pharmacy licence/legal evidence | Owner reports papers available; restricted inventory/control mapping planned | [07 D0](07-expansion.md#d0-legal-gate), [owner decisions](EXPANSION-OWNER-DECISIONS.md#pharmacy-and-health-v1) |
 | Prescription upload/pharmacist approval | Planned behind legal gate | [07 D2–D3](07-expansion.md#d2-prescription-evidence) |
 | Age/restricted/audit/return controls | Planned behind legal gate | [07 D1–D4](07-expansion.md#d1-product-classification) |
 | First-class city model | Planned | [07 Program E](07-expansion.md#program-e--city-dimension) |
 | City-specific supply/ops/go-live | Owner/ops + planned gate | [07 city-two gate](07-expansion.md#city-two-go-live-gate) |
+
+## Phase 8 — delivery as a service
+
+| Roadmap commitment | Status | Specification / acceptance |
+|---|---|---|
+| Separate delivery-job model, not fake merchant/vertical | Missing/planned | [08 boundary/model](08-delivery-as-a-service.md#non-negotiable-product-boundary) |
+| Licence/insurance/liability evidence mapping | Owner reports papers available; control mapping planned | [08 Gate 0](08-delivery-as-a-service.md#gate-0--evidence-and-operating-contract) |
+| Sharm city/service-area compatibility bridge | Planned prerequisite | [08 Slice 0](08-delivery-as-a-service.md#slice-0--sharm-geography-bridge) |
+| Server feature stage and both-endpoint serviceability | Planned | [08 A–B](08-delivery-as-a-service.md#slice-a--dark-product-configuration) |
+| Quote, job, custody and return state machine | Planned | [08 B–C](08-delivery-as-a-service.md#slice-b--pricing-and-quote) |
+| Shared food/parcel driver capacity and pickup-nearest dispatch | Planned | [08 D](08-delivery-as-a-service.md#slice-d--assignments-and-shared-driver-capacity) |
+| Pickup/drop-off OTP and private incident proof | Planned | [08 E](08-delivery-as-a-service.md#slice-e--pickup-delivery-and-return-proof) |
+| Participant-scoped tracking/chat/notifications | Planned | [08 F](08-delivery-as-a-service.md#slice-f--communication-privacy-and-notification) |
+| Separate merchant/customer/driver/platform finance | Planned | [08 G](08-delivery-as-a-service.md#slice-g--finance-and-payment) |
+| Admin → merchant → customer staged apps | Planned | [08 H/rollout](08-delivery-as-a-service.md#slice-h--application-experiences) |
+| Full security/E2E/device/load/rollback proof | Planned mandatory | [08 test matrix](08-delivery-as-a-service.md#complete-test-and-verification-matrix) |
 
 ## Quick-win queue audit
 
@@ -157,6 +176,8 @@ Status meanings:
 | `/version.json`/SHA drift | 01 C |
 | Deliberate ops alert | 01 F |
 | Driver COD debt limit | 04 E |
+| Expansion fail-closed vertical gate | 07 A0 |
+| Private fixed-pack grocery after the gate | 07 C0 |
 
 ## Explicit deferrals audit
 
@@ -166,6 +187,10 @@ Status meanings:
 | Opaque AI before explainable signals | 02 F |
 | Public cards before reconciliation/refunds | 04 B acceptance gate |
 | Grocery/pharmacy before food proof | 07 Gate 0 |
+| Weighted grocery before minor-unit money/inventory/substitutions | 07 B/C1–C4 |
+| Rx before classification/pharmacist/evidence/return controls | 07 D0–D4 |
+| Public customer Send before merchant pilot, insurance/liability map and cards | 08 Gate 0/G/rollout |
+| Multi-stop, pooled jobs, driver purchasing or contents COD in delivery v1 | 08 product boundary |
 | City two before operator independence | 07 Gate 0 / Program E |
 | Paid growth before conversion/repeat | 05 E/G |
 | All restaurants at once | 01 pilot operating gate |
@@ -176,5 +201,6 @@ Every feature and operating gate in the A-to-Z roadmap has an owner and a
 specification/acceptance location. The only intentionally unresolved inputs are
 real owner/legal/commercial facts: restore destination, security dashboard
 controls, Paymob/KYC/tax details, kitchen lease/licensing/quotes/staff/suppliers,
-pharmacy legal advice, and the chosen second city. The specs fail closed around
-those inputs rather than guessing them.
+the exact scope/expiry/control mapping of the reported pharmacy/courier licences
+and insurance, delivery parcel/fee/liability limits, and the chosen second city.
+The specs fail closed around those inputs rather than guessing them.

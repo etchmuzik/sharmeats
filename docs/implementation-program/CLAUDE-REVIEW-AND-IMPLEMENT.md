@@ -15,6 +15,12 @@ Older launch/audit documents are evidence, not authority. Confirm every claim
 against the current worktree and, for live database/function behavior,
 production.
 
+For Package 07 or 08, also read
+`EXPANSION-OWNER-DECISIONS.md` and use
+`CLAUDE-EXPANSION-REVIEW-AND-IMPLEMENT.md`. Expansion is split into bounded
+E0–E8 sessions; do not implement grocery, pharmacy and delivery service
+together against `main`.
+
 ## Review before implementation
 
 Produce a short verdict table:

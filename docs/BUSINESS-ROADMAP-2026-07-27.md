@@ -9,17 +9,19 @@ This replaces older “code 100% complete” launch claims as a planning source.
 Those documents remain useful history, but several are stale. The current
 baseline is the verified July 27 production state:
 
-- migrations 136–138 are live: staff-role enforcement, push routing and
-  opt-in marketing preferences/quiet hours;
+- migrations 136–138 and 142–144 are live: staff-role enforcement, push
+  routing, preference/quiet-hours enforcement/corrections and a controlled ops
+  alert exercise;
 - PostHog is wired but needs the next customer build before events arrive;
-- campaigns now enforce marketing opt-in, but receipt polling/retry is absent,
-  transport acceptance is still mislabeled as delivery, and the visible
-  transactional switch is not enforced by transactional senders;
+- campaigns and transactional preferences are server-enforced, but receipt
+  polling/retry is absent and transport acceptance is still mislabeled as
+  delivery;
 - cards are deliberately off; the live launch path is COD;
 - 23 lifetime orders are not enough to prove settlement, retention or scale;
-- a production backup exists, but off-machine retention and a rehearsed restore
-  are still owner actions;
-- grocery, pharmacy and city #2 are architecture, not launch-ready features.
+- the first isolated restore drill passed; encrypted off-machine retention is
+  still an owner action;
+- grocery/pharmacy have useful schema columns but are not fail-closed verticals,
+  and point-to-point delivery does not yet exist as a product.
 
 ## The single priority
 
@@ -130,12 +132,11 @@ are explained; no stale price can be ordered; the full funnel is visible.
 
 ### Sprint 2B — retention correctness quick wins
 
-- Keep the shipped guest/server restaurant-favourite merge and add a durable
-  offline-removal tombstone so a failed delete cannot resurrect a favorite.
-- Correct the remaining fake transactional switch; marketing opt-in is already
-  server-enforced.
-- Store marketing consent version/time/source, transactional vs marketing
-  preference, quiet hours and locale.
+- Keep the shipped guest/server restaurant-favourite merge and durable
+  offline-removal tombstone as regression invariants.
+- Keep the now-enforced transactional/marketing preferences and quiet hours as
+  regression invariants.
+- Add the remaining consent event trail/version/source evidence.
 - Filter campaigns server-side; the UI setting alone is not enforcement.
 - Add frequency caps and unsubscribe/opt-out handling before marketing volume.
 
@@ -282,18 +283,40 @@ marketplace commission.
 
 ## Phase 7 — expansion
 
+Phases 7 and 8 are engineering groupings, not a requirement to finish every
+commerce vertical before safe courier proof. The approved activation order is:
+fail-closed vertical authority → private fixed-pack grocery → internal then
+verified-merchant delivery → classified Health & Personal Care → customer Send
+after the card gate → full grocery → full Rx pharmacy → city two. The exact
+bounded E0–E8 sessions live in
+[`implementation-program/CLAUDE-EXPANSION-REVIEW-AND-IMPLEMENT.md`](implementation-program/CLAUDE-EXPANSION-REVIEW-AND-IMPLEMENT.md).
+
 ### Grocery
 
-Only after the Sharm food gate. First make `vertical_id` load-bearing end to
-end, then build decimal/weight pricing, stock, bulk catalog, substitutions,
-picker workflow, partial repricing/refunds and grocery-specific operations.
-Current estimate remains **12–18 weeks**, not a configuration flip.
+Only after the Sharm food gate. First make `vertical_id` and its launch state
+fail closed end to end.
+
+The quickest controlled product is one private fixed-pack store: 50–200 SKUs,
+whole-EGP COD, server search/pagination, CSV import, merchant-controlled
+availability and existing merchant picking with grocery wording. It explicitly
+excludes measured weight, live stock, substitutions and partial fulfillment.
+
+Full grocery then adds minor-unit pricing, stock reservations, measured-item
+repricing, substitutions, picker workflow and partial refunds. That full
+program—not the fixed-pack pilot—remains roughly **12–18 weeks**.
 
 ### Pharmacy
 
-After grocery and after entity/licensing advice. Add prescription upload and
-pharmacist approval, age gates, immutable audit trail, substitutions and
-restricted-item controls. Current estimate remains **16–25 weeks**.
+The owner reports that licences and legal papers exist. Register and map their
+actual seller/product/dispensing/privacy/delivery scope without committing
+confidential document contents.
+
+The safest first assortment is a private, fixed-pack, server-allow-listed
+Health & Personal Care catalog. Call it Pharmacy only when the evidence mapping
+supports that promise. Prescription dispensing still needs server-owned
+classification, private evidence, pharmacist identity/approval, age/ID,
+immutable audit, expiry/reuse, restricted-item, return and privacy controls.
+The full program remains roughly **16–25 weeks**.
 
 ### City #2
 
@@ -301,22 +324,54 @@ After sustained Sharm proof. The schema needs a real city dimension, city-bound
 zones/settings/onboarding/dispatch and city-level operations. Expansion is not
 zero-engineering and is outside the current launch round.
 
+## Phase 8 — delivery as a service (“Send”)
+
+Build point-to-point delivery as a separate product, not a fake courier
+restaurant and not a fourth catalog vertical. Reuse the fleet but create
+`delivery_jobs` with two endpoints, parcel/terms snapshots, a custody state
+machine, sender/recipient proof, return-to-sender, private incidents and
+separate fee/driver/platform finance.
+
+Sequence:
+
+1. map the reported licences, insurance, liability and prohibited-goods papers
+   to enforceable controls;
+2. build dark schema, quotes, RLS, shared one-job driver capacity and admin
+   manual dispatch;
+3. complete 20 internal deliveries;
+4. enable verified merchants with a capped invoice/prepaid ledger and complete
+   20–50 manual-dispatch deliveries;
+5. add customer “Send” only after Package 04 card/refund reconciliation passes;
+6. enable automatic dispatch and public service only after device, return,
+   incident, finance and close-switch rehearsals.
+
+V1 is one pickup, one drop-off, one sealed parcel, both endpoints in the active
+Sharm service area. It excludes driver purchasing, contents COD/cash-on-behalf,
+multi-stop, pooling and routine proof photos.
+
+The engineering contract is
+[`implementation-program/08-delivery-as-a-service.md`](implementation-program/08-delivery-as-a-service.md).
+
 ## Quick-win queue
 
 Ordered by impact relative to effort:
 
 1. Ship customer build with PostHog and verify one full funnel.
-2. Rehearse COD lifecycle, settlement and restore.
-3. Remove unsupported multi-currency promise until implemented.
-4. Correct and finish notification preferences (marketing is real; the
-   transactional switch and quiet-hours volatility still need correction).
-5. Harden the shipped guest-favorite merge for failed offline removals.
-6. Complete exact reorder's authoritative revalidation/change explanation;
-   modifier identity is already preserved.
-7. Add post-delivery app-store review prompt.
-8. Add `/version.json` and production SHA monitoring.
-9. Deliberately test ops alerts.
-10. Add driver COD debt limit.
+2. Execute 10 COD lifecycle/settlement runs using the built assertion pack.
+3. Copy the verified backup off-machine with encrypted retention.
+4. Deploy `/version.json`/release provenance and production SHA monitoring.
+5. Add Expo receipt polling, bounded retry and truthful transport states.
+6. Remove unsupported multi-currency promise until implemented.
+7. Device-prove exact reorder, Saved items and offline favourite removal; close
+   any surfaced change-explanation gap.
+8. Add the remaining consent audit trail and campaign suppression truth.
+9. Add post-delivery app-store review prompt.
+10. Deliberately receive/acknowledge the built ops alert and add the driver COD
+    debt limit.
+
+The expansion quick win is **not** a public grocery/pharmacy/Send tab. It is the
+shared fail-closed vertical launch gate, followed by one private fixed-pack
+grocery cohort.
 
 ## Explicitly not now
 
@@ -324,6 +379,10 @@ Ordered by impact relative to effort:
 - opaque AI recommendations before simple signals are measured;
 - public cards before reconciliation/refunds are proven;
 - grocery/pharmacy before food-market fit;
+- public customer Send before the merchant parcel pilot, mapped insurance/
+  liability and card/refund proof;
+- Rx pharmacy before classification, pharmacist, evidence and return controls;
+- weighted grocery before minor-unit money and inventory/substitution controls;
 - city #2 before Sharm can run without the founder;
 - paid growth before first-order conversion and repeat are measurable;
 - all 25 restaurants at once before 5–10 can operate cleanly.
