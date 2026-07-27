@@ -18,6 +18,7 @@ import { colors, font, radius } from '../../../src/theme';
 import { useT } from '../../../src/i18n';
 import { db } from '../../../src/data';
 import { success } from '../../../src/haptics';
+import { track } from '../../../src/lib/analytics';
 
 function Stars({
   value,
@@ -61,9 +62,21 @@ export default function Review() {
     // App-store rating is the top conversion factor for tourist search discovery.
     if (food >= 4 && delivery >= 4) {
       try {
-        if (await StoreReview.isAvailableAsync()) await StoreReview.requestReview();
+        const available = await StoreReview.isAvailableAsync();
+        // "shown" here means WE ASKED THE OS, not that a human saw a dialog:
+        // iOS silently rate-limits requestReview() and resolves either way, so
+        // claiming a display would be the same lie as calling an Expo ticket a
+        // delivery. The result property records exactly what we can observe.
+        track('review_prompt_shown', { trigger: 'high_rating', available });
+        if (available) {
+          await StoreReview.requestReview();
+          track('review_prompt_result', { result: 'requested' });
+        } else {
+          track('review_prompt_result', { result: 'unavailable' });
+        }
       } catch {
         // best-effort; never block the flow
+        track('review_prompt_result', { result: 'error' });
       }
     }
     setTimeout(() => router.replace('/(tabs)/orders'), 1100);

@@ -210,6 +210,15 @@ export default function HomeTab() {
       const menu = await db.menus.forRestaurant(s.restaurantId);
       const { lines, changes, allGone } = checkReorder(s.items, menu.items);
 
+      // Same bounded shape as the Orders tab, distinguished by `source` so the
+      // two repeat-order entry points can be compared.
+      track('reorder_prepared', {
+        source: 'saved_preset',
+        outcome: allGone ? 'all_unavailable' : changes.length > 0 ? 'changed' : 'exact',
+        change_count: changes.length,
+        line_count: lines.length,
+      });
+
       if (allGone) {
         Alert.alert(t('orders.reorderTitle'), t('orders.reorderAllGone'), [
           { text: t('common.cancel'), style: 'cancel' },

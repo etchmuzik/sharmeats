@@ -7,7 +7,7 @@ import { useCart } from '../src/store/cart';
 import { useSession } from '../src/store/session';
 import { db, isBackendLive } from '../src/data';
 import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
-import { initAnalytics } from '../src/lib/analytics';
+import { initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics';
 import { configureNotificationHandler, registerForPush, useNotificationRouting } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
@@ -22,9 +22,33 @@ configureNotificationHandler();
 export default function RootLayout() {
   const hydrateCart = useCart((s) => s.hydrate);
   const hydrateSession = useSession((s) => s.hydrate);
+  const locale = useSession((s) => s.locale);
+  const currency = useSession((s) => s.currency);
+  const isSignedIn = useSession((s) => s.isSignedIn);
+  const hydrated = useSession((s) => s.hydrated);
 
   // Route notification taps (order updates, chat, support) to the right screen.
   useNotificationRouting();
+
+  // Keep the properties attached to EVERY event in step with the session.
+  // Registered centrally so no call site has to remember them, and so
+  // analytics.ts never has to import the session store (circular, untestable).
+  useEffect(() => {
+    setAnalyticsContext({
+      locale,
+      currency,
+      authState: isSignedIn ? 'signed_in' : 'anonymous',
+    });
+  }, [locale, currency, isSignedIn]);
+
+  // app_opened is the head of the funnel, so it must not fire before the
+  // context above is known -- an event with the wrong locale/currency is worse
+  // than one that arrives a tick later. Waiting for `hydrated` also means it
+  // fires once per launch rather than on every store change.
+  useEffect(() => {
+    if (!hydrated) return;
+    track('app_opened');
+  }, [hydrated]);
 
   useEffect(() => {
     hydrateCart();

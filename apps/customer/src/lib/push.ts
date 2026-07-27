@@ -102,6 +102,33 @@ function routeForNotification(data: Record<string, unknown> | undefined): string
 }
 
 /**
+ * Record a notification open BEFORE navigating (package 01 §4).
+ *
+ * Order matters: routing can unmount this hook's tree, and on a cold start the
+ * push that launched the app is the first thing that happens — track after
+ * navigating and the head of the attribution chain is the event most likely to
+ * be lost.
+ *
+ * A notification payload is UNTRUSTED input: it arrives from the network and is
+ * not signed. So nothing is forwarded verbatim. `event` is length-capped and
+ * character-restricted (an unbounded string becomes an unbounded PostHog
+ * property), and the route is reduced to its first path segment — `/order/<id>`
+ * becomes `order`, which is what funnel analysis needs and carries no order id.
+ * The deny-list in track() is the backstop, not the only defence.
+ */
+function trackNotificationOpen(data: Record<string, unknown> | undefined, route: string): void {
+  const rawEvent = typeof data?.event === 'string' ? data.event : '';
+  const event = /^[a-z0-9_]{1,40}$/.test(rawEvent) ? rawEvent : 'unknown';
+  const destination = route.split('/').filter(Boolean)[0] ?? 'unknown';
+  const campaignId = typeof data?.campaignId === 'string' ? data.campaignId : undefined;
+  track('notification_opened', {
+    notification_event: event,
+    destination,
+    ...(campaignId && /^[a-zA-Z0-9-]{1,64}$/.test(campaignId) ? { campaign_id: campaignId } : {}),
+  });
+}
+
+/**
  * Route notification taps to the right screen — both while the app is running
  * (addNotificationResponseReceivedListener) and on a cold start where the app
  * was launched by tapping a push (getLastNotificationResponseAsync). Mount once
@@ -116,11 +143,13 @@ export function useNotificationRouting(): void {
     Notifications.getLastNotificationResponseAsync()
       .then((response) => {
         if (handled || !response) return;
-        const route = routeForNotification(
-          response.notification.request.content.data as Record<string, unknown> | undefined,
-        );
+        const data = response.notification.request.content.data as
+          | Record<string, unknown>
+          | undefined;
+        const route = routeForNotification(data);
         if (route) {
           handled = true;
+          trackNotificationOpen(data, route);
           router.push(route);
         }
       })
@@ -128,10 +157,14 @@ export function useNotificationRouting(): void {
 
     // Warm taps while the app is running.
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const route = routeForNotification(
-        response.notification.request.content.data as Record<string, unknown> | undefined,
-      );
-      if (route) router.push(route);
+      const data = response.notification.request.content.data as
+        | Record<string, unknown>
+        | undefined;
+      const route = routeForNotification(data);
+      if (route) {
+        trackNotificationOpen(data, route);
+        router.push(route);
+      }
     });
     return () => sub.remove();
   }, [router]);

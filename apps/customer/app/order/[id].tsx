@@ -96,6 +96,18 @@ export default function OrderTracking() {
     }
   }, [order?.status, order?.restaurantName]);
 
+  // order_delivered closes the funnel (package 01 §4). This screen polls and
+  // re-renders repeatedly while an order is live, so a bare track() here would
+  // fire on every tick. The ref makes it idempotent per order per mount, which
+  // is what "delivery tracking is idempotent per order/device" requires.
+  const deliveredTracked = useRef<string | null>(null);
+  useEffect(() => {
+    if (order?.status !== 'delivered' || !order?.id) return;
+    if (deliveredTracked.current === order.id) return;
+    deliveredTracked.current = order.id;
+    track('order_delivered', { order_id: order.id, restaurantId: order.restaurantId });
+  }, [order?.status, order?.id, order?.restaurantId]);
+
   // Fetch the restaurant once we know which one, to show its contact card
   // (phone/address) HERE — contact info is gated behind a placed order, not
   // exposed while browsing. Best-effort: a failure just hides the card.

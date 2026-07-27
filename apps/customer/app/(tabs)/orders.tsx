@@ -86,6 +86,16 @@ export default function OrdersTab() {
       const menu = await db.menus.forRestaurant(o.restaurantId);
       const { lines, changes, allGone } = checkReorder(o.items, menu.items);
 
+      // Bounded issue COUNTS, never the item names or the customer's notes.
+      // "how often does a reorder come back changed" is the question; which
+      // dish it was is not analytics' business.
+      track('reorder_prepared', {
+        source: 'orders_tab',
+        outcome: allGone ? 'all_unavailable' : changes.length > 0 ? 'changed' : 'exact',
+        change_count: changes.length,
+        line_count: lines.length,
+      });
+
       if (allGone) {
         Alert.alert(t('orders.reorderTitle'), t('orders.reorderAllGone'), [
           { text: t('common.cancel'), style: 'cancel' },
