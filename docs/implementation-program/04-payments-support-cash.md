@@ -15,8 +15,9 @@ ledger systems.
 - `place_order` has an idempotency key and server-authoritative repricing.
 - Card orders use `paymob-create-intention`, signed `paymob-webhook`,
   `settle_paymob_payment`, and card-state guards.
-- `order_refunds`, `paymob-refund`, and `finalize_full_card_refund` implement one
-  full card refund. The Edge Function deliberately rejects partial-refund fields.
+- `order_refunds`, `paymob-refund` and `finalize_full_card_refund` exist **in the
+  repository**. Only the table is in production; the RPC and the Edge Function
+  are not deployed (see the Slice B status note below).
 - COD collection, driver earnings, driver cash custody, hand-ins, driver
   settlements, merchant settlements and customer credit already exist.
 - Support is one message thread per customer. It has messages and realtime, but
@@ -90,6 +91,16 @@ An automated daily job should detect:
 Alerts aggregate by incident class; they do not send one noisy alert per row.
 
 ## Slice B — controlled card rollout
+
+> **Status 2026-07-28 — the card rail is NOT deployed.** Verified against
+> production: `settle_paymob_payment` and `finalize_full_card_refund` do not
+> exist (migration 121 was never applied), and neither `paymob-create-intention`
+> nor `paymob-refund` is a deployed Edge Function — only `paymob-webhook` (v5).
+> No Paymob secret exists in the vault. Zero card orders and zero refunds have
+> ever been created. The "current evidence" above overstates what is live.
+>
+> Prerequisites, verification commands and the full acceptance gate are in
+> [`../CARD-PAYMENT-GATE.md`](../CARD-PAYMENT-GATE.md). Cards remain dark.
 
 ### Owner prerequisites
 
