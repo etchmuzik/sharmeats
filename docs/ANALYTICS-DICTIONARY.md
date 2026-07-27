@@ -57,7 +57,7 @@ different JS; only `app_update_id` distinguishes them.
 | `order_placed` | `place_order` succeeds | `restaurantId`, totals | Ops | orders/day |
 | `order_delivered` | order screen observes `delivered`; **idempotent per order per mount** | `order_id`, `restaurantId` | Ops | funnel close; delivery rate |
 | `reorder_tapped` | "Order again" / saved preset tapped | `restaurantId` | Growth | repeat intent |
-| `reorder_prepared` | after `checkReorder` reconciles against the live menu | `source` (`orders_tab` \| `saved_preset`), `outcome` (`exact` \| `changed` \| `all_unavailable`), `change_count`, `line_count` | Growth | reorder quality |
+| `reorder_prepared` | after the cart is reconciled against the live menu | `source` (`orders_tab` \| `saved_preset`), `prepared_by` (`server` \| `client`), `outcome` (`exact` \| `changed` \| `all_unavailable`), `change_count`, `line_count` | Growth | reorder quality |
 | `notification_opened` | push tapped, **before** routing | `notification_event`, `destination`, `campaign_id` | CRM | push → order attribution |
 | `cart_restored` | a server/local cart is restored — **defined, no call site yet**: server-backed carts are Package 02 Slice D | `source` | Growth | cross-device continuity |
 | `review_prompt_shown` | store-review prompt **requested** | `trigger`, `available` | Growth | rating funnel |
@@ -81,6 +81,12 @@ Expo ticket a delivery. `available` records what we could actually observe.
 `notification_opened` likewise records a **tap**, which is the only
 user-confirmed step in the whole push chain — Expo acceptance and provider
 receipts are not evidence a human saw anything.
+
+`reorder_prepared.prepared_by` distinguishes the authoritative server path
+(`prepare_cart`, mig 145) from the offline client fallback. Without it a rise in
+fallbacks — customers on poor connections silently getting the weaker
+reconciliation — would be invisible and every reorder would look equally clean.
+A high `client` share is an availability signal, not a product signal.
 
 ## Privacy rules
 
@@ -117,6 +123,7 @@ only-banned properties leaks nothing into the serialized event.
 | Delivery completion | `order_delivered` ÷ `order_placed` |
 | Repeat intent | `reorder_tapped` users ÷ `order_delivered` users |
 | Reorder quality | `reorder_prepared{outcome=exact}` ÷ all `reorder_prepared` |
+| Reorder fallback rate | `reorder_prepared{prepared_by=client}` ÷ all `reorder_prepared` |
 | Push effectiveness | `order_placed` within 24h of `notification_opened` ÷ `notification_opened` |
 | Rating funnel | `review_prompt_result{result=requested}` ÷ `review_prompt_shown` |
 

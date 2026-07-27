@@ -12,7 +12,8 @@ import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { useCart } from '../../src/store/cart';
 import { track } from '../../src/lib/analytics';
-import { checkReorder, describeReorderChanges } from '../../src/lib/reorderCheck';
+import { describeReorderChanges } from '../../src/lib/reorderCheck';
+import { prepareReorder } from '../../src/lib/prepareCart';
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   placed: 'status.placed',
@@ -84,13 +85,20 @@ export default function OrdersTab() {
     setReordering(o.id);
     try {
       const menu = await db.menus.forRestaurant(o.restaurantId);
-      const { lines, changes, allGone } = checkReorder(o.items, menu.items);
+      const { lines, changes, allGone, source } = await prepareReorder(
+        o.restaurantId,
+        o.items,
+        menu.items,
+      );
 
       // Bounded issue COUNTS, never the item names or the customer's notes.
       // "how often does a reorder come back changed" is the question; which
-      // dish it was is not analytics' business.
+      // dish it was is not analytics' business. `prepared_by` distinguishes the
+      // authoritative server path from the offline fallback, so a spike in
+      // fallbacks is visible rather than looking like clean reorders.
       track('reorder_prepared', {
         source: 'orders_tab',
+        prepared_by: source,
         outcome: allGone ? 'all_unavailable' : changes.length > 0 ? 'changed' : 'exact',
         change_count: changes.length,
         line_count: lines.length,

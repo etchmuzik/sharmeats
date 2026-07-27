@@ -26,7 +26,8 @@ import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { useCart } from '../../src/store/cart';
-import { checkReorder, describeReorderChanges } from '../../src/lib/reorderCheck';
+import { describeReorderChanges } from '../../src/lib/reorderCheck';
+import { prepareReorder } from '../../src/lib/prepareCart';
 import { formatEgp } from '../../src/lib/format';
 import { tap } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
@@ -208,12 +209,18 @@ export default function HomeTab() {
   const openSavedWithCheck = async (s: SavedOrder) => {
     try {
       const menu = await db.menus.forRestaurant(s.restaurantId);
-      const { lines, changes, allGone } = checkReorder(s.items, menu.items);
+      const { lines, changes, allGone, source } = await prepareReorder(
+        s.restaurantId,
+        s.items,
+        menu.items,
+      );
 
       // Same bounded shape as the Orders tab, distinguished by `source` so the
-      // two repeat-order entry points can be compared.
+      // two repeat-order entry points can be compared, and by `prepared_by` so
+      // a rise in offline fallbacks is visible.
       track('reorder_prepared', {
         source: 'saved_preset',
+        prepared_by: source,
         outcome: allGone ? 'all_unavailable' : changes.length > 0 ? 'changed' : 'exact',
         change_count: changes.length,
         line_count: lines.length,
