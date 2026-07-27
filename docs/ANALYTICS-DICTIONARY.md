@@ -66,7 +66,7 @@ different JS; only `app_update_id` distinguishes them.
 | `promo_applied` / `promo_rejected` | promo code evaluated | code outcome | Growth | promo efficiency |
 | `favorite_toggled` | restaurant favourite toggled | `restaurantId` | Growth | saved intent |
 | `cross_sell_added` | cross-sell accepted | item id | Growth | AOV |
-| `push_permission` | permission prompt resolved | context, result — **never the token** | CRM | opt-in rate |
+| `push_permission` | primer shown/declined, or OS prompt resolved | `context` (`first_order` \| `marketing_opt_in` \| `settings`), `result` (`primer_shown` \| `primer_declined` \| `granted` \| `denied` \| `settings_opened`) — **never the token** | CRM | opt-in rate |
 | `search_performed` | search executed | result count | Growth | discovery |
 | `referral_shared` | referral link shared | channel | Growth | referral loop |
 | `saved_order_created` | preset saved | — | Growth | saved intent |

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +18,8 @@ import {
   formatQuietWindow,
 } from '../src/lib/notificationPrefs';
 import { getReleaseInfo, formatReleaseLine } from '../src/lib/release';
+import { getPermissionDecision } from '../src/lib/push';
+import type { PermissionDecision } from '../src/lib/pushPermission';
 
 // 22:00–08:00 local. Sharm dines late, so a window starting much earlier would
 // suppress offers during real ordering hours.
@@ -36,6 +38,13 @@ export default function Settings() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [prefsBusy, setPrefsBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // OS-level permission state. When the customer has turned notifications off
+  // in device settings, every in-app switch below is inert -- saying so is the
+  // difference between a working control and a fake one.
+  const [pushDecision, setPushDecision] = useState<PermissionDecision | null>(null);
+  useEffect(() => {
+    void getPermissionDecision().then(setPushDecision);
+  }, []);
 
   // Release identity is fixed for the lifetime of the process — resolve once.
   const release = useMemo(() => getReleaseInfo(), []);
@@ -185,6 +194,26 @@ export default function Settings() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('profile.notifications')}</Text>
 
+          {/* If the OS is blocking notifications, the switches below cannot do
+              anything. Show that plainly and point at the only place that can
+              fix it, rather than re-prompting -- the OS would not show a dialog
+              anyway (package 03 slice B). */}
+          {pushDecision === 'settings_only' ? (
+            <View style={styles.blockedBox}>
+              <Text style={styles.blockedTitle}>{t('push.blockedTitle')}</Text>
+              <Text style={styles.prefHint}>{t('push.blockedBody')}</Text>
+              <Pressable
+                onPress={() => {
+                  tap();
+                  void Linking.openSettings();
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.blockedLink}>{t('push.openSettings')}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <View style={[styles.prefRow, { marginTop: 10 }]}>
             <View style={styles.prefLabel}>
               <Text style={styles.rowText}>{t('profile.notificationsOrderUpdates')}</Text>
@@ -317,6 +346,24 @@ const styles = StyleSheet.create({
   // Monospace so a build number read aloud or compared by eye is unambiguous
   // (l/1 and O/0 in a proportional face are a support-call hazard). Always LTR:
   // a SHA is not natural language and must not mirror under RTL.
+  blockedBox: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: radius.lg,
+    backgroundColor: colors.sand,
+  },
+  blockedTitle: {
+    fontSize: font.sizes.lg,
+    fontWeight: font.weights.bold,
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  blockedLink: {
+    marginTop: 8,
+    fontSize: font.sizes.lg,
+    fontWeight: font.weights.bold,
+    color: colors.accent,
+  },
   buildLine: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: font.sizes.md,

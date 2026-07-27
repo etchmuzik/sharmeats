@@ -16,6 +16,10 @@ import type { Order, OrderStatus, Restaurant } from '../../src/data/types';
 import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
+import { PushPrimer } from '../../src/components/PushPrimer';
+import { getPermissionDecision, requestPushPermission } from '../../src/lib/push';
+import { shouldShowPrimer, permissionAnalytics } from '../../src/lib/pushPermission';
+import { useSession } from '../../src/store/session';
 import { ScreenErrorBoundary } from '../../src/components/ScreenErrorBoundary';
 import { SHARM_CENTER, type LatLng } from '../../src/components/MapPinPicker';
 import {
@@ -95,6 +99,32 @@ export default function OrderTracking() {
       setSaveName(t('order.saveOrderDefaultName', { restaurant: order.restaurantName }));
     }
   }, [order?.status, order?.restaurantName]);
+
+  // Contextual push primer (package 03 slice B). THIS is the value moment: the
+  // customer has just placed an order and wants to know when it arrives, so
+  // the ask is self-explanatory. Asking at app start -- as this app used to --
+  // spends iOS's one-shot dialog on someone who has not seen a restaurant yet.
+  const [primerVisible, setPrimerVisible] = useState(false);
+  const primerAsked = useSession((s) => s.pushPrimerAsked);
+  const markPrimerAsked = useSession((s) => s.markPushPrimerAsked);
+
+  useEffect(() => {
+    // Only for a LIVE order: a delivered/cancelled one is not a moment where
+    // "tell me when it arrives" means anything.
+    if (!order || order.status === 'delivered' || order.status === 'cancelled') return;
+    if (primerAsked) return;
+    let cancelled = false;
+    void (async () => {
+      const decision = await getPermissionDecision();
+      if (cancelled) return;
+      if (!shouldShowPrimer(decision, primerAsked)) return;
+      setPrimerVisible(true);
+      track('push_permission', permissionAnalytics('first_order', 'primer_shown'));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.status, primerAsked]);
 
   // order_delivered closes the funnel (package 01 §4). This screen polls and
   // re-renders repeatedly while an order is live, so a bare track() here would
@@ -657,6 +687,24 @@ export default function OrderTracking() {
         onDone={() => {
           setShowCelebration(false);
           router.setParams({ celebrate: undefined });
+        }}
+      />
+
+      {/* Shown only after the celebration, so two modals never stack. */}
+      <PushPrimer
+        visible={primerVisible && !showCelebration}
+        context="first_order"
+        onAllow={() => {
+          setPrimerVisible(false);
+          // Record the ask BEFORE the OS dialog: if the app is killed while the
+          // system prompt is up, we must not re-prompt on next launch.
+          markPrimerAsked();
+          void requestPushPermission('first_order');
+        }}
+        onDismiss={() => {
+          setPrimerVisible(false);
+          markPrimerAsked();
+          track('push_permission', permissionAnalytics('first_order', 'primer_declined'));
         }}
       />
     </View>

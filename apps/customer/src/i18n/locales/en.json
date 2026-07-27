@@ -477,5 +477,14 @@
   "saved.restaurantClosed": "Closed right now",
   "saved.saveItem": "Save this dish",
   "saved.removeItem": "Remove from saved",
-  "saved.browse": "Browse restaurants"
+  "saved.browse": "Browse restaurants",
+  "push.primerOrderTitle": "Know when your food is on the way",
+  "push.primerOffersTitle": "Turn on notifications for offers",
+  "push.primerOrderBody": "Order updates: we'll tell you when the restaurant accepts your order and when your driver is close.",
+  "push.primerOffersBody": "Offers are separate — you choose those in Settings, and you can change your mind any time.",
+  "push.primerAllow": "Turn on notifications",
+  "push.primerNotNow": "Not now",
+  "push.blockedTitle": "Notifications are off",
+  "push.blockedBody": "You've turned off notifications for Sharm Eats in your device settings. You can turn them back on there.",
+  "push.openSettings": "Open device settings"
 }

@@ -38,6 +38,13 @@ interface SessionState {
    * the server confirms it is gone.
    */
   pendingFavoriteRemovals: string[];
+  /**
+   * Whether we have already shown OUR push primer. Distinct from the OS
+   * permission state: once someone declines the primer we stop asking, even
+   * though the OS would still show its dialog. Nagging is how an app trains
+   * people to refuse.
+   */
+  pushPrimerAsked: boolean;
   /** Saved individual dishes (mig 139). Same local-first + merge model. */
   favoriteItemIds: string[];
   syncedFavoriteItemIds: string[];
@@ -62,6 +69,7 @@ interface SessionState {
   markFavoriteSynced: (restaurantId: string) => void;
   mergeFavoritesFromServer: (serverIds: string[]) => { needsUpload: string[]; needsRemoval: string[] };
   clearPendingFavoriteRemoval: (restaurantId: string) => void;
+  markPushPrimerAsked: () => void;
   toggleFavoriteItem: (menuItemId: string, restaurantId: string) => void;
   markFavoriteItemSynced: (menuItemId: string) => void;
   mergeFavoriteItemsFromServer: (serverIds: string[]) => string[];
@@ -78,6 +86,7 @@ type PersistedSession = Pick<
   | 'favoriteIds'
   | 'syncedFavoriteIds'
   | 'pendingFavoriteRemovals'
+  | 'pushPrimerAsked'
   | 'favoriteItemIds'
   | 'syncedFavoriteItemIds'
   | 'favoriteItemRestaurantIds'
@@ -94,6 +103,7 @@ function snapshot(s: SessionState): PersistedSession {
     favoriteIds: s.favoriteIds,
     syncedFavoriteIds: s.syncedFavoriteIds,
     pendingFavoriteRemovals: s.pendingFavoriteRemovals,
+    pushPrimerAsked: s.pushPrimerAsked,
     favoriteItemIds: s.favoriteItemIds,
     syncedFavoriteItemIds: s.syncedFavoriteItemIds,
     favoriteItemRestaurantIds: s.favoriteItemRestaurantIds,
@@ -120,6 +130,7 @@ export const useSession = create<SessionState>((set, get) => ({
   favoriteIds: [],
   syncedFavoriteIds: [],
   pendingFavoriteRemovals: [],
+  pushPrimerAsked: false,
   favoriteItemIds: [],
   syncedFavoriteItemIds: [],
   favoriteItemRestaurantIds: {},
@@ -155,6 +166,7 @@ export const useSession = create<SessionState>((set, get) => ({
           pendingFavoriteRemovals: Array.isArray(parsed.pendingFavoriteRemovals)
             ? parsed.pendingFavoriteRemovals
             : [],
+          pushPrimerAsked: parsed.pushPrimerAsked === true,
           favoriteItemIds: Array.isArray(parsed.favoriteItemIds) ? parsed.favoriteItemIds : [],
           // Item favourites are NEW in this build, so there is no older state to
           // be conservative about: anything present was saved by this build and
@@ -285,6 +297,12 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ favoriteIds: merged, syncedFavoriteIds: synced, pendingFavoriteRemovals: needsRemoval });
     persist(snapshot(get()));
     return { needsUpload, needsRemoval };
+  },
+
+  markPushPrimerAsked: () => {
+    if (get().pushPrimerAsked) return;
+    set({ pushPrimerAsked: true });
+    persist(snapshot(get()));
   },
 
   clearPendingFavoriteRemoval: (restaurantId) => {

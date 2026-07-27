@@ -477,5 +477,14 @@
   "saved.restaurantClosed": "Chiuso ora",
   "saved.saveItem": "Salva questo piatto",
   "saved.removeItem": "Rimuovi dai salvati",
-  "saved.browse": "Sfoglia i ristoranti"
+  "saved.browse": "Sfoglia i ristoranti",
+  "push.primerOrderTitle": "Scopri quando il tuo ordine è in arrivo",
+  "push.primerOffersTitle": "Attiva le notifiche per le offerte",
+  "push.primerOrderBody": "Aggiornamenti sull'ordine: ti avvisiamo quando il ristorante accetta e quando il corriere è vicino.",
+  "push.primerOffersBody": "Le offerte sono separate: le scegli nelle Impostazioni e puoi cambiare idea quando vuoi.",
+  "push.primerAllow": "Attiva le notifiche",
+  "push.primerNotNow": "Non ora",
+  "push.blockedTitle": "Notifiche disattivate",
+  "push.blockedBody": "Hai disattivato le notifiche di Sharm Eats nelle impostazioni del dispositivo. Puoi riattivarle da lì.",
+  "push.openSettings": "Apri le impostazioni"
 }

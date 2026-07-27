@@ -21,6 +21,13 @@ import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { db, isBackendLive } from '../data';
 import { captureError, track } from './analytics';
+import {
+  decidePermissionAction,
+  permissionAnalytics,
+  type PermissionDecision,
+  type PermissionState,
+  type PrimerContext,
+} from './pushPermission';
 
 let lastToken: string | null = null;
 
@@ -45,35 +52,104 @@ export function configureNotificationHandler(): void {
   });
 }
 
+/** Read the current OS permission state, or null if it cannot be read. */
+async function readPermission(): Promise<PermissionState | null> {
+  try {
+    const p = await Notifications.getPermissionsAsync();
+    return {
+      status: p.status as PermissionState['status'],
+      ios: (p as { ios?: { status?: number } }).ios ?? null,
+      canAskAgain: p.canAskAgain,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** What the app should do about push permission right now. */
+export async function getPermissionDecision(): Promise<PermissionDecision> {
+  return decidePermissionAction(await readPermission(), {
+    isDevice: Device.isDevice,
+    platform: Platform.OS,
+  });
+}
+
+/** Android needs an explicit channel or HIGH-importance pushes are silent. */
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'Order updates',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+  });
+}
+
+/**
+ * Obtain and store the Expo token. Assumes permission is already granted —
+ * callers decide that via getPermissionDecision().
+ */
+async function registerToken(): Promise<void> {
+  await ensureAndroidChannel();
+  const projectId = easProjectId();
+  const { data: token } = await Notifications.getExpoPushTokenAsync(
+    projectId ? { projectId } : undefined,
+  );
+  if (!token || token === lastToken) return;
+  await db.user.registerPushToken(token, Platform.OS as 'ios' | 'android');
+  lastToken = token;
+}
+
+/**
+ * Startup path: register a token IF permission already exists. NEVER prompts.
+ *
+ * This used to call requestPermissionsAsync(), so a brand-new customer met the
+ * OS dialog before seeing a single restaurant, with nothing explaining what it
+ * was for. iOS shows that dialog exactly once, so a reflexive "Don't Allow"
+ * was unrecoverable in-app — the easiest possible way to lose the permission
+ * permanently.
+ *
+ * Splitting it also fixes a real bug: someone who denied and later enabled
+ * notifications in iOS Settings never got a token, because the only path to
+ * registration ran through a request the OS silently refused to show. Now every
+ * launch re-checks and registers.
+ */
 export async function registerForPush(): Promise<void> {
   if (!isBackendLive) return;
-  if (Platform.OS === 'web' || !Device.isDevice) return;
   try {
-    let { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') {
-      ({ status } = await Notifications.requestPermissionsAsync());
-      track('push_permission', { status });
-    }
-    if (status !== 'granted') return;
-
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Order updates',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-      });
-    }
-
-    const projectId = easProjectId();
-    const { data: token } = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined,
-    );
-    if (!token || token === lastToken) return;
-    await db.user.registerPushToken(token, Platform.OS as 'ios' | 'android');
-    lastToken = token;
+    if ((await getPermissionDecision()) !== 'register') return;
+    await registerToken();
   } catch (e) {
     // Push is best-effort — never block app start on it.
     captureError(e, { where: 'registerForPush' });
+  }
+}
+
+/**
+ * Ask the OS, having already shown our own primer.
+ *
+ * Only call this after the customer has agreed to the primer at a value moment
+ * (see PrimerContext). Returns whether permission was granted so the caller can
+ * update its UI without re-reading the OS.
+ */
+export async function requestPushPermission(context: PrimerContext): Promise<boolean> {
+  if (!isBackendLive) return false;
+  try {
+    const decision = await getPermissionDecision();
+    if (decision === 'register') {
+      await registerToken();
+      return true;
+    }
+    if (decision !== 'may_prompt') return false;
+
+    const { status } = await Notifications.requestPermissionsAsync();
+    const granted = status === 'granted';
+    // Bounded properties only — never the token (Package 01 §4).
+    track('push_permission', permissionAnalytics(context, granted ? 'granted' : 'denied'));
+    if (granted) await registerToken();
+    return granted;
+  } catch (e) {
+    captureError(e, { where: 'requestPushPermission' });
+    return false;
   }
 }
 

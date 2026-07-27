@@ -477,5 +477,14 @@
   "saved.restaurantClosed": "Сейчас закрыто",
   "saved.saveItem": "Сохранить блюдо",
   "saved.removeItem": "Убрать из избранного",
-  "saved.browse": "Смотреть рестораны"
+  "saved.browse": "Смотреть рестораны",
+  "push.primerOrderTitle": "Узнайте, когда заказ будет в пути",
+  "push.primerOffersTitle": "Включите уведомления об акциях",
+  "push.primerOrderBody": "Статус заказа: сообщим, когда ресторан примет заказ и когда курьер будет рядом.",
+  "push.primerOffersBody": "Акции — это отдельно: вы выбираете их в настройках и можете передумать в любой момент.",
+  "push.primerAllow": "Включить уведомления",
+  "push.primerNotNow": "Не сейчас",
+  "push.blockedTitle": "Уведомления отключены",
+  "push.blockedBody": "Вы отключили уведомления Sharm Eats в настройках устройства. Включить их можно там же.",
+  "push.openSettings": "Открыть настройки устройства"
 }
