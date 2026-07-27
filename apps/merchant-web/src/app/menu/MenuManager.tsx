@@ -3,15 +3,33 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { ITEM_FLAGS, type ItemFlag, type MenuItem, type MenuSection } from '@/lib/types';
+import { permissionDeniedCopy } from '@/lib/capabilities';
 import { Icon } from '../Icon';
 import { useToast } from '../Toast';
 import { Field, NumberField, TextArea } from './fields';
 
 /**
  * Menu manager for one restaurant: sections, each holding items. Every change
- * writes to Supabase under admin RLS and is live in the customer app at once.
+ * writes to Supabase under RLS and is live in the customer app at once.
+ *
+ * `editable` is the manager+ tier from migration 136 and is REQUIRED, not
+ * defaulted — a security-shaped prop that defaults to `true` fails open the
+ * moment someone adds a second call site and forgets it. There is exactly one
+ * call site today (menu/page.tsx) and tsc now enforces it on any new one.
+ *
+ * When false, the caller is the 'staff' tier: they may still 86 an item
+ * (menu_items.is_available is deliberately unprivileged in 136, because
+ * stopping a sold-out dish must not wait for a manager), but every structural
+ * and price control is hidden. The database refuses those writes regardless —
+ * this only stops the merchant meeting a raw Postgres error to find out.
  */
-export function MenuManager({ restaurantId }: { restaurantId: string }) {
+export function MenuManager({
+  restaurantId,
+  editable,
+}: {
+  restaurantId: string;
+  editable: boolean;
+}) {
   const { toast } = useToast();
   const [sections, setSections] = useState<MenuSection[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -50,7 +68,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
       name: 'New section',
       sort_order: sections.length,
     });
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     await load();
   };
 
@@ -58,19 +76,23 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
     <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold uppercase tracking-wide text-ink3">Menu</h2>
-        <button
-          onClick={addSection}
-          className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent"
-        >
-          <Icon name="plus" size={15} /> Add section
-        </button>
+        {editable && (
+          <button
+            onClick={addSection}
+            className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent"
+          >
+            <Icon name="plus" size={15} /> Add section
+          </button>
+        )}
       </div>
 
       {loading ? (
         <div className="py-6 text-center text-sm text-ink3">Loading menu…</div>
       ) : sections.length === 0 ? (
         <div className="py-6 text-center text-sm text-ink3">
-          No sections yet. Add one to start building the menu.
+          {editable
+            ? 'No sections yet. Add one to start building the menu.'
+            : 'No menu sections yet. An owner or manager can add them.'}
         </div>
       ) : (
         sections.map((section) => (
@@ -79,6 +101,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
             section={section}
             items={items.filter((it) => it.section_id === section.id)}
             onChanged={load}
+            editable={editable}
           />
         ))
       )}
@@ -90,10 +113,12 @@ function SectionBlock({
   section,
   items,
   onChanged,
+  editable,
 }: {
   section: MenuSection;
   items: MenuItem[];
   onChanged: () => void | Promise<void>;
+  editable: boolean;
 }) {
   const { toast } = useToast();
   const [name, setName] = useState(section.name);
@@ -108,7 +133,7 @@ function SectionBlock({
       .from('menu_sections')
       .update({ name: name.trim() || 'Section' })
       .eq('id', section.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     await onChanged();
   };
 
@@ -116,32 +141,40 @@ function SectionBlock({
     if (!confirm(`Delete section "${section.name}" and all its items?`)) return;
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from('menu_sections').delete().eq('id', section.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     await onChanged();
   };
 
   return (
     <div className="rounded-xl border border-line">
       <div className="flex items-center gap-2 border-b border-line bg-bg px-3 py-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={renameSection}
-          className="flex-1 bg-transparent text-sm font-bold outline-none"
-        />
-        <button
-          onClick={() => setEditing('new')}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-accent hover:bg-accent/10"
-        >
-          <Icon name="plus" size={13} /> Item
-        </button>
-        <button
-          onClick={deleteSection}
-          className="rounded-md px-1.5 py-1 text-ink3 hover:bg-red/10 hover:text-red"
-          aria-label="Delete section"
-        >
-          <Icon name="trash" size={14} />
-        </button>
+        {editable ? (
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={renameSection}
+            className="flex-1 bg-transparent text-sm font-bold outline-none"
+          />
+        ) : (
+          <span className="flex-1 text-sm font-bold">{section.name}</span>
+        )}
+        {editable && (
+          <>
+            <button
+              onClick={() => setEditing('new')}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-accent hover:bg-accent/10"
+            >
+              <Icon name="plus" size={13} /> Item
+            </button>
+            <button
+              onClick={deleteSection}
+              className="rounded-md px-1.5 py-1 text-ink3 hover:bg-red/10 hover:text-red"
+              aria-label="Delete section"
+            >
+              <Icon name="trash" size={14} />
+            </button>
+          </>
+        )}
       </div>
 
       <div>
@@ -149,7 +182,13 @@ function SectionBlock({
           <div className="px-3 py-4 text-center text-xs text-ink3">No items in this section.</div>
         )}
         {items.map((item) => (
-          <ItemRow key={item.id} item={item} onEdit={() => setEditing(item)} onChanged={onChanged} />
+          <ItemRow
+            key={item.id}
+            item={item}
+            onEdit={() => setEditing(item)}
+            onChanged={onChanged}
+            editable={editable}
+          />
         ))}
       </div>
 
@@ -174,20 +213,26 @@ function ItemRow({
   item,
   onEdit,
   onChanged,
+  editable,
 }: {
   item: MenuItem;
   onEdit: () => void;
   onChanged: () => void | Promise<void>;
+  editable: boolean;
 }) {
   const { toast } = useToast();
 
+  // NOT gated by `editable`. Migration 136 deliberately leaves is_available
+  // unprivileged so the 'staff' tier can 86 a sold-out dish without hunting
+  // for a manager — gating it here would remove the one action that tier
+  // exists to protect. The DB permits this for every merchant_staff row.
   const toggleAvailable = async () => {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase
       .from('menu_items')
       .update({ is_available: !item.is_available })
       .eq('id', item.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     await onChanged();
   };
 
@@ -216,13 +261,15 @@ function ItemRow({
       >
         {item.is_available ? 'In stock' : 'Out'}
       </button>
-      <button
-        onClick={onEdit}
-        className="rounded-md px-1.5 py-1 text-ink3 hover:bg-accent/10 hover:text-accent"
-        aria-label="Edit item"
-      >
-        <Icon name="edit" size={15} />
-      </button>
+      {editable && (
+        <button
+          onClick={onEdit}
+          className="rounded-md px-1.5 py-1 text-ink3 hover:bg-accent/10 hover:text-accent"
+          aria-label="Edit item"
+        >
+          <Icon name="edit" size={15} />
+        </button>
+      )}
     </div>
   );
 }
@@ -273,7 +320,7 @@ function ItemEditor({
       ? await supabase.from('menu_items').update(payload).eq('id', item.id)
       : await supabase.from('menu_items').insert({ ...payload, sort_order: sortOrder });
     setSaving(false);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     toast(item ? 'Item updated' : 'Item added', 'success');
     await onSaved();
   };
@@ -283,7 +330,7 @@ function ItemEditor({
     if (!confirm(`Delete "${item.name}"?`)) return;
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from('menu_items').delete().eq('id', item.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     toast('Item deleted', 'success');
     await onSaved();
   };

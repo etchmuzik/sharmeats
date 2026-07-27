@@ -64,4 +64,53 @@ do
     -f "${project_root}/${test_file}"
 done
 
+staff_role_database="test_136_merchant_staff_role_enforcement"
+"${postgres_bin_dir}/createdb" \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  "${staff_role_database}"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${staff_role_database}" \
+  -f "${project_root}/supabase/tests/136_staff_role_fixture.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${staff_role_database}" \
+  -f "${project_root}/supabase/migrations/136_merchant_staff_role_enforcement.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${staff_role_database}" \
+  -c "alter table public.menu_items add column promo_price_egp int;"
+
+staff_role_output="$(
+  "${postgres_bin_dir}/psql" \
+    -X \
+    -v ON_ERROR_STOP=1 \
+    -h "${test_socket_dir}" \
+    -p "${test_db_port}" \
+    -d "${staff_role_database}" \
+    -f "${project_root}/supabase/tests/136_staff_role_assertions.sql"
+)"
+printf '%s\n' "${staff_role_output}"
+
+if grep -Fq "*** FAIL ***" <<<"${staff_role_output}"; then
+  echo "Migration 136 staff-role assertions failed." >&2
+  exit 1
+fi
+
+staff_role_passes="$(grep -c '^PASS ' <<<"${staff_role_output}")"
+if [[ "${staff_role_passes}" -ne 40 ]]; then
+  echo "Expected 40 migration 136 PASS lines, got ${staff_role_passes}." >&2
+  exit 1
+fi
+
 echo "Security migration tests passed."

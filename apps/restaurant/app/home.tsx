@@ -36,6 +36,12 @@ import {
   type RestaurantOrder,
 } from '../src/orders';
 import { myUnreadMessageCount } from '../src/messages';
+import {
+  canToggleOpenAll,
+  permissionDeniedMessage,
+  staffRoleLabel,
+  PERMISSION_DENIED_COPY,
+} from '../src/capabilities';
 import { colors, font, radius, spacing } from '../src/theme';
 
 // [H-REST3] Live data shows merchants miss ~2/3 of orders into the 180s
@@ -263,8 +269,21 @@ export default function Home() {
     [kitchen],
   );
 
+  // Manager+ on EVERY brand this account staffs. A cloud-kitchen account can
+  // hold different roles per brand, and the toggle writes all of them at once
+  // (mig 136 gates restaurants.is_open on is_merchant_manager). Requiring
+  // manager+ across the board keeps Promise.all from half-succeeding.
+  const mayToggleOpen = useMemo(
+    () => canToggleOpenAll((kitchen?.brands ?? []).map((b) => b.staffRole)),
+    [kitchen],
+  );
+
   const toggleOpen = useCallback(async () => {
     if (!kitchen || togglingOpen) return;
+    if (!mayToggleOpen) {
+      toast(PERMISSION_DENIED_COPY, 'error');
+      return;
+    }
     setTogglingOpen(true);
     const next = !isOpen;
     // Optimistic: flip every brand locally.
@@ -285,12 +304,16 @@ export default function Home() {
       // with the server for the brands that DID flip, and the kiosk would
       // show storefronts as open that are closed (or vice versa) until the
       // next reload. Re-sync from the server instead of guessing.
-      toast(e instanceof Error ? e.message : 'Could not update status', 'error');
+      toast(
+        permissionDeniedMessage(e) ??
+          (e instanceof Error ? e.message : 'Could not update status'),
+        'error',
+      );
       await load();
     } finally {
       setTogglingOpen(false);
     }
-  }, [kitchen, isOpen, togglingOpen, toast, load]);
+  }, [kitchen, isOpen, togglingOpen, toast, load, mayToggleOpen]);
 
   const handleSignOut = useCallback(async () => {
     await unregisterPush();
@@ -391,7 +414,7 @@ export default function Home() {
             <Text style={homeStyles.restaurantRole}>
               {kitchen?.isMultiBrand
                 ? kitchen.brands.map((b) => b.shortName).join(' · ')
-                : `Restaurant · ${kitchen?.brands[0]?.staffRole}`}
+                : `Restaurant · ${staffRoleLabel(kitchen?.brands[0]?.staffRole)}`}
             </Text>
           </View>
           {unreadMsgs > 0 && (
@@ -415,34 +438,58 @@ export default function Home() {
         </View>
 
         <View style={homeStyles.headerActions}>
-        <Pressable
-          onPress={toggleOpen}
-          disabled={togglingOpen}
-          accessibilityRole="switch"
-          accessibilityLabel={
-            kitchen?.isMultiBrand
-              ? 'All brands accepting orders'
-              : 'Restaurant accepting orders'
-          }
-          accessibilityState={{ checked: isOpen, disabled: togglingOpen, busy: togglingOpen }}
-          style={[
-            homeStyles.statusControl,
-            { backgroundColor: isOpen ? colors.greenSoft : colors.redSoft },
-            compactHeader && homeStyles.compactStatusControl,
-          ]}
-        >
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
-            {togglingOpen
-              ? '…'
-              : kitchen?.isMultiBrand
-                ? isOpen
-                  ? 'Open · pause all'
-                  : 'Closed · open all'
-                : isOpen
-                  ? 'Open · pause'
-                  : 'Closed · open'}
-          </Text>
-        </Pressable>
+        {/* Staff tier still sees the storefront's state at a glance, but not a
+            control the database would refuse. An RLS denial on UPDATE raises
+            nothing at all — it silently changes no rows — so a visible-but-dead
+            button would tell the kitchen it had paused when it had not. */}
+        {mayToggleOpen ? (
+          <Pressable
+            onPress={toggleOpen}
+            disabled={togglingOpen}
+            accessibilityRole="switch"
+            accessibilityLabel={
+              kitchen?.isMultiBrand
+                ? 'All brands accepting orders'
+                : 'Restaurant accepting orders'
+            }
+            accessibilityState={{ checked: isOpen, disabled: togglingOpen, busy: togglingOpen }}
+            style={[
+              homeStyles.statusControl,
+              { backgroundColor: isOpen ? colors.greenSoft : colors.redSoft },
+              compactHeader && homeStyles.compactStatusControl,
+            ]}
+          >
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
+              {togglingOpen
+                ? '…'
+                : kitchen?.isMultiBrand
+                  ? isOpen
+                    ? 'Open · pause all'
+                    : 'Closed · open all'
+                  : isOpen
+                    ? 'Open · pause'
+                    : 'Closed · open'}
+            </Text>
+          </Pressable>
+        ) : (
+          <View
+            accessibilityRole="text"
+            accessibilityLabel={
+              isOpen
+                ? 'Accepting orders. Only an owner or manager can pause.'
+                : 'Not accepting orders. Only an owner or manager can reopen.'
+            }
+            style={[
+              homeStyles.statusControl,
+              { backgroundColor: isOpen ? colors.greenSoft : colors.redSoft },
+              compactHeader && homeStyles.compactStatusControl,
+            ]}
+          >
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
+              {isOpen ? 'Open' : 'Closed'}
+            </Text>
+          </View>
+        )}
         {/* [H-REST3] Mute the new-order chime (and its repeat). Distinct muted
             state so staff can see at a glance the counter is silent. */}
         <Pressable

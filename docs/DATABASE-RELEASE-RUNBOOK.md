@@ -53,8 +53,20 @@ Verified against production, not inferred: the exact payload that returned
 request settled to `delivered` when the reconciler ran. Deploy order matters
 — the migration is inert until the function is deployed; deploy the function
 first or in the same window. **Ordering note:** this was authored as `136`
-and renumbered to `137` because the parallel session had already taken `136`
-(`136_merchant_staff_role_enforcement.sql`, still unapplied).
+and renumbered to `137` because the parallel session had already taken `136`.
+
+**APPLIED — migration 136 went to production on 2026-07-27.** The existing
+single `merchant_staff` row remained `owner`; no production roles required
+normalization or backfill. The role is now load-bearing: `owner` and `manager`
+can change prices, menu structure and storefront state, while `staff` can only
+change `menu_items.is_available` and `sort_order`. A column allow-list protects
+SKU, barcode, unit, prescription gating, timestamps and future columns from
+staff writes; restaurant payout and `is_open` changes fail loudly rather than
+optimistically appearing to succeed. Pre-apply checks found no invalid roles or
+restaurants lacking a manager-tier member. Verified by a live BEGIN/ROLLBACK,
+then committed with post-apply function/trigger checks; the 40-case Postgres
+privilege matrix is included in `scripts/test-security-migrations.sh`.
+Pre-apply backup: `~/sharmeats-backups/20260727T015446Z`.
 
 **APPLIED — migration 135 went to production on 2026-07-27** (numbering gap:
 134 intentionally skipped, like the 064 precedent). Validated with a

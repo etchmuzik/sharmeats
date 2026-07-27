@@ -3244,6 +3244,10 @@ export type Database = {
       }
       gettransactionid: { Args: never; Returns: unknown }
       has_completed_order: { Args: { p_user: string }; Returns: boolean }
+      is_merchant_manager: {
+        Args: { p_restaurant_id: string }
+        Returns: boolean
+      }
       is_merchant_staff: { Args: { p_restaurant_id: string }; Returns: boolean }
       is_within_service_area: {
         Args: { p_lat: number; p_lng: number }
@@ -3282,6 +3286,7 @@ export type Database = {
         Args: { p_user_id?: string }
         Returns: undefined
       }
+      menu_items_staff_writable_columns: { Args: never; Returns: string[] }
       my_cash_balance: { Args: never; Returns: number }
       my_credit_balance: { Args: never; Returns: number }
       my_driver_settlements: {

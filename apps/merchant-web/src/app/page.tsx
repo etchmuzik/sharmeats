@@ -15,6 +15,14 @@ import { LegalLinks } from './LegalLinks';
 import { Wizard } from './onboarding/Wizard';
 import { ApplicationStatus } from './onboarding/ApplicationStatus';
 import { resolveOnboardingPhase, type StaffOnboardingRow } from '@/lib/onboarding';
+import {
+  canToggleOpen,
+  deniedByNoRows,
+  permissionDeniedCopy,
+  staffRoleLabel,
+  PERMISSION_DENIED_COPY,
+} from '@/lib/capabilities';
+import { ScorecardCard } from './ScorecardCard';
 
 type Phase =
   | { state: 'loading' }
@@ -34,9 +42,9 @@ type Phase =
 export default function DashboardPage() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ state: 'loading' });
-  // Open/closed is toggleable from the header (RLS restaurants_merchant_update
-  // already allows merchant staff to flip is_open). Held in local state so the
-  // badge updates instantly; seeded from the resolved context once ready.
+  // Open/closed is toggleable by manager+ from the header (migration 136 gates
+  // restaurants_merchant_update). Held in local state so the badge updates
+  // instantly; seeded from the resolved context once ready.
   const [isOpen, setIsOpen] = useState(false);
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0); // [H-BIZ1] bump to retry the load
@@ -177,43 +185,73 @@ export default function DashboardPage() {
 
   // Self-serve pause/resume intake. Lets an overwhelmed kitchen stop new orders
   // without phoning the platform. Optimistic with rollback on failure.
+  //
+  // Manager+ only since mig 136 — closing the storefront costs every order until
+  // someone reopens it. The button is hidden below for the staff tier; this
+  // guard is the second line, and the `.select('id')` is the third.
+  //
+  // WHY `.select('id')`: an RLS policy denial on UPDATE does NOT raise. Postgres
+  // filters the row out of the statement and PostgREST reports success with
+  // error === null (verified against a local replica, 2026-07-27). Without a
+  // returned row to count, a refused "pause orders" would look like it worked
+  // and the kitchen would keep receiving tickets it thought it had stopped.
   const toggleOpen = async () => {
     if (togglingOpen) return;
+    if (!canToggleOpen(ctx.staffRole)) {
+      alert(PERMISSION_DENIED_COPY);
+      return;
+    }
     setTogglingOpen(true);
     const next = !isOpen;
     setIsOpen(next); // optimistic
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('restaurants')
       .update({ is_open: next })
-      .eq('id', ctx.restaurantId);
-    if (error) {
+      .eq('id', ctx.restaurantId)
+      .select('id');
+    if (error || deniedByNoRows(error, data)) {
       setIsOpen(!next); // rollback
-      alert(`Could not update status: ${error.message}`);
+      alert(permissionDeniedCopy(error) ?? (error ? `Could not update status: ${error.message}` : PERMISSION_DENIED_COPY));
     }
     setTogglingOpen(false);
   };
+
+  const mayToggleOpen = canToggleOpen(ctx.staffRole);
 
   return (
     <main className="min-h-screen bg-bg">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
         <div>
           <div className="text-lg font-extrabold">{ctx.restaurantName}</div>
-          <div className="text-xs text-ink3">Merchant dashboard · {ctx.staffRole}</div>
+          <div className="text-xs text-ink3">Merchant dashboard · {staffRoleLabel(ctx.staffRole)}</div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={toggleOpen}
-            disabled={togglingOpen}
-            aria-pressed={isOpen}
-            title={isOpen ? 'Tap to stop accepting new orders' : 'Tap to start accepting orders'}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-60 ${
-              isOpen ? 'bg-greensoft text-green hover:bg-green hover:text-white' : 'bg-redsoft text-red hover:bg-red hover:text-white'
-            }`}
-          >
-            {togglingOpen ? '…' : isOpen ? 'Open · tap to pause' : 'Closed · tap to open'}
-          </button>
+          {/* Staff tier gets the same status at a glance, without a control that
+              the database would silently refuse (mig 136). */}
+          {mayToggleOpen ? (
+            <button
+              type="button"
+              onClick={toggleOpen}
+              disabled={togglingOpen}
+              aria-pressed={isOpen}
+              title={isOpen ? 'Tap to stop accepting new orders' : 'Tap to start accepting orders'}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-60 ${
+                isOpen ? 'bg-greensoft text-green hover:bg-green hover:text-white' : 'bg-redsoft text-red hover:bg-red hover:text-white'
+              }`}
+            >
+              {togglingOpen ? '…' : isOpen ? 'Open · tap to pause' : 'Closed · tap to open'}
+            </button>
+          ) : (
+            <span
+              title="Only an owner or manager can pause or reopen the storefront"
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                isOpen ? 'bg-greensoft text-green' : 'bg-redsoft text-red'
+              }`}
+            >
+              {isOpen ? 'Open' : 'Closed'}
+            </span>
+          )}
           <Link className="rounded-lg border px-3 py-1 text-sm font-bold" href="/menu">Menu</Link>
           <SignOutButton />
         </div>
@@ -228,6 +266,7 @@ export default function DashboardPage() {
       <OrderQueue context={ctx} initialOrders={initialOrders} />
 
       <div className="grid gap-4 px-6 pb-4 md:grid-cols-2">
+        <ScorecardCard restaurantId={ctx.restaurantId} />
         <TierStatusCard />
         <StatementsCard />
       </div>
