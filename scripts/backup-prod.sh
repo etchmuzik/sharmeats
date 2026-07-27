@@ -25,8 +25,14 @@
 #   createdb resttest
 #   psql -d resttest -f <stamp>/roles.sql
 #   psql -d resttest -f <stamp>/schema.sql
-#   psql -d resttest -f <stamp>/data.sql
+#   psql -d resttest -c 'set session_replication_role = replica' -f <stamp>/data.sql
 #   then spot-check row counts against the manifest.
+# The session_replication_role=replica is REQUIRED for the data step: the dump
+# has circular FKs (users<->addresses, users<->payment_methods), so loading with
+# triggers/FK checks active fails partway. Also expected: spatial_ref_sys data
+# is absent from the dump — it is PostGIS-extension-owned and `CREATE EXTENSION
+# postgis` regenerates it (verified 2026-07-27: all 79 other tables matched
+# prod row-for-row).
 #
 # The dumps contain EVERY customer row — treat them as production secrets:
 # they are written 0600 into a 0700 directory and must never enter git.
@@ -105,7 +111,15 @@ echo "→ backing up ${PROJECT_REF} to ${OUT}"
 # info consumed by the pooler, so it is NOT evidence of a region problem).
 # Override with POOLER_HOST if the project ever actually moves.
 POOLER_HOST="${POOLER_HOST:-aws-0-eu-west-1.pooler.supabase.com}"
-DB_URL="postgresql://postgres.${PROJECT_REF}:${SUPABASE_DB_PASSWORD}@${POOLER_HOST}:5432/postgres"
+# Port 6543 (transaction pooler), NOT 5432. The session pooler on :5432 is not
+# served for this project, and an unserved tenant answers with
+#   FATAL: password authentication failed for user "postgres"
+# -- byte-identical to a genuinely wrong password. That misdiagnosis cost five
+# failed backup attempts and an unnecessary credential rotation on 2026-07-27.
+# If auth fails here, test BOTH ports before touching the password:
+#   psql "postgresql://postgres.<ref>@<host>:6543/postgres" -c 'select 1'
+POOLER_PORT="${POOLER_PORT:-6543}"
+DB_URL="postgresql://postgres.${PROJECT_REF}:${SUPABASE_DB_PASSWORD}@${POOLER_HOST}:${POOLER_PORT}/postgres"
 
 # Dump engine selection.
 #
@@ -139,7 +153,7 @@ if [[ "${USE_NATIVE}" -eq 1 ]]; then
   # PGPASSWORD via the environment of this process only -- not on the pg_dump
   # command line, so it stays out of `ps` for other users.
   export PGPASSWORD="${SUPABASE_DB_PASSWORD}"
-  PG_CONN="postgresql://postgres.${PROJECT_REF}@${POOLER_HOST}:5432/postgres"
+  PG_CONN="postgresql://postgres.${PROJECT_REF}@${POOLER_HOST}:${POOLER_PORT}/postgres"
 
   echo "  · roles (native pg_dump cannot dump cluster roles — see manifest)"
   cat > "${OUT}/roles.sql" <<'EOF'

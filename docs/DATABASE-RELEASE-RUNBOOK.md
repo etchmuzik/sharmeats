@@ -50,13 +50,26 @@ ranking_integrity_audit clean, security advisors show no new findings (one
 missed trigger-function EXECUTE revoke was caught by the advisor and fixed
 in-place + in the file).
 
-**Rollback artifact:** `public.__pre_mig126_129_snapshot` (10 rows) holds the
+**Rollback artifact:** `public.__pre_mig126_129_snapshot` (12 rows) holds the
 exact pre-apply `pg_get_functiondef` + ACL of every replaced function —
 created in the same transaction as the apply, because the off-site backup
-script was blocked on the missing Keychain password. Drop the table after the
-ledger reconciliation. **Set up `sharmeats-db-password` in the Keychain and
-run `./scripts/backup-prod.sh` — the standing no-managed-backups risk below
-is unchanged.**
+script was blocked at the time. Drop the table after the ledger
+reconciliation.
+
+**RESOLVED 2026-07-27 — first verified off-site backup taken**
+(`~/sharmeats-backups/20260727T010726Z`, git 32b54f3): all 79 tables across
+public/auth/storage matched live prod row-for-row (6,855 rows, incl.
+`kitchens`; the only delta is `spatial_ref_sys`, extension-owned and
+intentionally excluded by pg_dump). Schema dump carries 81 policies, 126
+functions, 31 triggers. The Keychain item `sharmeats-db-password` is live and
+the launchd daily run can now succeed. Restore note: the data step needs
+`psql -c 'set session_replication_role = replica' -f data.sql` — circular FKs
+(users↔addresses, users↔payment_methods) fail a naive load. Connection facts
+that cost five failed attempts: the project region is **eu-west-1** (the
+Management API is authoritative; README used to claim eu-central-1) and the
+pooler port is **6543** — see the comments in `scripts/backup-prod.sh`.
+Still on the owner: copy the backup off this machine, and export the `kyc`
+Storage bucket separately once documents exist (currently zero objects).
 
 Re-verification at any time: paste `supabase/tests/126_129_dryrun_prod.sql`
 into the Dashboard SQL editor and Run — it BEGINs, re-applies (no-op),
