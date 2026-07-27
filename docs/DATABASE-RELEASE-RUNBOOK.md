@@ -30,6 +30,31 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**APPLIED — migration 144 went to production on 2026-07-27.** Adds
+`admin_test_ops_alert()` (Package 01 §5): an admin-only, argument-less,
+rate-limited RPC that fires one `[TEST]`-prefixed ops alert, so the Telegram
+path can be proven without waiting for a real incident. `ops_alert` itself is
+unchanged and still has no `authenticated` grant — this is a narrow doorway
+beside it, not a widening of it.
+
+Applied by direct `psql --single-transaction` over the pooler, **not**
+`db push` (see the ledger divergence above). Validated first with a
+`BEGIN … ROLLBACK` dry run against the real production schema running
+`supabase/tests/144_admin_test_ops_alert.test.sql`; all six assertions passed
+and rollback left zero residue (verified: 0 matching functions afterwards).
+
+Post-apply verification: exactly 1 overload, `SECURITY DEFINER`,
+`search_path=public, pg_temp`, `anon`/`PUBLIC` EXECUTE **false**,
+`authenticated` **true**, and an unauthenticated call raises `AUTH_REQUIRED`
+(SQLSTATE 23514). Types regenerated (one added line). Advisors went 157 → 158;
+the single new finding is the expected
+`authenticated_security_definer_function_executable` for this function, which
+is the intended design — the in-body admin check is the gate, matching the 74
+existing functions with the same shape.
+
+Rollback: `drop function public.admin_test_ops_alert();` — nothing depends on
+it and it writes no business state.
+
 **APPLIED — migration 142 went to production on 2026-07-27.** Pins
 `search_path` on `in_quiet_hours` (flagged `function_search_path_mutable` by
 the advisor) and corrects it from IMMUTABLE to STABLE — it reads `now()`, so

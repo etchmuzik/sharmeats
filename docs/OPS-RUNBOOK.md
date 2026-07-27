@@ -255,6 +255,44 @@ where key = 'ops_alert_webhook_url';
 Without this, stuck-dispatch and failed-sweep conditions are computed but **not
 sent anywhere** — you'd only find out by running the §3.4 query manually. Set it.
 
+As of 2026-07-27 both `ops_alert_webhook_url` and `ops_alert_telegram_chat_id`
+**are** set in production.
+
+### 5.1 Prove the alert path works (without waiting for an incident)
+
+An alert channel that has only ever been exercised by real incidents is
+indistinguishable from a broken one until the night it matters. Fire a
+deliberate test:
+
+```sql
+select public.admin_test_ops_alert();
+```
+
+Call it as a **signed-in admin** (from the admin dashboard's SQL surface or an
+authenticated client — not the anon key, which is refused). It returns the exact
+message it sent.
+
+Expected: a Telegram message beginning `[TEST]` arrives within seconds,
+carrying the environment, a UTC timestamp and the database name.
+
+Properties worth knowing:
+
+| | |
+|---|---|
+| Authorization | admin only; fails closed (`AUTH_REQUIRED` / `NOT_AUTHORIZED`, SQLSTATE 23514) |
+| Caller-supplied text | **none** — it takes no arguments, so it cannot be used to push arbitrary content through the ops channel |
+| Writes | none to order/finance state; only its own rate-limit timestamp |
+| Rate limit | one call per minute platform-wide (`RATE_LIMITED`) so it cannot flood the channel and get the bot throttled by Telegram — which would suppress *real* alerts |
+
+**Acknowledge it** the same way as a real alert, then note the date here. And
+because the `[TEST]` prefix is applied server-side and cannot be overridden,
+**exclude `[TEST]`-prefixed alerts from incident counts and MTTR metrics** — a
+test that looks like an incident corrupts the incident record.
+
+| Date | Operator | Received? | Acknowledged? |
+|---|---|---|---|
+| _(pending — owner runs this from an admin session)_ | | | |
+
 ---
 
 ## 6. Crash reporting (apps)

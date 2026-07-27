@@ -3014,6 +3014,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_test_ops_alert: { Args: never; Returns: string }
       admin_update_restaurant: {
         Args: {
           p_cover_image: string
