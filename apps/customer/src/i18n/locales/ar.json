@@ -454,5 +454,17 @@
   "error.placeOrderFailed": "تعذّر إتمام طلبك. حاول مرة أخرى.",
   "error.otpInvalid": "الرمز غير صحيح أو منتهي الصلاحية.",
   "error.otpResendFailed": "تعذّر إعادة إرسال الرمز.",
-  "error.otpSendFailed": "تعذّر إرسال الرمز. حاول مرة أخرى."
+  "error.otpSendFailed": "تعذّر إرسال الرمز. حاول مرة أخرى.",
+  "saved.title": "المحفوظات",
+  "saved.itemsTab": "الأطباق",
+  "saved.placesTab": "المطاعم",
+  "saved.emptyItems": "لا توجد أطباق محفوظة بعد",
+  "saved.emptyItemsHint": "اضغط على القلب في أي طبق ليظهر هنا.",
+  "saved.emptyPlaces": "لا توجد مطاعم محفوظة بعد",
+  "saved.emptyPlacesHint": "اضغط على القلب في أي مطعم ليظهر هنا.",
+  "saved.unavailable": "غير متاح حاليًا",
+  "saved.restaurantClosed": "مغلق حاليًا",
+  "saved.saveItem": "احفظ هذا الطبق",
+  "saved.removeItem": "إزالة من المحفوظات",
+  "saved.browse": "تصفح المطاعم"
 }

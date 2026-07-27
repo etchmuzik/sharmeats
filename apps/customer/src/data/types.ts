@@ -402,6 +402,26 @@ export interface NotificationPrefs {
   timezone: string;
 }
 
+/**
+ * A saved dish (mig 139). Deliberately carries the item's CURRENT availability
+ * and its restaurant's open/active state rather than filtering them out: a save
+ * that silently disappears reads as a bug, and "it's back" is the main reason
+ * to keep a list like this.
+ */
+export interface SavedItem {
+  menuItemId: string;
+  restaurantId: string;
+  name: string;
+  description: string;
+  priceEgp: number;
+  image: string;
+  isAvailable: boolean;
+  restaurantName: string;
+  restaurantIsOpen: boolean;
+  restaurantIsActive: boolean;
+  savedAt: number;
+}
+
 /** Omitted fields are left unchanged, so one toggle never clobbers another. */
 export interface NotificationPrefsPatch {
   transactional?: boolean;

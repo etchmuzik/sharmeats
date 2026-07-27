@@ -49,11 +49,44 @@ export function useFavorite(restaurantId: string) {
 }
 
 /**
+ * Save/unsave a single dish. Same local-first + confirmed-sync model as
+ * useFavorite, so a guest's saved dishes survive sign-in (see mergeFavorites).
+ * restaurantId is required because the row denormalises it and the composite FK
+ * rejects a value that disagrees with the item.
+ */
+export function useFavoriteItem(menuItemId: string, restaurantId: string) {
+  const isFav = useSession((s) => s.favoriteItemIds.includes(menuItemId));
+
+  const toggle = () => {
+    const next = !isFav;
+    useSession.getState().toggleFavoriteItem(menuItemId, restaurantId);
+    track('favorite_toggled', { menuItemId, restaurantId, on: next, kind: 'item' });
+    if (isBackendLive) {
+      db.user
+        .setFavoriteItem(menuItemId, restaurantId, next)
+        .then(() => {
+          if (next) useSession.getState().markFavoriteItemSynced(menuItemId);
+        })
+        .catch(() => {
+          // Not marked synced => the next merge re-uploads it rather than
+          // dropping it.
+        });
+    }
+  };
+
+  return { isFav, toggle };
+}
+
+/**
  * Reconcile local and server favourites on app start, then push up anything the
  * server has never seen. Safe to call on every launch and after sign-in.
+ * Covers both restaurants and dishes.
  */
 export async function syncFavoritesFromServer(): Promise<void> {
   if (!isBackendLive) return;
+
+  // Restaurants and dishes are reconciled independently: one failing (or the
+  // dish table not existing on an older backend) must not abandon the other.
   try {
     const serverIds = await db.user.listFavorites();
     const needsUpload = useSession.getState().mergeFavoritesFromServer(serverIds);
@@ -69,5 +102,25 @@ export async function syncFavoritesFromServer(): Promise<void> {
     );
   } catch {
     // Offline or not signed in yet — keep the local list untouched.
+  }
+
+  try {
+    const serverItemIds = await db.user.listFavoriteItemIds();
+    const needsUpload = useSession.getState().mergeFavoriteItemsFromServer(serverItemIds);
+    await Promise.all(
+      needsUpload.map((id) => {
+        const restaurantId = useSession.getState().favoriteItemRestaurantIds[id];
+        // Without the restaurant id we cannot satisfy the composite FK, so skip
+        // rather than send a write we know will fail. The id stays unsynced and
+        // is retried once the user opens that item again.
+        if (!restaurantId) return Promise.resolve();
+        return db.user
+          .setFavoriteItem(id, restaurantId, true)
+          .then(() => useSession.getState().markFavoriteItemSynced(id))
+          .catch(() => {});
+      }),
+    );
+  } catch {
+    // Offline — keep the local list untouched.
   }
 }

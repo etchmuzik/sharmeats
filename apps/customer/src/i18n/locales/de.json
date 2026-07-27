@@ -454,5 +454,17 @@
   "error.placeOrderFailed": "Deine Bestellung konnte nicht aufgegeben werden. Bitte versuche es erneut.",
   "error.otpInvalid": "Ungültiger oder abgelaufener Code.",
   "error.otpResendFailed": "Der Code konnte nicht erneut gesendet werden.",
-  "error.otpSendFailed": "Der Code konnte nicht gesendet werden. Bitte versuche es erneut."
+  "error.otpSendFailed": "Der Code konnte nicht gesendet werden. Bitte versuche es erneut.",
+  "saved.title": "Gespeichert",
+  "saved.itemsTab": "Gerichte",
+  "saved.placesTab": "Restaurants",
+  "saved.emptyItems": "Noch keine gespeicherten Gerichte",
+  "saved.emptyItemsHint": "Tippe auf das Herz bei einem Gericht, um es hier zu behalten.",
+  "saved.emptyPlaces": "Noch keine gespeicherten Restaurants",
+  "saved.emptyPlacesHint": "Tippe auf das Herz bei einem Restaurant, um es hier zu behalten.",
+  "saved.unavailable": "Derzeit nicht verfügbar",
+  "saved.restaurantClosed": "Derzeit geschlossen",
+  "saved.saveItem": "Gericht speichern",
+  "saved.removeItem": "Aus Gespeicherten entfernen",
+  "saved.browse": "Restaurants ansehen"
 }

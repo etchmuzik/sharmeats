@@ -454,5 +454,17 @@
   "error.placeOrderFailed": "Impossibile effettuare l'ordine. Riprova.",
   "error.otpInvalid": "Codice non valido o scaduto.",
   "error.otpResendFailed": "Impossibile reinviare il codice.",
-  "error.otpSendFailed": "Impossibile inviare il codice. Riprova."
+  "error.otpSendFailed": "Impossibile inviare il codice. Riprova.",
+  "saved.title": "Salvati",
+  "saved.itemsTab": "Piatti",
+  "saved.placesTab": "Locali",
+  "saved.emptyItems": "Nessun piatto salvato",
+  "saved.emptyItemsHint": "Tocca il cuore su un piatto per tenerlo qui.",
+  "saved.emptyPlaces": "Nessun locale salvato",
+  "saved.emptyPlacesHint": "Tocca il cuore su un ristorante per tenerlo qui.",
+  "saved.unavailable": "Non disponibile ora",
+  "saved.restaurantClosed": "Chiuso ora",
+  "saved.saveItem": "Salva questo piatto",
+  "saved.removeItem": "Rimuovi dai salvati",
+  "saved.browse": "Sfoglia i ristoranti"
 }

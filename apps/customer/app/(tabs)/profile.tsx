@@ -53,6 +53,7 @@ export default function ProfileTab() {
     },
     { icon: 'currency', label: t('profile.currency'), value: currency, onPress: () => router.push('/settings') },
     { icon: 'bell', label: t('profile.notifications'), onPress: () => router.push('/settings') },
+    { icon: 'star', label: t('saved.title'), onPress: () => router.push('/saved') },
     { icon: 'gift', label: t('profile.invite'), onPress: () => router.push('/invite') },
     { icon: 'chat', label: t('profile.support'), badge: unread.support, onPress: () => router.push('/support') },
     { icon: 'help', label: t('profile.help'), onPress: () => router.push('/help') },

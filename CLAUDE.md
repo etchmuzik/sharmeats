@@ -77,6 +77,7 @@ Migrations are `supabase/migrations/NNN_name.sql`, applied in order (currently t
 3. **Every SECURITY DEFINER RPC**: `REVOKE ALL ... FROM PUBLIC, anon;` then grant only the roles that need it. Granting to `authenticated` does NOT revoke the default PUBLIC/anon execute.
 4. **Role checks must fail closed**: `NULL <> 'admin'` evaluates to NULL and fails OPEN. Use `coalesce(role, '') <> 'admin'` or `IS DISTINCT FROM`.
 5. Column-level UPDATE grants matter — RLS cannot restrict columns; broad default grants on tables like `drivers`/`restaurants` allowed self-verification and zero-commission exploits before they were locked down.
+5b. **Every `create table` in `public` must be followed by `revoke all ... from public, anon, authenticated`** before its real grants. `ALTER DEFAULT PRIVILEGES` on this database grants `arwdDxtm` to `anon`/`authenticated` on every new table, so simply *not granting* UPDATE/TRUNCATE does nothing (verified 2026-07-27 via `pg_default_acl`). Note **TRUNCATE ignores RLS**, so "RLS on with no policies" does not protect a table — `order_financials_failures` and `push_campaigns` were both truncatable with the anon key until mig 139.
 6. Validate migrations with a transaction-wrapped dry run (`BEGIN; ... ROLLBACK;`) against a local Postgres before applying to prod, then run the Supabase security advisors after applying.
 7. After applying, regenerate types: `npm run db:types`.
 

@@ -454,5 +454,17 @@
   "error.placeOrderFailed": "Could not place your order. Please try again.",
   "error.otpInvalid": "Invalid or expired code.",
   "error.otpResendFailed": "Could not resend the code.",
-  "error.otpSendFailed": "Could not send the code. Try again."
+  "error.otpSendFailed": "Could not send the code. Try again.",
+  "saved.title": "Saved",
+  "saved.itemsTab": "Dishes",
+  "saved.placesTab": "Places",
+  "saved.emptyItems": "No saved dishes yet",
+  "saved.emptyItemsHint": "Tap the heart on any dish to keep it here.",
+  "saved.emptyPlaces": "No saved places yet",
+  "saved.emptyPlacesHint": "Tap the heart on a restaurant to keep it here.",
+  "saved.unavailable": "Unavailable right now",
+  "saved.restaurantClosed": "Closed right now",
+  "saved.saveItem": "Save this dish",
+  "saved.removeItem": "Remove from saved",
+  "saved.browse": "Browse restaurants"
 }

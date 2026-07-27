@@ -5,6 +5,7 @@ import type {
   NotificationPrefs,
   NotificationPrefsPatch,
   PaymentMethod,
+  SavedItem,
   User,
 } from '../types';
 import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
@@ -170,6 +171,67 @@ export const userRepoSupabase = {
     return data;
   },
 
+  /**
+   * Saved DISHES (mig 139), newest first. One RPC returns the item and its
+   * restaurant's display state, so the Saved screen needs no client-side join.
+   * Unavailable items and closed restaurants ARE returned — the screen greys
+   * them out instead of hiding them.
+   */
+  async listFavoriteItems(): Promise<SavedItem[]> {
+    const { data, error } = await getSupabase().rpc('my_favorite_items');
+    if (error) throw error;
+    return ((data ?? []) as FavoriteItemRow[]).map((r) => ({
+      menuItemId: r.menu_item_id,
+      restaurantId: r.restaurant_id,
+      name: r.item_name,
+      description: r.item_description ?? '',
+      priceEgp: r.price_egp,
+      image: r.image ?? '',
+      isAvailable: r.is_available,
+      restaurantName: r.restaurant_name,
+      restaurantIsOpen: r.restaurant_is_open,
+      restaurantIsActive: r.restaurant_is_active,
+      savedAt: new Date(r.created_at).getTime(),
+    }));
+  },
+
+  /** Returns the saved menu-item ids only — used to hydrate the heart icons. */
+  async listFavoriteItemIds(): Promise<string[]> {
+    const { data, error } = await getSupabase()
+      .from('favorite_items')
+      .select('menu_item_id')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((r: { menu_item_id: string }) => r.menu_item_id);
+  },
+
+  /**
+   * Save/unsave a dish. restaurantId is required on save: the row denormalises
+   * it, and the composite FK rejects a value that disagrees with the item.
+   * There is no UPDATE grant, so save-then-unsave is insert + delete.
+   */
+  async setFavoriteItem(menuItemId: string, restaurantId: string, on: boolean): Promise<void> {
+    const sb = getSupabase();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    if (on) {
+      const { error } = await sb
+        .from('favorite_items')
+        .upsert(
+          { user_id: user.id, menu_item_id: menuItemId, restaurant_id: restaurantId },
+          { onConflict: 'user_id,menu_item_id', ignoreDuplicates: true },
+        );
+      if (error) throw error;
+    } else {
+      const { error } = await sb
+        .from('favorite_items')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('menu_item_id', menuItemId);
+      if (error) throw error;
+    }
+  },
+
   /** Saved restaurants (owner-scoped by RLS). Returns restaurant ids, newest first. */
   async listFavorites(): Promise<string[]> {
     const { data, error } = await getSupabase()
@@ -292,6 +354,20 @@ export const userRepoSupabase = {
     };
   },
 };
+
+interface FavoriteItemRow {
+  menu_item_id: string;
+  restaurant_id: string;
+  item_name: string;
+  item_description: string | null;
+  price_egp: number;
+  image: string | null;
+  is_available: boolean;
+  restaurant_name: string;
+  restaurant_is_open: boolean;
+  restaurant_is_active: boolean;
+  created_at: string;
+}
 
 interface NotificationPrefsRow {
   transactional: boolean;

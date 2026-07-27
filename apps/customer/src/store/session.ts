@@ -30,6 +30,16 @@ interface SessionState {
    * removals while rescuing genuinely-unsynced picks.
    */
   syncedFavoriteIds: string[];
+  /** Saved individual dishes (mig 139). Same local-first + merge model. */
+  favoriteItemIds: string[];
+  syncedFavoriteItemIds: string[];
+  /**
+   * menuItemId -> restaurantId for locally-saved dishes. Needed because the
+   * server row denormalises restaurant_id behind a composite FK, so an unsynced
+   * guest save cannot be uploaded later without knowing which restaurant it
+   * came from. Kept as a plain map so it survives AsyncStorage round-tripping.
+   */
+  favoriteItemRestaurantIds: Record<string, string>;
   hydrated: boolean;
 
   hydrate: () => Promise<void>;
@@ -43,6 +53,9 @@ interface SessionState {
   setFavorites: (ids: string[]) => void;
   markFavoriteSynced: (restaurantId: string) => void;
   mergeFavoritesFromServer: (serverIds: string[]) => string[];
+  toggleFavoriteItem: (menuItemId: string, restaurantId: string) => void;
+  markFavoriteItemSynced: (menuItemId: string) => void;
+  mergeFavoriteItemsFromServer: (serverIds: string[]) => string[];
 }
 
 type PersistedSession = Pick<
@@ -55,6 +68,9 @@ type PersistedSession = Pick<
   | 'allergyNudgeDismissed'
   | 'favoriteIds'
   | 'syncedFavoriteIds'
+  | 'favoriteItemIds'
+  | 'syncedFavoriteItemIds'
+  | 'favoriteItemRestaurantIds'
 >;
 
 function snapshot(s: SessionState): PersistedSession {
@@ -67,6 +83,9 @@ function snapshot(s: SessionState): PersistedSession {
     allergyNudgeDismissed: s.allergyNudgeDismissed,
     favoriteIds: s.favoriteIds,
     syncedFavoriteIds: s.syncedFavoriteIds,
+    favoriteItemIds: s.favoriteItemIds,
+    syncedFavoriteItemIds: s.syncedFavoriteItemIds,
+    favoriteItemRestaurantIds: s.favoriteItemRestaurantIds,
   };
 }
 
@@ -89,6 +108,9 @@ export const useSession = create<SessionState>((set, get) => ({
   allergyNudgeDismissed: false,
   favoriteIds: [],
   syncedFavoriteIds: [],
+  favoriteItemIds: [],
+  syncedFavoriteItemIds: [],
+  favoriteItemRestaurantIds: {},
   hydrated: false,
 
   hydrate: async () => {
@@ -115,6 +137,17 @@ export const useSession = create<SessionState>((set, get) => ({
             : Array.isArray(parsed.favoriteIds)
               ? parsed.favoriteIds
               : [],
+          favoriteItemIds: Array.isArray(parsed.favoriteItemIds) ? parsed.favoriteItemIds : [],
+          // Item favourites are NEW in this build, so there is no older state to
+          // be conservative about: anything present was saved by this build and
+          // its synced list is authoritative.
+          syncedFavoriteItemIds: Array.isArray(parsed.syncedFavoriteItemIds)
+            ? parsed.syncedFavoriteItemIds
+            : [],
+          favoriteItemRestaurantIds:
+            parsed.favoriteItemRestaurantIds && typeof parsed.favoriteItemRestaurantIds === 'object'
+              ? parsed.favoriteItemRestaurantIds
+              : {},
           hydrated: true,
         });
         return;
@@ -135,7 +168,15 @@ export const useSession = create<SessionState>((set, get) => ({
     // syncedFavoriteIds must clear with favoriteIds: a stale "already synced"
     // list would make the NEXT user's guest picks look uploaded, so the merge
     // would drop them instead of rescuing them.
-    set({ isSignedIn: false, phone: null, favoriteIds: [], syncedFavoriteIds: [] });
+    set({
+      isSignedIn: false,
+      phone: null,
+      favoriteIds: [],
+      syncedFavoriteIds: [],
+      favoriteItemIds: [],
+      syncedFavoriteItemIds: [],
+      favoriteItemRestaurantIds: {},
+    });
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
   },
 
@@ -208,6 +249,41 @@ export const useSession = create<SessionState>((set, get) => ({
       syncedFavoriteIds,
     );
     set({ favoriteIds: merged, syncedFavoriteIds: synced });
+    persist(snapshot(get()));
+    return needsUpload;
+  },
+
+  toggleFavoriteItem: (menuItemId, restaurantId) => {
+    const current = get().favoriteItemIds;
+    const on = !current.includes(menuItemId);
+    const favoriteItemIds = on
+      ? [menuItemId, ...current]
+      : current.filter((id) => id !== menuItemId);
+    // Remember where the dish came from while it is saved; drop the mapping on
+    // un-save so the map cannot grow without bound.
+    const map = { ...get().favoriteItemRestaurantIds };
+    if (on) map[menuItemId] = restaurantId;
+    else delete map[menuItemId];
+    set({ favoriteItemIds, favoriteItemRestaurantIds: map });
+    persist(snapshot(get()));
+  },
+
+  markFavoriteItemSynced: (menuItemId) => {
+    const synced = get().syncedFavoriteItemIds;
+    if (synced.includes(menuItemId)) return;
+    set({ syncedFavoriteItemIds: [...synced, menuItemId] });
+    persist(snapshot(get()));
+  },
+
+  /** Same merge rule as restaurants — see mergeFavorites for why not a union. */
+  mergeFavoriteItemsFromServer: (serverIds) => {
+    const { favoriteItemIds, syncedFavoriteItemIds } = get();
+    const { merged, needsUpload, synced } = mergeFavorites(
+      favoriteItemIds,
+      serverIds,
+      syncedFavoriteItemIds,
+    );
+    set({ favoriteItemIds: merged, syncedFavoriteItemIds: synced });
     persist(snapshot(get()));
     return needsUpload;
   },

@@ -454,5 +454,17 @@
   "error.placeOrderFailed": "Не удалось оформить заказ. Попробуйте ещё раз.",
   "error.otpInvalid": "Неверный или просроченный код.",
   "error.otpResendFailed": "Не удалось отправить код повторно.",
-  "error.otpSendFailed": "Не удалось отправить код. Попробуйте ещё раз."
+  "error.otpSendFailed": "Не удалось отправить код. Попробуйте ещё раз.",
+  "saved.title": "Избранное",
+  "saved.itemsTab": "Блюда",
+  "saved.placesTab": "Рестораны",
+  "saved.emptyItems": "Пока нет сохранённых блюд",
+  "saved.emptyItemsHint": "Нажмите на сердечко у блюда, чтобы сохранить его.",
+  "saved.emptyPlaces": "Пока нет сохранённых ресторанов",
+  "saved.emptyPlacesHint": "Нажмите на сердечко у ресторана, чтобы сохранить его.",
+  "saved.unavailable": "Сейчас недоступно",
+  "saved.restaurantClosed": "Сейчас закрыто",
+  "saved.saveItem": "Сохранить блюдо",
+  "saved.removeItem": "Убрать из избранного",
+  "saved.browse": "Смотреть рестораны"
 }

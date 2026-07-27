@@ -1,9 +1,12 @@
 import { DEFAULT_ADDRESSES, DEFAULT_PAYMENT_METHODS, DEFAULT_USER } from '../mock/user';
+import { MENUS } from '../mock/menus';
+import { RESTAURANTS } from '../mock/restaurants';
 import type {
   Address,
   NotificationPrefs,
   NotificationPrefsPatch,
   PaymentMethod,
+  SavedItem,
   User,
 } from '../types';
 import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
@@ -16,6 +19,34 @@ let currentUser: User = { ...DEFAULT_USER };
 let addresses: Address[] = [...DEFAULT_ADDRESSES];
 let paymentMethods: PaymentMethod[] = [...DEFAULT_PAYMENT_METHODS];
 const favoriteIds = new Set<string>();
+const favoriteItemIds = new Set<string>();
+
+/**
+ * Resolve a saved menu-item id against the mock catalogue. Returns null when
+ * the item no longer exists, mirroring the live behaviour where the composite
+ * FK cascades the favourite away with the item.
+ */
+function buildSavedItem(menuItemId: string): SavedItem | null {
+  for (const [restaurantId, menu] of Object.entries(MENUS)) {
+    const item = menu.items.find((i) => i.id === menuItemId);
+    if (!item) continue;
+    const restaurant = RESTAURANTS.find((r) => r.id === restaurantId);
+    return {
+      menuItemId: item.id,
+      restaurantId,
+      name: item.name,
+      description: item.description,
+      priceEgp: item.priceEgp,
+      image: item.image,
+      isAvailable: item.isAvailable,
+      restaurantName: restaurant?.name ?? '',
+      restaurantIsOpen: restaurant?.isOpen ?? true,
+      restaurantIsActive: true,
+      savedAt: Date.now(),
+    };
+  }
+  return null;
+}
 // Defaults mirror mig 138's server-side defaults exactly: marketing is opt-IN.
 let notificationPrefs: NotificationPrefs = {
   transactional: true,
@@ -108,6 +139,24 @@ export const userRepo = {
     addresses = [...DEFAULT_ADDRESSES];
     paymentMethods = [...DEFAULT_PAYMENT_METHODS];
     favoriteIds.clear();
+    return delay(undefined);
+  },
+
+  /** Saved dishes (mig 139 contract), newest first. */
+  async listFavoriteItems(): Promise<SavedItem[]> {
+    const items = Array.from(favoriteItemIds)
+      .map((id) => buildSavedItem(id))
+      .filter((s): s is SavedItem => s !== null);
+    return delay(items);
+  },
+
+  async listFavoriteItemIds(): Promise<string[]> {
+    return delay(Array.from(favoriteItemIds));
+  },
+
+  async setFavoriteItem(menuItemId: string, _restaurantId: string, on: boolean): Promise<void> {
+    if (on) favoriteItemIds.add(menuItemId);
+    else favoriteItemIds.delete(menuItemId);
     return delay(undefined);
   },
 

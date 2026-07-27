@@ -718,6 +718,42 @@ export type Database = {
           },
         ]
       }
+      favorite_items: {
+        Row: {
+          created_at: string
+          menu_item_id: string
+          restaurant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          menu_item_id: string
+          restaurant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          menu_item_id?: string
+          restaurant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_items_item_fk"
+            columns: ["menu_item_id", "restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id", "restaurant_id"]
+          },
+          {
+            foreignKeyName: "favorite_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -3394,6 +3430,22 @@ export type Database = {
           first_look_seconds: number
           rating_snapshot: number
           tier: string
+        }[]
+      }
+      my_favorite_items: {
+        Args: never
+        Returns: {
+          created_at: string
+          image: string
+          is_available: boolean
+          item_description: string
+          item_name: string
+          menu_item_id: string
+          price_egp: number
+          restaurant_id: string
+          restaurant_is_active: boolean
+          restaurant_is_open: boolean
+          restaurant_name: string
         }[]
       }
       my_kyc_documents: {

@@ -30,6 +30,40 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**APPLIED — migrations 139 + 140 went to production on 2026-07-27.** Saved
+dishes. `favorite_items` (owner-RLS, composite FK to `menu_items(id,
+restaurant_id)` so the denormalised restaurant id cannot drift, cascading on
+both user and item delete so account deletion needs no new code) plus
+`my_favorite_items()` and a Saved screen.
+
+⚠️ **Two security findings surfaced while building it, both fixed here.**
+
+1. **Every new `public` table is created with full client privileges.**
+   `pg_default_acl` shows `ALTER DEFAULT PRIVILEGES` granting `arwdDxtm` to
+   `anon` and `authenticated` on every new table, from both the `postgres` and
+   `supabase_admin` grantors. *Not granting* a privilege is therefore a no-op —
+   it must be explicitly REVOKED. This is house rule 3's function trap applied
+   to tables, and it is now a house rule in its own right: **every
+   `create table` in `public` must be followed by `revoke all ... from public,
+   anon, authenticated` before its real grants.**
+2. **TRUNCATE bypasses RLS**, so "RLS enabled, no policies" does NOT protect a
+   table from being emptied. Two existing tables were reachable this way and
+   were verified exploitable with the anon role against production (rolled
+   back): `order_financials_failures` (mig 135 — the unbilled-revenue repair
+   queue, i.e. the evidence that an order was delivered but never billed) and
+   `push_campaigns` (mig 078). Both are now revoked from all client roles; the
+   admin campaign history still works because `recent_push_campaigns` is
+   SECURITY DEFINER (asserted, not assumed).
+
+**140 fixes a defect in 139 caught by end-to-end testing.** `my_favorite_items`
+was SECURITY INVOKER, but it joins `menu_items` and `restaurants`, whose RLS
+(`menu_items_read`: `is_available = true OR …`) hides unavailable items from
+customers. So a saved dish VANISHED from the Saved screen the moment it sold
+out — the exact behaviour 139's header promised would never happen. It is now
+SECURITY DEFINER with the scope pinned to `auth.uid()` inside the body and no
+arguments, so it cannot return another user's saves (asserted). Verified in
+production: sold-out saved dish returns 1 row where it returned 0 before.
+
 **APPLIED — migration 138 went to production on 2026-07-27.** Notification
 consent. The customer settings screen showed two toggles that were static
 `<View>`s — no handler, no persistence, and no table to persist into — while

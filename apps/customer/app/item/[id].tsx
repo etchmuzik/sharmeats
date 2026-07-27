@@ -33,6 +33,7 @@ import { formatEgp } from '../../src/lib/format';
 import { success, tap } from '../../src/haptics';
 import { useGoBack } from '../../src/lib/navigation';
 import { track } from '../../src/lib/analytics';
+import { useFavoriteItem } from '../../src/lib/favorites';
 
 interface SelectionMap {
   // modifierId → Set of optionIds
@@ -53,6 +54,13 @@ export default function ItemModal() {
 
   const [item, setItem] = useState<MenuItem | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  // Saving needs the restaurant id (composite FK on the server). item.restaurantId
+  // is available as soon as the item loads, so the heart works before the
+  // restaurant record itself resolves.
+  const { isFav: isSaved, toggle: toggleSaved } = useFavoriteItem(
+    item?.id ?? '',
+    item?.restaurantId ?? '',
+  );
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   // Dismiss to the parent restaurant when there's no history (deep link / cold
@@ -273,6 +281,20 @@ export default function ItemModal() {
           <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} />
           <View style={[styles.navWrap, { top: insets.top + 6 }]}>
             <BackButton tint="light" onPress={goBack} />
+            <Pressable
+              onPress={() => {
+                tap();
+                toggleSaved();
+              }}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t(isSaved ? 'saved.removeItem' : 'saved.saveItem')}
+              accessibilityState={{ selected: isSaved }}
+              style={styles.saveBtn}>
+              <Text style={[styles.saveIcon, isSaved && styles.saveIconOn]}>
+                {isSaved ? '♥' : '♡'}
+              </Text>
+            </Pressable>
           </View>
         </View>
         <View style={styles.body}>
@@ -404,7 +426,28 @@ const styles = StyleSheet.create({
   },
   retryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   hero: { height: 280, backgroundColor: '#222', position: 'relative' },
-  navWrap: { position: 'absolute', left: 14, zIndex: 5 },
+  // Spans the hero so the back button stays left and the save heart sits right.
+  navWrap: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    zIndex: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  saveBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Same scrim treatment as BackButton tint="light" so it stays legible on
+    // any food photo.
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  saveIcon: { fontSize: 20, color: colors.white, lineHeight: 24 },
+  saveIconOn: { color: colors.accent },
   body: { padding: 20 },
   name: { fontSize: 28, fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.5 },
   desc: { fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 22, marginTop: 8 },
