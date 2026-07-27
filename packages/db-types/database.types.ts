@@ -2733,10 +2733,132 @@ export type Database = {
         }
         Relationships: []
       }
+      support_case_events: {
+        Row: {
+          actor_id: string | null
+          case_id: string
+          created_at: string
+          event: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          case_id: string
+          created_at?: string
+          event: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          actor_id?: string | null
+          case_id?: string
+          created_at?: string
+          event?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_case_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "support_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_cases: {
+        Row: {
+          assigned_to: string | null
+          closed_at: string | null
+          customer_id: string
+          first_responded_at: string | null
+          first_response_due_at: string | null
+          id: string
+          last_message_at: string
+          opened_at: string
+          order_id: string | null
+          priority: string
+          reason_code: string
+          resolution_code: string | null
+          resolution_due_at: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          closed_at?: string | null
+          customer_id: string
+          first_responded_at?: string | null
+          first_response_due_at?: string | null
+          id?: string
+          last_message_at?: string
+          opened_at?: string
+          order_id?: string | null
+          priority?: string
+          reason_code?: string
+          resolution_code?: string | null
+          resolution_due_at?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          closed_at?: string | null
+          customer_id?: string
+          first_responded_at?: string | null
+          first_response_due_at?: string | null
+          id?: string
+          last_message_at?: string
+          opened_at?: string
+          order_id?: string | null
+          priority?: string
+          reason_code?: string
+          resolution_code?: string | null
+          resolution_due_at?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_cases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cases_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cases_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_messages: {
         Row: {
           author_id: string | null
           body: string
+          case_id: string | null
           created_at: string
           from_support: boolean
           id: string
@@ -2746,6 +2868,7 @@ export type Database = {
         Insert: {
           author_id?: string | null
           body: string
+          case_id?: string | null
           created_at?: string
           from_support?: boolean
           id?: string
@@ -2755,6 +2878,7 @@ export type Database = {
         Update: {
           author_id?: string | null
           body?: string
+          case_id?: string | null
           created_at?: string
           from_support?: boolean
           id?: string
@@ -2767,6 +2891,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "support_cases"
             referencedColumns: ["id"]
           },
           {
@@ -3323,6 +3454,7 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: boolean
       }
+      claim_support_case: { Args: { p_case_id: string }; Returns: undefined }
       delivery_feasibility: {
         Args: { p_dropoff: unknown; p_restaurant_id: string }
         Returns: {
@@ -3778,6 +3910,10 @@ export type Database = {
           vehicle: Database["public"]["Enums"]["vehicle_type"]
         }[]
       }
+      open_support_case: {
+        Args: { p_message?: string; p_order_id?: string; p_reason_code: string }
+        Returns: string
+      }
       ops_alert: { Args: { p_text: string }; Returns: undefined }
       ops_daily_digest: { Args: never; Returns: undefined }
       ops_stats_text: { Args: { p_scope: string }; Returns: string }
@@ -3947,6 +4083,7 @@ export type Database = {
         Returns: {
           author_id: string | null
           body: string
+          case_id: string | null
           created_at: string
           from_support: boolean
           id: string
@@ -3959,6 +4096,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      resolve_support_case: {
+        Args: { p_case_id: string; p_note?: string; p_resolution_code: string }
+        Returns: undefined
       }
       resolve_zone: {
         Args: { p_geo: unknown }
@@ -4033,6 +4174,7 @@ export type Database = {
         Returns: {
           author_id: string | null
           body: string
+          case_id: string | null
           created_at: string
           from_support: boolean
           id: string
