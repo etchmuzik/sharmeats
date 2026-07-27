@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import {
   DEFAULT_NOTIFICATION_PREFS as DEFAULT_PREFS,
   formatQuietWindow,
 } from '../src/lib/notificationPrefs';
+import { getReleaseInfo, formatReleaseLine } from '../src/lib/release';
 
 // 22:00–08:00 local. Sharm dines late, so a window starting much earlier would
 // suppress offers during real ordering hours.
@@ -33,6 +35,28 @@ export default function Settings() {
   const [allergyCount, setAllergyCount] = useState(0);
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [prefsBusy, setPrefsBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Release identity is fixed for the lifetime of the process — resolve once.
+  const release = useMemo(() => getReleaseInfo(), []);
+  const releaseLine = useMemo(() => formatReleaseLine(release), [release]);
+
+  const copyDiagnostics = useCallback(async () => {
+    // The full commit, not the shortened display form: support needs the value
+    // that can actually be looked up in git.
+    const detail = [
+      releaseLine,
+      release.commit ? `commit: ${release.commit}` : null,
+      release.runtimeVersion ? `runtime: ${release.runtimeVersion}` : null,
+      release.updateId ? `update: ${release.updateId}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    await Clipboard.setStringAsync(detail);
+    tap();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [release, releaseLine]);
 
   useFocusEffect(
     useCallback(() => {
@@ -217,6 +241,27 @@ export default function Settings() {
             <Text style={styles.quietWindow}>{formatQuietWindow(prefs)}</Text>
           ) : null}
         </View>
+
+        {/* Build diagnostics (package 01 §3).
+            Long-press copies the whole block: support needs to RECEIVE this,
+            and a customer reading a build number down the phone gets it wrong.
+            Deliberately last and visually quiet — operators need it, ordinary
+            customers should not trip over it. */}
+        <Pressable
+          onLongPress={copyDiagnostics}
+          delayLongPress={600}
+          accessibilityRole="button"
+          accessibilityLabel={t('settings.buildInfo')}
+          accessibilityHint={t('settings.buildInfoCopyHint')}
+          style={styles.card}>
+          <Text style={styles.cardTitle}>{t('settings.buildInfo')}</Text>
+          <Text style={styles.buildLine} selectable>
+            {releaseLine}
+          </Text>
+          <Text style={styles.prefHint}>
+            {copied ? t('settings.buildInfoCopied') : t('settings.buildInfoCopyHint')}
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -268,6 +313,16 @@ const styles = StyleSheet.create({
     color: colors.ink2,
     paddingHorizontal: 10,
     paddingBottom: 6,
+  },
+  // Monospace so a build number read aloud or compared by eye is unambiguous
+  // (l/1 and O/0 in a proportional face are a support-call hazard). Always LTR:
+  // a SHA is not natural language and must not mirror under RTL.
+  buildLine: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: font.sizes.md,
+    color: colors.ink2,
+    marginTop: 8,
+    writingDirection: 'ltr',
   },
   allergyRow: {
     flexDirection: 'row',

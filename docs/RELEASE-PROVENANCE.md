@@ -106,7 +106,53 @@ Stale `version.json` files may linger in a local `public/` from an earlier
 build; any real build overwrites them. They are gitignored, so `git status` will
 not show them — check the **artifact**, not the working tree.
 
-## Not covered here
+## Mobile release identity
 
-Mobile release identity (app version, build number, runtime version, update ID,
-channel, git SHA) is Package 01 §3's other half and is tracked separately.
+The other half of Package 01 §3. A mobile app cannot use the `/version.json`
+approach, because EAS Update swaps the JS underneath a fixed native binary. Two
+devices both reporting **1.1.0 (34)** can be running different JavaScript.
+
+`apps/customer/src/lib/release.ts` resolves both halves:
+
+| Field | Answers |
+|---|---|
+| `version`, `buildNumber` | which native binary is installed |
+| `updateId`, `isEmbedded` | which JS it is actually running |
+| `channel`, `runtimeVersion` | which update stream it is eligible for |
+| `commit` | which source built it |
+
+Surfaced to operators in customer **Settings → Build**; long-press copies the
+full detail (including the untruncated SHA) to the clipboard, because support
+needs to receive the value, not hear it read down a phone. The same properties
+are attached to every PostHog event and set as Sentry `release`/`dist`, so a
+crash can be pinned to a specific binary *and* a specific OTA update.
+
+Every read is wrapped: `expo-updates` throws in Expo Go and in dev clients with
+updates disabled. Unknown fields render as omitted, never `undefined`.
+
+### The commit SHA is not wired yet (owner)
+
+`release.ts` reads `EXPO_PUBLIC_GIT_SHA` and reports `commit: null` when it is
+absent — which is the state today, so the Build block currently shows version,
+build, channel and update but no SHA. It degrades honestly rather than guessing.
+
+Wiring it needs a **dynamic** config, because `eas.json` `env` values are static
+strings and cannot interpolate a build-time variable. EAS exposes the commit as
+`EAS_BUILD_GIT_COMMIT_HASH` during the build. The change is to convert each
+app's static `app.json` to an `app.config.js` that re-exports it and adds:
+
+```js
+extra: { gitSha: process.env.EAS_BUILD_GIT_COMMIT_HASH ?? null }
+```
+
+then read it via `Constants.expoConfig.extra.gitSha` alongside the existing env
+lookup.
+
+This is deliberately **not** done here: converting `app.json` to
+`app.config.js` across three apps is a native-config change that cannot be
+verified without a real EAS build, and a broken app config breaks every build.
+It belongs with the next binary release, tested one app at a time.
+
+Do not replace it with a hand-maintained constant. A version string someone must
+remember to bump is a version string that eventually lies, which is the exact
+failure this whole section exists to prevent.
