@@ -18,6 +18,7 @@ import { useT } from '../src/i18n';
 import { useSession } from '../src/store/session';
 import { success } from '../src/haptics';
 import { registerForPush } from '../src/lib/push';
+import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { db } from '../src/data';
 import { captureError } from '../src/lib/analytics';
 
@@ -55,6 +56,13 @@ export default function Otp() {
       const { phone } = await db.auth.verifyOtp(phoneDisplay, code);
       success();
       signIn(phone);
+      // Merge favourites for the account we just landed in. This is the moment
+      // the identity can CHANGE: verifying a phone that already has an account
+      // swaps auth.uid(), so the guest's saved restaurants exist only on this
+      // device. Merging here (rather than waiting for the next cold start)
+      // uploads them before anything else can overwrite local state.
+      // Not awaited — a slow network must not hold up the redirect.
+      syncFavoritesFromServer();
       // Best-effort: ask for push permission now there's an account to notify.
       registerForPush();
       router.replace('/(tabs)/home');
