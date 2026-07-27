@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Sharm Eats — a delivery super-app for Sharm el-Sheikh. Six surfaces, one Supabase backend, **no separate API server**:
 
-- `apps/customer` — Expo SDK 52 + expo-router (browse → cart → checkout → live tracking)
-- `apps/driver` — Expo SDK 52 (go online → accept → pickup → deliver, live GPS)
-- `apps/restaurant` — Expo SDK 52 (merchant order management, mobile)
+- `apps/customer` — Expo SDK 57 + expo-router (browse → cart → checkout → live tracking)
+- `apps/driver` — Expo SDK 57 (go online → accept → pickup → deliver, live GPS)
+- `apps/restaurant` — Expo SDK 57 (merchant order management, mobile)
 - `apps/merchant-web` — Next.js 15 dashboard, port **3001**
 - `apps/admin-web` — Next.js 15 ops/dispatch/finance dashboard, port **3002**
 - `landing` — Next.js 15 marketing site (deployed separately to Vercel)

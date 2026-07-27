@@ -46,8 +46,10 @@ supabase db dump --db-url "$PROD_DB_URL" -f "sharmeats-$(date +%F).sql"
   2. `pg_dump` just the affected table from the restored copy.
   3. Reconcile the specific rows back into prod by hand.
 - **Migrations directory is the schema source of truth.** After any restore,
-  confirm `supabase_migrations.schema_migrations` matches `supabase/migrations/`
-  (latest applied should be the highest-numbered file — currently `084`).
+  confirm the applied schema matches `supabase/migrations/` (highest-numbered
+  file — currently `135`; note the ledger itself is NOT reconciled, see
+  DATABASE-RELEASE-RUNBOOK.md, so compare objects rather than trusting
+  `supabase_migrations.schema_migrations`).
 
 ---
 
