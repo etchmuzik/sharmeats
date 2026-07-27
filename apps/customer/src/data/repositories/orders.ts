@@ -1,7 +1,9 @@
 import { DEFAULT_USER } from '../mock/user';
 import { pickRandomRider } from '../mock/riders';
 import { restaurantsRepo } from './restaurants';
+import { menusRepo } from './menus';
 import { serviceFeeEgp } from '../../lib/serviceFee';
+import { checkReorder } from '../../lib/reorderCheck';
 import type {
   Address,
   AllergyKey,
@@ -10,6 +12,9 @@ import type {
   Order,
   OrderStatus,
   PaymentMethodKind,
+  PreparedCart,
+  PreparedCartIssue,
+  PreparedCartLine,
 } from '../types';
 
 /**
@@ -175,6 +180,58 @@ export const ordersRepo = {
   ): Promise<number> {
     const r = await restaurantsRepo.get(restaurantId);
     return delay(r?.deliveryFeeEgp ?? 30);
+  },
+
+  /**
+   * Mock cart preparation — mirrors the `prepare_cart` RPC contract (mig 145).
+   *
+   * Reuses checkReorder rather than reimplementing the reconciliation. Two
+   * copies of "what changed since the last order" would drift, and a mock that
+   * drifts from the server is exactly how a bug ships while looking correct in
+   * development.
+   */
+  async prepareCart(restaurantId: string, items: CartItem[]): Promise<PreparedCart> {
+    const [restaurant, menu] = await Promise.all([
+      restaurantsRepo.get(restaurantId),
+      menusRepo.forRestaurant(restaurantId),
+    ]);
+    const { lines, changes } = checkReorder(items, menu.items);
+
+    const issues: PreparedCartIssue[] = changes
+      .filter((c) => c.kind === 'removed' || c.kind === 'unavailable' || c.kind === 'modifier_gone')
+      .map((c) => ({
+        code:
+          c.kind === 'removed'
+            ? ('ITEM_NOT_FOUND' as const)
+            : c.kind === 'unavailable'
+              ? ('ITEM_UNAVAILABLE' as const)
+              : ('MODIFIER_GONE' as const),
+        index: items.findIndex((i) => i.itemId === c.itemId),
+        itemId: c.itemId,
+        name: c.name,
+      }));
+
+    const prepared: PreparedCartLine[] = lines.map((l, index) => ({
+      index,
+      itemId: l.itemId,
+      name: l.name,
+      image: l.image ?? null,
+      unitPriceEgp: l.basePriceEgp,
+      quantity: l.quantity,
+      modifierChoices: l.modifierChoices,
+      lineTotalEgp:
+        (l.basePriceEgp + l.modifierChoices.reduce((a, c) => a + c.priceDeltaEgp, 0)) * l.quantity,
+      notes: l.notes ?? null,
+    }));
+
+    return delay({
+      restaurantId,
+      restaurantOpen: restaurant?.isOpen ?? true,
+      minimumOrderEgp: restaurant?.minOrderEgp ?? 0,
+      lines: prepared,
+      issues,
+      subtotalEgp: prepared.reduce((a, l) => a + l.lineTotalEgp, 0),
+    });
   },
 
   /** Mock promo validation — mirrors the validate_promo RPC contract (0 = invalid). */

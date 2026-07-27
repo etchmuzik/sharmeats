@@ -244,6 +244,58 @@ export interface CartItem {
   allergens?: AllergyKey[];
 }
 
+/**
+ * Server-side cart preparation (mig 145, `prepare_cart`).
+ *
+ * Used for the three repeat-order entry points — Orders-tab reorder, saved
+ * presets and a restored cart — so all three see the SAME live prices,
+ * availability and store state that `place_order` will apply at checkout.
+ *
+ * Advisory only. Nothing here is authoritative: `place_order` revalidates
+ * everything, and no value from this response is ever sent back to the server
+ * as a price.
+ */
+export type PreparedCartIssueCode =
+  | 'ITEM_NOT_FOUND'
+  | 'ITEM_UNAVAILABLE'
+  | 'MODIFIER_GONE'
+  | 'REQUIRED_MODIFIER_MISSING'
+  | 'INVALID_QTY';
+
+export interface PreparedCartIssue {
+  code: PreparedCartIssueCode;
+  /** Position in the submitted cart, so the UI can point at the right line. */
+  index: number;
+  itemId?: string;
+  name?: string;
+  /** Names of the required modifier groups with nothing selected. */
+  modifiers?: string[];
+}
+
+export interface PreparedCartLine {
+  index: number;
+  itemId: string;
+  name: string;
+  image: string | null;
+  /** Today's price, not the price the past order paid. */
+  unitPriceEgp: number;
+  quantity: number;
+  modifierChoices: CartItemModifierChoice[];
+  lineTotalEgp: number;
+  notes: string | null;
+}
+
+export interface PreparedCart {
+  restaurantId: string;
+  /** is_active AND is_open — the client cannot determine this from a menu. */
+  restaurantOpen: boolean;
+  minimumOrderEgp: number;
+  lines: PreparedCartLine[];
+  issues: PreparedCartIssue[];
+  /** Display subtotal at current prices. Excludes delivery, promo and fees. */
+  subtotalEgp: number;
+}
+
 export type OrderStatus =
   | 'placed'
   | 'accepted'

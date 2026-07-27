@@ -3627,6 +3627,17 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      prepare_cart: {
+        Args: { p_cart: Json; p_restaurant_id: string }
+        Returns: {
+          issues: Json
+          minimum_order_egp: number
+          prepared_items: Json
+          restaurant_id: string
+          restaurant_open: boolean
+          subtotal_egp: number
+        }[]
+      }
       provision_driver: {
         Args: {
           p_name: string

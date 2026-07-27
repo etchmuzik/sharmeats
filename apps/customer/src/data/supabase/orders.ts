@@ -19,7 +19,14 @@
 import { getSupabase } from './client';
 import { rowToOrder } from './mappers';
 import { t } from '../../i18n';
-import type { Order, PaymentMethodKind } from '../types';
+import type {
+  CartItem,
+  Order,
+  PaymentMethodKind,
+  PreparedCart,
+  PreparedCartIssue,
+  PreparedCartLine,
+} from '../types';
 import type { CreateOrderInput } from '../repositories/orders';
 
 /** Map the app's payment kind to the order's payment_method ('card' | 'cash_on_delivery'). */
@@ -127,6 +134,37 @@ export const ordersRepoSupabase = {
     });
     if (error) throw error;
     return typeof data === 'number' ? data : 30;
+  },
+
+  /**
+   * Reconcile a proposed cart against the CURRENT menu, server-side (mig 145).
+   *
+   * Sends identity only — item id, quantity, chosen option ids, notes — exactly
+   * the shape `place_order` takes. Prices are deliberately NOT sent: the server
+   * reads them, so a stale or tampered client price cannot influence anything.
+   */
+  async prepareCart(restaurantId: string, items: CartItem[]): Promise<PreparedCart> {
+    const { data, error } = await getSupabase().rpc('prepare_cart', {
+      p_restaurant_id: restaurantId,
+      p_cart: items.map((i) => ({
+        item_id: i.itemId,
+        quantity: i.quantity,
+        modifier_option_ids: i.modifierChoices.map((c) => c.optionId),
+        notes: i.notes ?? null,
+      })),
+    });
+    if (error) throw error;
+    // The RPC RETURNS TABLE, so PostgREST delivers an array of one row.
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw new Error('prepare_cart returned no row');
+    return {
+      restaurantId: row.restaurant_id,
+      restaurantOpen: row.restaurant_open,
+      minimumOrderEgp: row.minimum_order_egp ?? 0,
+      lines: (row.prepared_items ?? []) as PreparedCartLine[],
+      issues: (row.issues ?? []) as PreparedCartIssue[],
+      subtotalEgp: row.subtotal_egp ?? 0,
+    };
   },
 
   /** Live promo validation (server authority). Returns the discount in EGP; 0 = invalid. */
