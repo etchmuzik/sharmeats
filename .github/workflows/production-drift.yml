@@ -1,0 +1,145 @@
+# Production drift check (package 01 §3).
+#
+# Answers one question an operator cannot currently answer: is the code running
+# on each web surface the code we think is running?
+#
+# Each surface serves /version.json, generated at build time by
+# scripts/write-version-manifest.mjs. This workflow fetches all three and
+# compares them against an EXPECTED commit that a human supplies.
+#
+# WHY THE EXPECTED SHA IS AN INPUT, NOT `main`
+# Not every commit on main has been deployed, and pretending otherwise would
+# make this workflow cry wolf on every merge until the next deploy. The
+# scheduled run therefore compares the three surfaces AGAINST EACH OTHER (they
+# should agree with one another even when we do not know the intended SHA), and
+# only a manual run with an explicit `expected_sha` asserts a specific release.
+#
+# This never deploys, never writes and needs no secrets.
+
+name: production-drift
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Full 40-char commit SHA that production SHOULD be running (blank = only check the surfaces agree with each other)'
+        required: false
+        type: string
+  schedule:
+    # 07:00 UTC daily — after the 03:00 Africa/Cairo backup window, before the
+    # working day in Sharm.
+    - cron: '0 7 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch and compare version manifests
+        env:
+          EXPECTED_SHA: ${{ github.event.inputs.expected_sha }}
+        run: |
+          set -uo pipefail
+
+          declare -A SURFACES=(
+            [landing]="https://sharmeats.online/version.json"
+            [merchant-web]="https://merchant.sharmeats.online/version.json"
+            [admin-web]="https://admin.sharmeats.online/version.json"
+          )
+
+          fail=0
+          declare -A SHA
+          declare -A DIRTY
+
+          echo "## Production version manifests" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Surface | Commit | Built at | Dirty | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          for surface in "${!SURFACES[@]}"; do
+            url="${SURFACES[$surface]}"
+            # Cache-bust: an edge cache serving a stale manifest would report
+            # drift that does not exist, or hide drift that does.
+            body="$(curl -fsS --max-time 20 -H 'Cache-Control: no-cache' "${url}?t=$(date +%s)" 2>/dev/null)" || body=""
+
+            if [ -z "$body" ]; then
+              echo "::error::${surface}: could not fetch ${url}"
+              echo "| ${surface} | — | — | — | ❌ unreachable |" >> "$GITHUB_STEP_SUMMARY"
+              fail=1
+              continue
+            fi
+
+            if ! echo "$body" | jq -e . >/dev/null 2>&1; then
+              # Almost always an SPA index.html served for an unknown path,
+              # i.e. the manifest was never deployed for this surface.
+              echo "::error::${surface}: /version.json is not JSON — the manifest is probably not deployed"
+              echo "| ${surface} | — | — | — | ❌ not JSON |" >> "$GITHUB_STEP_SUMMARY"
+              fail=1
+              continue
+            fi
+
+            sha="$(echo "$body" | jq -r '.commit // empty')"
+            built="$(echo "$body" | jq -r '.builtAt // "unknown"')"
+            dirty="$(echo "$body" | jq -r '.dirty // false')"
+            claimed="$(echo "$body" | jq -r '.surface // "unknown"')"
+
+            SHA[$surface]="$sha"
+            DIRTY[$surface]="$dirty"
+
+            status="✅"
+            if [ -z "$sha" ]; then
+              echo "::error::${surface}: manifest has no commit"
+              status="❌ no commit"; fail=1
+            fi
+            if [ "$claimed" != "$surface" ]; then
+              # The wrong artifact is deployed to this host — a worse problem
+              # than being out of date, and invisible without this check.
+              echo "::error::${surface}: manifest claims surface '${claimed}' — wrong artifact deployed here"
+              status="❌ wrong surface"; fail=1
+            fi
+            if [ "$dirty" = "true" ]; then
+              echo "::error::${surface}: built from a DIRTY tree — the commit does not describe what is running"
+              status="❌ dirty build"; fail=1
+            fi
+
+            echo "| ${surface} | \`${sha:0:12}\` | ${built} | ${dirty} | ${status} |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # --- Do the three surfaces agree with each other? --------------------
+          uniq_shas="$(printf '%s\n' "${SHA[@]}" | grep -v '^$' | sort -u | wc -l | tr -d ' ')"
+          if [ "${uniq_shas}" -gt 1 ]; then
+            echo "::warning::the three surfaces are running DIFFERENT commits"
+            {
+              echo "⚠️ **Surfaces disagree.** They are deployed independently, so this is"
+              echo "expected shortly after a partial deploy and a problem if it persists."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # --- Assert a specific release, only when one was supplied ----------
+          if [ -n "${EXPECTED_SHA:-}" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Expected: \`${EXPECTED_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+            for surface in "${!SURFACES[@]}"; do
+              got="${SHA[$surface]:-}"
+              if [ "$got" != "$EXPECTED_SHA" ]; then
+                echo "::error::${surface}: running ${got:-<none>}, expected ${EXPECTED_SHA}"
+                echo "- ❌ **${surface}** is running \`${got:0:12}\`, not the expected release" >> "$GITHUB_STEP_SUMMARY"
+                fail=1
+              else
+                echo "- ✅ ${surface} matches" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            done
+          else
+            {
+              echo "_No \`expected_sha\` supplied, so this run only checked that the"
+              echo "manifests are present, well-formed and self-consistent. Re-run this"
+              echo "workflow with the release SHA to assert a specific deployment._"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          exit "$fail"

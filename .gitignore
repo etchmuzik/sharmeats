@@ -55,3 +55,9 @@ deploy-zips/
 # Local database backups — contain full customer data, never commit.
 sharmeats-backups/
 *.dump
+
+# Build-time release manifests (scripts/write-version-manifest.mjs).
+# Generated into the artifact, never committed: a checked-in version.json would
+# dirty the tree on every build, which then fails the script's own strict check.
+landing/public/version.json
+apps/*/public/version.json
