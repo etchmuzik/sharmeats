@@ -13,7 +13,12 @@ type Phase =
   | { state: 'unauthorized' }
   | { state: 'ready'; displayName: string };
 
-type DeliveryStatus = 'dispatched' | 'delivered' | 'failed' | 'not_attempted';
+type DeliveryStatus =
+  | 'dispatched'
+  | 'provider_accepted'
+  | 'delivered' // DEPRECATED (pre-mig-146 rows) — see DELIVERY_LABEL
+  | 'failed'
+  | 'not_attempted';
 
 interface Campaign {
   id: string;
@@ -34,11 +39,33 @@ interface Campaign {
   suppressed_count?: number | null;
 }
 
-const DELIVERY_LABEL: Record<DeliveryStatus, { text: string; tone: string }> = {
-  delivered: { text: 'Delivered', tone: '#0a7c42' },
-  dispatched: { text: 'Sending…', tone: '#8a6d00' },
-  failed: { text: 'Failed', tone: '#b3261e' },
-  not_attempted: { text: 'Not sent', tone: '#5f6368' },
+/**
+ * Operator labels for the transport outcome.
+ *
+ * NOT device delivery. `provider_accepted` means the expo-push edge function
+ * returned 2xx, i.e. it accepted the request — it returns 200 even for "no
+ * tokens" and "all recipients opted out", so it is not proof that any push was
+ * sent, let alone displayed. This used to render as a green "Delivered", which
+ * told operators something the system cannot know (mig 146).
+ *
+ * The deprecated `delivered` value is still mapped so pre-mig-146 rows, and any
+ * row written by an admin build that predates this one, render as words rather
+ * than a raw enum string.
+ */
+const DELIVERY_LABEL: Record<DeliveryStatus, { text: string; tone: string; hint: string }> = {
+  provider_accepted: {
+    text: 'Accepted by push service',
+    tone: '#0a7c42',
+    hint: 'The push service accepted the request. This is not proof that a device received or displayed anything.',
+  },
+  delivered: {
+    text: 'Accepted by push service',
+    tone: '#0a7c42',
+    hint: 'Recorded before mig 146, when this state was mislabelled "Delivered". It means the push service accepted the request — not that a device received it.',
+  },
+  dispatched: { text: 'Sending…', tone: '#8a6d00', hint: 'Handed to the transport; outcome not known yet.' },
+  failed: { text: 'Failed', tone: '#b3261e', hint: 'The request did not reach the push service.' },
+  not_attempted: { text: 'Not sent', tone: '#5f6368', hint: 'No recipients, or the functions base URL is unset.' },
 };
 
 const SEGMENTS = [
@@ -285,7 +312,11 @@ export default function CampaignsPage() {
                         <div
                           className="font-semibold"
                           style={{ color: DELIVERY_LABEL[c.delivery_status]?.tone ?? '#5f6368' }}
-                          title={c.delivery_detail ?? undefined}
+                          title={
+                            [DELIVERY_LABEL[c.delivery_status]?.hint, c.delivery_detail]
+                              .filter(Boolean)
+                              .join('\n\n') || undefined
+                          }
                         >
                           {DELIVERY_LABEL[c.delivery_status]?.text ?? c.delivery_status}
                         </div>
