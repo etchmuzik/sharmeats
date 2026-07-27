@@ -107,7 +107,13 @@ else
 fi
 # Table count is derived from the dump itself rather than trusted from the
 # manifest, which records byte sizes only.
-MANIFEST_TABLES="$(grep -c "^CREATE TABLE" "${BACKUP_DIR}/schema.sql" | tr -d ' ')"
+#
+# PUBLIC ONLY. This counted every schema until 2026-07-27, giving 80
+# (49 public + 23 auth + 8 storage) and comparing it against a verifier query
+# that counts public base tables only -- so a perfect restore reported
+# "50 tables restored, drill expected 80" and looked like 30 tables had
+# vanished. Compare like with like, or the check manufactures alarm.
+MANIFEST_TABLES="$(grep -cE "^CREATE TABLE public\." "${BACKUP_DIR}/schema.sql" | tr -d ' ')"
 
 # ---------------------------------------------------------------------------
 # 2. Refuse unsafe targets BEFORE createdb.
@@ -255,17 +261,39 @@ else
   echo "roles: NOT PRESENT (native dump limitation; recreate from supabase/migrations/)" >> "${REPORT}"
 fi
 
+# Keep the error TEXT, not just a count. The first real drill reported
+# "schema_errors: 1" and nothing else, so diagnosing it meant re-running the
+# load by hand -- a count tells you something broke but never what, which is the
+# opposite of what an operator needs at restore time. Full logs go next to the
+# report; the first few lines are inlined so the report is self-contained.
+SCHEMA_LOG="${REPORT%.txt}-schema.log"
+DATA_LOG="${REPORT%.txt}-data.log"
+
+# `psql ... | grep` would report grep's status, so capture to a log first and
+# count from the file. Errors here are counted, not fatal: the load is expected
+# to be imperfect (see the benign "schema public already exists" below) and the
+# verifier is what decides pass/fail.
 echo "  · schema"
-SCHEMA_ERRS=$(psql -d "${SCRATCH_DB}" -f "${BACKUP_DIR}/schema.sql" 2>&1 | grep -c "^psql.*ERROR" || true)
-echo "schema_errors: ${SCHEMA_ERRS}" >> "${REPORT}"
+psql -d "${SCRATCH_DB}" -f "${BACKUP_DIR}/schema.sql" > "${SCHEMA_LOG}" 2>&1 || true
+SCHEMA_ERRS=$(grep -c "^psql.*ERROR" "${SCHEMA_LOG}" || true)
+echo "schema_errors: ${SCHEMA_ERRS}  (full log: ${SCHEMA_LOG})" >> "${REPORT}"
+if [ "${SCHEMA_ERRS}" -gt 0 ]; then
+  # Expected and harmless: pg_dump emits CREATE SCHEMA public, which createdb
+  # has already made. Called out by name so a real error is not lost beside it.
+  grep "^psql.*ERROR" "${SCHEMA_LOG}" | head -5 | sed 's/^/  /' >> "${REPORT}"
+fi
 
 echo "  · data (session_replication_role=replica for the circular FKs)"
 # users<->addresses and users<->payment_methods are circular, so loading with
 # triggers and FK checks active fails partway through.
-DATA_ERRS=$(psql -d "${SCRATCH_DB}" \
+psql -d "${SCRATCH_DB}" \
   -c "set session_replication_role = replica" \
-  -f "${BACKUP_DIR}/data.sql" 2>&1 | grep -c "^psql.*ERROR" || true)
-echo "data_errors: ${DATA_ERRS}" >> "${REPORT}"
+  -f "${BACKUP_DIR}/data.sql" > "${DATA_LOG}" 2>&1 || true
+DATA_ERRS=$(grep -c "^psql.*ERROR" "${DATA_LOG}" || true)
+echo "data_errors: ${DATA_ERRS}  (full log: ${DATA_LOG})" >> "${REPORT}"
+if [ "${DATA_ERRS}" -gt 0 ]; then
+  grep "^psql.*ERROR" "${DATA_LOG}" | head -5 | sed 's/^/  /' >> "${REPORT}"
+fi
 
 # ---------------------------------------------------------------------------
 # 6. Verify.

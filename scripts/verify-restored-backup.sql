@@ -70,11 +70,16 @@ begin
   -- 4. Core money/lifecycle tables. Losing any of these silently would be the
   --    worst possible restore outcome: the copy looks usable and is not.
   -- ---------------------------------------------------------------------
+  -- Every name here was checked against production on 2026-07-27. The first
+  -- drill failed on 'customer_credits', which has NEVER existed -- the customer
+  -- wallet is credit_ledger (+ the customer_credit_balance view). A guessed
+  -- name in a verifier is worse than no check: it fails every drill forever and
+  -- teaches the operator to distrust good backups.
   foreach v_txt in array array[
     'orders','order_items','order_financials','order_status_events',
     'users','merchant_staff','menu_items','menu_sections',
     'restaurant_settlements','driver_earnings','driver_cash_ledger',
-    'customer_credits','kyc_documents','platform_settings'
+    'credit_ledger','kyc_documents','platform_settings'
   ] loop
     if to_regclass('public.' || v_txt) is null then
       v_fail := v_fail || ('missing core table: public.' || v_txt);
@@ -83,15 +88,25 @@ begin
 
   -- ---------------------------------------------------------------------
   -- 5. RLS. The schema is deny-by-default; a restore that dropped RLS would
-  --    produce a database that reads fine and leaks everything. Threshold
-  --    rather than exact count so adding a table does not fail the drill --
-  --    the 2026-07-27 dump had 71 RLS-enabled tables.
+  --    produce a database that reads fine and leaks everything.
+  --
+  --    THE THRESHOLD WAS WRONG UNTIL 2026-07-27. It expected ~71, derived by
+  --    counting `ENABLE ROW LEVEL SECURITY` lines in the dump (72). But
+  --    pg_dump emits that statement for relkinds this query does not count,
+  --    so a dump-statement count was being compared against a live catalog
+  --    count of base tables only -- guaranteed to look like catastrophic data
+  --    loss on a perfect restore. The first drill duly "failed" at 48.
+  --
+  --    Measured against production the same day: 50 base tables, 48 with RLS.
+  --    So 48 was the CORRECT answer. The floor is now 45 -- low enough to
+  --    absorb normal growth, high enough that a restore which genuinely
+  --    dropped RLS still trips it.
   -- ---------------------------------------------------------------------
   select count(*) into v_n
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity;
-  if v_n < 60 then
-    v_fail := v_fail || ('only ' || v_n || ' public tables have RLS enabled (expected ~71) -- policies did not restore');
+  if v_n < 45 then
+    v_fail := v_fail || ('only ' || v_n || ' public tables have RLS enabled (expected >=45; prod had 48 on 2026-07-27) -- RLS did not restore');
   end if;
 
   -- Named tables where RLS is non-negotiable.
@@ -181,18 +196,24 @@ end $$;
 
 -- Table count against the drill's expectation, when supplied. Separate from the
 -- block above so psql substitutes the variable rather than plpgsql.
+-- spatial_ref_sys is excluded on BOTH sides: PostGIS creates it as part of the
+-- extension, so it is never a `CREATE TABLE public.` line in the dump but is
+-- always present after the restore. Counting it here made a perfect restore
+-- report one extra table forever.
 select
   case
     when :'manifest_tables' = 'skip' then 'table-count check skipped'
     when count(*)::text = :'manifest_tables'
-      then 'table count matches manifest: ' || count(*)
+      then 'table count matches dump: ' || count(*)
     else
       -- Not fatal on its own: a dump taken before a migration legitimately has
       -- fewer tables. Reported loudly so the operator decides.
-      'WARNING: ' || count(*) || ' tables restored, drill expected ' || :'manifest_tables'
+      'WARNING: ' || count(*) || ' tables restored, dump defines ' || :'manifest_tables'
   end as table_count_check
 from information_schema.tables
-where table_schema = 'public' and table_type = 'BASE TABLE';
+where table_schema = 'public'
+  and table_type = 'BASE TABLE'
+  and table_name <> 'spatial_ref_sys';
 
 -- Row counts for the tables an operator will actually want to eyeball.
 select 'orders' as t, count(*) from public.orders

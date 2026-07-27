@@ -16,9 +16,15 @@ This drill turns that assumption into evidence, repeatably.
 
 | | |
 |---|---|
-| PostgreSQL client + server | `psql`, `createdb`, `dropdb` on `PATH` |
-| **PostGIS** | `brew install postgis` — **required**, see below |
+| PostgreSQL client + server | `psql`, `createdb`, `dropdb` on `PATH` (drilled on Homebrew PostgreSQL 18.4) |
+| **PostGIS** | `brew install postgis` — **required**, see below (drilled on 3.6.4) |
 | A complete backup | any non-`-FAILED` directory in `~/sharmeats-backups` |
+
+Verify PostGIS is visible to the *server*, not just installed:
+
+```bash
+psql -d postgres -tAc "select default_version from pg_available_extensions where name='postgis';"
+```
 
 ### PostGIS is not optional
 
@@ -153,7 +159,42 @@ Record each drill below. A drill that was not recorded did not happen.
 
 | Date | Backup used | Operator | Result | Report |
 |---|---|---|---|---|
-| _(none yet)_ | | | | |
+| 2026-07-27 | `20260727T030334Z` | etch@ETCHs-MacBook-Pro-2 | **PASSED** | `~/sharmeats-drills/drill-20260727T194820Z.txt` |
+
+### What the first drill found
+
+It failed on the first run, and that is the point: **all three failures were
+bugs in the checking, not in the backup.** The dump restored byte-perfectly the
+whole time. Fixed in the same commit:
+
+1. **`customer_credits` does not exist and never has.** The verifier's core-table
+   list was written from a guessed name; the customer wallet is `credit_ledger`
+   (plus the `customer_credit_balance` view). A wrong name in a verifier is worse
+   than no check — it fails every drill forever and teaches the operator to
+   distrust good backups. Every name on that list has now been checked against
+   production.
+2. **The RLS floor compared incompatible quantities.** It expected `~71` from
+   counting `ENABLE ROW LEVEL SECURITY` lines in the dump (72), against a query
+   counting `relkind='r'` only. Production actually has 50 base tables, 48 with
+   RLS — so the observed 48 was the *correct* answer. Floor is now 45.
+3. **The table count summed every schema.** `grep -c "^CREATE TABLE"` returned 80
+   (49 public + 23 auth + 8 storage) and was compared against a public-only
+   count, so a perfect restore reported "50 restored, expected 80" and looked
+   like 30 tables had vanished. Now counts `public` only, and both sides exclude
+   `spatial_ref_sys` (PostGIS creates it; the dump never does).
+
+A fourth fix was diagnostic rather than correctness: the script recorded
+`schema_errors: 1` and **discarded the error text**, so diagnosing it meant
+re-running the load by hand. Full `psql` logs are now written beside the report
+and the first few errors are inlined into it.
+
+The one remaining schema error is expected and benign: `schema "public" already
+exists`, because `pg_dump` emits `CREATE SCHEMA public` and `createdb` has
+already made it.
+
+Verified restored: 43 restaurants, 1,038 menu items, 109 users, 23 orders,
+9 order_financials rows. All 14 safety refusals re-tested after the edits; none
+created a database.
 
 ---
 
@@ -183,5 +224,7 @@ has to be collected again from a human.
   and record where, who holds the key, the retention period and who can reach it
   in a recovery.
 - **Roles are not captured** on the native dump path (above).
-- **No drill has passed yet.** Until the table below has a row, treat the
-  backups as complete-but-untested.
+- ~~**No drill has passed yet.**~~ **Closed 2026-07-27** — see the drill log
+  above. The backups are now tested, not merely complete.
+- **The passing drill used a laptop-local backup.** Recovery is proven; recovery
+  *from an independent copy* is not, and that is the gap above.

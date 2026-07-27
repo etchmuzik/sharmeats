@@ -298,6 +298,15 @@ Two things the script cannot do for you:
 restore into a scratch database (`roles.sql` → `schema.sql` → `data.sql`) at
 least once, and confirm row counts against the manifest.
 
+> **First drill PASSED 2026-07-27** — backup `20260727T030334Z` restored into a
+> local scratch database and verified: 43 restaurants, 1,038 menu items, 109
+> users, 23 orders. Report: `~/sharmeats-drills/drill-20260727T194820Z.txt`.
+> Procedure, cadence and what the first drill exposed (three bugs in the
+> *verifier*, none in the backup) are in [`RESTORE-DRILL.md`](RESTORE-DRILL.md).
+>
+> Still open: the drill used a laptop-local backup, so recovery from an
+> independent off-machine copy remains unproven.
+
 Upgrading to Pro is what actually fixes this: it turns on daily backups and
 makes PITR available, and it is the prerequisite for the "enable a recoverable
 backup/PITR plan" gate below.
