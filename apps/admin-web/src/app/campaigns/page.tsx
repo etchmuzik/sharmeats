@@ -68,6 +68,37 @@ const DELIVERY_LABEL: Record<DeliveryStatus, { text: string; tone: string; hint:
   not_attempted: { text: 'Not sent', tone: '#5f6368', hint: 'No recipients, or the functions base URL is unset.' },
 };
 
+/** What send_push_campaign returns (mig 148) — counts only, never identities. */
+interface CampaignResult {
+  campaign_id: string | null;
+  segment_size: number;
+  recipients: number;
+  suppressed_no_consent: number;
+  suppressed_quiet_hours: number;
+  suppressed_no_token: number;
+  dry_run: boolean;
+}
+
+/**
+ * Turn the breakdown into an operator instruction.
+ *
+ * The distinction is the whole point of mig 148: no_consent is PERMANENT
+ * (retrying changes nothing) while quiet_hours is TEMPORARY (the same people
+ * are reachable in a few hours). One combined "suppressed" number sent
+ * operators to fix consent problems that did not exist.
+ */
+function describeSuppression(r: CampaignResult | null | undefined): string {
+  if (!r) return '';
+  if (r.segment_size === 0) return 'No customers match this segment.';
+  const parts: string[] = [];
+  if (r.suppressed_no_consent > 0)
+    parts.push(`${r.suppressed_no_consent} have not opted in to marketing`);
+  if (r.suppressed_quiet_hours > 0)
+    parts.push(`${r.suppressed_quiet_hours} are in quiet hours (reachable later)`);
+  if (r.suppressed_no_token > 0) parts.push(`${r.suppressed_no_token} have no push token`);
+  return parts.length ? `${parts.join(', ')}.` : '';
+}
+
 const SEGMENTS = [
   { key: 'all', label: 'All customers', needsParam: false },
   { key: 'lapsed', label: 'Lapsed (no order in N days)', needsParam: true, paramLabel: 'Days', paramPlaceholder: '30' },
@@ -84,6 +115,10 @@ export default function CampaignsPage() {
   const [segment, setSegment] = useState<string>('all');
   const [param, setParam] = useState('');
   const [sending, setSending] = useState(false);
+  const [audience, setAudience] = useState<CampaignResult | null>(null);
+  // One key per composed campaign. Regenerated after a successful send, so the
+  // NEXT campaign is not treated as a replay of this one.
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
   const [history, setHistory] = useState<Campaign[]>([]);
 
   const loadHistory = useCallback(async () => {
@@ -120,12 +155,39 @@ export default function CampaignsPage() {
     };
   }, [router, loadHistory]);
 
+  /**
+   * Audience preview (mig 148 dry run). Answers "who would actually receive
+   * this?" WITHOUT sending or recording anything, so an operator no longer has
+   * to push to a segment to learn its reach.
+   */
+  const preview = async () => {
+    setSending(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.rpc('send_push_campaign', {
+        p_title: title.trim() || 'preview',
+        p_body: body.trim() || 'preview',
+        p_segment: segment,
+        p_segment_param: param.trim() || null,
+        p_dry_run: true,
+        p_idempotency_key: null,
+      });
+      if (error) throw error;
+      const r = (Array.isArray(data) ? data[0] : data) as CampaignResult | undefined;
+      setAudience(r ?? null);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Preview failed', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
   const send = async () => {
     if (!title.trim() || !body.trim()) {
       toast('Add a title and message first.', 'error');
       return;
     }
-    if (!window.confirm(`Send this push to the “${segment}” segment now?`)) return;
+    if (!window.confirm(`Send this push to the \u201c${segment}\u201d segment now?`)) return;
     setSending(true);
     try {
       const supabase = createSupabaseBrowserClient();
@@ -134,22 +196,32 @@ export default function CampaignsPage() {
         p_body: body.trim(),
         p_segment: segment,
         p_segment_param: param.trim() || null,
+        p_dry_run: false,
+        // Stable for THIS composed campaign, so a double-click or a retried
+        // request returns the first campaign instead of pushing twice. Push has
+        // no downstream dedupe the way an order does.
+        p_idempotency_key: idempotencyKey,
       });
       if (error) throw error;
-      // The RPC returns the RESOLVED segment size, not a delivery count — the
-      // push is dispatched asynchronously and settled by a cron a few minutes
-      // later. Saying "sent" here is what hid a total delivery outage before
-      // (mig 137), so point the operator at the status instead.
-      const n = data ?? 0;
+
+      const r = (Array.isArray(data) ? data[0] : data) as CampaignResult | undefined;
+      const n = r?.recipients ?? 0;
+      // Deliberately NOT "sent": the push is dispatched asynchronously and
+      // settled by a cron minutes later. Claiming delivery here is what hid a
+      // total outage before (mig 137).
       toast(
         n === 0
-          ? 'No customers in that segment have a push token — nothing was sent.'
-          : `Queued for ${n} customer(s). Delivery status appears below within ~5 min.`,
+          ? `Nothing was sent. ${describeSuppression(r)}`
+          : `Queued for ${n} of ${r?.segment_size ?? n} in the segment. Status appears below within ~5 min.`,
         n === 0 ? 'error' : 'success',
       );
       setTitle('');
       setBody('');
       setParam('');
+      setAudience(null);
+      // A new key for the next campaign, or the next send would be treated as
+      // a replay of this one and silently do nothing.
+      setIdempotencyKey(crypto.randomUUID());
       await loadHistory();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Send failed', 'error');
@@ -266,6 +338,14 @@ export default function CampaignsPage() {
               </div>
             )}
             <button
+              onClick={preview}
+              disabled={sending}
+              className="rounded-lg border border-line px-4 py-2.5 text-sm font-bold text-ink2 disabled:opacity-50"
+              title="See who would receive this. Sends nothing."
+            >
+              Preview audience
+            </button>
+            <button
               onClick={send}
               disabled={sending}
               className="rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
@@ -273,6 +353,26 @@ export default function CampaignsPage() {
               {sending ? 'Sending…' : 'Send push'}
             </button>
           </div>
+
+          {/* Audience preview (mig 148 dry run). Counts only -- who was
+              suppressed is operationally necessary, WHICH customers were is
+              not, and would turn this screen into a consent browser. */}
+          {audience ? (
+            <div className="rounded-xl border border-line bg-white p-4 text-sm">
+              <div className="font-bold text-ink">
+                {audience.recipients} of {audience.segment_size} would receive this
+              </div>
+              {describeSuppression(audience) ? (
+                <div className="mt-1 text-ink2">{describeSuppression(audience)}</div>
+              ) : null}
+              {audience.suppressed_quiet_hours > 0 && audience.suppressed_no_consent === 0 ? (
+                <div className="mt-1 text-ink3">
+                  Quiet hours are temporary — the same customers are reachable later today.
+                </div>
+              ) : null}
+              <div className="mt-1 text-xs text-ink3">Nothing was sent.</div>
+            </div>
+          ) : null}
           <p className="text-xs text-ink3">
             Only reaches customers who <strong>opted in to promotions</strong> and are outside their
             quiet hours — enforced server-side, so the count below may be far smaller than the

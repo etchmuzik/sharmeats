@@ -2099,13 +2099,18 @@ export type Database = {
           delivery_detail: string | null
           delivery_status: string
           id: string
+          idempotency_key: string | null
           net_request_id: number | null
           recipients: number
           segment: string
           segment_param: string | null
+          segment_size: number | null
           sent_by: string | null
           settled_at: string | null
           suppressed_count: number
+          suppressed_no_consent: number | null
+          suppressed_no_token: number | null
+          suppressed_quiet_hours: number | null
           title: string
         }
         Insert: {
@@ -2114,13 +2119,18 @@ export type Database = {
           delivery_detail?: string | null
           delivery_status?: string
           id?: string
+          idempotency_key?: string | null
           net_request_id?: number | null
           recipients?: number
           segment: string
           segment_param?: string | null
+          segment_size?: number | null
           sent_by?: string | null
           settled_at?: string | null
           suppressed_count?: number
+          suppressed_no_consent?: number | null
+          suppressed_no_token?: number | null
+          suppressed_quiet_hours?: number | null
           title: string
         }
         Update: {
@@ -2129,13 +2139,18 @@ export type Database = {
           delivery_detail?: string | null
           delivery_status?: string
           id?: string
+          idempotency_key?: string | null
           net_request_id?: number | null
           recipients?: number
           segment?: string
           segment_param?: string | null
+          segment_size?: number | null
           sent_by?: string | null
           settled_at?: string | null
           suppressed_count?: number
+          suppressed_no_consent?: number | null
+          suppressed_no_token?: number | null
+          suppressed_quiet_hours?: number | null
           title?: string
         }
         Relationships: [
@@ -3443,6 +3458,10 @@ export type Database = {
         Returns: undefined
       }
       marketing_allowed: { Args: { p_user_id: string }; Returns: boolean }
+      marketing_suppression_reason: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       menu_items_staff_writable_columns: { Args: never; Returns: string[] }
       my_cash_balance: { Args: never; Returns: number }
       my_credit_balance: { Args: never; Returns: number }
@@ -3713,13 +3732,18 @@ export type Database = {
           delivery_detail: string | null
           delivery_status: string
           id: string
+          idempotency_key: string | null
           net_request_id: number | null
           recipients: number
           segment: string
           segment_param: string | null
+          segment_size: number | null
           sent_by: string | null
           settled_at: string | null
           suppressed_count: number
+          suppressed_no_consent: number | null
+          suppressed_no_token: number | null
+          suppressed_quiet_hours: number | null
           title: string
         }[]
         SetofOptions: {
@@ -3825,11 +3849,21 @@ export type Database = {
       send_push_campaign: {
         Args: {
           p_body: string
+          p_dry_run?: boolean
+          p_idempotency_key?: string
           p_segment: string
           p_segment_param?: string
           p_title: string
         }
-        Returns: number
+        Returns: {
+          campaign_id: string
+          dry_run: boolean
+          recipients: number
+          segment_size: number
+          suppressed_no_consent: number
+          suppressed_no_token: number
+          suppressed_quiet_hours: number
+        }[]
       }
       send_support_message: {
         Args: { p_body: string }
