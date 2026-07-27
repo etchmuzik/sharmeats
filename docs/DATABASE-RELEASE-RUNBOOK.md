@@ -30,6 +30,35 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**APPLIED — migration 138 went to production on 2026-07-27.** Notification
+consent. The customer settings screen showed two toggles that were static
+`<View>`s — no handler, no persistence, and no table to persist into — while
+`send_push_campaign` pushed to every customer with a token. The UI rendered
+"Promotions" in the OFF style, so it read as a working opt-out that did
+nothing. `notification_prefs` (owner-RLS, written only through
+`set_notification_prefs()`) now holds transactional/marketing switches, quiet
+hours, and consent provenance. **Marketing is opt-IN**: the 40 pre-existing
+token holders never consented, and defaulting them ON would manufacture
+consent. Enforcement is server-side — every segment in `send_push_campaign`
+is filtered through `marketing_allowed()`, and `push_campaigns.suppressed_count`
+records how many the gate removed so a shrinking audience reads as consent
+working rather than a broken segment. Quiet hours suppress marketing only; a
+transactional push is never delayed.
+
+Verified end-to-end against production (rolled back): with one customer opted
+in and one explicitly opted out, a real `send_push_campaign('all')` targeted
+**1 recipient and suppressed 38** — reconciling exactly against the 39
+customer token-holders (the 40th token belongs to a non-customer role).
+
+⚠️ **Process lesson — assertions that write are not free.** The apply run's
+assert block called the real `set_notification_prefs(p_marketing := true)`,
+and because the apply commits (unlike the dry run), it left a genuine consent
+row in production for a real user who never opted in. It was caught by an
+end-to-end count that did not match, then deleted (`prefs_rows_left = 0`
+confirmed). **Assertions that mutate consent, money, or any audited state must
+run in the dry-run transaction ONLY, never in the committed apply** — assert
+structure and ACLs at apply time, behaviour at dry-run time.
+
 **APPLIED — migration 137 + expo-push v14 went to production on 2026-07-27.**
 Marketing campaigns had never delivered a single push: `send_push_campaign`
 sent `orderId: ''` and the edge function rejected every such request with 400,

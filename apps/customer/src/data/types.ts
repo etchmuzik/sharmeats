@@ -387,3 +387,27 @@ export interface RewardsHistoryEntry {
   refOrderId: string | null;
   createdAt: number;
 }
+
+/**
+ * Notification consent (mig 138). `marketing` is opt-IN — it is false until the
+ * customer turns it on, and the server enforces that in send_push_campaign, not
+ * the client. Quiet hours are local-clock hours (0-23) in `timezone` and
+ * suppress marketing only; order updates are never delayed.
+ */
+export interface NotificationPrefs {
+  transactional: boolean;
+  marketing: boolean;
+  quietHoursStart: number | null;
+  quietHoursEnd: number | null;
+  timezone: string;
+}
+
+/** Omitted fields are left unchanged, so one toggle never clobbers another. */
+export interface NotificationPrefsPatch {
+  transactional?: boolean;
+  marketing?: boolean;
+  quietHoursStart?: number;
+  quietHoursEnd?: number;
+  timezone?: string;
+  clearQuietHours?: boolean;
+}

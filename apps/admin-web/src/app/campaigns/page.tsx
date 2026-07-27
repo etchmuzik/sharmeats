@@ -28,6 +28,10 @@ interface Campaign {
   // every campaign silently failing to deliver went unnoticed. Read the status.
   delivery_status?: DeliveryStatus | null;
   delivery_detail?: string | null;
+  // Added by mig 138: matched the segment but had not opted in to marketing
+  // (or were inside quiet hours). Surfaced so a smaller audience reads as
+  // consent working, not as a broken segment.
+  suppressed_count?: number | null;
 }
 
 const DELIVERY_LABEL: Record<DeliveryStatus, { text: string; tone: string }> = {
@@ -243,7 +247,10 @@ export default function CampaignsPage() {
             </button>
           </div>
           <p className="text-xs text-ink3">
-            Only reaches customers who allowed notifications. Sends immediately — there’s no undo.
+            Only reaches customers who <strong>opted in to promotions</strong> and are outside their
+            quiet hours — enforced server-side, so the count below may be far smaller than the
+            segment. Promotions are opt-in, so that number starts near zero and grows as customers
+            turn them on. Sends immediately — there’s no undo.
           </p>
         </section>
 
@@ -269,6 +276,11 @@ export default function CampaignsPage() {
                           is written pre-send and cannot reflect a failure.
                           delivery_status carries the real outcome (mig 137). */}
                       <div className="font-semibold text-ink2">{c.recipients} recipients</div>
+                      {c.suppressed_count ? (
+                        <div title="Matched the segment but have not opted in to marketing, or were in quiet hours.">
+                          {c.suppressed_count} opted out
+                        </div>
+                      ) : null}
                       {c.delivery_status ? (
                         <div
                           className="font-semibold"

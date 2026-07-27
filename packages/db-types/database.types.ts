@@ -1189,6 +1189,50 @@ export type Database = {
           },
         ]
       }
+      notification_prefs: {
+        Row: {
+          marketing: boolean
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
+          quiet_hours_end: number | null
+          quiet_hours_start: number | null
+          timezone: string
+          transactional: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          marketing?: boolean
+          marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          timezone?: string
+          transactional?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          marketing?: boolean
+          marketing_consent_at?: string | null
+          marketing_consent_source?: string | null
+          quiet_hours_end?: number | null
+          quiet_hours_start?: number | null
+          timezone?: string
+          transactional?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_prefs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_assignments: {
         Row: {
           assigned_at: string
@@ -1977,6 +2021,7 @@ export type Database = {
           segment_param: string | null
           sent_by: string | null
           settled_at: string | null
+          suppressed_count: number
           title: string
         }
         Insert: {
@@ -1991,6 +2036,7 @@ export type Database = {
           segment_param?: string | null
           sent_by?: string | null
           settled_at?: string | null
+          suppressed_count?: number
           title: string
         }
         Update: {
@@ -2005,6 +2051,7 @@ export type Database = {
           segment_param?: string | null
           sent_by?: string | null
           settled_at?: string | null
+          suppressed_count?: number
           title?: string
         }
         Relationships: [
@@ -3232,6 +3279,26 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_notification_prefs: {
+        Args: never
+        Returns: {
+          marketing: boolean
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
+          quiet_hours_end: number | null
+          quiet_hours_start: number | null
+          timezone: string
+          transactional: boolean
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notification_prefs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_restaurant_reviews: {
         Args: { p_limit?: number; p_restaurant_id: string }
         Returns: {
@@ -3244,6 +3311,10 @@ export type Database = {
       }
       gettransactionid: { Args: never; Returns: unknown }
       has_completed_order: { Args: { p_user: string }; Returns: boolean }
+      in_quiet_hours: {
+        Args: { p_end: number; p_start: number; p_tz: string }
+        Returns: boolean
+      }
       is_merchant_manager: {
         Args: { p_restaurant_id: string }
         Returns: boolean
@@ -3286,6 +3357,7 @@ export type Database = {
         Args: { p_user_id?: string }
         Returns: undefined
       }
+      marketing_allowed: { Args: { p_user_id: string }; Returns: boolean }
       menu_items_staff_writable_columns: { Args: never; Returns: string[] }
       my_cash_balance: { Args: never; Returns: number }
       my_credit_balance: { Args: never; Returns: number }
@@ -3535,6 +3607,7 @@ export type Database = {
           segment_param: string | null
           sent_by: string | null
           settled_at: string | null
+          suppressed_count: number
           title: string
         }[]
         SetofOptions: {
@@ -3651,6 +3724,34 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "support_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_notification_prefs: {
+        Args: {
+          p_clear_quiet_hours?: boolean
+          p_marketing?: boolean
+          p_quiet_hours_end?: number
+          p_quiet_hours_start?: number
+          p_source?: string
+          p_timezone?: string
+          p_transactional?: boolean
+        }
+        Returns: {
+          marketing: boolean
+          marketing_consent_at: string | null
+          marketing_consent_source: string | null
+          quiet_hours_end: number | null
+          quiet_hours_start: number | null
+          timezone: string
+          transactional: boolean
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notification_prefs"
           isOneToOne: true
           isSetofReturn: false
         }

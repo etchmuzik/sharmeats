@@ -1,5 +1,11 @@
 import { DEFAULT_ADDRESSES, DEFAULT_PAYMENT_METHODS, DEFAULT_USER } from '../mock/user';
-import type { Address, PaymentMethod, User } from '../types';
+import type {
+  Address,
+  NotificationPrefs,
+  NotificationPrefsPatch,
+  PaymentMethod,
+  User,
+} from '../types';
 import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
 
 const delay = <T>(value: T, ms = 40): Promise<T> =>
@@ -10,6 +16,14 @@ let currentUser: User = { ...DEFAULT_USER };
 let addresses: Address[] = [...DEFAULT_ADDRESSES];
 let paymentMethods: PaymentMethod[] = [...DEFAULT_PAYMENT_METHODS];
 const favoriteIds = new Set<string>();
+// Defaults mirror mig 138's server-side defaults exactly: marketing is opt-IN.
+let notificationPrefs: NotificationPrefs = {
+  transactional: true,
+  marketing: false,
+  quietHoursStart: null,
+  quietHoursEnd: null,
+  timezone: 'Africa/Cairo',
+};
 
 export const userRepo = {
   async getMe(): Promise<User> {
@@ -95,5 +109,30 @@ export const userRepo = {
     paymentMethods = [...DEFAULT_PAYMENT_METHODS];
     favoriteIds.clear();
     return delay(undefined);
+  },
+
+  /**
+   * Mock notification prefs (mig 138 contract). Defaults mirror the server's
+   * exactly — transactional on, marketing OFF — so mock mode cannot imply that
+   * marketing is opt-out when live mode is opt-in.
+   */
+  async getNotificationPrefs(): Promise<NotificationPrefs> {
+    return delay({ ...notificationPrefs });
+  },
+
+  async setNotificationPrefs(patch: NotificationPrefsPatch): Promise<NotificationPrefs> {
+    notificationPrefs = {
+      ...notificationPrefs,
+      ...(patch.transactional !== undefined ? { transactional: patch.transactional } : {}),
+      ...(patch.marketing !== undefined ? { marketing: patch.marketing } : {}),
+      ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
+      ...(patch.clearQuietHours
+        ? { quietHoursStart: null, quietHoursEnd: null }
+        : {
+            ...(patch.quietHoursStart !== undefined ? { quietHoursStart: patch.quietHoursStart } : {}),
+            ...(patch.quietHoursEnd !== undefined ? { quietHoursEnd: patch.quietHoursEnd } : {}),
+          }),
+    };
+    return delay({ ...notificationPrefs });
   },
 };

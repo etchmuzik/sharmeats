@@ -1,6 +1,12 @@
 import { getSupabase } from './client';
 import { rowToAddress, rowToPaymentMethod, rowToUser } from './mappers';
-import type { Address, PaymentMethod, User } from '../types';
+import type {
+  Address,
+  NotificationPrefs,
+  NotificationPrefsPatch,
+  PaymentMethod,
+  User,
+} from '../types';
 import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
 
 /** Why an account-deletion attempt could not complete. */
@@ -235,4 +241,62 @@ export const userRepoSupabase = {
       throw new AccountDeletionError(reason === 'active_order' ? 'active_order' : 'failed');
     }
   },
+
+  /**
+   * Notification preferences (mig 138).
+   *
+   * Reads go through get_notification_prefs() rather than selecting the table,
+   * so the DEFAULTS live in one place: a user with no row yet gets
+   * transactional=on, marketing=off from the server, and the client never
+   * encodes defaults that could drift from the table's.
+   */
+  async getNotificationPrefs(): Promise<NotificationPrefs> {
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc('get_notification_prefs');
+    if (error) throw error;
+    const row = (Array.isArray(data) ? data[0] : data) as NotificationPrefsRow | null;
+    return {
+      transactional: row?.transactional ?? true,
+      marketing: row?.marketing ?? false,
+      quietHoursStart: row?.quiet_hours_start ?? null,
+      quietHoursEnd: row?.quiet_hours_end ?? null,
+      timezone: row?.timezone ?? 'Africa/Cairo',
+    };
+  },
+
+  /**
+   * Writes go through set_notification_prefs(), which only ever touches the
+   * CALLER's row and stamps the marketing consent timestamp server-side.
+   * Undefined fields are sent as null = "leave unchanged", so toggling one
+   * switch never clobbers the other.
+   */
+  async setNotificationPrefs(patch: NotificationPrefsPatch): Promise<NotificationPrefs> {
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc('set_notification_prefs', {
+      p_transactional: patch.transactional ?? null,
+      p_marketing: patch.marketing ?? null,
+      p_quiet_hours_start: patch.quietHoursStart ?? null,
+      p_quiet_hours_end: patch.quietHoursEnd ?? null,
+      p_timezone: patch.timezone ?? null,
+      p_clear_quiet_hours: patch.clearQuietHours ?? false,
+      p_source: 'settings',
+    });
+    if (error) throw error;
+    const row = (Array.isArray(data) ? data[0] : data) as NotificationPrefsRow | null;
+    return {
+      transactional: row?.transactional ?? true,
+      marketing: row?.marketing ?? false,
+      quietHoursStart: row?.quiet_hours_start ?? null,
+      quietHoursEnd: row?.quiet_hours_end ?? null,
+      timezone: row?.timezone ?? 'Africa/Cairo',
+    };
+  },
 };
+
+interface NotificationPrefsRow {
+  transactional: boolean;
+  marketing: boolean;
+  quiet_hours_start: number | null;
+  quiet_hours_end: number | null;
+  timezone: string;
+}
