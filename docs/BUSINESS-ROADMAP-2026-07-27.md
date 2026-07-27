@@ -9,10 +9,12 @@ This replaces older “code 100% complete” launch claims as a planning source.
 Those documents remain useful history, but several are stale. The current
 baseline is the verified July 27 production state:
 
-- migration 136 staff-role enforcement and migration 137 push routing are live;
+- migrations 136–138 are live: staff-role enforcement, push routing and
+  opt-in marketing preferences/quiet hours;
 - PostHog is wired but needs the next customer build before events arrive;
-- campaigns now reach the push function, but device receipt polling/retry and
-  customer marketing preferences are not built;
+- campaigns now enforce marketing opt-in, but receipt polling/retry is absent,
+  transport acceptance is still mislabeled as delivery, and the visible
+  transactional switch is not enforced by transactional senders;
 - cards are deliberately off; the live launch path is COD;
 - 23 lifetime orders are not enough to prove settlement, retention or scale;
 - a production backup exists, but off-machine retention and a rehearsed restore
@@ -114,7 +116,8 @@ Advance after at least **50 delivered real orders** with:
 
 ### Sprint 2A — exact Order Again
 
-1. Preserve canonical modifier option IDs in the order snapshot.
+1. Preserve canonical modifier option IDs in the order snapshot. **Built in
+   migration 055; retain as a regression invariant.**
 2. Rebuild the exact previous basket, quantities, modifiers and notes.
 3. Revalidate current price, stock, restaurant state and minimum basket.
 4. Explain changes before checkout instead of silently substituting.
@@ -127,9 +130,10 @@ are explained; no stale price can be ordered; the full funnel is visible.
 
 ### Sprint 2B — retention correctness quick wins
 
-- Merge guest and server restaurant favourites at sign-in instead of replacing
-  one with the other.
-- Make the fake notification switches real.
+- Keep the shipped guest/server restaurant-favourite merge and add a durable
+  offline-removal tombstone so a failed delete cannot resurrect a favorite.
+- Correct the remaining fake transactional switch; marketing opt-in is already
+  server-enforced.
 - Store marketing consent version/time/source, transactional vs marketing
   preference, quiet hours and locale.
 - Filter campaigns server-side; the UI setting alone is not enforcement.
@@ -304,9 +308,11 @@ Ordered by impact relative to effort:
 1. Ship customer build with PostHog and verify one full funnel.
 2. Rehearse COD lifecycle, settlement and restore.
 3. Remove unsupported multi-currency promise until implemented.
-4. Make notification consent/preferences real.
-5. Merge guest favourites correctly.
-6. Complete exact reorder including modifiers.
+4. Correct and finish notification preferences (marketing is real; the
+   transactional switch and quiet-hours volatility still need correction).
+5. Harden the shipped guest-favorite merge for failed offline removals.
+6. Complete exact reorder's authoritative revalidation/change explanation;
+   modifier identity is already preserved.
 7. Add post-delivery app-store review prompt.
 8. Add `/version.json` and production SHA monitoring.
 9. Deliberately test ops alerts.
