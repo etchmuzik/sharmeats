@@ -111,13 +111,16 @@ echo "→ backing up ${PROJECT_REF} to ${OUT}"
 # info consumed by the pooler, so it is NOT evidence of a region problem).
 # Override with POOLER_HOST if the project ever actually moves.
 POOLER_HOST="${POOLER_HOST:-aws-0-eu-west-1.pooler.supabase.com}"
-# Port 6543 (transaction pooler), NOT 5432. The session pooler on :5432 is not
-# served for this project, and an unserved tenant answers with
-#   FATAL: password authentication failed for user "postgres"
-# -- byte-identical to a genuinely wrong password. That misdiagnosis cost five
-# failed backup attempts and an unnecessary credential rotation on 2026-07-27.
-# If auth fails here, test BOTH ports before touching the password:
-#   psql "postgresql://postgres.<ref>@<host>:6543/postgres" -c 'select 1'
+# Port 6543 (transaction pooler) is the default; BOTH pooler ports accept a
+# valid password for this project (tested 2026-07-27 with a known-good
+# credential: 5432 and 6543 each authenticated). Every "password
+# authentication failed" that night was a genuinely wrong stored password --
+# proven independently by the DIRECT host db.<ref>.supabase.co:5432 rejecting
+# the same values with no pooler in the path. If auth fails here, test the
+# direct host first:
+#   psql "postgresql://postgres@db.<ref>.supabase.co:5432/postgres" -c 'select 1'
+# Only if the direct host ACCEPTS while the pooler rejects is the pooler (or
+# this host/port choice) the suspect.
 POOLER_PORT="${POOLER_PORT:-6543}"
 DB_URL="postgresql://postgres.${PROJECT_REF}:${SUPABASE_DB_PASSWORD}@${POOLER_HOST}:${POOLER_PORT}/postgres"
 
