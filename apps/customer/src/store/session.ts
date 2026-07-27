@@ -30,6 +30,14 @@ interface SessionState {
    * removals while rescuing genuinely-unsynced picks.
    */
   syncedFavoriteIds: string[];
+  /**
+   * Favourites the user removed while the DELETE could not reach the server.
+   * Without this, un-favouriting a SYNCED restaurant offline is silently undone
+   * by the next merge: it is still on the server and still in syncedFavoriteIds,
+   * so it looks exactly like a favourite that was never removed. Cleared once
+   * the server confirms it is gone.
+   */
+  pendingFavoriteRemovals: string[];
   /** Saved individual dishes (mig 139). Same local-first + merge model. */
   favoriteItemIds: string[];
   syncedFavoriteItemIds: string[];
@@ -52,7 +60,8 @@ interface SessionState {
   toggleFavorite: (restaurantId: string) => void;
   setFavorites: (ids: string[]) => void;
   markFavoriteSynced: (restaurantId: string) => void;
-  mergeFavoritesFromServer: (serverIds: string[]) => string[];
+  mergeFavoritesFromServer: (serverIds: string[]) => { needsUpload: string[]; needsRemoval: string[] };
+  clearPendingFavoriteRemoval: (restaurantId: string) => void;
   toggleFavoriteItem: (menuItemId: string, restaurantId: string) => void;
   markFavoriteItemSynced: (menuItemId: string) => void;
   mergeFavoriteItemsFromServer: (serverIds: string[]) => string[];
@@ -68,6 +77,7 @@ type PersistedSession = Pick<
   | 'allergyNudgeDismissed'
   | 'favoriteIds'
   | 'syncedFavoriteIds'
+  | 'pendingFavoriteRemovals'
   | 'favoriteItemIds'
   | 'syncedFavoriteItemIds'
   | 'favoriteItemRestaurantIds'
@@ -83,6 +93,7 @@ function snapshot(s: SessionState): PersistedSession {
     allergyNudgeDismissed: s.allergyNudgeDismissed,
     favoriteIds: s.favoriteIds,
     syncedFavoriteIds: s.syncedFavoriteIds,
+    pendingFavoriteRemovals: s.pendingFavoriteRemovals,
     favoriteItemIds: s.favoriteItemIds,
     syncedFavoriteItemIds: s.syncedFavoriteItemIds,
     favoriteItemRestaurantIds: s.favoriteItemRestaurantIds,
@@ -108,6 +119,7 @@ export const useSession = create<SessionState>((set, get) => ({
   allergyNudgeDismissed: false,
   favoriteIds: [],
   syncedFavoriteIds: [],
+  pendingFavoriteRemovals: [],
   favoriteItemIds: [],
   syncedFavoriteItemIds: [],
   favoriteItemRestaurantIds: {},
@@ -137,6 +149,12 @@ export const useSession = create<SessionState>((set, get) => ({
             : Array.isArray(parsed.favoriteIds)
               ? parsed.favoriteIds
               : [],
+          // Must survive a relaunch: an offline removal is most likely to be
+          // retried on the NEXT launch, which is precisely when the app has
+          // been restarted and in-memory state is gone.
+          pendingFavoriteRemovals: Array.isArray(parsed.pendingFavoriteRemovals)
+            ? parsed.pendingFavoriteRemovals
+            : [],
           favoriteItemIds: Array.isArray(parsed.favoriteItemIds) ? parsed.favoriteItemIds : [],
           // Item favourites are NEW in this build, so there is no older state to
           // be conservative about: anything present was saved by this build and
@@ -173,6 +191,7 @@ export const useSession = create<SessionState>((set, get) => ({
       phone: null,
       favoriteIds: [],
       syncedFavoriteIds: [],
+      pendingFavoriteRemovals: [],
       favoriteItemIds: [],
       syncedFavoriteItemIds: [],
       favoriteItemRestaurantIds: {},
@@ -201,11 +220,23 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   toggleFavorite: (restaurantId) => {
-    const current = get().favoriteIds;
-    const favoriteIds = current.includes(restaurantId)
+    const { favoriteIds: current, syncedFavoriteIds, pendingFavoriteRemovals } = get();
+    const removing = current.includes(restaurantId);
+    const favoriteIds = removing
       ? current.filter((id) => id !== restaurantId)
       : [restaurantId, ...current];
-    set({ favoriteIds });
+
+    // Record a tombstone only when removing something the server is KNOWN to
+    // hold. An unsynced pick has nothing to delete server-side, so a tombstone
+    // would be noise. Re-favouriting always clears any tombstone: that tap is
+    // the newer intent and must win.
+    const pending = removing
+      ? syncedFavoriteIds.includes(restaurantId)
+        ? Array.from(new Set([...pendingFavoriteRemovals, restaurantId]))
+        : pendingFavoriteRemovals
+      : pendingFavoriteRemovals.filter((id) => id !== restaurantId);
+
+    set({ favoriteIds, pendingFavoriteRemovals: pending });
     persist(snapshot(get()));
   },
 
@@ -242,15 +273,25 @@ export const useSession = create<SessionState>((set, get) => ({
    *                                  the bug this function exists to avoid)
    */
   mergeFavoritesFromServer: (serverIds) => {
-    const { favoriteIds, syncedFavoriteIds } = get();
-    const { merged, needsUpload, synced } = mergeFavorites(
+    const { favoriteIds, syncedFavoriteIds, pendingFavoriteRemovals } = get();
+    const { merged, needsUpload, needsRemoval, synced } = mergeFavorites(
       favoriteIds,
       serverIds,
       syncedFavoriteIds,
+      pendingFavoriteRemovals,
     );
-    set({ favoriteIds: merged, syncedFavoriteIds: synced });
+    // Keep only the tombstones still worth retrying. Anything the server has
+    // already dropped is done; anything re-favourited locally was superseded.
+    set({ favoriteIds: merged, syncedFavoriteIds: synced, pendingFavoriteRemovals: needsRemoval });
     persist(snapshot(get()));
-    return needsUpload;
+    return { needsUpload, needsRemoval };
+  },
+
+  clearPendingFavoriteRemoval: (restaurantId) => {
+    const pending = get().pendingFavoriteRemovals;
+    if (!pending.includes(restaurantId)) return;
+    set({ pendingFavoriteRemovals: pending.filter((id) => id !== restaurantId) });
+    persist(snapshot(get()));
   },
 
   toggleFavoriteItem: (menuItemId, restaurantId) => {

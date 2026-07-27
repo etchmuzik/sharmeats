@@ -89,7 +89,9 @@ export async function syncFavoritesFromServer(): Promise<void> {
   // dish table not existing on an older backend) must not abandon the other.
   try {
     const serverIds = await db.user.listFavorites();
-    const needsUpload = useSession.getState().mergeFavoritesFromServer(serverIds);
+    const { needsUpload, needsRemoval } = useSession
+      .getState()
+      .mergeFavoritesFromServer(serverIds);
     // Upload the rescued guest picks. Each is marked synced only on success, so
     // a failure here leaves it queued for the next launch rather than lost.
     await Promise.all(
@@ -97,6 +99,18 @@ export async function syncFavoritesFromServer(): Promise<void> {
         db.user
           .setFavorite(id, true)
           .then(() => useSession.getState().markFavoriteSynced(id))
+          .catch(() => {}),
+      ),
+    );
+    // Replay removals whose DELETE never landed. Without this the tombstone
+    // only hides the row locally and the server copy lives forever, so a
+    // reinstall would bring every "removed" favourite back.
+    await Promise.all(
+      needsRemoval.map((id) =>
+        db.user
+          .setFavorite(id, false)
+          .then(() => useSession.getState().clearPendingFavoriteRemoval(id))
+          // Still offline: keep the tombstone and retry next launch.
           .catch(() => {}),
       ),
     );

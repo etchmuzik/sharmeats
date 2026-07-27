@@ -40,6 +40,52 @@ describe('mergeFavorites — deliberate removals stay removed', () => {
   });
 });
 
+describe('mergeFavorites — offline removal of a SYNCED favourite', () => {
+  // The gap `synced` alone cannot close. Un-favourite a restaurant the server
+  // already has, while offline:
+  //   - it leaves favoriteIds (local list) immediately;
+  //   - the DELETE fails, so the server still has it;
+  //   - it is still in `synced`, because it genuinely WAS synced.
+  // The next launch merges [...needsUpload, ...server] and puts it straight
+  // back. The customer's deliberate removal is silently reversed, and doing it
+  // again while still offline reverses it again.
+
+  it('does not resurrect a favourite with a pending removal', () => {
+    const r = mergeFavorites(['kept'], ['kept', 'removed-offline'], ['kept', 'removed-offline'], [
+      'removed-offline',
+    ]);
+    expect(r.merged).toEqual(['kept']);
+    expect(r.merged).not.toContain('removed-offline');
+  });
+
+  it('still reports the removal as pending so it can be retried on reconnect', () => {
+    const r = mergeFavorites([], ['removed-offline'], ['removed-offline'], ['removed-offline']);
+    expect(r.needsRemoval).toEqual(['removed-offline']);
+  });
+
+  it('clears the tombstone once the server confirms the id is gone', () => {
+    // Server no longer has it: the removal landed. Keeping the tombstone
+    // forever would block ever re-favouriting the place.
+    const r = mergeFavorites([], ['other'], ['other'], ['already-deleted']);
+    expect(r.needsRemoval).toEqual([]);
+  });
+
+  it('lets a re-favourite win over a stale tombstone', () => {
+    // Removed offline, then changed their mind and tapped it again before the
+    // queue drained. The later intent is the real one.
+    const r = mergeFavorites(['changed-mind'], ['changed-mind'], ['changed-mind'], []);
+    expect(r.merged).toEqual(['changed-mind']);
+    expect(r.needsRemoval).toEqual([]);
+  });
+
+  it('is unchanged when there are no pending removals', () => {
+    const r = mergeFavorites(['guest-a'], ['acct-x'], [], []);
+    expect(r.merged).toEqual(['guest-a', 'acct-x']);
+    expect(r.needsUpload).toEqual(['guest-a']);
+    expect(r.needsRemoval).toEqual([]);
+  });
+});
+
 describe('mergeFavorites — bookkeeping', () => {
   it('reports the server list as the new synced set', () => {
     const r = mergeFavorites(['local'], ['s1', 's2'], []);
