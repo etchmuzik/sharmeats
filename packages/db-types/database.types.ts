@@ -1325,6 +1325,38 @@ export type Database = {
           },
         ]
       }
+      order_financials_failures: {
+        Row: {
+          failed_at: string
+          message: string | null
+          order_id: string
+          resolved_at: string | null
+          sqlstate: string | null
+        }
+        Insert: {
+          failed_at?: string
+          message?: string | null
+          order_id: string
+          resolved_at?: string | null
+          sqlstate?: string | null
+        }
+        Update: {
+          failed_at?: string
+          message?: string | null
+          order_id?: string
+          resolved_at?: string | null
+          sqlstate?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_financials_failures_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           catalog_item_id: string | null
@@ -1524,6 +1556,7 @@ export type Database = {
           anonymized_at: string | null
           assigned_driver_id: string | null
           cancel_reason: string | null
+          commission_pct_snapshot: number | null
           customer_phone: string | null
           deleted_user_ref: string | null
           delivered_at: string | null
@@ -1583,6 +1616,7 @@ export type Database = {
           anonymized_at?: string | null
           assigned_driver_id?: string | null
           cancel_reason?: string | null
+          commission_pct_snapshot?: number | null
           customer_phone?: string | null
           deleted_user_ref?: string | null
           delivered_at?: string | null
@@ -1642,6 +1676,7 @@ export type Database = {
           anonymized_at?: string | null
           assigned_driver_id?: string | null
           cancel_reason?: string | null
+          commission_pct_snapshot?: number | null
           customer_phone?: string | null
           deleted_user_ref?: string | null
           delivered_at?: string | null
@@ -2850,6 +2885,16 @@ export type Database = {
             Returns: string
           }
       admin_delete_restaurant: { Args: { p_id: string }; Returns: undefined }
+      admin_issue_credit: {
+        Args: {
+          p_amount_egp: number
+          p_note?: string
+          p_order_id?: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       admin_resolve_user_names: {
         Args: { p_ids: string[] }
         Returns: {

@@ -30,6 +30,23 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**APPLIED — migration 135 went to production on 2026-07-27** (numbering gap:
+134 intentionally skipped, like the 064 precedent). Validated with a
+BEGIN…ROLLBACK dry run on the live schema whose functional assert proved the
+placement stamp (a test order picked up the live 12.00 rate, then rolled
+back), then applied with COMMIT via psql over the pooler; the pre-apply
+`snapshot_order_financials` body was preserved in `__pre_mig126_129_snapshot`
+(now 13 rows). Fixes three billing defects in the delivered-transition
+trigger: commission is now frozen at placement
+(`orders.commission_pct_snapshot`; pre-135/in-flight orders fall back to the
+live rate — old behaviour, no restatement), a NULL rate now falls back to the
+standard 15% (was the founding 12%), and the blanket exception swallow is
+replaced by per-path handlers, the `order_financials_failures` repair queue,
+and `ops_alert`. Any unresolved row in `order_financials_failures` is
+unbilled revenue — check it in the weekly digest. Advisors post-apply: no new
+findings (`order_financials_failures` INFO rls_enabled_no_policy is by
+design — deny-all, definer-written).
+
 **APPLIED — migrations 130–133 went to production on 2026-07-27** (same
 md5-guarded protocol as 126–129 below; dry-run asserts exercised the real
 `admin_issue_credit`, the whitespace-reference guard, the price bounds and the
