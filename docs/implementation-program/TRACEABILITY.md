@@ -22,13 +22,13 @@ Status meanings:
 
 | Roadmap commitment | Status | Specification / acceptance |
 |---|---|---|
-| Off-machine backup and isolated restore | Partial + owner | [01 § 1](01-pilot-safety-release.md#1-rehearsable-database-restore) |
-| COD happy-path lifecycle through settlement/cash | Built/prove | [01 § 2](01-pilot-safety-release.md#2-pilot-lifecycle-test-pack), [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
+| Off-machine backup and isolated restore | **Restore PROVEN** 2026-07-27 (first drill passed); off-machine copy still owner | [01 § 1](01-pilot-safety-release.md#1-rehearsable-database-restore) |
+| COD happy-path lifecycle through settlement/cash | Assertion pack built + prod-validated both directions; 10 runs owner | [01 § 2](01-pilot-safety-release.md#2-pilot-lifecycle-test-pack), [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
 | Reject/cancel/credit/refund/no-show/dispatch unhappy paths | Built/partial; prove | [01 § 2](01-pilot-safety-release.md#2-pilot-lifecycle-test-pack), [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
-| Deliberately fire and acknowledge monitoring | Partial | [01 § 5](01-pilot-safety-release.md#5-deliberate-monitoring-exercise) |
-| Fresh customer build and complete PostHog funnel | Partial | [01 § 4](01-pilot-safety-release.md#4-posthog-funnel-proof), [05 § E](05-tourist-trust-growth.md#slice-e--conversion-and-retention-measurement) |
-| Web/mobile release SHA and drift | Planned | [01 § 3](01-pilot-safety-release.md#3-release-provenance) |
-| Physical-device matrix | Planned + owner | [01 § 6](01-pilot-safety-release.md#6-physical-device-matrix) |
+| Deliberately fire and acknowledge monitoring | Built (mig 144 prod-applied); firing + ack is owner | [01 § 5](01-pilot-safety-release.md#5-deliberate-monitoring-exercise) |
+| Fresh customer build and complete PostHog funnel | Events + dictionary built; ingestion unproven (needs a build + device) | [01 § 4](01-pilot-safety-release.md#4-posthog-funnel-proof), [05 § E](05-tourist-trust-growth.md#slice-e--conversion-and-retention-measurement) |
+| Web/mobile release SHA and drift | Built; **not deployed** — no surface serves /version.json yet. Mobile diagnostics shipped, SHA injection owner-gated | [01 § 3](01-pilot-safety-release.md#3-release-provenance) |
+| Physical-device matrix | Matrix built (32 rows, empty by design); execution is owner | [01 § 6](01-pilot-safety-release.md#6-physical-device-matrix) |
 | Honest multi-currency copy or sourced display rates | Partial | [05 § A–B](05-tourist-trust-growth.md#slice-a--truthful-trust-copy-now) |
 | Compromised-password protection and direct-DB review | Owner | [01 § 7](01-pilot-safety-release.md#7-owner-security-toggles) |
 | Gate: 10 clean lifecycles, restore, SHA, alert, analytics | Planned evidence gate | [01 acceptance](01-pilot-safety-release.md#acceptance-gate) |
