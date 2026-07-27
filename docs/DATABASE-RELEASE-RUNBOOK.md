@@ -30,6 +30,12 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**APPLIED — migrations 130–133 went to production on 2026-07-27** (same
+md5-guarded protocol as 126–129 below; dry-run asserts exercised the real
+`admin_issue_credit`, the whitespace-reference guard, the price bounds and the
+watchdog on the live schema before commit; pre-apply bodies of the two
+replaced functions added to `__pre_mig126_129_snapshot`, now 12 rows).
+
 **APPLIED — migrations 126–129 went to production on 2026-07-27** via the
 same standalone route as 122 (each additive, idempotent, no binary coupling),
 executed over the Supabase MCP with an md5-guarded protocol: each migration's
