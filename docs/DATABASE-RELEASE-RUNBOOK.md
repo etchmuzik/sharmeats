@@ -30,6 +30,45 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**APPLIED — migration 142 went to production on 2026-07-27.** Pins
+`search_path` on `in_quiet_hours` (flagged `function_search_path_mutable` by
+the advisor) and corrects it from IMMUTABLE to STABLE — it reads `now()`, so
+IMMUTABLE would have licensed the planner to cache a stale hour, i.e. a
+marketing push at 3am. It is called from `marketing_allowed()`, which is
+SECURITY DEFINER, so an unpinned search_path there is a real class of hazard
+even though no exploitable path existed (the body calls only built-ins).
+
+**APPLIED — migration 141 went to production on 2026-07-27. CRITICAL.**
+The public **anon key could TRUNCATE most of the database.** TRUNCATE ignores
+row-level security, so the control this entire schema depends on gave no
+protection, and the anon key ships inside every app binary. Verified against
+production as the `anon` role in a rolled-back transaction — all of these
+succeeded: `platform_settings` (60→0: COD caps, fee rules, ops webhook),
+`order_status_events` (90→0), `push_tokens` (40→0), `loyalty_points_ledger`
+(30→0), `order_financials` (9→0 — every commission record), `driver_earnings`
+(9→0), `credit_ledger` (8→0 — customer wallets), `kyc_documents`.
+
+`orders`, `users` and `addresses` resisted only because Postgres refuses to
+truncate a table referenced by a foreign key — incidental, not a control
+(`TRUNCATE … CASCADE` is the documented way around it, and leaf tables have no
+such luck). Root cause is the same `ALTER DEFAULT PRIVILEGES` behind house
+rule 5b. Fixed by revoking TRUNCATE/TRIGGER/REFERENCES from `anon` and
+`authenticated` on every `public` table and from the `postgres` default
+privileges. SELECT/INSERT/UPDATE/DELETE untouched — those are what RLS governs.
+Post-apply: 12 probed tables all `BLOCKED 42501` with row counts intact, 5/5
+apps typecheck, 195 tests green, harness 100% pass.
+
+Two limits, both documented in the migration: the `supabase_admin`
+default-ACL entry cannot be altered (`postgres` is not a superuser here and is
+not a member of that role), and `spatial_ref_sys` is not ownable. **So house
+rule 5b still applies to every new table** — the default alone is not enough.
+
+Related check performed at the same time: client-writable "authority" columns
+(`kyc_documents.status`, `order_refunds.status`, `zones.is_active`, …) were
+probed as a real customer and all affected **0 rows** — RLS blocks them, so
+those grants are inert. That is the distinction that made TRUNCATE dangerous
+and these harmless: TRUNCATE bypasses RLS, UPDATE does not.
+
 **APPLIED — migrations 139 + 140 went to production on 2026-07-27.** Saved
 dishes. `favorite_items` (owner-RLS, composite FK to `menu_items(id,
 restaurant_id)` so the denormalised restaurant id cannot drift, cascading on
