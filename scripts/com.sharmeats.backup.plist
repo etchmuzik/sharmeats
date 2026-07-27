@@ -33,7 +33,13 @@
   </array>
 
   <!-- 03:00 local time, daily. RunAtLoad is deliberately false so installing
-       this at midday doesn't fire an immediate dump; use `launchctl start`. -->
+       this at midday doesn't fire an immediate dump; use `launchctl start`.
+
+       StartCalendarInterval ALREADY handles the asleep-at-03:00 case on its
+       own: launchd(8) states "Unlike cron which skips job invocations when the
+       computer is asleep, launchd will start the job the next time the computer
+       wakes up... multiple intervals... coalesced into one event upon wake".
+       So no catch-up key is needed. -->
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key><integer>3</integer>
@@ -42,9 +48,17 @@
   <key>RunAtLoad</key>
   <false/>
 
-  <!-- If the Mac was asleep at 03:00, run once it wakes rather than skipping. -->
-  <key>StartInterval</key>
-  <integer>86400</integer>
+  <!-- DELIBERATELY NO StartInterval. An earlier version paired
+       StartInterval=86400 with the calendar interval above, commented as a
+       catch-up for a sleeping Mac. That is backwards on both counts:
+         · StartCalendarInterval is the key that survives sleep (quoted above);
+           StartInterval is the one that MISSES firings during sleep
+           ("that interval will be missed due to shortcomings in kqueue(3)");
+         · the two are evaluated INDEPENDENTLY -- launchd.plist(5): "Note that
+           StartInterval and StartCalendarInterval are not aware of each other."
+       Together they produced TWO schedules: 03:00 daily, plus another every 24h
+       counted from whenever the agent was last loaded. Each extra run is a full
+       ~2 MB dump of every customer row. Removed. -->
 
   <key>WorkingDirectory</key>
   <string>/Users/etch/Downloads/sharmeats</string>

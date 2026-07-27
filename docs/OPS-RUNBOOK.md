@@ -17,51 +17,154 @@ For live launch-day metrics SQL, see [LAUNCH-MONITOR.md](./LAUNCH-MONITOR.md).)
 orders, money records, users, KYC, settlements. This is the single most important
 thing to have a recovery plan for.
 
-### What's in place
-- Supabase takes **automatic daily backups** on paid plans. On the Pro plan,
-  **Point-in-Time Recovery** can be enabled (Dashboard → Database → Backups) to
-  restore to any second within the retention window (7 days default).
+### What's in place — read this before trusting anything below
 
-### Owner action (one-time) — **verify this is on**
-1. Dashboard → **Database → Backups**. Confirm the plan includes daily backups.
-2. **Enable PITR** if not already — it is the difference between "restore to
-   yesterday" and "restore to 30 seconds before the bad `DELETE`."
-3. Note the **retention window**. If it's 7 days, that's your recovery horizon.
+**The project is on the Supabase FREE plan. There are NO managed backups and NO
+PITR.** Verified against the Management API on 2026-07-25: `pitr_enabled=false`,
+`backups=[]`. (`walg_enabled` appears in the API response but is internal
+infrastructure, not an operator-restorable backup.)
 
-### Extra safety: weekly logical export (recommended)
-Automatic backups are only as good as the plan. For an owner-controlled copy that
-survives a billing lapse or account issue, export weekly and store off-Supabase:
+So the ONLY restorable copy of production is the local logical dump produced by
+`scripts/backup-prod.sh`. Everything in this section describes that, not a
+Dashboard feature.
+
+| | Status |
+|---|---|
+| Managed daily backups | ✗ not on this plan |
+| PITR | ✗ not on this plan |
+| Local logical dump | ✓ `scripts/backup-prod.sh` |
+| Scheduled daily 03:00 | ✓ launchd, **installed and verified 2026-07-27** |
+| Off-site copy | ✗ **still manual — see below** |
+| Storage (`kyc` bucket) | ✓ `scripts/backup-storage.sh` (needs a key stored) |
+| Restore rehearsal | ✗ **never completed — see §2** |
+
+### The scheduled backup
+
+`scripts/com.sharmeats.backup.plist` runs `backup-prod.sh` daily at 03:00 and
+reads the DB password from the macOS Keychain item `sharmeats-db-password`, so
+no plaintext password sits in a file or in `ps` output.
+
 ```bash
-# Full schema + data dump (run from a machine with the DB password / connection string)
-supabase db dump --db-url "$PROD_DB_URL" -f "sharmeats-$(date +%F).sql"
-# Store the file somewhere OUTSIDE Supabase (S3, Google Drive, encrypted disk).
+cp scripts/com.sharmeats.backup.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.sharmeats.backup.plist
+launchctl start com.sharmeats.backup     # run once now, don't wait for 03:00
+launchctl list | grep sharmeats          # col 2 is the last exit status; 0 = OK
+tail -20 ~/sharmeats-backups/backup.log
 ```
 
+Verified end-to-end on 2026-07-27: the agent ran unattended, resolved the
+Keychain password with no prompt, and wrote a complete backup (79 tables, 82
+policies, 136 functions, 1.5 MB of rows) with exit status 0.
+
+**This had never actually run before.** Commit `f8c91f9` added the plist to
+`scripts/` and described it as scheduled, but nothing was ever copied into
+`~/Library/LaunchAgents/`, so every backup until now was somebody typing the
+command. Copying the file into the repo is not installing it.
+
+The plist also used to pair `StartCalendarInterval` with `StartInterval=86400`,
+commented as a catch-up for a sleeping Mac. That was backwards: `launchd.plist(5)`
+says `StartCalendarInterval` is the key that survives sleep ("launchd will start
+the job the next time the computer wakes up"), while `StartInterval` is the one
+that misses firings, and the two "are not aware of each other". The pair produced
+two independent schedules — 03:00 daily plus another every 24h from load time,
+each a full dump of every customer row. `StartInterval` has been removed.
+
+### Storage is NOT in the database dump
+
+`pg_dump` captures the `storage.objects` metadata rows but not the file bytes,
+which live in S3 behind the Storage API. Restoring `data.sql` alone recreates
+rows pointing at objects that no longer exist — a dangling pointer that looks
+like a successful restore.
+
+```bash
+security add-generic-password -a "$USER" -s 'sharmeats-service-role-key' -w 'KEY'
+./scripts/backup-storage.sh
+```
+
+The `kyc` bucket is **private**, so this needs the service_role key, not the anon
+key (the anon key returns an empty list, which reads as "no documents" rather
+than as an error). As of 2026-07-27 the bucket contains **zero objects** — no
+merchant has uploaded yet. Set this up now anyway: the moment onboarding starts,
+KYC documents become the only asset in the system that cannot be reconstructed
+from anything else. Orders and settlements can be recomputed; a passport scan has
+to be collected again from a human.
+
+### Still missing: the off-site copy
+
+Every backup currently lives in `~/sharmeats-backups` on one laptop — the same
+laptop that holds the Keychain password, the signing keys and the scheduler. A
+backup that dies with the machine it protects is not a backup. Copy the newest
+directory to an external drive or encrypted cloud storage, and treat the dumps as
+production secrets: they contain every customer row, and `platform_settings`
+carries the Telegram bot token inside `ops_alert_webhook_url`.
+
 ### Restore procedure
-- **PITR (preferred):** Dashboard → Database → Backups → *Restore* → pick the
-  timestamp just before the incident. This restores the **whole project** — it is
-  disruptive, so use it for genuine data loss, not a single bad row.
-- **Single-table / single-row mistakes:** do NOT PITR the whole DB. Instead:
-  1. Restore a backup into a **separate branch/project**.
-  2. `pg_dump` just the affected table from the restored copy.
-  3. Reconcile the specific rows back into prod by hand.
+
+PITR is not available on this plan. Restoring means loading the dump into a new
+database:
+
+```bash
+createdb -T template0 restored
+psql -d restored -c 'create extension if not exists postgis'   # REQUIRED, see below
+psql -d restored -f <stamp>/roles.sql
+psql -d restored -f <stamp>/schema.sql
+psql -d restored -c 'set session_replication_role = replica' -f <stamp>/data.sql
+```
+
+Two things that will bite you if you skip them:
+
+- **PostGIS must exist first.** `addresses`, `drivers`, `hotels`, `kitchens` and
+  `restaurants` all have `geography` columns. Without the extension those five
+  `CREATE TABLE`s fail and roughly 180 downstream errors cascade from them,
+  which looks like a corrupt dump but is not. Attempted on 2026-07-27 against a
+  Homebrew Postgres 18.4 with no PostGIS: exactly that. `brew install postgis`
+  fixes it.
+- **`session_replication_role = replica` is required for the data step.** The
+  dump has circular FKs (`users`↔`addresses`, `users`↔`payment_methods`), so
+  loading with triggers and FK checks active fails partway.
+- Expected and harmless: `spatial_ref_sys` data is absent — it is
+  PostGIS-extension-owned and `CREATE EXTENSION postgis` regenerates it.
 - **Migrations directory is the schema source of truth.** After any restore,
   confirm the applied schema matches `supabase/migrations/` (highest-numbered
-  file — currently `135`; note the ledger itself is NOT reconciled, see
+  file — currently `138`; note the ledger itself is NOT reconciled, see
   DATABASE-RELEASE-RUNBOOK.md, so compare objects rather than trusting
   `supabase_migrations.schema_migrations`).
+
+### Fixing a single bad row
+
+Do not restore the whole database for one mistake. Load the newest dump into a
+scratch database as above, `pg_dump` just the affected table out of it, and
+reconcile the specific rows into prod by hand.
 
 ---
 
 ## 2. Disaster-recovery drills
 
-A backup you have never restored is a hope, not a plan. **Once per quarter:**
-1. Restore the latest backup into a throwaway branch.
-2. Run 3 smoke queries: a recent order exists, `place_order` has exactly one
-   overload, RLS is enabled on `orders`/`order_financials`/`kyc_documents`.
-3. Delete the branch. Record the date + result.
+A backup you have never restored is a hope, not a plan.
 
-Last drill: _(none yet — run the first one.)_
+**Blocked as of 2026-07-27: the first drill has never completed.** The attempt
+failed on a missing PostGIS extension locally, not on anything wrong with the
+dump. One command unblocks it:
+
+```bash
+brew install postgis        # matches the Homebrew postgresql@18 already installed
+```
+
+Then, **once per quarter**:
+1. Restore the latest dump into a throwaway database (see the restore procedure
+   above — PostGIS first, then `session_replication_role = replica` for data).
+2. Run 4 smoke checks:
+   - a recent order exists;
+   - `place_order` has exactly ONE overload (`select count(*) from pg_proc where
+     proname='place_order'`) — two means PGRST202 on every call;
+   - RLS is enabled on `orders` / `order_financials` / `kyc_documents`;
+   - row counts match the manifest for the largest few tables.
+3. Drop the database. Record the date + result below.
+
+Until a drill passes, the backups are an untested assumption. They are known to
+be *complete* (verified by object counts) but not known to be *restorable*.
+
+Last drill: _(none yet — blocked on `brew install postgis`, see above.)_
 
 ---
 
