@@ -67,7 +67,11 @@ criteria in that package as the completion checklist.
 
 ## Recommended first assignment
 
-First make one small corrective assignment from
-`03-notifications-and-crm.md` Slice A: replace the live `IMMUTABLE`
-`in_quiet_hours()` contract and remove or fully enforce the currently misleading
-transactional switch. Then start `01-pilot-safety-release.md`.
+~~The `03-notifications-and-crm.md` Slice A corrective assignment.~~ **Completed
+2026-07-27** (migrations 142/143, `expo-push` v15) and verified against
+production. Do not re-implement it; confirm it, then start
+`01-pilot-safety-release.md`.
+
+This is itself the worked example of the rule above: the specs were authored
+against a moving worktree, so a package's "current evidence" may already be
+stale. Verify against production before implementing anything.

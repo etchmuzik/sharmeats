@@ -24,9 +24,10 @@ Official implementation reference:
 - push permission is requested during root startup before a contextual primer.
 - migration 138 and its client preference UI are live in commit `b245b8e`.
   Marketing defaults off, is filtered server-side and respects quiet hours.
-- migration 138 nevertheless ships `transactional=false` as a visible/persisted
-  choice while the senders intentionally ignore it.
-- live `in_quiet_hours()` is declared `IMMUTABLE` while reading `now()`.
+- **Slice A1 and A2 are closed.** Both migration-138 defects were corrected and
+  verified in production on 2026-07-27; see "Slice A status" below. The
+  remaining open Slice A work is A3 (consent event audit trail) and A4
+  (campaign suppression counts and operator state names).
 
 ## Expected repository surfaces
 
@@ -43,40 +44,70 @@ Official implementation reference:
 
 ## Slice A — review and finish notification preferences
 
-Before extending or relying on migration 138, Claude must ship a corrective
-migration/client change for these review items:
+### Slice A status
 
-### A1. No misleading transactional switch
+| Item | State | Evidence |
+|---|---|---|
+| A1 misleading transactional switch | **Closed** — opt-out contract chosen and enforced | mig 143, `expo-push` v15 |
+| A2 `in_quiet_hours` volatility | **Closed** | mig 142 |
+| A3 consent event audit trail | **Open** | `notification_consent_events` does not exist |
+| A4 campaign counts and operator states | **Open** | `send_push_campaign` still returns one integer |
 
-The draft stores `transactional=false` while intentionally ignoring it in all
-transactional senders. A switch that says off while order pushes continue is
-another fake control.
+### A1. No misleading transactional switch — CLOSED
 
-Choose and implement one explicit contract:
+The original defect was real: migration 138 persisted `transactional=false`
+while every sender ignored it, which is a fake control.
 
-**Recommended v1 contract**
+**Chosen contract: transactional opt-out with a safety exemption list.** This is
+the second option this section offered, selected by the owner on 2026-07-27 over
+the "Recommended v1" alternative. Both were valid; the deciding argument was that
+a customer who wants less noise should be able to get it, provided nothing that
+costs them money or leaves them waiting can ever be suppressed.
 
-- Order/delivery/security notifications are operational and not individually
-  disabled in-app.
-- Settings shows their OS permission/status and an “Open device settings”
-  action, not an on/off switch.
-- Marketing is a true opt-in switch enforced server-side.
-- Quiet hours apply only to marketing.
+What is live:
 
-Do not persist an unused transactional preference. Remove the draft column/RPC
-parameter/UI toggle unless a complete category-by-category enforcement design
-is approved.
+- the `transactional` preference is enforced in
+  `supabase/functions/expo-push/prefs.ts` — the single choke point every DB
+  sender routes through, and the only place that knows the final recipient list.
+  It is deliberately **not** enforced in the 14 `SECURITY DEFINER` senders:
+  re-stating 14 bodies to repeat one rule is the exact hazard house rule 2
+  exists to prevent;
+- `ESSENTIAL_EVENTS` is the hard exception list — courier approaching, order
+  cancelled/rejected, payment/credit, driver job offers, merchant new-order,
+  settlements and KYC are never suppressed;
+- informational events (`order_accepted`, `order_delivered`, `new_message`,
+  `support_reply`, `tier_promoted`, `referral_rewarded`, `campaign`) are
+  suppressible, and are unit-tested in **both** directions so a future edit that
+  guts the switch fails CI;
+- a failed preference lookup fails **open** and sends anyway; marketing fails
+  **closed**. Opposite defaults, deliberately;
+- settings copy in all five locales states that delivery-critical alerts always
+  come through.
 
-If the owner instead chooses a transactional opt-out, define a hard exception
-list for active-order safety and make the UI explain it. Every sender must use
-the same categorization function.
+Because a switch now exists that genuinely changes behavior, the UI must keep
+explaining the exemption. Do not quietly widen `ESSENTIAL_EVENTS` to the point
+where the switch stops meaning anything — that would recreate the original lie.
 
-### A2. Correct function volatility
+### A2. Correct function volatility — CLOSED
 
-`in_quiet_hours` reads `now()`. It must not be declared `IMMUTABLE`; use
-`STABLE`. Add a test proving results change across controlled wall-clock inputs.
-Prefer a pure helper accepting `p_at timestamptz` plus a stable wrapper using
-`now()` so tests do not depend on the real clock.
+`in_quiet_hours` was declared `IMMUTABLE` while reading `now()`, which licenses
+the planner to cache a stale hour — a quiet-hours check answering with
+yesterday's hour is a marketing push at 3am.
+
+Migration 142 corrected it to `STABLE` and additionally pinned
+`search_path = public, pg_temp`, because `marketing_allowed()` calls it from a
+`SECURITY DEFINER` context.
+
+Production verification (2026-07-27):
+
+```text
+in_quiet_hours    STABLE  proconfig={search_path=public, pg_temp}  secdef=false
+marketing_allowed STABLE  proconfig={search_path=public, pg_temp}  secdef=true
+```
+
+The remaining improvement from the original note is still worth doing when this
+function is next touched: extract a pure helper taking `p_at timestamptz` with a
+stable `now()` wrapper, so tests need not depend on the real wall clock.
 
 ### A3. Consent model
 
@@ -342,7 +373,9 @@ Physical devices:
 
 ## Rollout order
 
-1. Correct migration 138 volatility and the misleading transactional UI/state.
+1. ~~Correct migration 138 volatility and the misleading transactional
+   UI/state.~~ **Done** — migs 142/143, `expo-push` v15, verified in production
+   2026-07-27.
 2. Re-verify the live marketing-default-off server enforcement.
 3. Ship client settings/primer.
 4. Add outbox/attempt schema.

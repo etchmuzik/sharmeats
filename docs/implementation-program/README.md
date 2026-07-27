@@ -36,14 +36,24 @@ Implemented and live on 2026-07-27:
 - migration 136 merchant staff enforcement;
 - migration 137 push routing/campaign transport outcome;
 - migration 138 marketing opt-in, quiet hours and server campaign filtering;
-- `expo-push` v14.
+- migration 142 `in_quiet_hours` volatility/`search_path` correction;
+- migration 143 transactional preference enforced;
+- `expo-push` v15 (verified deployed 2026-07-27).
 
 Migration 138 was committed and applied while this program was being authored.
-It is live but **not the final notification design**. The mandatory correction
-gate in [`03-notifications-and-crm.md`](03-notifications-and-crm.md) remains:
-the UI persists a transactional switch the senders ignore, and
-`in_quiet_hours()` is declared `IMMUTABLE` even though it reads `now()`.
-Transport “delivered” naming also remains to be corrected.
+Its two defects have since been corrected and verified in production
+(2026-07-27):
+
+- `in_quiet_hours()` is now `STABLE` with a pinned `search_path` (migration 142);
+- the transactional preference is genuinely enforced, in the `expo-push` edge
+  function, behind a hard `ESSENTIAL_EVENTS` exemption list (migration 143,
+  `expo-push` v15). The owner chose the transactional-opt-out contract over the
+  spec's "Recommended v1" removal option; see
+  [`03-notifications-and-crm.md`](03-notifications-and-crm.md) Slice A status.
+
+Still open in Slice A: the consent event audit trail (A3) and campaign
+suppression counts/operator state names (A4). Transport “delivered” naming also
+remains to be corrected.
 
 ## Program order
 

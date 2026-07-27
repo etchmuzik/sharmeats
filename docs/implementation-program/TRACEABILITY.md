@@ -1,6 +1,8 @@
 # Roadmap-to-spec traceability audit
 
 **Audit date:** 2026-07-27
+**Last verified against production:** 2026-07-27 (notification rows re-checked
+after migrations 142/143 landed; see [03 § A status](03-notifications-and-crm.md#slice-a-status))
 
 This is the completeness check for
 [`../BUSINESS-ROADMAP-2026-07-27.md`](../BUSINESS-ROADMAP-2026-07-27.md).
@@ -60,8 +62,8 @@ Status meanings:
 | Reorder impression-to-delivery analytics | Planned | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate) |
 | Consented 7/14-day reminder | Planned after Package 03 | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Merge guest/server favorites without loss | Built/partial; offline removal hardening planned | [02 § B](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
-| Real notification controls | Partial/live but flawed | [03 § A](03-notifications-and-crm.md#slice-a--review-and-finish-notification-preferences) |
-| Consent provenance, quiet hours, locale | Partial | [03 § A](03-notifications-and-crm.md#slice-a--review-and-finish-notification-preferences) |
+| Real notification controls | Built (migs 142/143, `expo-push` v15, prod-verified 2026-07-27) | [03 § A status](03-notifications-and-crm.md#slice-a-status) |
+| Consent provenance, quiet hours, locale | Partial — quiet hours built and corrected; consent **event trail** (A3) still missing | [03 § A3](03-notifications-and-crm.md#a3-consent-model) |
 | Server campaign consent enforcement | Built/partial; harden | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Frequency caps and unsubscribe | Planned | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Gate: second-order, consent and campaign attribution | Planned measurement | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate), [03 acceptance](03-notifications-and-crm.md#acceptance-gate) |
