@@ -26,6 +26,8 @@ import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { useCart } from '../../src/store/cart';
+import { checkReorder, describeReorderChanges } from '../../src/lib/reorderCheck';
+import { formatEgp } from '../../src/lib/format';
 import { tap } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
 
@@ -194,8 +196,51 @@ export default function HomeTab() {
       router.push(`/restaurant/${s.restaurantId}` as never);
       return;
     }
-    loadFromOrder({ restaurantId: s.restaurantId, restaurantName: s.restaurantName, lines: s.items });
-    router.push('/(tabs)/cart');
+    void openSavedWithCheck(s);
+  };
+
+  /**
+   * A saved preset stores the prices from when it was created, so it goes stale
+   * exactly like a past order does. Revalidate against the live menu before
+   * filling the cart — otherwise the customer carries a wrong total to checkout
+   * and place_order rejects them at the final tap. Same rule as the Orders tab.
+   */
+  const openSavedWithCheck = async (s: SavedOrder) => {
+    try {
+      const menu = await db.menus.forRestaurant(s.restaurantId);
+      const { lines, changes, allGone } = checkReorder(s.items, menu.items);
+
+      if (allGone) {
+        Alert.alert(t('orders.reorderTitle'), t('orders.reorderAllGone'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('orders.reorderOpenMenu'),
+            onPress: () => router.push(`/restaurant/${s.restaurantId}` as never),
+          },
+        ]);
+        return;
+      }
+
+      const proceed = () => {
+        loadFromOrder({ restaurantId: s.restaurantId, restaurantName: s.restaurantName, lines });
+        router.push('/(tabs)/cart');
+      };
+
+      if (changes.length === 0) {
+        proceed();
+        return;
+      }
+
+      Alert.alert(t('orders.reorderChangesTitle'), describeReorderChanges(changes, t, formatEgp), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('orders.reorderContinue'), onPress: proceed },
+      ]);
+    } catch {
+      // Offline: fall back to the previous behaviour rather than blocking the
+      // preset. The server still validates every price.
+      loadFromOrder({ restaurantId: s.restaurantId, restaurantName: s.restaurantName, lines: s.items });
+      router.push('/(tabs)/cart');
+    }
   };
 
   const retryLoad = () => {

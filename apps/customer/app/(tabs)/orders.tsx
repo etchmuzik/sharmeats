@@ -12,6 +12,7 @@ import { formatEgp, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { useCart } from '../../src/store/cart';
 import { track } from '../../src/lib/analytics';
+import { checkReorder, describeReorderChanges } from '../../src/lib/reorderCheck';
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   placed: 'status.placed',
@@ -44,6 +45,9 @@ export default function OrdersTab() {
   const [active, setActive] = useState<Order[]>([]);
   const [past, setPast] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  // Order id being revalidated, so the tapped row can show progress and the
+  // button cannot be double-fired while the menu fetch is in flight.
+  const [reordering, setReordering] = useState<string | null>(null);
   const loadFromOrder = useCart((s) => s.loadFromOrder);
 
   const reorder = (o: Order) => {
@@ -65,13 +69,67 @@ export default function OrdersTab() {
       ]);
       return;
     }
-    success();
-    loadFromOrder({
-      restaurantId: o.restaurantId,
-      restaurantName: o.restaurantName,
-      lines: o.items,
-    });
-    router.push('/(tabs)/cart');
+    void reorderWithCheck(o);
+  };
+
+  /**
+   * Reorder against the CURRENT menu, not the prices the past order paid.
+   *
+   * place_order recomputes every price server-side and raises ITEM_UNAVAILABLE,
+   * so money was never at risk — but the customer used to see last month's
+   * price all the way to checkout and get rejected at the final tap. Here we
+   * reconcile first and say plainly what changed.
+   */
+  const reorderWithCheck = async (o: Order) => {
+    setReordering(o.id);
+    try {
+      const menu = await db.menus.forRestaurant(o.restaurantId);
+      const { lines, changes, allGone } = checkReorder(o.items, menu.items);
+
+      if (allGone) {
+        Alert.alert(t('orders.reorderTitle'), t('orders.reorderAllGone'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('orders.reorderOpenMenu'),
+            onPress: () => router.push(`/restaurant/${o.restaurantId}`),
+          },
+        ]);
+        return;
+      }
+
+      const proceed = () => {
+        success();
+        loadFromOrder({
+          restaurantId: o.restaurantId,
+          restaurantName: o.restaurantName,
+          lines,
+        });
+        router.push('/(tabs)/cart');
+      };
+
+      if (changes.length === 0) {
+        proceed();
+        return;
+      }
+
+      Alert.alert(t('orders.reorderChangesTitle'), describeReorderChanges(changes, t, formatEgp), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('orders.reorderContinue'), onPress: proceed },
+      ]);
+    } catch {
+      // Menu fetch failed (offline). Fall back to the old behaviour rather than
+      // blocking the reorder: the server still validates everything, so the
+      // worst case is the pre-existing one, not a new failure.
+      success();
+      loadFromOrder({
+        restaurantId: o.restaurantId,
+        restaurantName: o.restaurantName,
+        lines: o.items,
+      });
+      router.push('/(tabs)/cart');
+    } finally {
+      setReordering(null);
+    }
   };
 
   const refresh = useCallback(async () => {
@@ -165,9 +223,14 @@ export default function OrdersTab() {
                       e.stopPropagation();
                       reorder(o);
                     }}
+                    // Disabled while the menu is being revalidated so a second
+                    // tap cannot load the cart twice.
+                    disabled={reordering === o.id}
                     hitSlop={6}
-                    style={styles.reorderBtn}>
-                    <Text style={styles.reorderText}>↻ {t('orders.reorder')}</Text>
+                    style={[styles.reorderBtn, reordering === o.id && styles.reorderBtnBusy]}>
+                    <Text style={styles.reorderText}>
+                      {reordering === o.id ? t('orders.reorderChecking') : `↻ ${t('orders.reorder')}`}
+                    </Text>
                   </Pressable>
                 )}
               </View>
@@ -223,6 +286,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderRadius: radius.pill,
   },
+  reorderBtnBusy: { opacity: 0.6 },
   reorderText: { color: colors.accentDark, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   statusText: { fontSize: font.sizes.xs, fontWeight: font.weights.bold, letterSpacing: 0.4, textTransform: 'uppercase' },
