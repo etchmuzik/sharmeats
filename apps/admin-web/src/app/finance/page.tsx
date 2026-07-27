@@ -109,6 +109,59 @@ export default function FinancePage() {
     setRevenue(report ?? null);
   }, [start, end, toast]);
 
+  // Customer compensation (mig 130). Accepts an order short code (resolves the
+  // customer + links the credit to the order) or a raw user UUID. The paved
+  // path since mig 101 revoked issue_credit from clients — before this card
+  // the first cold-delivery complaint had no button behind it.
+  const [creditTarget, setCreditTarget] = useState('');
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState<'refund' | 'goodwill' | 'adjustment'>('goodwill');
+  const [creditNote, setCreditNote] = useState('');
+  const [creditBusy, setCreditBusy] = useState(false);
+
+  const issueCredit = async () => {
+    const target = creditTarget.trim();
+    const amount = Number(creditAmount);
+    if (!target) return toast('Enter an order code or user ID', 'error');
+    if (!Number.isInteger(amount) || amount <= 0 || amount > 5000) {
+      return toast('Amount must be 1–5000 EGP', 'error');
+    }
+    setCreditBusy(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      let userId = target;
+      let orderId: string | null = null;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target);
+      if (!isUuid) {
+        const { data: order, error: orderErr } = await supabase
+          .from('orders')
+          .select('id, user_id, short_code')
+          .eq('short_code', target.toUpperCase())
+          .maybeSingle();
+        if (orderErr) throw orderErr;
+        if (!order) return toast(`No order with code ${target.toUpperCase()}`, 'error');
+        userId = order.user_id as string;
+        orderId = order.id as string;
+      }
+      const { error } = await supabase.rpc('admin_issue_credit', {
+        p_user_id: userId,
+        p_amount_egp: amount,
+        p_reason: creditReason,
+        p_order_id: orderId,
+        p_note: creditNote.trim() || null,
+      });
+      if (error) throw error;
+      toast(`Credited ${amount} EGP (${creditReason})`, 'success');
+      setCreditTarget('');
+      setCreditAmount('');
+      setCreditNote('');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Credit failed', 'error');
+    } finally {
+      setCreditBusy(false);
+    }
+  };
+
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
     let cancelled = false;
@@ -398,6 +451,64 @@ export default function FinancePage() {
             </div>
           </section>
         )}
+
+        {/* Customer compensation (mig 130) — the paved make-it-right path. */}
+        <section className="rounded-2xl border border-line bg-white p-5">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-ink2">Issue customer credit</h2>
+            <span className="text-xs text-ink3">refund / goodwill / adjustment · max 5,000 EGP per credit</span>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-sm font-semibold">
+              <span className="mb-1 block text-ink2">Order code or user ID</span>
+              <input
+                value={creditTarget}
+                onChange={(e) => setCreditTarget(e.target.value)}
+                placeholder="e.g. SE-4F2K"
+                className="w-44 rounded-lg border border-line px-3 py-2"
+              />
+            </label>
+            <label className="text-sm font-semibold">
+              <span className="mb-1 block text-ink2">Amount (EGP)</span>
+              <input
+                type="number"
+                min={1}
+                max={5000}
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+                className="w-28 rounded-lg border border-line px-3 py-2"
+              />
+            </label>
+            <label className="text-sm font-semibold">
+              <span className="mb-1 block text-ink2">Reason</span>
+              <select
+                value={creditReason}
+                onChange={(e) => setCreditReason(e.target.value as 'refund' | 'goodwill' | 'adjustment')}
+                className="rounded-lg border border-line px-3 py-2"
+              >
+                <option value="goodwill">Goodwill</option>
+                <option value="refund">Refund</option>
+                <option value="adjustment">Adjustment</option>
+              </select>
+            </label>
+            <label className="grow text-sm font-semibold">
+              <span className="mb-1 block text-ink2">Note (internal)</span>
+              <input
+                value={creditNote}
+                onChange={(e) => setCreditNote(e.target.value)}
+                placeholder="e.g. cold delivery, order remade"
+                className="w-full rounded-lg border border-line px-3 py-2"
+              />
+            </label>
+            <button
+              onClick={issueCredit}
+              disabled={creditBusy}
+              className="rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {creditBusy ? 'Crediting…' : 'Issue credit'}
+            </button>
+          </div>
+        </section>
 
         {/* Statement list */}
         {rows.length === 0 ? (

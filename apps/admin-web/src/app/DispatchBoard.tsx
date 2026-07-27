@@ -89,7 +89,13 @@ export function DispatchBoard({
         (o) =>
           o.fulfillment_type === 'platform' &&
           !o.assigned_driver_id &&
-          ['accepted', 'preparing', 'ready'].includes(o.status),
+          // 'placed' included (2026-07-27): a pre-accept order was invisible on
+          // every ops screen — the one state where a stuck order could neither
+          // be seen nor cancelled. Auto-accept normally clears it in ~3 min, so
+          // a placed order lingering here means that flag is off or broken;
+          // the ElapsedChip ages it and the existing cancel action applies
+          // (advance_order_status allows admin cancel of any non-terminal).
+          ['placed', 'accepted', 'preparing', 'ready'].includes(o.status),
       ),
     [orders],
   );

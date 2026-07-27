@@ -82,7 +82,7 @@ At ~EGP 100k/mo fixed:
 
 ## 6. Known financial risks / follow-ups
 
-- **COD cash custody:** drivers hold the restaurant's money until settlement; weekly Sunday payouts per LOI. End-of-day driver cash-in tooling is a gap (see gap-analysis).
+- **COD cash custody:** drivers hold the restaurant's money until settlement; weekly Sunday payouts per LOI. Cash-in tooling exists since migs 104/105 (driver_cash_ledger, `record_cash_handin`, `my_cash_balance`, admin /cash console; the driver app reads the same ledger balance since 2026-07-27). Remaining gap: no hard cap on how much COD debt a driver may accumulate before being blocked from new COD orders.
 - **VAT/tax:** `tax_pct = 0`, prices tax-inclusive. Egyptian VAT + e-invoicing treatment of commission revenue needs an accountant before meaningful volume.
 - **Referral abuse cap:** EGP 100 CAC is fine only while min-basket (150 EGP) and per-user limits hold; monitor for self-referral rings.
 - **Loyalty history note:** redemption was 100–150% cashback between migrations 049 and 061; zero LOY- codes were minted in that window (verified in prod 2026-07-03) — no exposure.

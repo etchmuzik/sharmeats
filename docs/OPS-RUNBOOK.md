@@ -154,9 +154,13 @@ sent anywhere** — you'd only find out by running the §3.4 query manually. Set
 
 ## 6. Crash reporting (apps)
 
-All three apps have Sentry wiring; it is **opt-in via env and OFF until a DSN is
-set**. A release build without it warns loudly in logs but ships blind.
-- Create a Sentry project (one per app, or one with app tags).
+All three mobile apps have Sentry wiring **with DSNs configured since
+2026-07-22** (org `beynd-mngmt`, one project per app — live from the next EAS
+build after that date). Still dark: **admin-web and merchant-web** have the
+wiring but no DSN — and because they are static exports, the env var must be
+set **before `build:export`** or the shipped bundle is permanently blind.
+Sourcemap upload also remains gated on `SENTRY_AUTH_TOKEN`.
+- For the web apps: create the Sentry project, set the DSN env, rebuild, redeploy.
 - Set `EXPO_PUBLIC_SENTRY_DSN` in each app's **EAS `production` profile** (or as
   an EAS secret) and rebuild.
 - Customer app additionally supports `EXPO_PUBLIC_POSTHOG_API_KEY` for product

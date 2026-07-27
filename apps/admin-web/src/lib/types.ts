@@ -134,7 +134,7 @@ export interface RestaurantSettlement {
 
 // ============================================================================
 // DRIVER SETTLEMENTS — weekly driver payout statements.
-// Mirrors public.driver_settlements (migration 104). Same draft→finalized→paid
+// Mirrors public.driver_settlements (migration 105). Same draft→finalized→paid
 // lifecycle as RestaurantSettlement, but net_payable_egp can be NEGATIVE: on a
 // COD-heavy week a driver collects more cash than they earn, so they owe the
 // platform the difference.
@@ -156,7 +156,7 @@ export interface DriverSettlement {
 
 // ============================================================================
 // DRIVER CASH BALANCE — reconciliation view over the driver_cash_ledger.
-// Mirrors the public.driver_cash_balance view (migration 105). balance_egp is
+// Mirrors the public.driver_cash_balance view (migration 104). balance_egp is
 // the cash the driver currently holds/owes; positive means cash on hand that
 // still has to be handed in. All numeric columns are nullable because the view
 // LEFT JOINs drivers with no ledger activity yet.

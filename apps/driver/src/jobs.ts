@@ -367,18 +367,32 @@ export interface EarningsSummary {
 export async function getEarnings(driverId: string): Promise<EarningsSummary> {
   const since = new Date();
   since.setHours(0, 0, 0, 0);
-  const { data, error } = await getSupabase()
+  const sb = getSupabase();
+  const { data, error } = await sb
     .from('driver_earnings')
     .select('total, tip, cod_collected, created_at')
     .eq('driver_id', driverId)
     .gte('created_at', since.toISOString());
   if (error) throw error;
   const rows = data ?? [];
+
+  // codOwed comes from my_cash_balance() (mig 105) — the SAME ledger number
+  // the admin /cash console reads. The old sum of today's cod_collected
+  // ignored hand-ins and yesterday's carry-over, so driver and admin saw
+  // different figures for the same debt, which made every cash dispute
+  // unwinnable. Fall back to the old today-only sum if the RPC errors —
+  // a wrong-but-visible number beats a crash on the earnings screen.
+  let codOwed = rows.reduce((s, r) => s + (r.cod_collected ?? 0), 0);
+  const { data: balance, error: balanceError } = await sb.rpc('my_cash_balance');
+  if (!balanceError && typeof balance === 'number') {
+    codOwed = balance;
+  }
+
   return {
     todayTotal: rows.reduce((s, r) => s + (r.total ?? 0), 0),
     todayCount: rows.length,
     todayTips: rows.reduce((s, r) => s + (r.tip ?? 0), 0),
-    codOwed: rows.reduce((s, r) => s + (r.cod_collected ?? 0), 0),
+    codOwed,
   };
 }
 
