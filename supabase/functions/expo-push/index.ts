@@ -37,9 +37,11 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { type Locale, resolveCopy, normalizeLocale } from './copy.ts';
+import { ESSENTIAL_EVENTS, recipientsAfterPrefs, type PrefRow } from './prefs.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_CHUNK_SIZE = 100; // hard cap per https://docs.expo.dev/push-notifications/sending-notifications/
+
 
 interface PushBody {
   event: string;       // e.g. 'order_paid', 'order_accepted', 'order_out_for_delivery'
@@ -128,6 +130,42 @@ Deno.serve(async (req: Request) => {
       if (order?.user_id) userIds = [order.user_id];
     }
     if (userIds.length === 0) return new Response('ok (no recipients)', { status: 200 });
+
+    // ---- Notification preferences (mig 138) --------------------------------
+    //
+    // Enforced HERE rather than in each of the 14 DB senders: this is the one
+    // place that knows the final recipient list for every event (some senders
+    // pass recipientUserIds, others let us resolve the order's customer), and
+    // editing 14 SECURITY DEFINER bodies to add the same check is exactly the
+    // "re-stating an old body reverts later hardening" trap in house rule 2.
+    //
+    // Only OPTIONAL events are filtered. ESSENTIAL_EVENTS below are exempt: a
+    // customer who mutes notifications is asking for less noise, not to be left
+    // standing outside while a driver waits, or to miss the fact that their
+    // payment failed. Store policy and basic decency both treat these as
+    // transactional service messages rather than notifications-by-preference.
+    // Marketing has its own, stricter gate (marketing_allowed) in the sender.
+    const filterable = !ESSENTIAL_EVENTS.has(body.event);
+    if (filterable) {
+      const { data: prefRows, error: prefErr } = await admin
+        .from('notification_prefs')
+        .select('user_id, transactional')
+        .in('user_id', userIds);
+      if (prefErr) {
+        console.error(`expo-push: prefs lookup failed, sending anyway: ${prefErr.message}`);
+      }
+      const before = userIds.length;
+      // A failed lookup passes null => fail OPEN (see prefs.ts).
+      userIds = recipientsAfterPrefs(body.event, userIds, prefErr ? null : ((prefRows ?? []) as PrefRow[]));
+      if (userIds.length < before) {
+        console.log(
+          `expo-push: ${before - userIds.length}/${before} recipient(s) opted out of '${body.event}'`,
+        );
+      }
+      if (userIds.length === 0) {
+        return new Response('ok (all recipients opted out)', { status: 200 });
+      }
+    }
 
     // Look up Expo tokens with their owning user, so copy can be localized per
     // recipient (table may not exist yet — handle gracefully).

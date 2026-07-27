@@ -329,7 +329,7 @@
   "profile.allergies": "الحساسية",
   "profile.notificationsOrderUpdates": "تحديثات الطلب",
   "profile.notificationsPromotions": "العروض",
-  "profile.notificationsOrderUpdatesHint": "حالة الطلب والمحادثة والدعم. نُبقيها مفعّلة لتعرف دائمًا أين طلبك.",
+  "profile.notificationsOrderUpdatesHint": "حالة الطلب والمحادثة والدعم. تنبيهات وصول السائق أو الإلغاء أو الدفع تصلك دائمًا.",
   "profile.notificationsPromotionsHint": "العروض والأخبار. مغلقة ما لم تفعّلها بنفسك.",
   "profile.notificationsQuietHours": "ساعات الهدوء",
   "profile.notificationsQuietHoursHint": "لا إشعارات ترويجية بين هذه الساعات. تحديثات الطلب تصلك دائمًا.",

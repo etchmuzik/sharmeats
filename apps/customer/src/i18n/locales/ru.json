@@ -329,7 +329,7 @@
   "profile.allergies": "Аллергии",
   "profile.notificationsOrderUpdates": "Обновления заказа",
   "profile.notificationsPromotions": "Акции",
-  "profile.notificationsOrderUpdatesHint": "Статус заказа, чат и поддержка. Мы оставляем их включёнными, чтобы вы всегда знали, где ваш заказ.",
+  "profile.notificationsOrderUpdatesHint": "Статус заказа, чат и поддержка. Уведомления о курьере, отмене и оплате приходят всегда.",
   "profile.notificationsPromotionsHint": "Акции и новости. Выключено, пока вы сами не включите.",
   "profile.notificationsQuietHours": "Тихие часы",
   "profile.notificationsQuietHoursHint": "Никаких рекламных уведомлений в эти часы. Уведомления о заказе приходят всегда.",
