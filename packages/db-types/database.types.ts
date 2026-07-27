@@ -1968,31 +1968,43 @@ export type Database = {
         Row: {
           body: string
           created_at: string
+          delivery_detail: string | null
+          delivery_status: string
           id: string
+          net_request_id: number | null
           recipients: number
           segment: string
           segment_param: string | null
           sent_by: string | null
+          settled_at: string | null
           title: string
         }
         Insert: {
           body: string
           created_at?: string
+          delivery_detail?: string | null
+          delivery_status?: string
           id?: string
+          net_request_id?: number | null
           recipients?: number
           segment: string
           segment_param?: string | null
           sent_by?: string | null
+          settled_at?: string | null
           title: string
         }
         Update: {
           body?: string
           created_at?: string
+          delivery_detail?: string | null
+          delivery_status?: string
           id?: string
+          net_request_id?: number | null
           recipients?: number
           segment?: string
           segment_param?: string | null
           sent_by?: string | null
+          settled_at?: string | null
           title?: string
         }
         Relationships: [
@@ -3509,11 +3521,15 @@ export type Database = {
         Returns: {
           body: string
           created_at: string
+          delivery_detail: string | null
+          delivery_status: string
           id: string
+          net_request_id: number | null
           recipients: number
           segment: string
           segment_param: string | null
           sent_by: string | null
+          settled_at: string | null
           title: string
         }[]
         SetofOptions: {
@@ -3523,6 +3539,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      reconcile_push_campaigns: { Args: never; Returns: number }
       reconcile_stale_card_orders: { Args: never; Returns: number }
       record_cash_handin: {
         Args: {

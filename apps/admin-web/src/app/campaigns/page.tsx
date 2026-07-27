@@ -13,6 +13,8 @@ type Phase =
   | { state: 'unauthorized' }
   | { state: 'ready'; displayName: string };
 
+type DeliveryStatus = 'dispatched' | 'delivered' | 'failed' | 'not_attempted';
+
 interface Campaign {
   id: string;
   title: string;
@@ -21,7 +23,19 @@ interface Campaign {
   segment_param: string | null;
   recipients: number;
   created_at: string;
+  // Added by mig 137. `recipients` is the segment size resolved BEFORE sending
+  // and cannot report failure — it used to be labelled "sent", which is how
+  // every campaign silently failing to deliver went unnoticed. Read the status.
+  delivery_status?: DeliveryStatus | null;
+  delivery_detail?: string | null;
 }
+
+const DELIVERY_LABEL: Record<DeliveryStatus, { text: string; tone: string }> = {
+  delivered: { text: 'Delivered', tone: '#0a7c42' },
+  dispatched: { text: 'Sending…', tone: '#8a6d00' },
+  failed: { text: 'Failed', tone: '#b3261e' },
+  not_attempted: { text: 'Not sent', tone: '#5f6368' },
+};
 
 const SEGMENTS = [
   { key: 'all', label: 'All customers', needsParam: false },
@@ -91,7 +105,17 @@ export default function CampaignsPage() {
         p_segment_param: param.trim() || null,
       });
       if (error) throw error;
-      toast(`Sent to ${data ?? 0} customer(s).`, 'success');
+      // The RPC returns the RESOLVED segment size, not a delivery count — the
+      // push is dispatched asynchronously and settled by a cron a few minutes
+      // later. Saying "sent" here is what hid a total delivery outage before
+      // (mig 137), so point the operator at the status instead.
+      const n = data ?? 0;
+      toast(
+        n === 0
+          ? 'No customers in that segment have a push token — nothing was sent.'
+          : `Queued for ${n} customer(s). Delivery status appears below within ~5 min.`,
+        n === 0 ? 'error' : 'success',
+      );
       setTitle('');
       setBody('');
       setParam('');
@@ -240,7 +264,20 @@ export default function CampaignsPage() {
                       <div className="text-sm text-ink2">{c.body}</div>
                     </div>
                     <div className="text-right text-xs text-ink3">
-                      <div className="font-semibold text-ink2">{c.recipients} sent</div>
+                      {/* "{n} recipients" is the segment size resolved before
+                          sending — deliberately NOT called "sent", because it
+                          is written pre-send and cannot reflect a failure.
+                          delivery_status carries the real outcome (mig 137). */}
+                      <div className="font-semibold text-ink2">{c.recipients} recipients</div>
+                      {c.delivery_status ? (
+                        <div
+                          className="font-semibold"
+                          style={{ color: DELIVERY_LABEL[c.delivery_status]?.tone ?? '#5f6368' }}
+                          title={c.delivery_detail ?? undefined}
+                        >
+                          {DELIVERY_LABEL[c.delivery_status]?.text ?? c.delivery_status}
+                        </div>
+                      ) : null}
                       <div>
                         {c.segment}
                         {c.segment_param ? ` · ${c.segment_param}` : ''}

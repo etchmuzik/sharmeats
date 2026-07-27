@@ -30,6 +30,32 @@ below; re-applying 120 later over it is a no-op. After applying, count referrals
 stranded in `pending` with a delivered order (see the comment in 122) and decide
 an owner-approved backfill.
 
+**APPLIED — migration 137 + expo-push v14 went to production on 2026-07-27.**
+Marketing campaigns had never delivered a single push: `send_push_campaign`
+sent `orderId: ''` and the edge function rejected every such request with 400,
+while the campaign row — inserted *before* the fire-and-forget `net.http_post`
+— displayed as "sent". The same required-`orderId` check made two other
+senders smuggle non-order ids into the field, so `credit_issued` (no order)
+deep-linked to `/order/<userId>` and `referral_rewarded` to the referred
+friend's order. Fix: `orderId` is now optional and an explicit `route` carries
+the destination (`/rewards` for both), with orderId-based routing retained as
+the fallback so **already-installed binaries and old senders are unaffected**.
+`push_campaigns` gained `delivery_status`/`delivery_detail`/`net_request_id`,
+settled from `net._http_response` by `reconcile_push_campaigns()` on a
+5-minute cron — a campaign can no longer read as successful when it failed,
+and unconfirmable sends (pg_net prunes responses after ~6h) settle to `failed`
+rather than sitting on "dispatched" forever. The one historical campaign was
+reclassified to `failed` with an explanatory detail.
+
+Verified against production, not inferred: the exact payload that returned
+`400 event + orderId required` now returns **`200 ok (no tokens)`**
+(`net._http_response` id 9154), and a dispatched campaign bound to that
+request settled to `delivered` when the reconciler ran. Deploy order matters
+— the migration is inert until the function is deployed; deploy the function
+first or in the same window. **Ordering note:** this was authored as `136`
+and renumbered to `137` because the parallel session had already taken `136`
+(`136_merchant_staff_role_enforcement.sql`, still unapplied).
+
 **APPLIED — migration 135 went to production on 2026-07-27** (numbering gap:
 134 intentionally skipped, like the 064 precedent). Validated with a
 BEGIN…ROLLBACK dry run on the live schema whose functional assert proved the

@@ -77,12 +77,24 @@ export async function registerForPush(): Promise<void> {
   }
 }
 
-// Map a notification's data payload to an in-app route. Order events carry an
-// orderId; support events route to the support thread. Unknown events do nothing.
+// Map a notification's data payload to an in-app route.
+//
+// Precedence: an explicit `route` from the sender wins; otherwise fall back to
+// the historical orderId-based routing so pushes queued by older senders (and
+// every already-delivered notification) still work.
+//
+// `route` exists because the payload used to carry only orderId, which forced
+// senders with no order to smuggle another id into that field — a credit with
+// no order sent the USER id, so "credit added to your wallet" opened
+// /order/<userId>, a screen that cannot load. Only in-app absolute paths are
+// accepted: a push is remote input, and handing an arbitrary string to the
+// router would let a malformed payload navigate anywhere.
 function routeForNotification(data: Record<string, unknown> | undefined): string | null {
   if (!data) return null;
   const event = typeof data.event === 'string' ? data.event : '';
   const orderId = typeof data.orderId === 'string' ? data.orderId : '';
+  const route = typeof data.route === 'string' ? data.route : '';
+  if (route.startsWith('/') && !route.startsWith('//')) return route;
   if (event === 'support_reply') return '/support';
   if (event === 'new_message' && orderId) return `/order/${orderId}/chat`;
   if (orderId) return `/order/${orderId}`;

@@ -43,12 +43,19 @@ const EXPO_CHUNK_SIZE = 100; // hard cap per https://docs.expo.dev/push-notifica
 
 interface PushBody {
   event: string;       // e.g. 'order_paid', 'order_accepted', 'order_out_for_delivery'
-  orderId: string;
+  // The order this push is about. REQUIRED for order events; may be empty for
+  // pushes that are not about an order (campaigns, wallet credit with no order).
+  // See the orderId/route contract note below.
+  orderId?: string;
   // Optional explicit recipients; otherwise we resolve from the order.
   recipientUserIds?: string[];
   // Optional custom copy (marketing campaigns) — overrides the COPY map.
   title?: string;
   body?: string;
+  // Optional explicit in-app destination for a tap, e.g. '/rewards'. When absent
+  // the client falls back to its orderId-based routing, so old senders and old
+  // binaries keep working unchanged.
+  route?: string;
 }
 
 interface ExpoTicket {
@@ -63,7 +70,9 @@ interface ExpoMessage {
   sound: 'default';
   title: string;
   body: string;
-  data: { orderId: string; event: string };
+  // `route`, when the sender supplies one, is an explicit in-app destination
+  // that takes precedence over orderId-based routing on the client.
+  data: { orderId: string; event: string; route?: string };
 }
 
 Deno.serve(async (req: Request) => {
@@ -86,7 +95,22 @@ Deno.serve(async (req: Request) => {
     } catch {
       return new Response('bad json', { status: 400 });
     }
-    if (!body.event || !body.orderId) return new Response('event + orderId required', { status: 400 });
+    // orderId/route contract (fixed 2026-07-27):
+    //
+    // This used to require a non-empty orderId for EVERY push, which had two
+    // consequences, both live in production:
+    //   1. Marketing campaigns (send_push_campaign) passed orderId '' and were
+    //      rejected 400 here — while the campaign row had ALREADY been inserted
+    //      and shown to the admin as "sent". Campaigns delivered nothing.
+    //   2. Senders with no order to point at smuggled another id into the field
+    //      to get past this check: credit_issued sent the USER id and
+    //      referral_rewarded sent the referred friend's order id, so taps
+    //      landed on /order/<not-an-order-of-mine>.
+    // Now: event is required, orderId is optional, and `route` carries an
+    // explicit destination. orderId still routes when present, so old senders
+    // and already-installed binaries are unaffected.
+    if (!body.event) return new Response('event required', { status: 400 });
+    const orderId = body.orderId ?? '';
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -95,11 +119,11 @@ Deno.serve(async (req: Request) => {
 
     // Resolve recipients: explicit, else the order's customer.
     let userIds = body.recipientUserIds ?? [];
-    if (userIds.length === 0) {
+    if (userIds.length === 0 && orderId) {
       const { data: order } = await admin
         .from('orders')
         .select('user_id')
-        .eq('id', body.orderId)
+        .eq('id', orderId)
         .single();
       if (order?.user_id) userIds = [order.user_id];
     }
@@ -152,7 +176,11 @@ Deno.serve(async (req: Request) => {
         sound: 'default',
         title: customTitle ?? copy.title,
         body: customBody ?? copy.body,
-        data: { orderId: body.orderId, event: body.event },
+        data: {
+          orderId,
+          event: body.event,
+          ...(body.route ? { route: body.route } : {}),
+        },
       };
       const group = messagesByLocale.get(locale);
       if (group) group.push(message);

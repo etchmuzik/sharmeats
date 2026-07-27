@@ -28,7 +28,8 @@
         "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "SENTRY_ORG": "beyond-mngmt",
         "SENTRY_PROJECT": "sharmeats-customer",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://e35f188c65269ae52eb0581340444f84@o4509518072512512.ingest.de.sentry.io/4511775703171152"
+        "EXPO_PUBLIC_SENTRY_DSN": "https://e35f188c65269ae52eb0581340444f84@o4509518072512512.ingest.de.sentry.io/4511775703171152",
+        "EXPO_PUBLIC_POSTHOG_API_KEY": "phc_yiWWQsB2XdF7Vu7wzPkpBn6BeLReUGcNeR5mVd3TJfUR"
       },
       "android": {
         "buildType": "app-bundle"
