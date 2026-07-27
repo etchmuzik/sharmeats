@@ -1225,6 +1225,54 @@ export type Database = {
           },
         ]
       }
+      notification_consent_events: {
+        Row: {
+          actor_id: string | null
+          channel: string
+          created_at: string
+          granted: boolean
+          id: string
+          policy_version: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          channel: string
+          created_at?: string
+          granted: boolean
+          id?: string
+          policy_version?: string
+          source: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          channel?: string
+          created_at?: string
+          granted?: boolean
+          id?: string
+          policy_version?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_consent_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_consent_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_prefs: {
         Row: {
           marketing: boolean
@@ -3691,6 +3739,15 @@ export type Database = {
           p_reason?: string
         }
         Returns: number
+      }
+      record_consent_event: {
+        Args: {
+          p_channel: string
+          p_granted: boolean
+          p_policy_version?: string
+          p_source?: string
+        }
+        Returns: string
       }
       record_terms_acceptance: {
         Args: { p_version: string }
