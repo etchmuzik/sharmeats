@@ -36,7 +36,7 @@ supabase/
 ## Bringing it online
 
 ### 1. Supabase project
-Create a project (region **eu-central-1**), then apply migrations + seed (in order 001 → 014, then `seed.sql`). Set Edge Function secrets:
+Create a project (the prod project lives in **eu-west-1** — verified via the Management API 2026-07-27; an earlier version of this line said eu-central-1 and misled a real outage diagnosis), then apply migrations + seed (in order 001 → 014, then `seed.sql`). Set Edge Function secrets:
 ```
 PAYMOB_SECRET_KEY, PAYMOB_PUBLIC_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_HMAC_SECRET
 ```

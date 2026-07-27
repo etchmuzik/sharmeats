@@ -96,7 +96,16 @@ echo "→ backing up ${PROJECT_REF} to ${OUT}"
 
 # --linked uses the repo's supabase/config.toml link; --db-url keeps the password
 # out of the process list of other users on shared machines.
-DB_URL="postgresql://postgres.${PROJECT_REF}:${SUPABASE_DB_PASSWORD}@aws-0-eu-west-1.pooler.supabase.com:5432/postgres"
+# Pooler region MUST match the project's region: eu-west-1, verified against
+# the Management API (get_project 2026-07-27) -- NOT eu-central-1 as README.md
+# used to claim. The two failure modes are distinct and diagnostic:
+#   wrong region  -> FATAL: (ENOTFOUND) tenant/user postgres.<ref> not found
+#   wrong password-> FATAL: password authentication failed for user "postgres"
+# (the bare "postgres" in the second is normal -- the ref suffix is routing
+# info consumed by the pooler, so it is NOT evidence of a region problem).
+# Override with POOLER_HOST if the project ever actually moves.
+POOLER_HOST="${POOLER_HOST:-aws-0-eu-west-1.pooler.supabase.com}"
+DB_URL="postgresql://postgres.${PROJECT_REF}:${SUPABASE_DB_PASSWORD}@${POOLER_HOST}:5432/postgres"
 
 # Dump engine selection.
 #
@@ -130,7 +139,7 @@ if [[ "${USE_NATIVE}" -eq 1 ]]; then
   # PGPASSWORD via the environment of this process only -- not on the pg_dump
   # command line, so it stays out of `ps` for other users.
   export PGPASSWORD="${SUPABASE_DB_PASSWORD}"
-  PG_CONN="postgresql://postgres.${PROJECT_REF}@aws-0-eu-west-1.pooler.supabase.com:5432/postgres"
+  PG_CONN="postgresql://postgres.${PROJECT_REF}@${POOLER_HOST}:5432/postgres"
 
   echo "  · roles (native pg_dump cannot dump cluster roles — see manifest)"
   cat > "${OUT}/roles.sql" <<'EOF'
