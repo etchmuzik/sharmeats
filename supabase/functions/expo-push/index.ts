@@ -58,6 +58,13 @@ interface PushBody {
   // the client falls back to its orderId-based routing, so old senders and old
   // binaries keep working unchanged.
   route?: string;
+  // The vertical this push is about ('food' | 'grocery' | 'pharmacy'), so the
+  // copy can say "the pharmacy is preparing your order" rather than "sent to
+  // the kitchen". Optional: senders that omit it get the order's snapshotted
+  // vertical resolved below, and only if THAT is also unavailable does the copy
+  // fall back to food wording — which is correct, because every order placed
+  // before verticals existed was a food order.
+  vertical?: string;
 }
 
 interface ExpoTicket {
@@ -189,6 +196,29 @@ Deno.serve(async (req: Request) => {
     // [N4] Resolve each recipient's locale in ONE batched query (never
     // per-token). Guests, missing rows, or a failed lookup fall back to 'en',
     // which matches the old English-only behavior.
+    // [E0] Which vertical is this push about? The copy layer needs it so a
+    // grocery or pharmacy order is not described in restaurant language.
+    //
+    // Prefer what the sender told us. Fall back to the ORDER'S OWN SNAPSHOT
+    // (orders.vertical_id, mig 157 — immutable, so a merchant reassigned later
+    // never rewrites what an old push should have said). Only when both are
+    // absent does resolveCopy default to food wording.
+    let vertical: string | null = body.vertical?.trim().toLowerCase() || null;
+    if (!vertical && orderId && (!customTitle || !customBody)) {
+      const { data: ordRow, error: vErr } = await admin
+        .from('orders')
+        .select('vertical_id')
+        .eq('id', orderId)
+        .maybeSingle();
+      if (vErr) {
+        // Non-fatal: a failed lookup must not drop a delivery-critical push.
+        // Copy degrades to food wording, which is what it was before this.
+        console.error(`expo-push: vertical lookup failed (using default copy): ${vErr.message}`);
+      } else {
+        vertical = (ordRow as { vertical_id: string | null } | null)?.vertical_id ?? null;
+      }
+    }
+
     const localeByUser = new Map<string, Locale>();
     if (!customTitle || !customBody) {
       const { data: userRows, error: localeErr } = await admin
@@ -208,7 +238,7 @@ Deno.serve(async (req: Request) => {
     const messagesByLocale = new Map<Locale, ExpoMessage[]>();
     for (const t of validTokens as { token: string; user_id: string }[]) {
       const locale = localeByUser.get(t.user_id) ?? 'en';
-      const copy = resolveCopy(body.event, locale);
+      const copy = resolveCopy(body.event, locale, vertical);
       const message: ExpoMessage = {
         to: t.token,
         sound: 'default',

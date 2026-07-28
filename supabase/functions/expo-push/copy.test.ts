@@ -113,3 +113,129 @@ Deno.test('no em dashes in translations or in any new event copy', () => {
     assertEquals(FALLBACK_COPY[locale].body.includes('—'), false);
   }
 });
+
+// ---------------------------------------------------------------------------
+// [E0] Vertical-aware copy.
+//
+// The base COPY map is FOOD copy ("sent to the kitchen", "Enjoy your meal!").
+// These assert that a non-food order never inherits it — the failure mode being
+// a pharmacy customer told to enjoy their meal, on a lock screen, about a
+// prescription.
+// ---------------------------------------------------------------------------
+
+const FOOD_WORDS = /kitchen|meal|restaurant|مطعم|ресторан|ristorante|Restaurant/i;
+
+Deno.test('food copy is UNCHANGED — the behaviour lock still holds', () => {
+  // Explicit vertical, omitted vertical, and null must all give food copy:
+  // every current order is food, and today's customers must see no change.
+  for (const v of ['food', undefined, null]) {
+    assertEquals(resolveCopy('order_delivered', 'en', v as string | null | undefined), {
+      title: 'Delivered',
+      body: 'Enjoy your meal! Tap to rate your order.',
+    });
+  }
+});
+
+Deno.test('grocery never inherits restaurant language', () => {
+  for (const locale of SUPPORTED_LOCALES) {
+    for (const event of ['order_paid', 'order_accepted', 'order_delivered',
+                         'order_rejected', 'driver_assigned', 'order_ready_pickup']) {
+      const c = resolveCopy(event, locale, 'grocery');
+      assertEquals(
+        FOOD_WORDS.test(`${c.title} ${c.body}`), false,
+        `grocery/${locale}/${event} leaked food wording: ${c.title} — ${c.body}`,
+      );
+      assertEquals(c.title.length > 0 && c.body.length > 0, true,
+        `grocery/${locale}/${event} has empty copy`);
+    }
+  }
+});
+
+Deno.test('pharmacy never inherits restaurant language', () => {
+  for (const locale of SUPPORTED_LOCALES) {
+    for (const event of ['order_paid', 'order_accepted', 'order_delivered',
+                         'order_rejected', 'driver_assigned', 'order_ready_pickup']) {
+      const c = resolveCopy(event, locale, 'pharmacy');
+      assertEquals(
+        FOOD_WORDS.test(`${c.title} ${c.body}`), false,
+        `pharmacy/${locale}/${event} leaked food wording: ${c.title} — ${c.body}`,
+      );
+    }
+  }
+});
+
+Deno.test('pharmacy copy never names the goods (lock-screen privacy)', () => {
+  // A push preview is readable by anyone holding the phone. Naming a medicine,
+  // a category, or even "prescription" on the lock screen is a disclosure the
+  // customer did not choose to make.
+  // Naming the MERCHANT ("the pharmacy", "la farmacia") is unavoidable and is
+  // what every other vertical does too. What must never appear is the GOODS:
+  // a medicine, a drug class, or the word prescription. An earlier version of
+  // this test also matched /farmac[oi]/, which flagged the Italian word for
+  // "pharmacy" itself — an over-broad pattern, not a real disclosure.
+  const SENSITIVE = /prescription|medicine|medication|\bdrugs?\b|\bpills?\b|وصفة|دواء|رецепт|лекарств|ricetta|medicinal|farmaco\b|farmaci\b|Rezept|Medikament/i;
+  for (const locale of SUPPORTED_LOCALES) {
+    for (const event of Object.keys(COPY.en)) {
+      const c = resolveCopy(event, locale, 'pharmacy');
+      assertEquals(
+        SENSITIVE.test(`${c.title} ${c.body}`), false,
+        `pharmacy/${locale}/${event} names the goods: ${c.title} — ${c.body}`,
+      );
+    }
+  }
+});
+
+Deno.test('an UNKNOWN vertical falls back to generic, never to food', () => {
+  // The real risk: a vertical added later inherits "Enjoy your meal!" because
+  // nobody remembered to add copy for it.
+  for (const locale of SUPPORTED_LOCALES) {
+    for (const event of ['order_paid', 'order_accepted', 'order_delivered',
+                         'order_rejected', 'driver_assigned', 'order_ready_pickup']) {
+      const c = resolveCopy(event, locale, 'flowers');
+      assertEquals(
+        FOOD_WORDS.test(`${c.title} ${c.body}`), false,
+        `unknown vertical ${locale}/${event} fell back to FOOD copy: ${c.body}`,
+      );
+      assertEquals(c.body.length > 0, true, `unknown vertical ${locale}/${event} empty`);
+    }
+  }
+});
+
+Deno.test('vertical-neutral events are identical across verticals', () => {
+  // payment_failed, new_message, credit_issued … say nothing about goods, so
+  // they must NOT diverge — divergence would be pointless translation drift.
+  for (const locale of SUPPORTED_LOCALES) {
+    for (const event of ['payment_failed', 'new_message', 'credit_issued', 'support_reply']) {
+      const food = resolveCopy(event, locale, 'food');
+      for (const v of ['grocery', 'pharmacy', 'flowers']) {
+        assertEquals(resolveCopy(event, locale, v), food,
+          `${event} needlessly diverged for ${v}/${locale}`);
+      }
+    }
+  }
+});
+
+Deno.test('vertical id is normalised (casing and whitespace)', () => {
+  const canonical = resolveCopy('order_delivered', 'en', 'pharmacy');
+  for (const raw of ['Pharmacy', 'PHARMACY', '  pharmacy  ']) {
+    assertEquals(resolveCopy('order_delivered', 'en', raw), canonical,
+      `vertical '${raw}' was not normalised`);
+  }
+});
+
+Deno.test('parity: every vertical-sensitive event has copy in all 5 locales', () => {
+  // The six events whose food wording is vertical-specific. Listed explicitly
+  // rather than imported from a private const, so the test states the contract
+  // instead of restating the implementation.
+  const SENSITIVE_EVENTS = ['order_paid', 'order_accepted', 'order_delivered',
+                            'order_rejected', 'driver_assigned', 'order_ready_pickup'];
+  for (const v of ['grocery', 'pharmacy']) {
+    for (const locale of SUPPORTED_LOCALES) {
+      for (const event of SENSITIVE_EVENTS) {
+        const c = resolveCopy(event, locale, v);
+        assertEquals(c.title.length > 0 && c.body.length > 0, true,
+          `${v}/${locale}/${event} is missing copy`);
+      }
+    }
+  }
+});

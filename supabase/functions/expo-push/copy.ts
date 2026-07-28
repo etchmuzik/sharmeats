@@ -194,9 +194,208 @@ export function normalizeLocale(raw: string | null | undefined): Locale {
   return (SUPPORTED_LOCALES as readonly string[]).includes(base) ? (base as Locale) : 'en';
 }
 
+// ---------------------------------------------------------------------------
+// VERTICAL-AWARE COPY
+// ---------------------------------------------------------------------------
+// The COPY map above is FOOD copy: it says "sent to the kitchen", "the
+// restaurant is preparing your order", "Enjoy your meal!". That is correct for
+// a restaurant order and wrong — sometimes embarrassingly so — for anything
+// else. A pharmacy customer told to "enjoy your meal" reads as a system that
+// does not know what it just delivered, and for a prescription that lands
+// somewhere between careless and a privacy signal on a lock screen.
+//
+// WHY AN OVERRIDE LAYER RATHER THAN REWRITING THE BASE MAP.
+// Food is ~100% of live orders and its English strings are under a deliberate
+// behaviour lock (copy.test.ts asserts them byte-for-byte). Rewriting the base
+// map to be vertical-neutral would change what every current customer receives
+// today in order to serve verticals that are still server-disabled. So the base
+// map stays exactly as it is, and only non-food verticals override it.
+//
+// UNKNOWN VERTICALS FALL BACK TO GENERIC, NOT TO FOOD. A vertical added later
+// (or a NULL from an old row) must not inherit "Enjoy your meal!" by accident —
+// that is the failure this whole layer exists to prevent. GENERIC_BY_EVENT is
+// the safety net, and it is deliberately bland: it describes the ORDER, never
+// its contents.
+export type VerticalId = 'food' | 'grocery' | 'pharmacy';
+
+// Only the events whose FOOD wording is actually vertical-specific need an
+// override. Everything else (payment_failed, new_message, credit_issued …) is
+// already neutral and is deliberately absent here.
+//
+// Pharmacy copy additionally avoids naming the goods at all. A push preview is
+// visible on a locked screen to anyone holding the phone, so "your pharmacy
+// order" is the most it should ever say — never an item, never a category.
+const VERTICAL_COPY: Partial<
+  Record<VerticalId, Partial<Record<Locale, Record<string, PushCopy>>>>
+> = {
+  grocery: {
+    en: {
+      order_paid: { title: 'Payment confirmed', body: 'Your order is confirmed and being prepared.' },
+      order_accepted: { title: 'Order accepted', body: 'The store is picking your items.' },
+      order_delivered: { title: 'Delivered', body: 'Your order has arrived. Tap to rate it.' },
+      order_rejected: { title: 'Order declined', body: 'The store could not take your order. Any charge is refunded.' },
+      driver_assigned: { title: 'Driver on the way', body: 'A driver is heading to the store for your order.' },
+      order_ready_pickup: { title: 'Order ready for pickup', body: 'An order is ready — head to the store to collect it.' },
+    },
+    ar: {
+      order_paid: { title: 'تم تأكيد الدفع', body: 'تم تأكيد طلبك ويجري تجهيزه.' },
+      order_accepted: { title: 'تم قبول الطلب', body: 'المتجر يجهّز منتجاتك.' },
+      order_delivered: { title: 'تم التوصيل', body: 'وصل طلبك. اضغط للتقييم.' },
+      order_rejected: { title: 'تم رفض الطلب', body: 'تعذر على المتجر قبول طلبك. سيتم رد أي مبلغ.' },
+      driver_assigned: { title: 'السائق في الطريق', body: 'السائق متوجه إلى المتجر لاستلام طلبك.' },
+      order_ready_pickup: { title: 'الطلب جاهز للاستلام', body: 'هناك طلب جاهز — توجه إلى المتجر لاستلامه.' },
+    },
+    ru: {
+      order_paid: { title: 'Оплата подтверждена', body: 'Ваш заказ подтверждён и готовится.' },
+      order_accepted: { title: 'Заказ принят', body: 'Магазин собирает ваши товары.' },
+      order_delivered: { title: 'Доставлено', body: 'Ваш заказ доставлен. Нажмите, чтобы оценить.' },
+      order_rejected: { title: 'Заказ отклонён', body: 'Магазин не смог принять заказ. Оплата будет возвращена.' },
+      driver_assigned: { title: 'Курьер в пути', body: 'Курьер направляется в магазин за вашим заказом.' },
+      order_ready_pickup: { title: 'Заказ готов к выдаче', body: 'Заказ готов — заберите его в магазине.' },
+    },
+    it: {
+      order_paid: { title: 'Pagamento confermato', body: 'Il tuo ordine è confermato ed è in preparazione.' },
+      order_accepted: { title: 'Ordine accettato', body: 'Il negozio sta preparando i tuoi articoli.' },
+      order_delivered: { title: 'Consegnato', body: 'Il tuo ordine è arrivato. Tocca per valutarlo.' },
+      order_rejected: { title: 'Ordine rifiutato', body: 'Il negozio non ha potuto accettare l\'ordine. Eventuali addebiti sono rimborsati.' },
+      driver_assigned: { title: 'Corriere in arrivo', body: 'Un corriere sta andando al negozio per il tuo ordine.' },
+      order_ready_pickup: { title: 'Ordine pronto per il ritiro', body: 'Un ordine è pronto — vai al negozio a ritirarlo.' },
+    },
+    de: {
+      order_paid: { title: 'Zahlung bestätigt', body: 'Deine Bestellung ist bestätigt und wird vorbereitet.' },
+      order_accepted: { title: 'Bestellung angenommen', body: 'Der Laden stellt deine Artikel zusammen.' },
+      order_delivered: { title: 'Geliefert', body: 'Deine Bestellung ist angekommen. Tippe zum Bewerten.' },
+      order_rejected: { title: 'Bestellung abgelehnt', body: 'Der Laden konnte die Bestellung nicht annehmen. Zahlungen werden erstattet.' },
+      driver_assigned: { title: 'Fahrer unterwegs', body: 'Ein Fahrer ist auf dem Weg zum Laden für deine Bestellung.' },
+      order_ready_pickup: { title: 'Bestellung abholbereit', body: 'Eine Bestellung ist fertig. Fahre zum Laden und hole sie ab.' },
+    },
+  },
+  pharmacy: {
+    en: {
+      order_paid: { title: 'Payment confirmed', body: 'Your order is confirmed and being prepared.' },
+      order_accepted: { title: 'Order accepted', body: 'The pharmacy is preparing your order.' },
+      order_delivered: { title: 'Delivered', body: 'Your order has arrived. Tap to rate it.' },
+      order_rejected: { title: 'Order declined', body: 'The pharmacy could not take your order. Any charge is refunded.' },
+      driver_assigned: { title: 'Driver on the way', body: 'A driver is heading to the pharmacy for your order.' },
+      order_ready_pickup: { title: 'Order ready for pickup', body: 'An order is ready — head to the pharmacy to collect it.' },
+    },
+    ar: {
+      order_paid: { title: 'تم تأكيد الدفع', body: 'تم تأكيد طلبك ويجري تجهيزه.' },
+      order_accepted: { title: 'تم قبول الطلب', body: 'الصيدلية تجهّز طلبك.' },
+      order_delivered: { title: 'تم التوصيل', body: 'وصل طلبك. اضغط للتقييم.' },
+      order_rejected: { title: 'تم رفض الطلب', body: 'تعذر على الصيدلية قبول طلبك. سيتم رد أي مبلغ.' },
+      driver_assigned: { title: 'السائق في الطريق', body: 'السائق متوجه إلى الصيدلية لاستلام طلبك.' },
+      order_ready_pickup: { title: 'الطلب جاهز للاستلام', body: 'هناك طلب جاهز — توجه إلى الصيدلية لاستلامه.' },
+    },
+    ru: {
+      order_paid: { title: 'Оплата подтверждена', body: 'Ваш заказ подтверждён и готовится.' },
+      order_accepted: { title: 'Заказ принят', body: 'Аптека готовит ваш заказ.' },
+      order_delivered: { title: 'Доставлено', body: 'Ваш заказ доставлен. Нажмите, чтобы оценить.' },
+      order_rejected: { title: 'Заказ отклонён', body: 'Аптека не смогла принять заказ. Оплата будет возвращена.' },
+      driver_assigned: { title: 'Курьер в пути', body: 'Курьер направляется в аптеку за вашим заказом.' },
+      order_ready_pickup: { title: 'Заказ готов к выдаче', body: 'Заказ готов — заберите его в аптеке.' },
+    },
+    it: {
+      order_paid: { title: 'Pagamento confermato', body: 'Il tuo ordine è confermato ed è in preparazione.' },
+      order_accepted: { title: 'Ordine accettato', body: 'La farmacia sta preparando il tuo ordine.' },
+      order_delivered: { title: 'Consegnato', body: 'Il tuo ordine è arrivato. Tocca per valutarlo.' },
+      order_rejected: { title: 'Ordine rifiutato', body: 'La farmacia non ha potuto accettare l\'ordine. Eventuali addebiti sono rimborsati.' },
+      driver_assigned: { title: 'Corriere in arrivo', body: 'Un corriere sta andando in farmacia per il tuo ordine.' },
+      order_ready_pickup: { title: 'Ordine pronto per il ritiro', body: 'Un ordine è pronto — vai in farmacia a ritirarlo.' },
+    },
+    de: {
+      order_paid: { title: 'Zahlung bestätigt', body: 'Deine Bestellung ist bestätigt und wird vorbereitet.' },
+      order_accepted: { title: 'Bestellung angenommen', body: 'Die Apotheke bereitet deine Bestellung vor.' },
+      order_delivered: { title: 'Geliefert', body: 'Deine Bestellung ist angekommen. Tippe zum Bewerten.' },
+      order_rejected: { title: 'Bestellung abgelehnt', body: 'Die Apotheke konnte die Bestellung nicht annehmen. Zahlungen werden erstattet.' },
+      driver_assigned: { title: 'Fahrer unterwegs', body: 'Ein Fahrer ist auf dem Weg zur Apotheke für deine Bestellung.' },
+      order_ready_pickup: { title: 'Bestellung abholbereit', body: 'Eine Bestellung ist fertig. Fahre zur Apotheke und hole sie ab.' },
+    },
+  },
+};
+
+// Safety net for a vertical we have no copy for — a new vertical, or a NULL
+// from a row predating the order snapshot. Deliberately says nothing about
+// WHAT was ordered: it describes the order's state only, which is true for
+// every vertical that will ever exist.
+const GENERIC_BY_EVENT: Record<Locale, Record<string, PushCopy>> = {
+  en: {
+    order_paid: { title: 'Payment confirmed', body: 'Your order is confirmed and being prepared.' },
+    order_accepted: { title: 'Order accepted', body: 'Your order is being prepared.' },
+    order_delivered: { title: 'Delivered', body: 'Your order has arrived. Tap to rate it.' },
+    order_rejected: { title: 'Order declined', body: 'Your order could not be accepted. Any charge is refunded.' },
+    driver_assigned: { title: 'Driver on the way', body: 'A driver is collecting your order.' },
+    order_ready_pickup: { title: 'Order ready for pickup', body: 'An order is ready for collection.' },
+  },
+  ar: {
+    order_paid: { title: 'تم تأكيد الدفع', body: 'تم تأكيد طلبك ويجري تجهيزه.' },
+    order_accepted: { title: 'تم قبول الطلب', body: 'يجري تجهيز طلبك.' },
+    order_delivered: { title: 'تم التوصيل', body: 'وصل طلبك. اضغط للتقييم.' },
+    order_rejected: { title: 'تم رفض الطلب', body: 'تعذر قبول طلبك. سيتم رد أي مبلغ.' },
+    driver_assigned: { title: 'السائق في الطريق', body: 'السائق في طريقه لاستلام طلبك.' },
+    order_ready_pickup: { title: 'الطلب جاهز للاستلام', body: 'هناك طلب جاهز للاستلام.' },
+  },
+  ru: {
+    order_paid: { title: 'Оплата подтверждена', body: 'Ваш заказ подтверждён и готовится.' },
+    order_accepted: { title: 'Заказ принят', body: 'Ваш заказ готовится.' },
+    order_delivered: { title: 'Доставлено', body: 'Ваш заказ доставлен. Нажмите, чтобы оценить.' },
+    order_rejected: { title: 'Заказ отклонён', body: 'Ваш заказ не может быть принят. Оплата будет возвращена.' },
+    driver_assigned: { title: 'Курьер в пути', body: 'Курьер забирает ваш заказ.' },
+    order_ready_pickup: { title: 'Заказ готов к выдаче', body: 'Заказ готов к выдаче.' },
+  },
+  it: {
+    order_paid: { title: 'Pagamento confermato', body: 'Il tuo ordine è confermato ed è in preparazione.' },
+    order_accepted: { title: 'Ordine accettato', body: 'Il tuo ordine è in preparazione.' },
+    order_delivered: { title: 'Consegnato', body: 'Il tuo ordine è arrivato. Tocca per valutarlo.' },
+    order_rejected: { title: 'Ordine rifiutato', body: 'Il tuo ordine non è stato accettato. Eventuali addebiti sono rimborsati.' },
+    driver_assigned: { title: 'Corriere in arrivo', body: 'Un corriere sta ritirando il tuo ordine.' },
+    order_ready_pickup: { title: 'Ordine pronto per il ritiro', body: 'Un ordine è pronto per il ritiro.' },
+  },
+  de: {
+    order_paid: { title: 'Zahlung bestätigt', body: 'Deine Bestellung ist bestätigt und wird vorbereitet.' },
+    order_accepted: { title: 'Bestellung angenommen', body: 'Deine Bestellung wird vorbereitet.' },
+    order_delivered: { title: 'Geliefert', body: 'Deine Bestellung ist angekommen. Tippe zum Bewerten.' },
+    order_rejected: { title: 'Bestellung abgelehnt', body: 'Deine Bestellung konnte nicht angenommen werden. Zahlungen werden erstattet.' },
+    driver_assigned: { title: 'Fahrer unterwegs', body: 'Ein Fahrer holt deine Bestellung ab.' },
+    order_ready_pickup: { title: 'Bestellung abholbereit', body: 'Eine Bestellung ist abholbereit.' },
+  },
+};
+
+// Which events change wording by vertical. Derived from GENERIC_BY_EVENT so the
+// two cannot drift: adding a generic entry automatically makes that event
+// vertical-sensitive.
+const VERTICAL_SENSITIVE_EVENTS = new Set(Object.keys(GENERIC_BY_EVENT.en));
+
 // Resolve the copy for an event in a recipient's locale.
-// Chain: locale copy -> English copy -> per-locale generic fallback.
-export function resolveCopy(event: string, rawLocale: string | null | undefined): PushCopy {
+//
+// Chain, in order:
+//   1. vertical-specific copy for this locale        (grocery/pharmacy)
+//   2. vertical-specific copy in English             (partial translations)
+//   3. GENERIC copy — for a vertical we do not know, on an event whose food
+//      wording would be wrong. This is the step that prevents a pharmacy order
+//      inheriting "Enjoy your meal!".
+//   4. locale food copy -> English food copy -> per-locale generic fallback
+//      (the original chain, unchanged, and what every food order still gets)
+//
+// `vertical` is optional so every existing caller keeps compiling and keeps its
+// exact behaviour; omitting it is treated as food, which is what the callers
+// that do not pass it are actually sending today.
+export function resolveCopy(
+  event: string,
+  rawLocale: string | null | undefined,
+  vertical?: string | null,
+): PushCopy {
   const locale = normalizeLocale(rawLocale);
+  const v = typeof vertical === 'string' ? vertical.trim().toLowerCase() : '';
+
+  if (v && v !== 'food' && VERTICAL_SENSITIVE_EVENTS.has(event)) {
+    const perVertical = VERTICAL_COPY[v as VerticalId];
+    const hit = perVertical?.[locale]?.[event] ?? perVertical?.en?.[event];
+    if (hit) return hit;
+    // Known-to-be-non-food but unknown vertical: never fall through to the food
+    // map for an event whose food wording would be wrong.
+    return GENERIC_BY_EVENT[locale][event] ?? GENERIC_BY_EVENT.en[event];
+  }
+
   return COPY[locale][event] ?? COPY.en[event] ?? FALLBACK_COPY[locale];
 }
