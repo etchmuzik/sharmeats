@@ -324,3 +324,53 @@ Sourcemap upload also remains gated on `SENTRY_AUTH_TOKEN`.
 Rotating any of these: update the store, then redeploy the function / rebuild the
 app that reads it. A mismatched `PUSH_INTERNAL_SECRET` between Vault and the
 `expo-push` function silently 401s every push — rotate both together.
+
+## 8. Bulk catalog import — write rows in a consistent order
+
+Bulk catalog writes (grocery/pharmacy onboarding, price-list refreshes, the CSV
+importer) must order their statements **deterministically** — sort by
+`restaurant_id`, then `menu_items.id` — and every importer must use the *same*
+order.
+
+**Why.** Two concurrent transactions that touch the same rows in *opposite*
+order deadlock. This is ordinary Postgres row-lock contention, not specific to
+any trigger. Reproduced on a clone (2026-07-29):
+
+```
+T1: update item A ... then item B
+T2: update item B ... then item A
+ERROR:  deadlock detected
+```
+
+Measured, so the diagnosis is not guesswork:
+
+| scenario | result |
+|---|---|
+| opposing order, Rx items (capability trigger fires) | deadlock |
+| opposing order, **plain `price_egp` update, trigger never fires** | **deadlock** |
+| same order, 3 concurrent runs | **0 deadlocks** |
+
+The middle row is the one that matters: the deadlock reproduces with the
+capability trigger completely uninvolved, so it is a property of the write
+pattern, not of `menu_items_enforce_vertical_capability()`. A trigger-side
+"fix" would have been treating a symptom — an early draft (migration 167) tried
+reordering the trigger's locks, did not help, and was discarded because it
+also introduced a retry error on writes that previously succeeded. It was never
+applied to production.
+
+**What to do in an importer:**
+
+1. `ORDER BY restaurant_id, id` before writing. One consistent order across all
+   importers is the entire fix.
+2. Prefer one statement over a loop — a single `UPDATE ... WHERE id = ANY($1)`
+   with a sorted array takes its row locks in one pass.
+3. Keep transactions short. The longer a batch holds locks, the wider the window.
+4. Retry on SQLSTATE `40P01` (`deadlock_detected`) with backoff. Even correct
+   code can lose a race against an unrelated writer (a merchant editing a price
+   in the dashboard), and a deadlock victim is safe to retry — Postgres has
+   already rolled it back.
+
+Note `requires_prescription` writes additionally take the merchant row and the
+vertical advisory lock (migration 160), so a *pharmacy* import holds locks
+slightly longer than a food one. Ordering still fixes it; the extra locks do
+not change the rule.
