@@ -92,12 +92,44 @@ async function readPendingVerification(phone: string): Promise<PendingVerificati
 }
 
 export const authRepoSupabase = {
-  /** Current session's user id, or null if not signed in. */
+  /**
+   * Current session's user id, or null if genuinely not signed in.
+   *
+   * THROWS rather than returning null when the answer is UNKNOWN. The Supabase
+   * client returns `{ data: { user: null }, error }` on a failed lookup, so
+   * reading only `data` collapses two different facts into the same value:
+   * "nobody is signed in" and "we could not find out". Identity teardown asks
+   * this question to decide whether a credential survived a failed sign-out,
+   * and there an unknown must never be reported as absence.
+   */
   async currentUserId(): Promise<string | null> {
-    const {
-      data: { user },
-    } = await getSupabase().auth.getUser();
-    return user?.id ?? null;
+    const { data, error } = await getSupabase().auth.getUser();
+    if (error) {
+      // AuthSessionMissingError is the library's way of saying "there is no
+      // session" — that IS the answer, not a failure to obtain it.
+      const name = (error as { name?: string }).name ?? '';
+      const status = (error as { status?: number }).status;
+      if (name === 'AuthSessionMissingError' || status === 401) return null;
+      throw error;
+    }
+    return data.user?.id ?? null;
+  },
+
+  /**
+   * Is a credential still persisted on THIS device?
+   *
+   * Reads local storage rather than the network, so it can answer while
+   * offline — which is exactly the case where sign-out failed and the caller
+   * most needs to know whether tokens survived. `getSession()` is local-only;
+   * it does not round-trip.
+   */
+  async hasLocalCredential(): Promise<boolean> {
+    const { data, error } = await getSupabase().auth.getSession();
+    // Unknown is treated as "yes, assume a credential remains": teardown must
+    // fail closed, and claiming the device is clean when we cannot tell is the
+    // failure this exists to prevent.
+    if (error) return true;
+    return data.session != null;
   },
 
   /**
@@ -229,10 +261,24 @@ export const authRepoSupabase = {
     return { userId: user.id, phone: user.phone ?? normalizedPhone };
   },
 
+  /**
+   * Revoke this device's session.
+   *
+   * THROWS on a returned error. The Supabase client reports failure as a
+   * returned `{ error }`, not a rejection, so awaiting it without inspecting
+   * the result made every sign-out look successful — including one that left
+   * working tokens on the device. Identity teardown records "credentials
+   * revoked" from this call, so a silent failure there is a false claim about
+   * a security-relevant step.
+   */
   async signOut(): Promise<void> {
     try {
-      await getSupabase().auth.signOut();
+      const { error } = await getSupabase().auth.signOut();
+      if (error) throw error;
     } finally {
+      // Runs whether or not the revoke succeeded: the pending-verification
+      // record is local, belongs to the departing identity either way, and
+      // must not survive because the network was down.
       await clearPendingVerification().catch(() => {});
     }
   },

@@ -80,10 +80,26 @@ export interface Hotel {
   verified: boolean;
 }
 
+/**
+ * Commerce vertical (Package 07 Program A).
+ *
+ * Answers "what commerce workflow is this?" -- distinct from cuisine/category,
+ * which answers "what kind, WITHIN that vertical". A vertical owns its own
+ * category list and customer vocabulary, so grocery/pharmacy must never be
+ * modelled as food cuisines.
+ *
+ * The server is authoritative for whether a vertical is visible at all
+ * (verticals.launch_stage + can_view_vertical). This field is identity, not
+ * permission: a client must never infer orderability from it.
+ */
+export type VerticalId = 'food' | 'grocery' | 'pharmacy';
+
 export interface Restaurant {
   id: string;
   slug: string;
   name: string;
+  /** Which commerce vertical this merchant trades in. Defaults to food. */
+  verticalId: VerticalId;
   cuisines: Cuisine[];
   cuisineLabel: string;
   coverImage: string;
@@ -341,6 +357,12 @@ export interface OrderStatusEntry {
 
 export interface Order {
   id: string;
+  /**
+   * The vertical this order was placed in, SNAPSHOTTED server-side at placement
+   * (mig 157). Not a live join: reassigning a merchant must not rewrite the
+   * history of orders already placed.
+   */
+  verticalId: VerticalId;
   shortCode: string;
   userId: string;
   restaurantId: string;
@@ -395,6 +417,20 @@ export interface SavedOrder {
   name: string;
   items: CartItem[];
   createdAt: string;
+  /**
+   * Can this preset still be ordered?
+   *
+   * False when the merchant's vertical is no longer visible to this customer
+   * (mig 163). Such a row arrives REDACTED — empty `name`, empty `items`,
+   * empty `restaurantName` — because listing it in full would disclose the
+   * merchant and the basket contents of a hidden vertical before any tap.
+   *
+   * The row is still returned so the customer can DELETE it: Postgres applies
+   * the SELECT policy when locating rows for DELETE, so a fully concealed row
+   * would be undeletable and would permanently consume one of the five slots.
+   * Render it as unavailable-and-removable, never as an ordinary preset.
+   */
+  isAvailable: boolean;
 }
 
 /**

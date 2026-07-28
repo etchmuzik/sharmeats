@@ -112,6 +112,10 @@ export interface CreateOrderInput {
 
 export const ordersRepo = {
   async create(input: CreateOrderInput): Promise<Order> {
+    // The snapshot must come from the MERCHANT, exactly as mig 157's trigger
+    // derives it server-side. Defaults to food only when the fixture is absent.
+    const restaurantVerticalId =
+      (await restaurantsRepo.get(input.restaurantId))?.verticalId ?? 'food';
     const subtotal = input.items.reduce((acc, ci) => {
       const mods = ci.modifierChoices.reduce((m, c) => m + c.priceDeltaEgp, 0);
       return acc + (ci.basePriceEgp + mods) * ci.quantity;
@@ -128,6 +132,11 @@ export const ordersRepo = {
     const slaMinutes = 30;
     const o: Order = {
       id,
+      // Mock mirrors mig 157: the vertical is SNAPSHOTTED at placement, taken
+      // from the merchant. Hardcoding 'food' made every mock order claim food
+      // even for a grocery/pharmacy fixture, so the mock disagreed with the
+      // server -- which is how a vertical bug ships while looking fine locally.
+      verticalId: restaurantVerticalId,
       shortCode: `SE-${shortCode()}`,
       userId: DEFAULT_USER.id,
       restaurantId: input.restaurantId,
@@ -226,7 +235,11 @@ export const ordersRepo = {
 
     return delay({
       restaurantId,
-      restaurantOpen: restaurant?.isOpen ?? true,
+      // FAIL CLOSED. `?? true` meant an unknown/absent merchant read as OPEN in
+      // mock mode, so a hidden merchant rendered as orderable in development --
+      // the opposite of the server's answer, which is how a leak ships while
+      // looking fine locally.
+      restaurantOpen: restaurant?.isOpen ?? false,
       minimumOrderEgp: restaurant?.minOrderEgp ?? 0,
       lines: prepared,
       issues,

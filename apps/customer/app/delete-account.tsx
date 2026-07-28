@@ -19,12 +19,10 @@ import { Icon } from '../src/components/Icon';
 import { colors, font, radius, shadow } from '../src/theme';
 import { useT } from '../src/i18n';
 import { useDirection } from '../src/lib/direction';
-import { useSession } from '../src/store/session';
 import { tap, success, warn } from '../src/haptics';
 import { db } from '../src/data';
 import { AccountDeletionError } from '../src/data/supabase/user';
-import { unregisterPush } from '../src/lib/push';
-import { resetAnalyticsUser } from '../src/lib/analytics';
+import { transitionIdentity } from '../src/lib/identityTeardown';
 
 /**
  * Account deletion screen — Apple App Store Guideline 5.1.1(v).
@@ -44,7 +42,6 @@ export default function DeleteAccount() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const dir = useDirection();
-  const signOut = useSession((s) => s.signOut);
 
   const [confirmText, setConfirmText] = useState('');
   const [hasActiveOrder, setHasActiveOrder] = useState(false);
@@ -82,20 +79,26 @@ export default function DeleteAccount() {
     if (!canDelete) return;
     setDeleting(true);
     try {
-      // Stop this device from receiving the (now-detached) account's pushes,
-      // then delete server-side data + auth identity.
-      await unregisterPush().catch(() => {});
+      // Delete server-side data + auth identity FIRST. Local teardown runs only
+      // after this resolves: if the server call fails the account still exists,
+      // and wiping the device would destroy the basket for an account the
+      // customer still has.
       await db.user.deleteAccount();
 
-      // Full teardown so no orphaned credential or state survives:
-      //  - clear the Supabase SDK session (its persisted access/refresh tokens
-      //    are now for a deleted identity); without this they linger until the
-      //    next cold launch.
-      //  - reset analytics identity.
-      //  - clear the local Zustand session (flips signed-out, wipes AsyncStorage).
-      await db.auth.signOut().catch(() => {});
-      resetAnalyticsUser();
-      signOut();
+      // ONE awaited teardown, shared with Profile sign-out: unregister push,
+      // revoke the Supabase session (its tokens are now for a deleted
+      // identity), reset the in-memory cart/session/analytics identity, remove
+      // every identity-scoped storage key, then establish a fresh anonymous
+      // session so the next person can browse.
+      //
+      // Awaited before the confirmation dialog, so we never tell the customer
+      // their data is gone while it is still on the device.
+      //
+      // The ACCOUNT is deleted server-side either way -- that already
+      // succeeded above and is irreversible. What can still fail is local
+      // teardown, so the success message is worded from what was actually
+      // proven rather than assumed.
+      const teardown = await transitionIdentity();
       success();
 
       // Confirm, THEN navigate from the alert's action so the message is tied
@@ -103,7 +106,11 @@ export default function DeleteAccount() {
       // navigation that replaces this screen).
       Alert.alert(
         t('deleteAccount.successTitle'),
-        t('deleteAccount.successBody'),
+        // Never claim a clean device we did not achieve. The account IS gone;
+        // if local teardown fell short, say so instead of implying otherwise.
+        teardown.isolationComplete
+          ? t('deleteAccount.successBody')
+          : `${t('deleteAccount.successBody')}\n\n${t('profile.signOutIncomplete')}`,
         [{ text: t('common.continue'), onPress: () => router.replace('/onboarding') }],
         { cancelable: false },
       );

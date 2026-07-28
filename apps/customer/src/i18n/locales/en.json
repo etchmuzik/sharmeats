@@ -338,6 +338,7 @@
   "profile.invite": "Invite friends",
   "profile.help": "Help & support",
   "profile.signOut": "Sign out",
+  "profile.signOutIncomplete": "We couldn't fully remove your data from this device. You're still signed in — please check your connection and try again.",
   "profile.deleteAccount": "Delete account",
   "invite.title": "Invite friends",
   "invite.heroTitle": "Don't let friends miss EGP 50",
@@ -435,6 +436,8 @@
   "profile.support": "Live chat support",
   "profile.editProfile": "Edit profile",
   "savedOrder.remove": "Remove",
+  "savedOrder.unavailable": "Not available",
+  "savedOrder.unavailableHint": "This saved order can't be reordered right now. Press and hold to remove it.",
   "savedOrder.removeConfirm": "Remove this saved order?",
   "empty.cart.title": "Your cart is empty",
   "empty.cart.body": "Nothing here yet. Let's fix that.",
@@ -486,5 +489,6 @@
   "push.primerNotNow": "Not now",
   "push.blockedTitle": "Notifications are off",
   "push.blockedBody": "You've turned off notifications for Sharm Eats in your device settings. You can turn them back on there.",
-  "push.openSettings": "Open device settings"
+  "push.openSettings": "Open device settings",
+  "orders.reorderUnavailableNow": "That store isn't available right now."
 }

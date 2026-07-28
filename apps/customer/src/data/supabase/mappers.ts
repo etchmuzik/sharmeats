@@ -98,6 +98,9 @@ export function rowToRestaurant(r: RestaurantRow): Restaurant {
     id: r.id,
     slug: r.slug,
     name: r.name,
+    // Vertical identity (Package 07 A). Defaults to 'food' so an older backend
+    // row without the column maps to today's behaviour rather than undefined.
+    verticalId: ((r as { vertical_id?: string }).vertical_id ?? 'food') as Restaurant['verticalId'],
     cuisines: r.cuisines as Restaurant['cuisines'],
     cuisineLabel: r.cuisine_label,
     coverImage: r.cover_image,
@@ -326,6 +329,8 @@ interface OrderRow {
 export function rowToOrder(o: OrderRow): Order {
   return {
     id: o.id,
+    // Snapshotted at placement (mig 157), never a live join.
+    verticalId: ((o as { vertical_id?: string }).vertical_id ?? 'food') as Order['verticalId'],
     shortCode: o.short_code,
     userId: o.user_id,
     restaurantId: o.restaurant_id,

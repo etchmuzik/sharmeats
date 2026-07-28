@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,13 +8,12 @@ import { Icon, type IconName } from '../../src/components/Icon';
 import { useT, LOCALE_LABELS } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
-import { tap } from '../../src/haptics';
+import { tap, warn } from '../../src/haptics';
 import { db } from '../../src/data';
 import { LegalRows } from '../../src/components/LegalRows';
 import { useUnreadBadges } from '../../src/hooks/useUnreadBadges';
 import type { User } from '../../src/data/types';
-import { unregisterPush } from '../../src/lib/push';
-import { resetAnalyticsUser } from '../../src/lib/analytics';
+import { transitionIdentity } from '../../src/lib/identityTeardown';
 
 interface Row {
   icon: IconName;
@@ -33,7 +32,6 @@ export default function ProfileTab() {
   const locale = useSession((s) => s.locale);
   const currency = useSession((s) => s.currency);
   const phone = useSession((s) => s.phone);
-  const signOut = useSession((s) => s.signOut);
   const [me, setMe] = useState<User | null>(null);
   const unread = useUnreadBadges();
 
@@ -60,12 +58,25 @@ export default function ProfileTab() {
     {
       icon: 'signout',
       label: t('profile.signOut'),
-      onPress: () => {
-        // Remove this device's push token first so the next account on this
-        // phone doesn't receive the previous user's order updates.
-        unregisterPush();
-        resetAnalyticsUser();
-        signOut();
+      onPress: async () => {
+        // ONE awaited transition, shared with account deletion. This screen used
+        // to unregister push and clear the Zustand session but never called
+        // Supabase signOut() — so the SDK kept valid tokens for the departing
+        // account — and never cleared the cart, leaving the previous person's
+        // item names, notes and allergen selections on a shared device.
+        //
+        // Awaited before navigating: the next screen must not mount while the
+        // old identity's state is still live.
+        const result = await transitionIdentity();
+        if (!result.isolationComplete) {
+          // A credential or a cached basket survived. Navigating to onboarding
+          // would present the device as handed over while the previous person's
+          // data is still on it. Tell the truth and stay put so the customer can
+          // retry — they are still signed in, which is the accurate state.
+          warn();
+          Alert.alert(t('profile.signOut'), t('profile.signOutIncomplete'));
+          return;
+        }
         router.replace('/onboarding');
       },
       destructive: true,

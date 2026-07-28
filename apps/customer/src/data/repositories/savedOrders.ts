@@ -47,6 +47,9 @@ export const savedOrdersRepo = {
       name: input.name,
       items: input.items,
       createdAt,
+      // Mock mode has one visible vertical, so presets are always orderable.
+      // Modelling the field keeps both backends on the same contract.
+      isAvailable: true,
     };
     saved = [record, ...saved];
     return delay(record);

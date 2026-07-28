@@ -4,6 +4,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-trattoria-del-mare',
     slug: 'trattoria-del-mare',
+    verticalId: 'food',
     name: 'Trattoria del Mare',
     cuisines: ['italian', 'pizza', 'seafood'],
     cuisineLabel: 'Italian · Wood-fire pizza',
@@ -25,6 +26,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-abou-el-sid',
     slug: 'abou-el-sid',
+    verticalId: 'food',
     name: 'Abou El Sid',
     cuisines: ['egyptian'],
     cuisineLabel: 'Egyptian · Traditional',
@@ -46,6 +48,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-sushi-roku',
     slug: 'sushi-roku',
+    verticalId: 'food',
     name: 'Sushi Roku',
     cuisines: ['sushi', 'asian'],
     cuisineLabel: 'Japanese · Omakase',
@@ -68,6 +71,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-dananeer',
     slug: 'dananeer-seafood',
+    verticalId: 'food',
     name: 'Dananeer Seafood',
     cuisines: ['seafood'],
     cuisineLabel: 'Seafood · Red Sea catch',
@@ -88,6 +92,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-burger-naama',
     slug: 'burger-naama',
+    verticalId: 'food',
     name: 'Naama Smash House',
     cuisines: ['burgers'],
     cuisineLabel: 'Burgers · American',
@@ -108,6 +113,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-green-bowl',
     slug: 'green-bowl',
+    verticalId: 'food',
     name: 'Green Bowl Café',
     cuisines: ['healthy', 'cafe'],
     cuisineLabel: 'Healthy · Vegan-friendly',
@@ -128,6 +134,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-koshary-tahrir',
     slug: 'koshary-tahrir',
+    verticalId: 'food',
     name: 'Koshary Tahrir',
     cuisines: ['egyptian'],
     cuisineLabel: 'Egyptian · Street food',
@@ -148,6 +155,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-pizzeria-roma',
     slug: 'pizzeria-roma',
+    verticalId: 'food',
     name: 'Pizzeria Roma',
     cuisines: ['pizza', 'italian'],
     cuisineLabel: 'Italian · Roman-style',
@@ -171,6 +179,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-koshary-hadaba',
     slug: 'koshary-el-hadaba',
+    verticalId: 'food',
     name: 'كشري الهضبة',
     cuisines: ['street_food', 'egyptian', 'late_night'],
     cuisineLabel: 'كشري · أكل شارع · ٢٤ ساعة',
@@ -194,6 +203,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-foul-mubarak',
     slug: 'foul-cart-mubarak-7',
+    verticalId: 'food',
     name: 'عربية الفول مبارك ٧',
     cuisines: ['breakfast', 'egyptian', 'street_food'],
     cuisineLabel: 'فطار · فول وطعمية',
@@ -216,6 +226,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-taameya-salam',
     slug: 'taameya-express-el-salam',
+    verticalId: 'food',
     name: 'طعمية إكسبرس السلام',
     cuisines: ['breakfast', 'egyptian', 'street_food'],
     cuisineLabel: 'فطار سريع · طعمية وفلافل',
@@ -237,6 +248,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-hawawshi-khedeiwy',
     slug: 'hawawshi-el-khedeiwy',
+    verticalId: 'food',
     name: 'حواوشي الخديوي',
     cuisines: ['street_food', 'egyptian', 'late_night'],
     cuisineLabel: 'حواوشي · مفتوح متأخر',
@@ -258,6 +270,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-fiteer-rowaisat',
     slug: 'fiteer-baladi-el-rowaisat',
+    verticalId: 'food',
     name: 'فطير بلدي الروسات',
     cuisines: ['street_food', 'egyptian', 'sweets'],
     cuisineLabel: 'فطير · حلو ومالح',
@@ -279,6 +292,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-bahr-grill',
     slug: 'el-bahr-grill',
+    verticalId: 'food',
     name: 'مشويات البحر',
     cuisines: ['egyptian'],
     cuisineLabel: 'مشويات · كباب وكفتة',
@@ -300,6 +314,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-mahshi-bedouin',
     slug: 'bedouin-mahshi-house',
+    verticalId: 'food',
     name: 'بيت المحشي البدوي',
     cuisines: ['egyptian'],
     cuisineLabel: 'محشي وأكلات بيتية',
@@ -321,6 +336,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-kunafa-sham',
     slug: 'kunafa-el-sham',
+    verticalId: 'food',
     name: 'كنافة الشام',
     cuisines: ['sweets'],
     cuisineLabel: 'حلويات شرقية',
@@ -343,6 +359,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-carrefour-naama',
     slug: 'carrefour-express-naama',
+    verticalId: 'grocery',
     name: 'كارفور إكسبرس نعمة',
     cuisines: ['grocery'],
     cuisineLabel: 'بقالة · توصيل ٤٥ دقيقة',
@@ -364,6 +381,7 @@ export const RESTAURANTS: Restaurant[] = [
   {
     id: 'r-ezaby-pharmacy',
     slug: 'ezaby-pharmacy',
+    verticalId: 'pharmacy',
     name: 'صيدلية العزبي',
     cuisines: ['pharmacy'],
     cuisineLabel: 'صيدلية · مفتوحة ٢٤ ساعة',

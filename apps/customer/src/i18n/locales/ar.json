@@ -338,6 +338,7 @@
   "profile.invite": "دعوة الأصدقاء",
   "profile.help": "المساعدة والدعم",
   "profile.signOut": "تسجيل الخروج",
+  "profile.signOutIncomplete": "تعذر علينا إزالة بياناتك بالكامل من هذا الجهاز. ما زلت مسجّل الدخول — يرجى التحقق من اتصالك والمحاولة مرة أخرى.",
   "profile.deleteAccount": "حذف الحساب",
   "invite.title": "دعوة الأصدقاء",
   "invite.heroTitle": "لا تدع أصدقاءك يفوّتون 50 ج.م",
@@ -435,6 +436,8 @@
   "profile.support": "دردشة الدعم المباشر",
   "profile.editProfile": "تعديل الملف",
   "savedOrder.remove": "إزالة",
+  "savedOrder.unavailable": "غير متاح",
+  "savedOrder.unavailableHint": "لا يمكن إعادة طلب هذا الطلب المحفوظ حاليًا. اضغط مطولًا لإزالته.",
   "savedOrder.removeConfirm": "إزالة هذا الطلب المحفوظ؟",
   "empty.cart.title": "سلتك فاضية",
   "empty.cart.body": "لسه مفيش حاجة هنا، يلا نظبطها.",
@@ -486,5 +489,6 @@
   "push.primerNotNow": "ليس الآن",
   "push.blockedTitle": "الإشعارات متوقفة",
   "push.blockedBody": "لقد أوقفت إشعارات Sharm Eats من إعدادات جهازك. يمكنك تفعيلها من هناك.",
-  "push.openSettings": "فتح إعدادات الجهاز"
+  "push.openSettings": "فتح إعدادات الجهاز",
+  "orders.reorderUnavailableNow": "هذا المتجر غير متاح حاليًا."
 }

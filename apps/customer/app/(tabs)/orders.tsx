@@ -13,7 +13,7 @@ import { tap, success } from '../../src/haptics';
 import { useCart } from '../../src/store/cart';
 import { track } from '../../src/lib/analytics';
 import { describeReorderChanges } from '../../src/lib/reorderCheck';
-import { prepareReorder } from '../../src/lib/prepareCart';
+import { prepareReorder, isVerticalDenial } from '../../src/lib/prepareCart';
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   placed: 'status.placed',
@@ -134,7 +134,15 @@ export default function OrdersTab() {
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('orders.reorderContinue'), onPress: proceed },
       ]);
-    } catch {
+    } catch (e) {
+      // A VERTICAL DENIAL IS NOT AN OUTAGE. prepareReorder re-throws
+      // VERTICAL_NOT_AVAILABLE, and swallowing it here would load the hidden
+      // merchant's basket from the SAVED order anyway -- reintroducing exactly
+      // the leak the server gate closes, from the customer's own history.
+      if (isVerticalDenial(e)) {
+        Alert.alert(t('orders.reorderTitle'), t('orders.reorderUnavailableNow'));
+        return;
+      }
       // Menu fetch failed (offline). Fall back to the old behaviour rather than
       // blocking the reorder: the server still validates everything, so the
       // worst case is the pre-existing one, not a new failure.

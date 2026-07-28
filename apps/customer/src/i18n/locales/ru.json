@@ -338,6 +338,7 @@
   "profile.invite": "Пригласить друзей",
   "profile.help": "Помощь и поддержка",
   "profile.signOut": "Выйти",
+  "profile.signOutIncomplete": "Не удалось полностью удалить ваши данные с этого устройства. Вы всё ещё в системе — проверьте соединение и повторите попытку.",
   "profile.deleteAccount": "Удалить аккаунт",
   "invite.title": "Пригласить друзей",
   "invite.heroTitle": "Не дайте друзьям упустить 50 EGP",
@@ -435,6 +436,8 @@
   "profile.support": "Живой чат поддержки",
   "profile.editProfile": "Изменить профиль",
   "savedOrder.remove": "Удалить",
+  "savedOrder.unavailable": "Недоступно",
+  "savedOrder.unavailableHint": "Этот сохранённый заказ сейчас нельзя повторить. Нажмите и удерживайте, чтобы удалить.",
   "savedOrder.removeConfirm": "Удалить этот сохранённый заказ?",
   "empty.cart.title": "Ваша корзина пуста",
   "empty.cart.body": "Здесь пока ничего нет. Давайте это исправим.",
@@ -486,5 +489,6 @@
   "push.primerNotNow": "Не сейчас",
   "push.blockedTitle": "Уведомления отключены",
   "push.blockedBody": "Вы отключили уведомления Sharm Eats в настройках устройства. Включить их можно там же.",
-  "push.openSettings": "Открыть настройки устройства"
+  "push.openSettings": "Открыть настройки устройства",
+  "orders.reorderUnavailableNow": "Этот магазин сейчас недоступен."
 }

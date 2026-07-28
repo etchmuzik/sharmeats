@@ -27,7 +27,7 @@ import { useDirection } from '../../src/lib/direction';
 import { useSession } from '../../src/store/session';
 import { useCart } from '../../src/store/cart';
 import { describeReorderChanges } from '../../src/lib/reorderCheck';
-import { prepareReorder } from '../../src/lib/prepareCart';
+import { prepareReorder, isVerticalDenial } from '../../src/lib/prepareCart';
 import { formatEgp } from '../../src/lib/format';
 import { tap } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
@@ -41,14 +41,23 @@ function hasUnresolvableMods(items: { modifierChoices?: { optionId?: string }[] 
   return items.some((it) => (it.modifierChoices ?? []).some((c) => !c.optionId));
 }
 
+/**
+ * Food cuisines only.
+ *
+ * `grocery` and `pharmacy` were listed here as CUISINES (Package 07 Program A:
+ * "Remove grocery/pharmacy as global food-cuisine aliases"). They are
+ * VERTICALS, not kinds of food, and a static chip advertised them on the Home
+ * screen regardless of launch stage -- a hidden vertical must not be discoverable
+ * from a hardcoded filter. A vertical owns its own category list and vocabulary,
+ * so those chips return when the vertical itself is visible, driven by
+ * vertical_categories (mig 152) rather than by this constant.
+ */
 const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
   { key: 'all', tKey: 'cuisine.all', emoji: '' },
   { key: 'breakfast', tKey: 'cuisine.breakfast', emoji: '🍳' },
   { key: 'street_food', tKey: 'cuisine.street_food', emoji: '🥙' },
   { key: 'egyptian', tKey: 'cuisine.egyptian', emoji: '🍲' },
   { key: 'sweets', tKey: 'cuisine.sweets', emoji: '🍯' },
-  { key: 'grocery', tKey: 'cuisine.grocery', emoji: '🛒' },
-  { key: 'pharmacy', tKey: 'cuisine.pharmacy', emoji: '💊' },
   { key: 'italian', tKey: 'cuisine.italian', emoji: '🍝' },
   { key: 'seafood', tKey: 'cuisine.seafood', emoji: '🐟' },
   { key: 'burgers', tKey: 'cuisine.burgers', emoji: '🍔' },
@@ -251,7 +260,14 @@ export default function HomeTab() {
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('orders.reorderContinue'), onPress: proceed },
       ]);
-    } catch {
+    } catch (e) {
+      // A VERTICAL DENIAL IS NOT AN OUTAGE. Swallowing it would load the hidden
+      // merchant's basket from the SAVED PRESET, reintroducing the leak the
+      // server gate closes -- from data already on the device.
+      if (isVerticalDenial(e)) {
+        Alert.alert(t('orders.reorderTitle'), t('orders.reorderUnavailableNow'));
+        return;
+      }
       // Offline: fall back to the previous behaviour rather than blocking the
       // preset. The server still validates every price.
       loadFromOrder({ restaurantId: s.restaurantId, restaurantName: s.restaurantName, lines: s.items });
@@ -452,19 +468,42 @@ export default function HomeTab() {
               <Text style={styles.secTitle}>{t('home.savedForYou')}</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingTop: 10 }}>
-              {savedOrders.map((s) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => openSaved(s)}
-                  onLongPress={() => removeSaved(s)}
-                  accessibilityRole="button"
-                  accessibilityLabel={s.name}
-                  style={styles.savedCard}>
-                  <Text style={styles.savedName} numberOfLines={1}>{s.name}</Text>
-                  <Text style={styles.savedSub} numberOfLines={1}>{s.restaurantName}</Text>
-                  <Text style={styles.savedMeta}>{t('orders.itemsCount', { n: s.items.length })}</Text>
-                </Pressable>
-              ))}
+              {savedOrders.map((s) =>
+                // A preset whose merchant is no longer visible arrives REDACTED
+                // (mig 163): empty name, empty items. Rendering it as an
+                // ordinary card would show a blank preset claiming "0 items".
+                // Say plainly that it is unavailable, and keep it removable —
+                // it still occupies one of the five slots until deleted.
+                s.isAvailable ? (
+                  <Pressable
+                    key={s.id}
+                    onPress={() => openSaved(s)}
+                    onLongPress={() => removeSaved(s)}
+                    accessibilityRole="button"
+                    accessibilityLabel={s.name}
+                    style={styles.savedCard}>
+                    <Text style={styles.savedName} numberOfLines={1}>{s.name}</Text>
+                    <Text style={styles.savedSub} numberOfLines={1}>{s.restaurantName}</Text>
+                    <Text style={styles.savedMeta}>{t('orders.itemsCount', { n: s.items.length })}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    key={s.id}
+                    // No onPress: there is nothing to open. Long-press still
+                    // removes it, matching the available card's gesture.
+                    onLongPress={() => removeSaved(s)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t('savedOrder.unavailable')}. ${t('savedOrder.remove')}`}
+                    style={[styles.savedCard, { opacity: 0.55 }]}>
+                    <Text style={styles.savedName} numberOfLines={1}>
+                      {t('savedOrder.unavailable')}
+                    </Text>
+                    <Text style={styles.savedSub} numberOfLines={2}>
+                      {t('savedOrder.unavailableHint')}
+                    </Text>
+                  </Pressable>
+                ),
+              )}
             </ScrollView>
           </View>
         )}

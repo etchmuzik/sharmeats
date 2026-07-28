@@ -19,24 +19,49 @@ function rowToSavedOrder(row: SavedOrderRow, restaurantName: string): SavedOrder
     name: row.name,
     items: row.items,
     createdAt: row.created_at,
+    // Overridden by list() from the view's is_available. A freshly saved preset
+    // is available by construction: mig 163's INSERT policy refuses to create
+    // one for a merchant the customer cannot see.
+    isAvailable: true,
   };
 }
 
 export const savedOrdersRepoSupabase = {
-  /** Owner-scoped by RLS. Newest first. Restaurant name is denormalized from the join. */
+  /**
+   * Owner-scoped by RLS. Newest first.
+   *
+   * READS `saved_orders_visible`, NOT the base table (mig 163). A preset whose
+   * merchant has moved into a vertical this customer may not see would
+   * otherwise return its label and its full items JSON — the merchant and the
+   * basket contents — at LIST time, before any tap. The view blanks both and
+   * sets `is_available = false`.
+   *
+   * The row itself is deliberately still returned: Postgres applies the SELECT
+   * policy when locating rows for DELETE, so hiding it outright would make it
+   * undeletable and permanently consume one of the five saved slots. The
+   * customer keeps something they can remove; they just cannot see what is in it.
+   */
   async list(): Promise<SavedOrder[]> {
     const { data, error } = await getSupabase()
-      .from('saved_orders')
-      .select('id, restaurant_id, name, items, created_at, restaurants(name)')
+      .from('saved_orders_visible')
+      .select('id, restaurant_id, name, items, created_at, is_available, restaurants(name)')
       .order('created_at', { ascending: false });
     if (error) throw error;
     // The untyped Supabase client (no generated Database types in this project)
     // infers embedded to-one relations as an array shape; at runtime PostgREST
     // returns a single related row (or null) for this restaurant_id FK.
-    type RowWithRestaurant = SavedOrderRow & { restaurants: { name: string }[] | { name: string } | null };
+    type RowWithRestaurant = SavedOrderRow & {
+      is_available: boolean;
+      restaurants: { name: string }[] | { name: string } | null;
+    };
     return (data ?? []).map((r: RowWithRestaurant) => {
       const restaurant = Array.isArray(r.restaurants) ? r.restaurants[0] : r.restaurants;
-      return rowToSavedOrder(r, restaurant?.name ?? '');
+      // A redacted row carries no merchant name either (mig 153 gates that
+      // join), so the UI gets empty strings rather than a half-populated card.
+      return {
+        ...rowToSavedOrder(r, restaurant?.name ?? ''),
+        isAvailable: r.is_available,
+      };
     });
   },
 

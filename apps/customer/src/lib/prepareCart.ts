@@ -5,14 +5,16 @@
  * presets, and (later) a restored server cart. They must agree, or the same
  * basket reports different things depending on where the customer tapped.
  *
- * SERVER FIRST, CLIENT FALLBACK. `prepare_cart` (mig 145) is authoritative for
- * what the menu says right now, and it can answer questions the client cannot:
- * is the store open, does the basket clear the minimum order, has a modifier
- * moved to another item. When it is unreachable — offline, or an older backend
- * without the RPC — this degrades to the client-side `checkReorder`, which is
- * strictly better than blocking a reorder. `place_order` revalidates everything
- * at checkout either way, so the fallback risks a rejection at the final tap,
- * never a wrong charge.
+ * SERVER FIRST, CLIENT FALLBACK — BUT ONLY FOR TRANSPORT FAILURES.
+ * `prepare_cart` (mig 145) is authoritative for what the menu says right now,
+ * and it can answer questions the client cannot: is the store open, does the
+ * basket clear the minimum order, has a modifier moved to another item. When it
+ * is UNREACHABLE — offline, or an older backend without the RPC — this degrades
+ * to the client-side `checkReorder`, which is better than blocking a reorder.
+ *
+ * A DENIAL IS NOT AN OUTAGE. VERTICAL_NOT_AVAILABLE (mig 153) is a decision,
+ * not a failure: falling back on it would re-render a hidden merchant's catalog
+ * from cached menu data and defeat the server gate entirely. It is re-thrown.
  *
  * The shape returned is the CLIENT one (`ReorderCheck`) so callers and their
  * copy are unchanged whichever path ran.
@@ -20,6 +22,47 @@
 import type { CartItem, MenuItem, PreparedCart, PreparedCartIssue } from '../data/types';
 import { db, isBackendLive } from '../data';
 import { checkReorder, type LineChange, type ReorderCheck } from './reorderCheck';
+
+/**
+ * The canonical server refusals that mean "you may not have this merchant".
+ *
+ * ONE CONTRACT, TWO NAMES, FOR A DELIBERATE REASON. Migration 153 introduced
+ * VERTICAL_NOT_AVAILABLE; migration 162 then collapsed it into
+ * MERCHANT_NOT_FOUND on the ordering paths, because a distinct error was an
+ * existence oracle — guess UUIDs, and "hidden" vs "no such merchant" told you
+ * which ones were real hidden merchants.
+ *
+ * That server fix broke this detector: it only knew the old name, so the new
+ * denial fell through to the transport-failure branch and reopened the exact
+ * leak the gate exists to prevent. Both names are therefore recognised — the
+ * older one because migrations are applied in order and a device can talk to a
+ * backend at either point, and MERCHANT_NOT_FOUND because it is now the answer
+ * for a hidden merchant.
+ *
+ * Treating MERCHANT_NOT_FOUND as a denial is correct for the genuinely-missing
+ * case too: a merchant that does not exist cannot be reordered from cache
+ * either, so falling back would render a basket the server just refused.
+ */
+const DENIAL_CODES = ['VERTICAL_NOT_AVAILABLE', 'MERCHANT_NOT_FOUND'] as const;
+
+/**
+ * Is this a server REFUSAL rather than a transport failure?
+ *
+ * A denial must never degrade to the cached client path, or a hidden vertical
+ * keeps rendering from whatever the device last fetched.
+ */
+export function isVerticalDenial(e: unknown): boolean {
+  if (e == null) return false;
+  if (typeof e === 'string') return DENIAL_CODES.some((c) => e.includes(c));
+  // PostgREST surfaces a raised exception across several fields depending on
+  // the client version and whether it was wrapped; check all of them rather
+  // than betting on one shape.
+  const err = e as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+  const haystack = [err.message, err.code, err.details, err.hint]
+    .filter((v): v is string => typeof v === 'string')
+    .join(' ');
+  return DENIAL_CODES.some((c) => haystack.includes(c));
+}
 
 export interface PreparedReorder extends ReorderCheck {
   /** Which path produced this — reported to analytics, never shown to the user. */
@@ -122,8 +165,15 @@ export async function prepareReorder(
     try {
       const prepared = await db.orders.prepareCart(restaurantId, past);
       return fromServer(prepared, past);
-    } catch {
-      // Fall through. Deliberately silent: a reorder that works slightly less
+    } catch (e) {
+      // A DENIAL IS NOT AN OUTAGE. VERTICAL_NOT_AVAILABLE means the server has
+      // decided this customer may not see this merchant at all; falling back to
+      // the client path would re-render the hidden catalog from cached menu
+      // data, which is exactly the leak the server gate exists to prevent.
+      //
+      // Only transport failures may degrade to the offline path.
+      if (isVerticalDenial(e)) throw e;
+      // Otherwise fall through: a reorder that reconciles slightly less
       // precisely beats an error dialog on the highest-intent tap in the app.
     }
   }
