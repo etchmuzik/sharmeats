@@ -282,8 +282,14 @@ export default function Home() {
         />
       }
     >
-      {/* Identity strip. The screen title itself lives in the native header. */}
-      <View style={{ paddingHorizontal: spacing.xl, gap: 4 }}>
+      {/* Identity strip. The screen TITLE lives in the native header, but the
+          driver's own name must stay on screen: these devices are shared between
+          riders, and earnings plus COD liability are per-driver. "Whose account
+          is this?" has to be answerable without opening a menu. */}
+      <View style={{ paddingHorizontal: spacing.xl, gap: 2 }}>
+        <Text selectable style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
+          {driver.name?.split(' ')[0] ?? 'Driver'}
+        </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>{driver.vehicle} ·</Text>
           <Icon name="star" size={12} color={colors.star} />
