@@ -100,10 +100,10 @@ export default function OrderDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Back header */}
+      {/* Live order summary */}
       <View
         style={{
-          paddingTop: insets.top + spacing.md,
+          paddingTop: spacing.md,
           paddingHorizontal: spacing.lg,
           paddingBottom: spacing.md,
           backgroundColor: colors.white,
@@ -114,15 +114,6 @@ export default function OrderDetail() {
           gap: spacing.sm,
         }}
       >
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={{ padding: spacing.xs }}
-        >
-          <Icon name="chevronBack" size={24} color={colors.ink} accessibilityLabel="Back" />
-        </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>{order.short_code}</Text>
           <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
@@ -132,7 +123,10 @@ export default function OrderDetail() {
         <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>{order.total_egp} EGP</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.lg }}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.lg }}
+      >
         {/* Allergy briefing — first, so it can't be missed. */}
         <AllergenBanner allergens={order.aggregate_allergens} />
 

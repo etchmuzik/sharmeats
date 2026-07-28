@@ -6,7 +6,6 @@ import {
   SectionList,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -18,8 +17,6 @@ import { useAuth } from '../src/auth';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
 import { LEGAL_URLS, openLegal } from '../src/legal';
-import { AllergenBanner } from '../src/components/AllergenBanner';
-import { ContactButtons } from '../src/components/ContactButtons';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
 import { initChime, playNewOrderChime, releaseChime, setChimeMuted } from '../src/chime';
 import {
@@ -39,10 +36,13 @@ import { myUnreadMessageCount } from '../src/messages';
 import {
   canToggleOpenAll,
   permissionDeniedMessage,
-  staffRoleLabel,
   PERMISSION_DENIED_COPY,
 } from '../src/capabilities';
 import { colors, font, radius, spacing } from '../src/theme';
+import { OrderRow } from '../src/components/OrderRow';
+import { KitchenHeader } from '../src/components/KitchenHeader';
+import { QueueSectionHeader } from '../src/components/QueueSectionHeader';
+import { notifyError, notifySuccess } from '../src/lib/haptics';
 
 // [H-REST3] Live data shows merchants miss ~2/3 of orders into the 180s
 // auto-accept timeout — a single missed chime = a late kitchen. Re-fire the
@@ -246,6 +246,7 @@ export default function Home() {
       setBusy(order.id, true);
       try {
         await advanceStatus(order.id, next, note);
+        notifySuccess();
         // Optimistic; the Realtime event will also arrive and reconcile.
         setOrders((prev) =>
           prev
@@ -253,6 +254,7 @@ export default function Home() {
             .filter((o) => isActive(o.status)),
         );
       } catch (e) {
+        notifyError();
         toast(e instanceof Error ? e.message : 'Could not update order', 'error');
       } finally {
         setBusy(order.id, false);
@@ -281,6 +283,7 @@ export default function Home() {
   const toggleOpen = useCallback(async () => {
     if (!kitchen || togglingOpen) return;
     if (!mayToggleOpen) {
+      notifyError();
       toast(PERMISSION_DENIED_COPY, 'error');
       return;
     }
@@ -304,6 +307,7 @@ export default function Home() {
       // with the server for the brands that DID flip, and the kiosk would
       // show storefronts as open that are closed (or vice versa) until the
       // next reload. Re-sync from the server instead of guessing.
+      notifyError();
       toast(
         permissionDeniedMessage(e) ??
           (e instanceof Error ? e.message : 'Could not update status'),
@@ -361,7 +365,7 @@ export default function Home() {
   // [H-BIZ1] A fetch failed (network) — retry, don't show "not linked".
   if (loadError && !kitchen) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md }}>
+      <View style={homeStyles.centeredState}>
         <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
           Couldn&apos;t load your restaurant
         </Text>
@@ -373,11 +377,21 @@ export default function Home() {
             setLoading(true);
             load();
           }}
-          style={{ marginTop: spacing.lg, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl }}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading your restaurant"
+          style={{
+            marginTop: spacing.lg,
+            minHeight: 48,
+            justifyContent: 'center',
+            backgroundColor: colors.accent,
+            borderRadius: radius.lg,
+            borderCurve: 'continuous',
+            paddingHorizontal: spacing.xl,
+          }}
         >
           <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
         </Pressable>
-        <Pressable onPress={handleSignOut} style={{ padding: spacing.md }}>
+        <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
           <Text style={{ color: colors.ink3, fontWeight: '700' }}>Sign out</Text>
         </Pressable>
       </View>
@@ -386,14 +400,14 @@ export default function Home() {
 
   if (noRestaurant) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md }}>
+      <View style={homeStyles.centeredState}>
         <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
           No restaurant linked
         </Text>
         <Text style={{ color: colors.ink2, textAlign: 'center' }}>
           This account isn&apos;t linked to a restaurant yet. Ask the Sharm Eats team to add you as staff.
         </Text>
-        <Pressable onPress={handleSignOut} style={{ marginTop: spacing.lg, padding: spacing.md }}>
+        <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
           <Text style={{ color: colors.accent, fontWeight: '700' }}>Sign out</Text>
         </Pressable>
       </View>
@@ -402,193 +416,28 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Header */}
-      <View style={[homeStyles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={homeStyles.headerTop}>
-          <View style={homeStyles.restaurantIdentity}>
-            <Text style={homeStyles.restaurantName} numberOfLines={2}>
-              {kitchen?.isMultiBrand
-                ? `Kitchen · ${kitchen.brands.length} brands`
-                : kitchen?.brands[0]?.name}
-            </Text>
-            <Text style={homeStyles.restaurantRole}>
-              {kitchen?.isMultiBrand
-                ? kitchen.brands.map((b) => b.shortName).join(' · ')
-                : `Restaurant · ${staffRoleLabel(kitchen?.brands[0]?.staffRole)}`}
-            </Text>
-          </View>
-          {unreadMsgs > 0 && (
-            <View
-              accessibilityLabel={`${unreadMsgs} unread customer messages. Open an order to reply.`}
-              style={homeStyles.unreadBadge}
-            >
-              <Icon name="chat" size={16} color={colors.accentDark} />
-              <Text style={homeStyles.unreadText}>{unreadMsgs}</Text>
-            </View>
-          )}
-          <Pressable
-            onPress={handleSignOut}
-            accessibilityRole="button"
-            accessibilityLabel="Sign out"
-            hitSlop={8}
-            style={homeStyles.signOutButton}
-          >
-            <Icon name="signout" size={22} color={colors.ink2} />
-          </Pressable>
-        </View>
-
-        <View style={homeStyles.headerActions}>
-        {/* Staff tier still sees the storefront's state at a glance, but not a
-            control the database would refuse. An RLS denial on UPDATE raises
-            nothing at all — it silently changes no rows — so a visible-but-dead
-            button would tell the kitchen it had paused when it had not. */}
-        {mayToggleOpen ? (
-          <Pressable
-            onPress={toggleOpen}
-            disabled={togglingOpen}
-            accessibilityRole="switch"
-            accessibilityLabel={
-              kitchen?.isMultiBrand
-                ? 'All brands accepting orders'
-                : 'Restaurant accepting orders'
-            }
-            accessibilityState={{ checked: isOpen, disabled: togglingOpen, busy: togglingOpen }}
-            style={[
-              homeStyles.statusControl,
-              { backgroundColor: isOpen ? colors.greenSoft : colors.redSoft },
-              compactHeader && homeStyles.compactStatusControl,
-            ]}
-          >
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
-              {togglingOpen
-                ? '…'
-                : kitchen?.isMultiBrand
-                  ? isOpen
-                    ? 'Open · pause all'
-                    : 'Closed · open all'
-                  : isOpen
-                    ? 'Open · pause'
-                    : 'Closed · open'}
-            </Text>
-          </Pressable>
-        ) : (
-          <View
-            accessibilityRole="text"
-            accessibilityLabel={
-              isOpen
-                ? 'Accepting orders. Only an owner or manager can pause.'
-                : 'Not accepting orders. Only an owner or manager can reopen.'
-            }
-            style={[
-              homeStyles.statusControl,
-              { backgroundColor: isOpen ? colors.greenSoft : colors.redSoft },
-              compactHeader && homeStyles.compactStatusControl,
-            ]}
-          >
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: isOpen ? colors.green : colors.red }}>
-              {isOpen ? 'Open' : 'Closed'}
-            </Text>
-          </View>
-        )}
-        {/* [H-REST3] Mute the new-order chime (and its repeat). Distinct muted
-            state so staff can see at a glance the counter is silent. */}
-        <Pressable
-          onPress={toggleMuted}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: muted }}
-          accessibilityLabel={muted ? 'Sound off — tap to turn new-order chime on' : 'Sound on — tap to mute new-order chime'}
-          style={[
-            homeStyles.statusControl,
-            { backgroundColor: muted ? colors.redSoft : colors.greenSoft },
-            compactHeader && homeStyles.compactStatusControl,
-          ]}
-        >
-          <Icon name={muted ? 'mute' : 'sound'} size={14} color={muted ? colors.red : colors.green} />
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: muted ? colors.red : colors.green }}>
-            {muted ? 'Muted' : 'Sound'}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/menu')}
-          accessibilityRole="button"
-          accessibilityLabel="Menu availability"
-          style={[homeStyles.navControl, compactHeader && homeStyles.compactNavControl]}
-        >
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Menu</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/kyc')}
-          accessibilityRole="button"
-          accessibilityLabel="Verification documents"
-          style={[homeStyles.navControl, compactHeader && homeStyles.compactNavControl]}
-        >
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Docs</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/tier')}
-          accessibilityRole="button"
-          accessibilityLabel="View tier status"
-          style={[homeStyles.navControl, compactHeader && homeStyles.compactNavControl]}
-        >
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>Tier</Text>
-        </Pressable>
-        </View>
-
-        {/* Multi-brand filter chips: filter the ONE list, never replace it with
-            per-brand tabs. Auto-resets to All when a new order lands in a
-            filtered-out brand (see the effect above). */}
-        {kitchen?.isMultiBrand && (
-          <View style={homeStyles.brandFilterRow}>
-            <Pressable
-              onPress={() => setBrandFilter('all')}
-              accessibilityRole="button"
-              accessibilityState={{ selected: brandFilter === 'all' }}
-              accessibilityLabel={`Show all brands, ${orders.length} active orders`}
-              style={[
-                homeStyles.brandChip,
-                brandFilter === 'all' && homeStyles.brandChipActive,
-              ]}
-            >
-              <Text
-                style={[
-                  homeStyles.brandChipText,
-                  brandFilter === 'all' && homeStyles.brandChipTextActive,
-                ]}
-              >
-                All · {orders.length}
-              </Text>
-            </Pressable>
-            {kitchen.brands.map((b) => {
-              const count = orders.filter((o) => o.restaurant_id === b.restaurantId).length;
-              const selected = brandFilter === b.restaurantId;
-              return (
-                <Pressable
-                  key={b.restaurantId}
-                  onPress={() => setBrandFilter(selected ? 'all' : b.restaurantId)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={`Filter to ${b.name}, ${count} active orders${b.isOpen ? '' : ', paused'}`}
-                  style={[homeStyles.brandChip, selected && homeStyles.brandChipActive]}
-                >
-                  <Text
-                    style={[
-                      homeStyles.brandChipText,
-                      selected && homeStyles.brandChipTextActive,
-                      !b.isOpen && homeStyles.brandChipTextClosed,
-                    ]}
-                  >
-                    {b.shortName} · {count}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </View>
+      {kitchen && (
+        <KitchenHeader
+          kitchen={kitchen}
+          isOpen={isOpen}
+          mayToggleOpen={mayToggleOpen}
+          togglingOpen={togglingOpen}
+          onToggleOpen={toggleOpen}
+          muted={muted}
+          onToggleMuted={toggleMuted}
+          unreadMsgs={unreadMsgs}
+          orders={orders}
+          brandFilter={brandFilter}
+          onBrandFilter={setBrandFilter}
+          compact={compactHeader}
+          onNavigate={(path) => router.push(path)}
+        />
+      )}
 
       <SectionList
         sections={queueSections}
         keyExtractor={(item) => item.id}
+        contentInsetAdjustmentBehavior="automatic"
         stickySectionHeadersEnabled={false}
         initialNumToRender={8}
         maxToRenderPerBatch={8}
@@ -646,7 +495,9 @@ export default function Home() {
         ListEmptyComponent={
           <View style={homeStyles.emptyQueue}>
             <Icon name="bell" size={40} color={colors.ink3} accessibilityLabel="No orders" />
-            <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>Waiting for orders</Text>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>
+              Waiting for orders
+            </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, textAlign: 'center' }}>
               New orders appear here instantly with a sound alert.
             </Text>
@@ -654,28 +505,51 @@ export default function Home() {
         }
         ListFooterComponent={
           <View style={homeStyles.legal}>
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', marginBottom: spacing.sm }}>
-            Legal
-          </Text>
-          <Pressable
-            onPress={() => openLegal(LEGAL_URLS.terms)}
-            accessibilityRole="link"
-            accessibilityLabel="Terms of Service"
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md }}
-          >
-            <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Terms of Service</Text>
-            <Icon name="chevronForward" size={16} color={colors.ink3} />
-          </Pressable>
-          <View style={{ height: 1, backgroundColor: colors.line }} />
-          <Pressable
-            onPress={() => openLegal(LEGAL_URLS.privacy)}
-            accessibilityRole="link"
-            accessibilityLabel="Privacy Policy"
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md }}
-          >
-            <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Privacy Policy</Text>
-            <Icon name="chevronForward" size={16} color={colors.ink3} />
-          </Pressable>
+            <Text
+              style={{
+                fontSize: font.sizes.sm,
+                fontWeight: '700',
+                color: colors.ink2,
+                textTransform: 'uppercase',
+                letterSpacing: 0.6,
+                marginBottom: spacing.sm,
+              }}
+            >
+              Legal
+            </Text>
+            <Pressable
+              onPress={() => openLegal(LEGAL_URLS.terms)}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Service"
+              style={homeStyles.legalRow}
+            >
+              <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>
+                Terms of Service
+              </Text>
+              <Icon name="chevronForward" size={16} color={colors.ink3} />
+            </Pressable>
+            <View style={{ height: 1, backgroundColor: colors.line }} />
+            <Pressable
+              onPress={() => openLegal(LEGAL_URLS.privacy)}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+              style={homeStyles.legalRow}
+            >
+              <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>
+                Privacy Policy
+              </Text>
+              <Icon name="chevronForward" size={16} color={colors.ink3} />
+            </Pressable>
+            <Pressable
+              onPress={handleSignOut}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+              style={{ marginTop: spacing.xl, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ color: colors.ink3, fontSize: font.sizes.base, fontWeight: '600' }}>
+                Sign out
+              </Text>
+            </Pressable>
           </View>
         }
       />
@@ -683,347 +557,19 @@ export default function Home() {
   );
 }
 
-// ── Section ──────────────────────────────────────────────────────────────────
-function QueueSectionHeader({
-  title,
-  count,
-  accent,
-}: {
-  title: string;
-  count: number;
-  accent?: boolean;
-}) {
-  return (
-    <View style={homeStyles.sectionHeader}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: accent ? colors.accent : colors.ink2 }}>
-          {title}
-        </Text>
-        <View style={{ minWidth: 22, alignItems: 'center', borderRadius: radius.pill, backgroundColor: accent ? colors.accentSoft : colors.sand, paddingHorizontal: 8, paddingVertical: 2 }}>
-          <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: accent ? colors.accentDark : colors.ink2 }}>{count}</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-// ── Order row (card) ─────────────────────────────────────────────────────────
-function OrderRow({
-  order,
-  busy,
-  brandTag,
-  onOpenDetail,
-  onAccept,
-  onReject,
-  primary,
-  onPrimary,
-}: {
-  order: RestaurantOrder;
-  busy: boolean;
-  /** Short brand tag ("SMASH") — only rendered in multi-brand kitchens. Text is
-   *  the primary signal: colour alone fails on greasy, glare-washed tablets. */
-  brandTag?: string;
-  onOpenDetail?: () => void;
-  onAccept?: () => void;
-  onReject?: (reason?: string) => void;
-  primary?: { label: string; next: OrderStatus };
-  onPrimary?: (next: OrderStatus) => void;
-}) {
-  const [rejecting, setRejecting] = useState(false);
-  const [reason, setReason] = useState('');
-  const addr = order.address_snapshot;
-  const addrLine =
-    addr?.kind === 'hotel'
-      ? `${addr.hotelName ?? 'Hotel'} · Room ${addr.roomNumber ?? 'not provided'}`
-      : addr?.kind === 'street'
-        ? `${addr.streetText ?? ''} ${addr.building ?? ''}`.trim() || 'Address'
-        : addr?.kind === 'beach_pin'
-          ? `Beach · ${addr.beachName ?? ''}`
-          : (addr?.label ?? 'Address');
-
-  return (
-    <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.white, padding: spacing.lg, gap: spacing.sm }}>
-      <Pressable
-        onPress={onOpenDetail}
-        disabled={!onOpenDetail}
-        accessibilityRole={onOpenDetail ? 'button' : undefined}
-        accessibilityLabel={onOpenDetail ? `Open order ${order.short_code}` : undefined}
-        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {brandTag ? (
-            <View
-              accessibilityLabel={`Brand ${brandTag}`}
-              style={{
-                backgroundColor: colors.accentSoft,
-                borderRadius: radius.sm,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                alignSelf: 'flex-start',
-              }}
-            >
-              <Text style={{ fontSize: font.sizes.xs, fontWeight: '800', color: colors.accentDark }}>
-                {brandTag}
-              </Text>
-            </View>
-          ) : null}
-          <View>
-            <Text style={{ fontWeight: '800', fontSize: font.sizes.lg, color: colors.ink }}>{order.short_code}</Text>
-            <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
-              {new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              {order.scheduled_for
-                ? ` · scheduled ${new Date(order.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : ''}
-            </Text>
-          </View>
-          {onOpenDetail ? <Icon name="chevronForward" size={16} color={colors.ink3} /> : null}
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={{ fontWeight: '800', fontSize: font.sizes.lg, color: colors.ink }}>{order.total_egp} EGP</Text>
-          <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: order.payment_method === 'cash_on_delivery' ? colors.sea : order.payment_status === 'paid' ? colors.green : colors.amber }}>
-            {order.payment_method === 'cash_on_delivery' ? 'Cash on delivery' : `Card · ${order.payment_status}`}
-          </Text>
-        </View>
-      </Pressable>
-
-      {/* [H-REST2] Food-safety allergy briefing — must be prominent. */}
-      <AllergenBanner allergens={order.aggregate_allergens} />
-
-      {/* Items */}
-      <View style={{ gap: 2 }}>
-        {order.items?.map((it, i) => (
-          <View key={i}>
-            <Text style={{ fontSize: font.sizes.base, color: colors.ink }}>
-              <Text style={{ fontWeight: '700' }}>{it.quantity}× </Text>
-              {it.name}
-              {it.modifierChoices && it.modifierChoices.length > 0 ? (
-                <Text style={{ color: colors.ink3 }}>
-                  {' '}
-                  ({it.modifierChoices.map((m) => m.optionName).filter(Boolean).join(', ')})
-                </Text>
-              ) : null}
-            </Text>
-            {/* [H-REST1] Per-item note (e.g. "no onions") — the kitchen must see
-                this. Previously only merchant-web rendered it. */}
-            {it.notes ? (
-              <Text style={{ fontSize: font.sizes.sm, color: colors.amber, marginLeft: spacing.md }}>
-                “{it.notes}”
-              </Text>
-            ) : null}
-          </View>
-        ))}
-      </View>
-
-      {order.kitchen_notes ? (
-        <View style={{ backgroundColor: colors.amberSoft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.amber }}>Kitchen note: {order.kitchen_notes}</Text>
-        </View>
-      ) : null}
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: spacing.sm }}>
-        <Icon name="location" size={13} color={colors.ink3} />
-        <Text style={{ flex: 1, flexShrink: 1, fontSize: font.sizes.xs, color: colors.ink2 }}>{addrLine}</Text>
-        <View style={{ borderRadius: radius.sm, backgroundColor: colors.sand, paddingHorizontal: 6, paddingVertical: 2 }}>
-          <Text style={{ fontSize: font.sizes.xs, textTransform: 'uppercase', color: colors.ink2 }}>
-            {order.fulfillment_type === 'self_delivery' ? 'self-delivery' : 'platform fleet'}
-          </Text>
-        </View>
-      </View>
-
-      {/* [H-REST2] Contact — call the customer or open the in-app chat. */}
-      <ContactButtons orderId={order.id} customerPhone={order.customer_phone} />
-
-      {/* Actions */}
-      {rejecting && onReject ? (
-        <View style={{ borderWidth: 1, borderColor: colors.red, backgroundColor: colors.redSoft, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm }}>
-          <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.red }}>Reason for rejecting (optional)</Text>
-          <TextInput
-            autoFocus
-            value={reason}
-            onChangeText={setReason}
-            placeholder="e.g. out of stock, kitchen closing"
-            placeholderTextColor={colors.ink3}
-            accessibilityLabel="Reason for rejecting"
-            style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.white, color: colors.ink }}
-          />
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Pressable
-              onPress={() => { setRejecting(false); setReason(''); }}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel rejection"
-              style={{ flex: 1, minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2 }}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => onReject(reason.trim() || undefined)}
-              accessibilityRole="button"
-              accessibilityLabel="Confirm rejection"
-              style={{ flex: 1, minHeight: 48, backgroundColor: colors.red, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.white }}>Confirm reject</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : (onAccept || onReject || primary) ? (
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {onReject && (
-            <Pressable
-              onPress={() => setRejecting(true)}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel={`Reject order ${order.short_code}`}
-              accessibilityState={{ disabled: busy, busy }}
-              style={{ flex: 1, minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.5 : 1 }}
-            >
-              <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.red }}>Reject</Text>
-            </Pressable>
-          )}
-          {onAccept && (
-            <Pressable
-              onPress={onAccept}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel={`Accept order ${order.short_code}`}
-              accessibilityState={{ disabled: busy, busy }}
-              style={{ flex: 1, minHeight: 48, backgroundColor: colors.green, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}
-            >
-              {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.white }}>Accept</Text>}
-            </Pressable>
-          )}
-          {primary && onPrimary && (
-            <Pressable
-              onPress={() => onPrimary(primary.next)}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel={`${primary.label} for order ${order.short_code}`}
-              accessibilityState={{ disabled: busy, busy }}
-              style={{ flex: 1, minHeight: 48, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}
-            >
-              {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.white }}>{primary.label}</Text>}
-            </Pressable>
-          )}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 const homeStyles = StyleSheet.create({
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-    gap: spacing.sm,
-  },
-  headerTop: {
-    width: '100%',
-    maxWidth: 840,
-    alignSelf: 'center',
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  restaurantIdentity: { flex: 1, minWidth: 0 },
-  restaurantName: { fontSize: font.sizes.xl, fontWeight: '800', color: colors.ink },
-  restaurantRole: { marginTop: 2, fontSize: font.sizes.xs, color: colors.ink3 },
-  unreadBadge: {
-    minWidth: 44,
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accentSoft,
-    flexDirection: 'row',
+  centeredState: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-  },
-  unreadText: { fontSize: font.sizes.sm, fontWeight: '800', color: colors.accentDark },
-  signOutButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.bgSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerActions: {
-    width: '100%',
-    maxWidth: 840,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  // Multi-brand filter chips (cloud kitchen). 44pt touch targets — kitchen
-  // tablets are operated with wet or gloved fingers.
-  brandFilterRow: {
-    width: '100%',
-    maxWidth: 840,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  brandChip: {
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandChipActive: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-  },
-  brandChipText: {
-    fontSize: font.sizes.sm,
-    fontWeight: '700',
-    color: colors.ink2,
-  },
-  brandChipTextActive: {
-    color: colors.accentDark,
-  },
-  brandChipTextClosed: {
-    textDecorationLine: 'line-through',
-  },
-  statusControl: {
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  compactStatusControl: { flexGrow: 1, flexBasis: '46%' },
-  navControl: {
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.bgSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  compactNavControl: { flexGrow: 1, flexBasis: '28%' },
-  sectionHeader: {
-    width: '100%',
-    maxWidth: 840,
-    alignSelf: 'center',
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    padding: spacing.xxl,
     backgroundColor: colors.bg,
+    gap: spacing.md,
+  },
+  textButton: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
   },
   orderItem: {
     width: '100%',
@@ -1047,5 +593,10 @@ const homeStyles = StyleSheet.create({
     maxWidth: 840,
     alignSelf: 'center',
     marginTop: spacing.xxl,
+  },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
   },
 });

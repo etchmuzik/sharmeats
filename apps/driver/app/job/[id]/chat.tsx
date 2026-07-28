@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../src/auth';
 import { list, markRead, send, subscribe, type OrderMessage } from '../../../src/messages';
@@ -24,7 +24,6 @@ import { useToast } from '../../../src/components/Toast';
  */
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { toast } = useToast();
@@ -86,37 +85,10 @@ export default function ChatScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      // The native Stack header sits above this view, so the screen already
+      // starts below it — no manual offset to compensate for.
+      keyboardVerticalOffset={0}
     >
-      {/* Header */}
-      <View
-        style={{
-          paddingTop: insets.top + spacing.sm,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderColor: colors.line,
-          backgroundColor: colors.white,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-        >
-          <Icon name="chevronBack" size={20} color={colors.accent} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>Messages</Text>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>Customer &amp; restaurant</Text>
-        </View>
-      </View>
-
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.accent} size="large" />
@@ -126,6 +98,7 @@ export default function ChatScreen() {
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{
             paddingHorizontal: spacing.lg,
             paddingVertical: spacing.lg,

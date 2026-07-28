@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { RESTAURANT_DOC_TYPES, listMyKycDocuments, uploadKycDocument, type KycDocument } from '../src/kyc';
 import { colors, font, radius, spacing } from '../src/theme';
-import { Icon } from '../src/components/Icon';
 
 const STATUS_COLOR: Record<KycDocument['status'], string> = {
   approved: colors.green,
@@ -24,7 +22,6 @@ const STATUS_LABEL: Record<KycDocument['status'], string> = {
  * in kyc_documents. Admins review in admin-web.
  */
 export default function RestaurantKyc() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [docs, setDocs] = useState<KycDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,31 +77,15 @@ export default function RestaurantKyc() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View
-        style={{
-          paddingTop: insets.top + spacing.sm,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderColor: colors.line,
-          backgroundColor: colors.white,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-        }}
-      >
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8}>
-          <Icon name="chevronBack" size={20} color={colors.accent} />
-        </Pressable>
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>Verification documents</Text>
-      </View>
-
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg, paddingBottom: insets.bottom + 40 }}>
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg, paddingBottom: insets.bottom + 40 }}
+        >
           <Text style={{ color: colors.ink2, fontSize: font.sizes.base, lineHeight: 20 }}>
             Upload a clear photo of each document. Our team reviews them, usually within a day.
           </Text>

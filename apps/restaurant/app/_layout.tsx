@@ -39,20 +39,34 @@ export default function RootLayout() {
         <AuthProvider>
           <ToastProvider>
             <StatusBar style="dark" />
+            {/*
+              Native headers (native back + correct safe-area handling via
+              `contentInsetAdjustmentBehavior="automatic"`) on every screen a
+              user navigates *into*.
+
+              `home` is the exception: its KitchenHeader carries brand identity,
+              the open/closed control and the chime toggle — state a title bar
+              cannot express, and which must stay pinned above the queue. It
+              keeps its own chrome. `index`/`signin` are full-bleed gates.
+            */}
             <Stack
               screenOptions={{
-                headerShown: false,
                 contentStyle: { backgroundColor: colors.bg },
+                headerStyle: { backgroundColor: colors.bg },
+                headerTintColor: colors.accent,
+                headerTitleStyle: { color: colors.ink },
+                headerShadowVisible: false,
+                headerBackButtonDisplayMode: 'minimal',
               }}
             >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="signin" />
-              <Stack.Screen name="home" />
-              <Stack.Screen name="tier" />
-              <Stack.Screen name="menu" />
-              <Stack.Screen name="kyc" />
-              <Stack.Screen name="order/[id]" />
-              <Stack.Screen name="order/[id]/chat" />
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="signin" options={{ headerShown: false }} />
+              <Stack.Screen name="home" options={{ headerShown: false }} />
+              <Stack.Screen name="tier" options={{ title: 'Tier' }} />
+              <Stack.Screen name="menu" options={{ title: 'Menu', headerLargeTitle: true }} />
+              <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
+              <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
+              <Stack.Screen name="order/[id]/chat" options={{ title: 'Chat' }} />
             </Stack>
           </ToastProvider>
         </AuthProvider>

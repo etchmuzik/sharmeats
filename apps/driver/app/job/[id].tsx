@@ -170,18 +170,10 @@ export default function JobScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl }}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: spacing.md }}
-        >
-          <Icon name="chevronBack" size={18} color={colors.accent} />
-          <Text style={{ color: colors.accent, fontWeight: '600' }}>Back</Text>
-        </Pressable>
-
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ paddingTop: spacing.lg, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl }}
+      >
         <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
           {job.short_code}
         </Text>
