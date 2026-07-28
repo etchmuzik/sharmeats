@@ -842,6 +842,24 @@ export type Database = {
           },
         ]
       }
+      e0_slice_provenance: {
+        Row: {
+          applied_at: string
+          applied_thru: number
+          slice: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_thru: number
+          slice: string
+        }
+        Update: {
+          applied_at?: string
+          applied_thru?: number
+          slice?: string
+        }
+        Relationships: []
+      }
       favorite_items: {
         Row: {
           created_at: string
@@ -1252,6 +1270,36 @@ export type Database = {
           },
         ]
       }
+      merchant_vertical_events: {
+        Row: {
+          actor_user_id: string | null
+          id: string
+          new_vertical_id: string
+          occurred_at: string
+          previous_vertical_id: string | null
+          reason: string
+          restaurant_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          id?: string
+          new_vertical_id: string
+          occurred_at?: string
+          previous_vertical_id?: string | null
+          reason: string
+          restaurant_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          id?: string
+          new_vertical_id?: string
+          occurred_at?: string
+          previous_vertical_id?: string | null
+          reason?: string
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
       modifier_options: {
         Row: {
           adds_flags: Database["public"]["Enums"]["item_flag_type"][] | null
@@ -1611,6 +1659,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          barcode_snapshot: string | null
           catalog_item_id: string | null
           created_at: string
           id: string
@@ -1620,9 +1669,13 @@ export type Database = {
           notes: string | null
           order_id: string
           quantity: number
+          requires_prescription_snapshot: boolean | null
+          sku_snapshot: string | null
           unit_price_snapshot: number
+          unit_snapshot: string | null
         }
         Insert: {
+          barcode_snapshot?: string | null
           catalog_item_id?: string | null
           created_at?: string
           id?: string
@@ -1632,9 +1685,13 @@ export type Database = {
           notes?: string | null
           order_id: string
           quantity: number
+          requires_prescription_snapshot?: boolean | null
+          sku_snapshot?: string | null
           unit_price_snapshot: number
+          unit_snapshot?: string | null
         }
         Update: {
+          barcode_snapshot?: string | null
           catalog_item_id?: string | null
           created_at?: string
           id?: string
@@ -1644,7 +1701,10 @@ export type Database = {
           notes?: string | null
           order_id?: string
           quantity?: number
+          requires_prescription_snapshot?: boolean | null
+          sku_snapshot?: string | null
           unit_price_snapshot?: number
+          unit_snapshot?: string | null
         }
         Relationships: [
           {
@@ -1856,6 +1916,7 @@ export type Database = {
           total_egp: number
           updated_at: string
           user_id: string | null
+          vertical_id: string
           zone: Database["public"]["Enums"]["zone_type"] | null
         }
         Insert: {
@@ -1916,6 +1977,7 @@ export type Database = {
           total_egp: number
           updated_at?: string
           user_id?: string | null
+          vertical_id?: string
           zone?: Database["public"]["Enums"]["zone_type"] | null
         }
         Update: {
@@ -1976,6 +2038,7 @@ export type Database = {
           total_egp?: number
           updated_at?: string
           user_id?: string | null
+          vertical_id?: string
           zone?: Database["public"]["Enums"]["zone_type"] | null
         }
         Relationships: [
@@ -2536,7 +2599,7 @@ export type Database = {
           terms_version: string | null
           tourist_safe: boolean
           updated_at: string
-          vertical_id: string | null
+          vertical_id: string
           website: string | null
           zone: Database["public"]["Enums"]["zone_type"]
         }
@@ -2584,7 +2647,7 @@ export type Database = {
           terms_version?: string | null
           tourist_safe?: boolean
           updated_at?: string
-          vertical_id?: string | null
+          vertical_id?: string
           website?: string | null
           zone: Database["public"]["Enums"]["zone_type"]
         }
@@ -2632,7 +2695,7 @@ export type Database = {
           terms_version?: string | null
           tourist_safe?: boolean
           updated_at?: string
-          vertical_id?: string | null
+          vertical_id?: string
           website?: string | null
           zone?: Database["public"]["Enums"]["zone_type"]
         }
@@ -2981,30 +3044,233 @@ export type Database = {
           },
         ]
       }
-      verticals: {
+      vertical_categories: {
         Row: {
           created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          slug: string
+          vertical_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          slug: string
+          vertical_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          slug?: string
+          vertical_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vertical_categories_vertical_id_fkey"
+            columns: ["vertical_id"]
+            isOneToOne: false
+            referencedRelation: "verticals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vertical_launch_events: {
+        Row: {
+          actor_user_id: string | null
+          evidence_reference: string | null
+          id: string
+          new_is_active: boolean
+          new_stage: string
+          occurred_at: string
+          previous_is_active: boolean | null
+          previous_stage: string | null
+          reason: string
+          vertical_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          evidence_reference?: string | null
+          id?: string
+          new_is_active: boolean
+          new_stage: string
+          occurred_at?: string
+          previous_is_active?: boolean | null
+          previous_stage?: string | null
+          reason: string
+          vertical_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          evidence_reference?: string | null
+          id?: string
+          new_is_active?: boolean
+          new_stage?: string
+          occurred_at?: string
+          previous_is_active?: boolean | null
+          previous_stage?: string | null
+          reason?: string
+          vertical_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vertical_launch_events_vertical_id_fkey"
+            columns: ["vertical_id"]
+            isOneToOne: false
+            referencedRelation: "verticals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vertical_private_access: {
+        Row: {
+          cohort: string | null
+          expires_at: string | null
+          generation: number
+          granted_at: string
+          granted_by: string | null
+          id: string
+          reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          status: string
+          user_id: string | null
+          vertical_id: string
+        }
+        Insert: {
+          cohort?: string | null
+          expires_at?: string | null
+          generation?: number
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          user_id?: string | null
+          vertical_id: string
+        }
+        Update: {
+          cohort?: string | null
+          expires_at?: string | null
+          generation?: number
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          user_id?: string | null
+          vertical_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vertical_private_access_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vertical_private_access_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vertical_private_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vertical_private_access_vertical_id_fkey"
+            columns: ["vertical_id"]
+            isOneToOne: false
+            referencedRelation: "verticals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vertical_private_access_events: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          grant_id: string
+          id: string
+          occurred_at: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          grant_id: string
+          id?: string
+          occurred_at?: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          grant_id?: string
+          id?: string
+          occurred_at?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vertical_private_access_events_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "vertical_private_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verticals: {
+        Row: {
+          capabilities: Json
+          copy_namespace: string | null
+          created_at: string
+          display_order: number
           icon: string | null
           id: string
           is_active: boolean
+          launch_stage: string
           name_ar: string
           name_en: string
           sort_order: number
         }
         Insert: {
+          capabilities?: Json
+          copy_namespace?: string | null
           created_at?: string
+          display_order?: number
           icon?: string | null
           id: string
           is_active?: boolean
+          launch_stage?: string
           name_ar: string
           name_en: string
           sort_order?: number
         }
         Update: {
+          capabilities?: Json
+          copy_namespace?: string | null
           created_at?: string
+          display_order?: number
           icon?: string | null
           id?: string
           is_active?: boolean
+          launch_stage?: string
           name_ar?: string
           name_en?: string
           sort_order?: number
@@ -3168,6 +3434,40 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_orders_visible: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          is_available: boolean | null
+          items: Json | null
+          name: string | null
+          restaurant_id: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "saved_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _postgis_deprecate: {
@@ -3297,6 +3597,14 @@ export type Database = {
             }
             Returns: string
           }
+      admin_assign_merchant_vertical: {
+        Args: {
+          p_new_vertical_id: string
+          p_reason: string
+          p_restaurant_id: string
+        }
+        Returns: undefined
+      }
       admin_delete_restaurant: { Args: { p_id: string }; Returns: undefined }
       admin_grant_cod_override: {
         Args: { p_driver_id: string; p_hours?: number; p_reason: string }
@@ -3425,6 +3733,18 @@ export type Database = {
         Args: { p_decision: string; p_reason?: string; p_restaurant_id: string }
         Returns: undefined
       }
+      assert_grant_preconditions: {
+        Args: { p_actor: string; p_capability: string; p_target: string }
+        Returns: undefined
+      }
+      assert_live_grant_target: {
+        Args: { p_capability?: string; p_user_id: string }
+        Returns: undefined
+      }
+      assert_platform_capability: {
+        Args: { p_capability: string; p_user_id: string }
+        Returns: undefined
+      }
       assign_driver: {
         Args: { p_driver_id: string; p_order_id: string }
         Returns: undefined
@@ -3454,6 +3774,7 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: boolean
       }
+      can_view_vertical: { Args: { p_vertical_id: string }; Returns: boolean }
       claim_support_case: { Args: { p_case_id: string }; Returns: undefined }
       delivery_feasibility: {
         Args: { p_dropoff: unknown; p_restaurant_id: string }
@@ -3518,6 +3839,14 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      expire_platform_capabilities: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      expire_vertical_private_access: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
       finalize_driver_settlement: {
         Args: { p_settlement_id: string }
         Returns: undefined
@@ -3681,7 +4010,34 @@ export type Database = {
         }[]
       }
       gettransactionid: { Args: never; Returns: unknown }
+      grant_platform_capability: {
+        Args: {
+          p_capability: string
+          p_expires_at?: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      grant_vertical_private_access: {
+        Args: {
+          p_cohort: string
+          p_expires_at?: string
+          p_reason: string
+          p_user_id: string
+          p_vertical_id: string
+        }
+        Returns: string
+      }
       has_completed_order: { Args: { p_user: string }; Returns: boolean }
+      has_platform_capability: {
+        Args: { p_capability: string; p_user_id: string }
+        Returns: boolean
+      }
+      i_have_platform_capability: {
+        Args: { p_capability: string }
+        Returns: boolean
+      }
       in_quiet_hours: {
         Args: { p_end: number; p_start: number; p_tz: string }
         Returns: boolean
@@ -3691,6 +4047,7 @@ export type Database = {
         Returns: boolean
       }
       is_merchant_staff: { Args: { p_restaurant_id: string }; Returns: boolean }
+      is_platform_owner: { Args: { p_user_id: string }; Returns: boolean }
       is_within_service_area: {
         Args: { p_lat: number; p_lng: number }
         Returns: boolean
@@ -4131,6 +4488,14 @@ export type Database = {
         Args: { p_approve: boolean; p_document_id: string; p_note?: string }
         Returns: undefined
       }
+      revoke_platform_capability: {
+        Args: { p_capability: string; p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
+      revoke_vertical_private_access: {
+        Args: { p_reason: string; p_user_id: string; p_vertical_id: string }
+        Returns: undefined
+      }
       rider_snapshot: { Args: { p_driver_id: string }; Returns: Json }
       send_order_message: {
         Args: { p_body: string; p_order_id: string }
@@ -4215,6 +4580,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_vertical_launch_stage: {
+        Args: {
+          p_evidence_reference?: string
+          p_is_active: boolean
+          p_reason: string
+          p_stage: string
+          p_vertical_id: string
+        }
+        Returns: undefined
       }
       settlement_sweep: { Args: never; Returns: number }
       st_3dclosestpoint: {
@@ -4809,9 +5184,34 @@ export type Database = {
         }
         Returns: string
       }
+      user_can_view_vertical: {
+        Args: { p_user_id: string; p_vertical_id: string }
+        Returns: boolean
+      }
       validate_promo: {
         Args: { p_code: string; p_subtotal: number }
         Returns: number
+      }
+      vertical_assignment_blockers: {
+        Args: { p_new_vertical_id: string; p_restaurant_id: string }
+        Returns: {
+          code: string
+          detail: string
+        }[]
+      }
+      vertical_effective_stage: {
+        Args: { p_vertical_id: string }
+        Returns: string
+      }
+      vertical_order_dimensions: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          commission_egp: number
+          delivered_count: number
+          gross_egp: number
+          order_count: number
+          vertical_id: string
+        }[]
       }
     }
     Enums: {
