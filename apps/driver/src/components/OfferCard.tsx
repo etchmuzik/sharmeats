@@ -17,41 +17,41 @@
  * ([H-DRV2]) — only the drop-off zone.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { Assignment } from '../jobs';
+import {
+  CRITICAL_S,
+  FALLBACK_WINDOW_S,
+  type Urgency,
+  barFraction,
+  formatCountdown,
+  isExpired,
+  nextOfferWindow,
+  parseExpiry,
+  secondsRemaining,
+  urgencyOf,
+} from '../offerUrgency';
 import { colors, font, radius, spacing } from '../theme';
 import { Icon } from './Icon';
 import { cardEnter, cardExit, listReflow, useCountdownBar, usePulse } from './motion';
 import { notifyWarning, tapHeavy, tapLight } from '../lib/haptics';
 
-/** Seconds at/below which the offer is critical (red, pulsing, haptic fired). */
-const CRITICAL_S = 10;
-/** Seconds at/below which the offer is a warning (amber). */
-const WARNING_S = 20;
-/**
- * Assumed full offer window, used only to scale the countdown bar. Dispatch sets
- * the real expiry; if an offer arrives with a longer window the bar simply starts
- * full and the clamp in `useCountdownBar` keeps it in range.
- */
-const ASSUMED_WINDOW_S = 60;
-
-type Urgency = 'calm' | 'warning' | 'critical';
-
-function urgencyOf(seconds: number | null): Urgency {
-  if (seconds === null) return 'calm';
-  if (seconds <= CRITICAL_S) return 'critical';
-  if (seconds <= WARNING_S) return 'warning';
-  return 'calm';
-}
+// Escalation thresholds, timestamp parsing and bar scaling live in
+// `../offerUrgency` so they can be unit-tested without rendering — see
+// offerUrgency.test.ts, which covers the malformed-expiry and window-scaling
+// regressions this component previously had.
 
 /** Palette per urgency stage. Text/label always carries the meaning too. */
 function paletteOf(urgency: Urgency) {
+  // `fg` is text/icon weight and `border` is border weight — deliberately
+  // different tokens for the same semantic colour. See theme.ts: the border
+  // values fail AA as small text, and this chip is read in direct sun.
   switch (urgency) {
     case 'critical':
-      return { fg: colors.red, bg: colors.redSoft, border: colors.red };
+      return { fg: colors.redText, bg: colors.redSoft, border: colors.red };
     case 'warning':
-      return { fg: colors.amber, bg: colors.amberSoft, border: colors.amber };
+      return { fg: colors.amberText, bg: colors.amberSoft, border: colors.amber };
     default:
       return { fg: colors.accentDark, bg: colors.accentSoft, border: colors.accent };
   }
@@ -64,10 +64,12 @@ function paletteOf(urgency: Urgency) {
  * the offer without fighting the server (dispatch_sweep already expired it).
  */
 function useCountdown(expiresAt: string | null, onZero: () => void): number | null {
-  const targetMs = expiresAt ? new Date(expiresAt).getTime() : null;
-  const compute = () =>
-    targetMs === null ? null : Math.max(0, Math.round((targetMs - Date.now()) / 1000));
-  const [seconds, setSeconds] = useState<number | null>(compute);
+  // parseExpiry collapses an unparseable timestamp to null (see offerUrgency.ts)
+  // so the null-handling below — which fails CLOSED — covers it.
+  const targetMs = parseExpiry(expiresAt);
+  const [seconds, setSeconds] = useState<number | null>(() =>
+    secondsRemaining(targetMs, Date.now()),
+  );
   const firedRef = useRef(false);
 
   useEffect(() => {
@@ -76,11 +78,11 @@ function useCountdown(expiresAt: string | null, onZero: () => void): number | nu
       return;
     }
     firedRef.current = false;
-    setSeconds(Math.max(0, Math.round((targetMs - Date.now()) / 1000)));
+    setSeconds(secondsRemaining(targetMs, Date.now()));
     const id = setInterval(() => {
-      const remaining = Math.max(0, Math.round((targetMs - Date.now()) / 1000));
+      const remaining = secondsRemaining(targetMs, Date.now());
       setSeconds(remaining);
-      if (remaining <= 0 && !firedRef.current) {
+      if (remaining !== null && remaining <= 0 && !firedRef.current) {
         firedRef.current = true;
         onZero();
       }
@@ -93,11 +95,22 @@ function useCountdown(expiresAt: string | null, onZero: () => void): number | nu
   return seconds;
 }
 
-/** Format seconds as m:ss, e.g. 42 -> "0:42", 90 -> "1:30". */
-export function formatCountdown(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
+/**
+ * The window this particular offer is being measured against, for scaling the
+ * countdown bar only.
+ *
+ * Calibrates from the offer rather than from a constant: the largest
+ * seconds-remaining ever seen for this card is, by definition, at least the real
+ * window. A card mounted at the instant of the offer sees the true TTL; one
+ * mounted late sees less and the bar simply starts partly drained — which is
+ * honest, because time really has already elapsed.
+ *
+ * The ratchet only ever grows, so the bar never jumps backwards mid-countdown.
+ */
+function useOfferWindow(seconds: number | null): number {
+  const windowRef = useRef(FALLBACK_WINDOW_S);
+  windowRef.current = nextOfferWindow(windowRef.current, seconds);
+  return windowRef.current;
 }
 
 function formatZone(zone: string): string {
@@ -119,13 +132,14 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
   const seconds = useCountdown(offer.offer_expires_at, onExpire);
   const payout = offer.delivery_fee_egp + offer.tip_egp;
   const urgency = urgencyOf(seconds);
-  const expired = seconds !== null && seconds <= 0;
+  const expired = isExpired(seconds);
   const palette = paletteOf(urgency);
 
   // Pulse only while critical AND not yet expired — an expired card should go
   // still, not keep demanding attention it can no longer act on.
   const pulseStyle = usePulse(urgency === 'critical' && !expired);
-  const barStyle = useCountdownBar(seconds === null ? 1 : seconds / ASSUMED_WINDOW_S);
+  const offerWindow = useOfferWindow(seconds);
+  const barStyle = useCountdownBar(barFraction(seconds, offerWindow));
 
   // One warning haptic the moment the offer turns critical. Ref-guarded so it
   // fires once per card, not once per second for the last ten seconds.
@@ -134,8 +148,17 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
     if (urgency === 'critical' && !expired && !warnedRef.current) {
       warnedRef.current = true;
       notifyWarning();
+      // Everything else that marks "critical" — border, shadow, pulse — is
+      // purely visual, and a haptic alone is undifferentiated: it cannot say
+      // WHICH offer, or what changed. Without this a driver using TalkBack has
+      // no way to know an offer is seconds from expiring; the card reads
+      // identically at 60s and at 3s, and the Accept label only changes once
+      // the job is already lost.
+      AccessibilityInfo.announceForAccessibility(
+        `Offer from ${offer.restaurant_name} expires in ${CRITICAL_S} seconds`,
+      );
     }
-  }, [urgency, expired]);
+  }, [urgency, expired, offer.restaurant_name]);
 
   const countdownLabel = expired
     ? 'Expired'
@@ -170,8 +193,14 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
       {/* Countdown bar — the primary urgency signal. */}
       {seconds !== null && (
         <View
-          accessibilityRole="progressbar"
-          accessibilityLabel={expired ? 'Offer expired' : `Expires in ${countdownLabel}`}
+          // Hidden from the a11y tree, not labelled: as the card's first child
+          // it would otherwise announce the deadline BEFORE the driver knows
+          // what the job is — and a static View's label is captured at focus
+          // time, so the figure it read out would already be stale. The
+          // countdown chip below carries the same information in reading order,
+          // and announceForAccessibility handles the critical transition.
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
           style={{
             height: 6,
             borderRadius: radius.pill,
@@ -196,6 +225,8 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
         </View>
         {countdownLabel !== null && (
           <View
+            accessibilityRole="text"
+            accessibilityLabel={expired ? 'Offer expired' : `Expires in ${countdownLabel}`}
             style={{
               flexDirection: 'row',
               alignItems: 'center',

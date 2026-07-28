@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -72,6 +72,11 @@ export default function Home() {
   // reset target — a filter that hides a new ticket is a bug (see the
   // brand-filter reset effect below).
   const [brandFilter, setBrandFilter] = useState<'all' | string>('all');
+  // Order ids whose critical-wait haptic has already fired. Owned here rather
+  // than inside OrderRow because SectionList unmounts rows outside its render
+  // window — a row-local ref would reset on remount and re-buzz for a ticket
+  // that has merely been scrolled back into view.
+  const warnedIds = useRef<Set<string>>(new Set());
 
   const brandIds = useMemo(
     () => (kitchen ? kitchen.brands.map((b) => b.restaurantId) : []),
@@ -464,6 +469,8 @@ export default function Home() {
                   order={item}
                   busy={busyIds.has(item.id)}
                   brandTag={brandTag}
+                  muted={muted}
+                  warnedIds={warnedIds.current}
                   onOpenDetail={() => router.push(`/order/${item.id}`)}
                   onAccept={() => doAdvance(item, 'accepted')}
                   onReject={(reason) => doAdvance(item, 'rejected', reason)}
@@ -473,6 +480,8 @@ export default function Home() {
                   order={item}
                   busy={busyIds.has(item.id)}
                   brandTag={brandTag}
+                  muted={muted}
+                  warnedIds={warnedIds.current}
                   onOpenDetail={() => router.push(`/order/${item.id}`)}
                   primary={
                     item.status === 'accepted'
@@ -486,6 +495,8 @@ export default function Home() {
                   order={item}
                   busy={busyIds.has(item.id)}
                   brandTag={brandTag}
+                  muted={muted}
+                  warnedIds={warnedIds.current}
                   onOpenDetail={() => router.push(`/order/${item.id}`)}
                 />
               )}

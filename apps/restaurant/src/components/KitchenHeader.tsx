@@ -23,7 +23,11 @@ import { Icon } from './Icon';
 import { selection, tapMedium } from '../lib/haptics';
 
 const CONTROL_BASE = {
-  minHeight: 44,
+  // 48, not the 44pt iOS floor: these are pressed with wet or gloved hands on a
+  // greasy counter tablet. A gloved contact patch is larger and less precise
+  // than a bare fingertip, and 44 is calibrated for the latter. Also matches
+  // Android's 48dp guidance, which is the primary platform here.
+  minHeight: 48,
   paddingHorizontal: spacing.md,
   borderRadius: radius.pill,
   alignItems: 'center',
@@ -164,7 +168,7 @@ export function KitchenHeader({
               style={{
                 fontSize: font.sizes.sm,
                 fontWeight: '700',
-                color: isOpen ? colors.green : colors.red,
+                color: isOpen ? colors.greenText : colors.redText,
               }}
             >
               {openLabel}
@@ -188,7 +192,7 @@ export function KitchenHeader({
               style={{
                 fontSize: font.sizes.sm,
                 fontWeight: '700',
-                color: isOpen ? colors.green : colors.red,
+                color: isOpen ? colors.greenText : colors.redText,
               }}
             >
               {isOpen ? 'Open' : 'Closed'}
@@ -220,12 +224,12 @@ export function KitchenHeader({
             compact && { flexGrow: 1, flexBasis: '46%' },
           ]}
         >
-          <Icon name={muted ? 'mute' : 'sound'} size={14} color={muted ? colors.red : colors.green} />
+          <Icon name={muted ? 'mute' : 'sound'} size={14} color={muted ? colors.redText : colors.greenText} />
           <Text
             style={{
               fontSize: font.sizes.sm,
               fontWeight: '700',
-              color: muted ? colors.red : colors.green,
+              color: muted ? colors.redText : colors.greenText,
             }}
           >
             {muted ? 'Muted' : 'Sound'}

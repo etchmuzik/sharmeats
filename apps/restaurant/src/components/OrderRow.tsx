@@ -54,7 +54,16 @@ type Waiting = 'calm' | 'warning' | 'critical';
  * so there is nothing left to escalate and no reason to keep a timer alive.
  */
 function useWaitSeconds(placedAt: string, active: boolean): number {
-  const compute = () => Math.max(0, Math.round((Date.now() - new Date(placedAt).getTime()) / 1000));
+  // A malformed timestamp yields NaN, and `NaN >= 120` / `NaN >= 60` are both
+  // false — so escalation would silently stay 'calm' forever: no amber, no red,
+  // no timer, no haptic. That fails OPEN on the exact mechanism built to stop
+  // merchants missing orders, and it fails invisibly. Treat an unparseable
+  // placed_at as "waiting since now" (0s) so the ticket still ages normally.
+  const compute = () => {
+    const placedMs = new Date(placedAt).getTime();
+    if (Number.isNaN(placedMs)) return 0;
+    return Math.max(0, Math.round((Date.now() - placedMs) / 1000));
+  };
   const [seconds, setSeconds] = useState(compute);
 
   useEffect(() => {
@@ -106,6 +115,14 @@ type Props = {
   onReject?: (reason?: string) => void;
   primary?: { label: string; next: OrderStatus };
   onPrimary?: (next: OrderStatus) => void;
+  /** True when the kiosk chime is muted — suppresses the escalation haptic too. */
+  muted?: boolean;
+  /**
+   * Parent-owned set of order ids that have already fired their critical haptic.
+   * Lives above this component so it survives SectionList unmounting rows that
+   * scroll out of the render window. Mutated in place; never read during render.
+   */
+  warnedIds: Set<string>;
 };
 
 export function OrderRow({
@@ -117,6 +134,8 @@ export function OrderRow({
   onReject,
   primary,
   onPrimary,
+  muted = false,
+  warnedIds,
 }: Props) {
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
@@ -127,19 +146,28 @@ export function OrderRow({
   const waiting = waitingOf(waitSeconds, unacked);
   const pulseStyle = usePulse(waiting === 'critical');
 
-  // One warning haptic when a ticket first turns critical. Ref-guarded so it
-  // fires once per ticket rather than every second it stays critical.
-  const warnedRef = useRef(false);
+  // One warning haptic when a ticket first turns critical.
+  //
+  // The "already warned" set is owned by the PARENT, not this component: a
+  // SectionList unmounts rows that scroll out of its render window, and a
+  // component-local ref would reset on remount — so scrolling a long-waiting
+  // ticket off screen and back would buzz again, and again, for a ticket that
+  // is not new. Keyed by order id, the set survives recycling.
+  //
+  // Also honours the kiosk mute toggle. A muted counter means "stop alerting
+  // me"; a silent buzz is still an alert, and with several tickets crossing the
+  // threshold together the tablet would rattle continuously.
   useEffect(() => {
-    if (waiting === 'critical' && !warnedRef.current) {
-      warnedRef.current = true;
-      notifyWarning();
-    }
-  }, [waiting]);
+    if (waiting !== 'critical' || muted) return;
+    if (warnedIds.has(order.id)) return;
+    warnedIds.add(order.id);
+    notifyWarning();
+  }, [waiting, muted, order.id, warnedIds]);
 
   const borderColor =
     waiting === 'critical' ? colors.red : waiting === 'warning' ? colors.amber : colors.line;
-  const waitColor = waiting === 'critical' ? colors.red : colors.amber;
+  // Text weight, not border weight — see the *Text token comments in theme.ts.
+  const waitColor = waiting === 'critical' ? colors.redText : colors.amberText;
 
   return (
     <Animated.View
@@ -171,8 +199,27 @@ export function OrderRow({
         }}
         disabled={!onOpenDetail}
         accessibilityRole={onOpenDetail ? 'button' : undefined}
-        accessibilityLabel={onOpenDetail ? `Open order ${order.short_code}` : undefined}
-        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}
+        // React Native flattens the subtree of an element carrying an
+        // accessibilityLabel, so a bare "Open order A4F2" would SWALLOW the
+        // total and payment method — and whether a ticket is cash-on-delivery
+        // changes how the handover is run. Fold them into the label.
+        accessibilityLabel={
+          onOpenDetail
+            ? `Open order ${order.short_code}, ${order.total_egp} EGP, ${
+                order.payment_method === 'cash_on_delivery'
+                  ? 'cash on delivery'
+                  : `card ${order.payment_status}`
+              }`
+            : undefined
+        }
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          // Without this the row is only as tall as its text (~36-40pt) and it
+          // is the sole route into the order detail. 48pt for gloved hands.
+          minHeight: onOpenDetail ? 48 : undefined,
+        }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
           {brandTag ? (
@@ -224,8 +271,8 @@ export function OrderRow({
                 order.payment_method === 'cash_on_delivery'
                   ? colors.sea
                   : order.payment_status === 'paid'
-                    ? colors.green
-                    : colors.amber,
+                    ? colors.greenText
+                    : colors.amberText,
             }}
           >
             {order.payment_method === 'cash_on_delivery'
@@ -285,7 +332,7 @@ export function OrderRow({
             {/* [H-REST1] Per-item note (e.g. "no onions") — the kitchen must see
                 this. Previously only merchant-web rendered it. */}
             {it.notes ? (
-              <Text selectable style={{ fontSize: font.sizes.sm, color: colors.amber, marginLeft: spacing.md }}>
+              <Text selectable style={{ fontSize: font.sizes.sm, color: colors.amberText, marginLeft: spacing.md }}>
                 “{it.notes}”
               </Text>
             ) : null}
@@ -303,7 +350,7 @@ export function OrderRow({
             paddingVertical: spacing.sm,
           }}
         >
-          <Text selectable style={{ fontSize: font.sizes.xs, color: colors.amber }}>
+          <Text selectable style={{ fontSize: font.sizes.xs, color: colors.amberText }}>
             Kitchen note: {order.kitchen_notes}
           </Text>
         </View>

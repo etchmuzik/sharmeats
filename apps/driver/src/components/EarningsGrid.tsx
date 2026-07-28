@@ -30,7 +30,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
         style={{
           fontSize: font.sizes.xl,
           fontWeight: '800',
-          color: warn ? colors.amber : colors.ink,
+          color: warn ? colors.amberText : colors.ink,
           fontVariant: ['tabular-nums'],
         }}
       >

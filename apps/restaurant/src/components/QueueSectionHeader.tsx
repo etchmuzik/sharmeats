@@ -26,7 +26,11 @@ export function QueueSectionHeader({ title, count, accent }: Props) {
         gap: spacing.sm,
       }}
     >
+      {/* TalkBack's "navigate by heading" gesture is the only fast way through
+          a long queue; without the role a kitchen worker must swipe past every
+          ticket to reach the next section. */}
       <Text
+        accessibilityRole="header"
         style={{
           fontSize: font.sizes.sm,
           fontWeight: '800',

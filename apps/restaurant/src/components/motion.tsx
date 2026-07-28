@@ -51,8 +51,12 @@ export function usePulse(active: boolean, peak = 1.04) {
   useEffect(() => {
     if (!active) {
       cancelAnimation(scale);
+      // The settle-back timing must ALSO be cancellable: a card very commonly
+      // unmounts during this exact 160ms (a ticket is accepted — the same event
+      // that de-escalated it). Returning no cleanup on this path would leave
+      // that animation running on a dead component.
       scale.value = withTiming(1, { duration: 160 });
-      return;
+      return () => cancelAnimation(scale);
     }
     scale.value = withRepeat(
       withSequence(

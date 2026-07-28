@@ -21,6 +21,15 @@ export const colors = {
   redSoft: '#ffe2dc',
   amber: '#b8791a',
   amberSoft: '#fbf2dd',
+  // Text-weight variants of the semantic trio. The values above are tuned for
+  // BORDERS and FILLS, where WCAG requires only 3:1 — as small text they fail
+  // AA (amber on amberSoft is 3.26:1, red on redSoft 4.04:1, against a 4.5:1
+  // requirement). Matters most on the offer countdown chip and the COD-owed
+  // figure, read one-handed in direct sun. Use these for text and icons; keep
+  // the originals for borders and fills so the visual language is unchanged.
+  greenText: '#1f6b45', // 5.54:1 on greenSoft, 6.37:1 on white
+  redText: '#a8301c', //   5.53:1 on redSoft,   6.66:1 on white
+  amberText: '#8a5a10', // 5.31:1 on amberSoft, 5.83:1 on white
   star: '#e8a317',
   white: '#fffdfa',
 } as const;
