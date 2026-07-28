@@ -54,10 +54,15 @@ export function EarningsGrid({ earnings }: { earnings: EarningsSummary }) {
       <Stat label="Earned today" value={`${earnings.todayTotal} EGP`} />
       <Stat label="Deliveries" value={`${earnings.todayCount}`} />
       <Stat label="Tips today" value={`${earnings.todayTips} EGP`} />
+      {/* Any NON-ZERO balance is an outstanding cash position and gets the amber
+          treatment. Testing `> 0` alone was wrong: a negative figure (seen on a
+          real account as "-810 EGP") is still money to reconcile, and it
+          rendered in plain ink — the one number on this screen that can be bad
+          news, styled as though it were routine. */}
       <Stat
-        label={earnings.codOwed > 0 ? 'Cash to settle' : 'COD owed'}
+        label={earnings.codOwed !== 0 ? 'Cash to settle' : 'COD owed'}
         value={`${earnings.codOwed} EGP`}
-        warn={earnings.codOwed > 0}
+        warn={earnings.codOwed !== 0}
       />
     </View>
   );

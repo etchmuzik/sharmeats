@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../src/auth';
 import {
@@ -37,7 +36,6 @@ import { OfferCard } from '../src/components/OfferCard';
 import { OnlineToggle } from '../src/components/OnlineToggle';
 import { ActiveJobCard } from '../src/components/ActiveJobCard';
 import { EarningsGrid } from '../src/components/EarningsGrid';
-import { contentEnter, listReflow } from '../src/components/motion';
 import { notifyError, notifySuccess, tapLight, tapMedium } from '../src/lib/haptics';
 
 export default function Home() {
@@ -327,10 +325,15 @@ export default function Home() {
         <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: spacing.md }}>
           {offers.length > 0 ? `New offers · ${offers.length}` : online ? 'Waiting for offers' : 'Offers paused'}
         </Text>
+        {/* A plain View, not Animated. Twice now an entering/layout animation
+            has left content INVISIBLE on iOS rather than fading it in — this
+            card and the OnlineToggle heading, both verified on a simulator.
+            An empty state is the only thing on screen when it shows; it must
+            never depend on an animation completing in order to be readable.
+            Motion stays on the offer cards, where arrival genuinely needs
+            explaining. */}
         {offers.length === 0 && (
-          <Animated.View
-            entering={contentEnter}
-            layout={listReflow}
+          <View
             accessibilityLabel={
               online
                 ? 'No offers right now. You are online and ready for nearby deliveries.'
@@ -356,7 +359,7 @@ export default function Home() {
             <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, textAlign: 'center' }}>
               {online ? 'New offers will appear here with a notification.' : 'Use the switch above to start receiving offers.'}
             </Text>
-          </Animated.View>
+          </View>
         )}
         {offers.map((o) => (
           <OfferCard

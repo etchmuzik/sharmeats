@@ -7,9 +7,7 @@
  * generates a support call.
  */
 import { Switch, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { colors, font, radius, spacing } from '../theme';
-import { contentEnter } from './motion';
 
 type Props = {
   online: boolean;
@@ -38,9 +36,13 @@ export function OnlineToggle({ online, verified, onToggle }: Props) {
       }}
     >
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Animated.Text
-          key={online ? 'on' : 'off'}
-          entering={contentEnter}
+        {/* Deliberately NOT an Animated.Text with a changing `key`. Remounting
+            on every toggle re-runs the entering animation, and on iOS the text
+            can settle invisible — verified on a simulator, where the heading was
+            simply absent while the subtitle below rendered. The status line is
+            the whole point of this card; it must never depend on an animation
+            completing to be readable. */}
+        <Text
           style={{
             fontSize: font.sizes.xl,
             fontWeight: '700',
@@ -48,7 +50,7 @@ export function OnlineToggle({ online, verified, onToggle }: Props) {
           }}
         >
           {online ? "You're online" : "You're offline"}
-        </Animated.Text>
+        </Text>
         <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
           {!verified
             ? 'Complete verification to start receiving offers'
