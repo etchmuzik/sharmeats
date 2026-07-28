@@ -40,20 +40,36 @@ export default function RootLayout() {
         <AuthProvider>
           <ToastProvider>
             <StatusBar style="dark" />
+            {/*
+              Native headers (large titles + native back) rather than
+              hand-rolled ones: they give correct safe-area handling for free via
+              `contentInsetAdjustmentBehavior="automatic"` on each screen's
+              scroller, and a back gesture drivers already know.
+
+              `index` and `signin` stay chrome-less — they are full-bleed gates,
+              not destinations you navigate back from.
+            */}
             <Stack
               screenOptions={{
-                headerShown: false,
                 contentStyle: { backgroundColor: colors.bg },
+                headerStyle: { backgroundColor: colors.bg },
+                headerTintColor: colors.accent,
+                headerTitleStyle: { color: colors.ink },
+                headerShadowVisible: false,
+                headerBackButtonDisplayMode: 'minimal',
               }}
             >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="signin" />
-              <Stack.Screen name="home" />
-              <Stack.Screen name="job/[id]" />
-              <Stack.Screen name="job/[id]/chat" />
-              <Stack.Screen name="history" />
-              <Stack.Screen name="tier" />
-              <Stack.Screen name="kyc" />
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="signin" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="home"
+                options={{ title: 'Deliveries', headerLargeTitle: true, headerBackVisible: false }}
+              />
+              <Stack.Screen name="job/[id]" options={{ title: 'Delivery' }} />
+              <Stack.Screen name="job/[id]/chat" options={{ title: 'Chat' }} />
+              <Stack.Screen name="history" options={{ title: 'History', headerLargeTitle: true }} />
+              <Stack.Screen name="tier" options={{ title: 'My tier' }} />
+              <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
             </Stack>
           </ToastProvider>
         </AuthProvider>

@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getHistory, getMyDriver, type DeliveryHistoryItem } from '../src/jobs';
 import { colors, font, radius, spacing } from '../src/theme';
 import { Icon } from '../src/components/Icon';
 
 /** Past deliveries for the signed-in driver, newest first (buried feature). */
 export default function HistoryScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<DeliveryHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,31 +34,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Header */}
-      <View
-        style={{
-          paddingTop: insets.top + spacing.sm,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderColor: colors.line,
-          backgroundColor: colors.white,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-        >
-          <Icon name="chevronBack" size={20} color={colors.accent} />
-        </Pressable>
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>Delivery history</Text>
-      </View>
-
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.accent} size="large" />
@@ -84,6 +55,7 @@ export default function HistoryScreen() {
         <FlatList
           data={items}
           keyExtractor={(it) => it.id}
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{ padding: spacing.xl, gap: spacing.md, flexGrow: 1 }}
           refreshControl={
             <RefreshControl

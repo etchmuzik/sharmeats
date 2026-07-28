@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../src/auth';
 import { useToast } from '../../../src/components/Toast';
@@ -38,7 +38,6 @@ function roleLabel(role: MessageRole): string {
  */
 export default function Chat() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { toast } = useToast();
@@ -118,39 +117,12 @@ export default function Chat() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Back header */}
-      <View
-        style={{
-          paddingTop: insets.top + spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: spacing.md,
-          backgroundColor: colors.white,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={{ padding: spacing.xs }}
-        >
-          <Icon name="chevronBack" size={24} color={colors.ink} accessibilityLabel="Back" />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>Messages</Text>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>Customer &amp; driver</Text>
-        </View>
-      </View>
-
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + spacing.md}
+        // The native Stack header sits above this view, so the screen already
+        // starts below it — no manual offset to compensate for.
+        keyboardVerticalOffset={0}
       >
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -159,6 +131,7 @@ export default function Chat() {
         ) : (
           <ScrollView
             ref={scrollRef}
+            contentInsetAdjustmentBehavior="automatic"
             contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm }}
             onContentSizeChange={scrollToEnd}
             keyboardShouldPersistTaps="handled"

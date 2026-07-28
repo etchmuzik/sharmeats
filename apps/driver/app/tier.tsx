@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { getMyTier, type DriverTierInfo } from '../src/loyalty';
 import { colors, font, radius, spacing } from '../src/theme';
-import { Icon } from '../src/components/Icon';
 
 const TIER_LABEL: Record<DriverTierInfo['tier'], string> = {
   bronze: 'Bronze',
@@ -28,8 +26,6 @@ const NEXT_THRESHOLD: Record<DriverTierInfo['tier'], number | null> = {
 };
 
 export default function Tier() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [tier, setTier] = useState<DriverTierInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,7 +60,8 @@ export default function Tier() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl }}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={{ paddingTop: spacing.lg, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -75,18 +72,7 @@ export default function Tier() {
         />
       }
     >
-      <Pressable
-        onPress={() => router.back()}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        hitSlop={8}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-      >
-        <Icon name="chevronBack" size={18} color={colors.accent} />
-        <Text style={{ color: colors.accent, fontWeight: '600' }}>Back</Text>
-      </Pressable>
-
-      <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink, marginTop: spacing.md }}>
+      <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
         {TIER_LABEL[currentTier]} tier
       </Text>
 

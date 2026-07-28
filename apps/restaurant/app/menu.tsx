@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   RefreshControl,
   ScrollView,
   Switch,
@@ -9,7 +8,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
@@ -23,7 +21,6 @@ import { colors, font, radius, spacing } from '../src/theme';
  * are rejected immediately. Optimistic toggle with rollback on failure.
  */
 export default function Menu() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
 
@@ -100,38 +97,15 @@ export default function Menu() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {/* Back header */}
-      <View
-        style={{
-          paddingTop: insets.top + spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: spacing.md,
-          backgroundColor: colors.white,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-        }}
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.sm }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} />}
       >
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={{ padding: spacing.xs }}
-        >
-          <Icon name="chevronBack" size={24} color={colors.ink} accessibilityLabel="Back" />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>Menu availability</Text>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
-            {outCount > 0 ? `${outCount} item${outCount === 1 ? '' : 's'} out of stock` : 'All items available'}
-          </Text>
-        </View>
-      </View>
+        <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
+          {outCount > 0 ? `${outCount} item${outCount === 1 ? '' : 's'} out of stock` : 'All items available'}
+        </Text>
 
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -148,12 +122,7 @@ export default function Menu() {
             fontSize: font.sizes.base,
           }}
         />
-      </View>
 
-      <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.sm }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} />}
-      >
         {filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl * 2, gap: spacing.sm }}>
             <Icon name="restaurant" size={36} color={colors.ink3} accessibilityLabel="No items" />

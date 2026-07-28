@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { getMyRestaurantTier, type RestaurantTierInfo } from '../src/loyalty';
 import { colors, font, radius, spacing } from '../src/theme';
-import { Icon } from '../src/components/Icon';
 
 const TIER_LABEL: Record<RestaurantTierInfo['tier'], string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
 
@@ -15,8 +13,6 @@ const NEXT_THRESHOLD: Record<RestaurantTierInfo['tier'], number | null> = { bron
 const TIER_FLOOR: Record<RestaurantTierInfo['tier'], number> = { bronze: 0, silver: 50, gold: 200 };
 
 export default function Tier() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [tier, setTier] = useState<RestaurantTierInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,6 +49,7 @@ export default function Tier() {
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={styles.content}
+      contentInsetAdjustmentBehavior="automatic"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -63,19 +60,6 @@ export default function Tier() {
         />
       }
     >
-      <View style={{ paddingTop: insets.top + spacing.lg }}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
-          style={styles.back}
-        >
-          <Icon name="chevronBack" size={18} color={colors.accent} />
-          <Text style={{ color: colors.accent, fontWeight: '600' }}>Back</Text>
-        </Pressable>
-      </View>
-
       <Text style={styles.title}>
         {tier ? TIER_LABEL[tier.tier] : 'Bronze'} tier
       </Text>
@@ -146,7 +130,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
-  back: { minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2 },
   title: { marginTop: spacing.md, fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink },
   progressSection: {
     marginTop: spacing.xl,
