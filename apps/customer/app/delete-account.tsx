@@ -5,18 +5,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { Icon } from '../src/components/Icon';
-import { colors, font, radius, shadow } from '../src/theme';
+import { font, radius, shadow } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { useDirection } from '../src/lib/direction';
 import { tap, success, warn } from '../src/haptics';
@@ -38,6 +37,8 @@ import { transitionIdentity } from '../src/lib/identityTeardown';
  *      signs out and returns to onboarding.
  */
 export default function DeleteAccount() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -132,7 +133,7 @@ export default function DeleteAccount() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         {/* Block back-navigation mid-delete so the flow can't be interrupted. */}
         <BackButton onPress={deleting ? () => {} : undefined} />
@@ -211,7 +212,7 @@ export default function DeleteAccount() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -277,4 +278,4 @@ const styles = StyleSheet.create({
   },
   deleteBtn: { backgroundColor: colors.red },
   spinnerRow: { alignItems: 'center', marginTop: -6 },
-});
+}));

@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSession } from '../src/store/session';
-import { colors, font } from '../src/theme';
+import { font } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 
 export default function Splash() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const hydrated = useSession((s) => s.hydrated);
   const isSignedIn = useSession((s) => s.isSignedIn);
@@ -21,7 +23,7 @@ export default function Splash() {
 
   return (
     <View style={styles.wrap}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={styles.mark}>
         <Text style={styles.markText}>s</Text>
       </View>
@@ -33,7 +35,7 @@ export default function Splash() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { flex: 1, backgroundColor: colors.sand, alignItems: 'center', justifyContent: 'center' },
   mark: {
     width: 80,
@@ -44,6 +46,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 18,
   },
-  markText: { color: colors.white, fontSize: 44, fontWeight: font.weights.black, marginTop: -4 },
+  markText: { color: colors.onAccent, fontSize: 44, fontWeight: font.weights.black, marginTop: -4 },
   brand: { fontSize: font.sizes['8xl'], color: colors.ink, fontWeight: font.weights.bold, letterSpacing: -0.5 },
-});
+}));

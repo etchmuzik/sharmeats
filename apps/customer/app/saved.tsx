@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { RestaurantCard } from '../src/components/RestaurantCard';
-import { colors, font, radius, shadow } from '../src/theme';
+import { font, radius, shadow } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { db } from '../src/data';
 import { useSession } from '../src/store/session';
@@ -24,6 +24,8 @@ type Tab = 'items' | 'places';
  * is the main reason to keep a list like this. Only the ADD action is disabled.
  */
 export default function Saved() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -62,7 +64,7 @@ export default function Saved() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('saved.title')}</Text>
@@ -123,6 +125,7 @@ export default function Saved() {
 }
 
 function SavedItemRow({ item }: { item: SavedItem }) {
+  const styles = useStyles();
   const router = useRouter();
   const t = useT();
   const { toggle } = useFavoriteItem(item.menuItemId, item.restaurantId);
@@ -174,7 +177,7 @@ function SavedItemRow({ item }: { item: SavedItem }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -194,13 +197,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
   },
   tabActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   tabText: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.ink2 },
-  tabTextActive: { color: colors.white },
+  tabTextActive: { color: colors.onAccent },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
   emptyTitle: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
   emptyHint: { fontSize: font.sizes.lg, color: colors.ink3, textAlign: 'center' },
@@ -211,12 +214,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
   },
-  browseText: { color: colors.white, fontWeight: font.weights.bold, fontSize: font.sizes.lg },
+  browseText: { color: colors.onAccent, fontWeight: font.weights.bold, fontSize: font.sizes.lg },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -233,4 +236,4 @@ const styles = StyleSheet.create({
   rowRight: { alignItems: 'flex-end', gap: 8 },
   itemPrice: { fontSize: font.sizes.lg, fontWeight: font.weights.extrabold, color: colors.ink },
   heart: { fontSize: 20, color: colors.accent },
-});
+}));

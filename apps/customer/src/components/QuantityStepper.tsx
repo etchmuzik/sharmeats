@@ -1,5 +1,6 @@
-import { Text, View, StyleSheet } from 'react-native';
-import { colors, radius, font } from '../theme';
+import { Text, View } from 'react-native';
+import { radius, font } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { PressableScale } from './PressableScale';
 import { tap } from '../haptics';
 
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function QuantityStepper({ value, onChange, min = 0, max = 99, size = 'md' }: Props) {
+  const styles = useStyles();
   const sm = size === 'sm';
   // Visuals stay 26-36pt; hitSlop pads each +/- button to a >=44pt effective
   // tap target (HIG minimum). Slops of adjacent controls stay non-overlapping
@@ -56,11 +58,11 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, size = 'md
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
@@ -68,4 +70,4 @@ const styles = StyleSheet.create({
   btn: { alignItems: 'center', justifyContent: 'center', height: '100%' },
   sym: { fontSize: 18, color: colors.ink, lineHeight: 20 },
   v: { minWidth: 24, textAlign: 'center', fontWeight: font.weights.bold, color: colors.ink },
-});
+}));

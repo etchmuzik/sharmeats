@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallback } from 'react';
 import { BackButton } from '../src/components/BackButton';
-import { colors, font, radius, shadow } from '../src/theme';
+import { font, radius, shadow } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT, LOCALE_LABELS, ALL_LOCALES } from '../src/i18n';
-import { useSession, type Locale, type Currency } from '../src/store/session';
+import { useSession, type Locale, type Currency, type ThemeMode } from '../src/store/session';
 import { selection, tap } from '../src/haptics';
 import { ALL_CURRENCIES } from '../src/currency/fx';
 import { db } from '../src/data';
@@ -26,7 +26,16 @@ import type { PermissionDecision } from '../src/lib/pushPermission';
 const DEFAULT_QUIET_START = 22;
 const DEFAULT_QUIET_END = 8;
 
+// System first: it is the default, and the one most people want.
+const THEME_MODES: { key: ThemeMode; tKey: string }[] = [
+  { key: 'system', tKey: 'profile.appearanceSystem' },
+  { key: 'light', tKey: 'profile.appearanceLight' },
+  { key: 'dark', tKey: 'profile.appearanceDark' },
+];
+
 export default function Settings() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -34,6 +43,8 @@ export default function Settings() {
   const setLocale = useSession((s) => s.setLocale);
   const currency = useSession((s) => s.currency);
   const setCurrency = useSession((s) => s.setCurrency);
+  const themeMode = useSession((s) => s.themeMode);
+  const setThemeMode = useSession((s) => s.setThemeMode);
   const [allergyCount, setAllergyCount] = useState(0);
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [prefsBusy, setPrefsBusy] = useState(false);
@@ -123,7 +134,7 @@ export default function Settings() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('settings.title')}</Text>
@@ -175,6 +186,33 @@ export default function Settings() {
               );
             })}
           </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('profile.appearance')}</Text>
+          <View style={{ marginTop: 10, gap: 6 }}>
+            {THEME_MODES.map((m) => {
+              const isSel = themeMode === m.key;
+              return (
+                <Pressable
+                  key={m.key}
+                  onPress={() => {
+                    selection();
+                    setThemeMode(m.key);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSel }}
+                  accessibilityLabel={t(m.tKey)}
+                  style={[styles.row, isSel && styles.rowActive]}>
+                  <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
+                    {t(m.tKey)}
+                  </Text>
+                  {isSel && <Text style={styles.check}>✓</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.prefHint, { paddingHorizontal: 10 }]}>{t('profile.appearanceHint')}</Text>
         </View>
 
         <Pressable
@@ -296,7 +334,7 @@ export default function Settings() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -307,7 +345,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: font.sizes['5xl'], fontWeight: font.weights.extrabold, letterSpacing: -0.4, color: colors.ink },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -381,4 +419,4 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: font.weights.bold,
   },
-});
+}));

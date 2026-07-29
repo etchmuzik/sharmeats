@@ -1,5 +1,6 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors, font, radius, shadow } from '../theme';
+import { Text, TextInput, View } from 'react-native';
+import { font, radius, shadow } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { useT } from '../i18n';
 import type { AllergyKey } from '../data/types';
 import { Icon } from './Icon';
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export function KitchenBriefing({ allergens, notes, onChangeNotes }: Props) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const t = useT();
   const hasAllergens = allergens.length > 0;
 
@@ -46,9 +49,9 @@ export function KitchenBriefing({ allergens, notes, onChangeNotes }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -88,4 +91,4 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-});
+}));

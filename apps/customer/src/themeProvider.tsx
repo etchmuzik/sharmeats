@@ -37,11 +37,18 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { darkColors, lightColors, type Palette, type ThemeMode } from './theme';
+import {
+  darkColors,
+  lightColors,
+  resolveScheme,
+  type ColorScheme,
+  type Palette,
+  type ThemeMode,
+} from './theme';
 import { useSession } from './store/session';
 
-export type ColorScheme = 'light' | 'dark';
-export type { ThemeMode };
+export type { ColorScheme, ThemeMode };
+export { resolveScheme };
 
 interface ThemeValue {
   colors: Palette;
@@ -60,20 +67,11 @@ const ThemeContext = createContext<ThemeValue>({
 });
 
 /**
- * Resolve the mode the user chose against what the OS reports.
- *
- * `useColorScheme()` returns null while the OS value is unknown; treating that
- * as light avoids a dark flash on a light device during the first frame.
- *
- * NOTE: this only ever reports 'dark' when app.json sets
- * `userInterfaceStyle: "automatic"`. With "light" the OS pins every query to
- * light and the System option silently does nothing.
+ * NOTE on the System option: `useColorScheme()` only ever reports 'dark' when
+ * app.json sets `userInterfaceStyle: "automatic"`. With "light" the OS pins
+ * every query to light and System silently does nothing — which is why this
+ * change also flips that flag (and therefore needs a native build, not OTA).
  */
-export function resolveScheme(mode: ThemeMode, system: ColorScheme | null | undefined): ColorScheme {
-  if (mode === 'light' || mode === 'dark') return mode;
-  return system === 'dark' ? 'dark' : 'light';
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const mode = useSession((s) => s.themeMode);
   const system = useColorScheme();

@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import type { Href } from 'expo-router';
-import { colors } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { useGoBack } from '../lib/navigation';
 import { useDirection } from '../lib/direction';
 import { Icon } from './Icon';
@@ -16,6 +16,8 @@ type Props = {
 };
 
 export function BackButton({ size = 38, onPress, fallback, accessibilityLabel = 'Go back', tint = 'dark' }: Props) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const goBack = useGoBack(fallback);
   const dir = useDirection();
   // Keep the visual circle at `size` but guarantee a >=44pt effective tap target (HIG minimum).
@@ -45,6 +47,6 @@ export function BackButton({ size = 38, onPress, fallback, accessibilityLabel = 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   btn: { alignItems: 'center', justifyContent: 'center' },
-});
+}));

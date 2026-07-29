@@ -1,5 +1,6 @@
-import { Pressable, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { colors, radius, font } from '../theme';
+import { Pressable, Text, ViewStyle, StyleProp } from 'react-native';
+import { radius, font } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { press } from '../haptics';
 
 type Props = {
@@ -19,6 +20,8 @@ export function PrimaryButton({
   style,
   testID,
 }: Props) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   return (
     <Pressable
       testID={testID}
@@ -41,7 +44,7 @@ export function PrimaryButton({
       <Text
         style={[
           styles.label,
-          variant === 'primary' && { color: colors.white },
+          variant === 'primary' && { color: colors.onAccent },
           variant === 'secondary' && { color: colors.ink },
           variant === 'ghost' && { color: colors.ink2 },
         ]}>
@@ -51,7 +54,7 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   base: {
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -63,4 +66,4 @@ const styles = StyleSheet.create({
   secondary: { backgroundColor: colors.sand },
   ghost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.line },
   label: { fontSize: font.sizes.xl, fontWeight: font.weights.bold },
-});
+}));

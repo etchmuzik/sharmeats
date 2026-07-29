@@ -1,9 +1,9 @@
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
-import { colors, font, radius, shadow } from '../src/theme';
+import { font, radius, shadow } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { tap } from '../src/haptics';
 import { Icon } from '../src/components/Icon';
@@ -30,6 +30,8 @@ const FAQ = [
 ];
 
 export default function Help() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const t = useT();
   const { orderCode } = useLocalSearchParams<{ orderCode?: string }>();
@@ -51,7 +53,7 @@ export default function Help() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('help.title')}</Text>
@@ -67,7 +69,7 @@ export default function Help() {
             accessibilityLabel={t('help.openWhatsApp')}
             style={styles.waBtn}
           >
-            <Icon name="chat" size={20} color={colors.white} />
+            <Icon name="chat" size={20} color={colors.onAccent} />
             <Text style={styles.waBtnText}>{t('help.openWhatsApp')}</Text>
             {orderCode && <Text style={styles.waBtnSub}>#{orderCode}</Text>}
           </Pressable>
@@ -93,7 +95,7 @@ export default function Help() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -104,7 +106,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: font.sizes['5xl'], fontWeight: font.weights.extrabold, letterSpacing: -0.4, color: colors.ink },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -123,10 +125,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginVertical: 6,
   },
-  waBtnText: { color: colors.white, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
-  waBtnSub: { color: colors.white, fontSize: font.sizes.md, opacity: 0.85 },
+  waBtnText: { color: colors.onAccent, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
+  waBtnSub: { color: colors.onAccent, fontSize: font.sizes.md, opacity: 0.85 },
   faqHead: { fontSize: font.sizes.xs, fontWeight: font.weights.bold, color: colors.ink2, letterSpacing: 1, textTransform: 'uppercase', marginTop: 6 },
   q: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
   a: { fontSize: font.sizes.lg, color: colors.ink2, marginTop: 6, lineHeight: 21 },
   contactLine: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 8 },
-});
+}));

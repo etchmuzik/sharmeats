@@ -1,6 +1,7 @@
-import { Image, Pressable, Text, View, StyleSheet } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, radius, font, shadow } from '../theme';
+import { radius, font, shadow } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { selection } from '../haptics';
 import { PressableScale } from './PressableScale';
 import { formatEgp, formatKm, formatPrepTime } from '../lib/format';
@@ -12,6 +13,8 @@ import { OwnBrandBadge } from './OwnBrandBadge';
 import { useT } from '../i18n';
 
 export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const t = useT();
   const open = effectiveIsOpen(restaurant);
@@ -82,11 +85,11 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -125,5 +128,5 @@ const styles = StyleSheet.create({
     paddingVertical: 2.5,
     borderRadius: 5,
   },
-  open24Text: { fontSize: font.sizes.xs, color: colors.white, fontWeight: font.weights.bold, letterSpacing: 0.3 },
-});
+  open24Text: { fontSize: font.sizes.xs, color: colors.onAccent, fontWeight: font.weights.bold, letterSpacing: 0.3 },
+}));

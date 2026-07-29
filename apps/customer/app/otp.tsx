@@ -3,17 +3,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { BackButton } from '../src/components/BackButton';
 import { StatusBarSpacer } from '../src/components/StatusBarSpacer';
-import { colors, font, radius } from '../src/theme';
+import { font, radius } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { useSession } from '../src/store/session';
 import { success } from '../src/haptics';
@@ -25,6 +24,8 @@ import { captureError } from '../src/lib/analytics';
 const LEN = 6;
 
 export default function Otp() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const t = useT();
   const params = useLocalSearchParams<{ phone?: string }>();
@@ -91,7 +92,7 @@ export default function Otp() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <StatusBarSpacer />
       <View style={{ paddingHorizontal: 20, paddingTop: 6 }}>
         <BackButton onPress={() => router.replace('/signin')} />
@@ -163,7 +164,7 @@ export default function Otp() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   top: { paddingHorizontal: 24, paddingTop: 14 },
   title: {
     fontSize: font.sizes['10xl'],
@@ -182,11 +183,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   boxFilled: { borderColor: colors.ink, backgroundColor: colors.sand },
   boxActive: { borderColor: colors.accent },
   boxDigit: { fontSize: font.sizes['5xl'], fontWeight: font.weights.bold, color: colors.ink },
   hiddenInput: { position: 'absolute', opacity: 0, width: 1, height: 1 },
   resend: { textAlign: 'center', fontSize: font.sizes.base, color: colors.ink2, paddingHorizontal: 24 },
-});
+}));

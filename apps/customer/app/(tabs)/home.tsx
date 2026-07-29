@@ -6,15 +6,14 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { CuisinePill } from '../../src/components/CuisinePill';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
 import { SkeletonRestaurantCard } from '../../src/components/SkeletonRestaurantCard';
@@ -89,6 +88,8 @@ function timeOfDay(): TimeOfDay {
 }
 
 export default function HomeTab() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -361,7 +362,7 @@ export default function HomeTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
         showsVerticalScrollIndicator={false}
@@ -675,7 +676,7 @@ export default function HomeTab() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   top: {
     backgroundColor: colors.sand,
     paddingHorizontal: 20,
@@ -687,7 +688,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 11,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
@@ -724,7 +725,7 @@ const styles = StyleSheet.create({
   greetSub: { color: colors.ink2, fontSize: font.sizes.lg, marginTop: 6 },
   search: {
     marginTop: 18,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
@@ -755,26 +756,26 @@ const styles = StyleSheet.create({
   },
   featMeta: { position: 'absolute', left: 14, right: 14, bottom: 12 },
   featEyebrow: {
-    color: colors.white,
+    color: colors.onAccent,
     fontSize: font.sizes.xs,
     fontWeight: font.weights.bold,
     letterSpacing: 0.6,
     opacity: 0.9,
   },
   featName: {
-    color: colors.white,
+    color: colors.onAccent,
     fontSize: font.sizes['5xl'],
     fontWeight: font.weights.extrabold,
     marginTop: 4,
     letterSpacing: -0.4,
   },
-  featSub: { color: colors.white, fontSize: font.sizes.md, opacity: 0.9, marginTop: 4 },
+  featSub: { color: colors.onAccent, fontSize: font.sizes.md, opacity: 0.9, marginTop: 4 },
   reorderChip: {
     width: 240,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
@@ -789,7 +790,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.accent,
@@ -822,12 +823,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sea,
     borderRadius: radius.pill,
   },
-  nudgeCtaText: { color: colors.white, fontSize: font.sizes.md, fontWeight: font.weights.bold },
+  nudgeCtaText: { color: colors.onAccent, fontSize: font.sizes.md, fontWeight: font.weights.bold },
   nudgeClose: { padding: 4 },
   nudgeCloseText: { color: colors.ink3, fontSize: 16 },
   savedCard: {
     width: 168,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
@@ -847,5 +848,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.ink,
   },
-  retryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
-});
+  retryText: { color: colors.onInk, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+}));

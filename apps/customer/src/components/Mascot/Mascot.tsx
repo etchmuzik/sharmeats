@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { AccessibilityInfo } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, Path, G, Line } from 'react-native-svg';
-import { colors } from '../../theme';
+import { useThemeColors } from '../../themeProvider';
 import { getPose, type MascotPose } from './poses';
 
 const RAYS = Array.from({ length: 8 }, (_, i) => (i * 360) / 8);
@@ -10,6 +10,7 @@ const RAYS = Array.from({ length: 8 }, (_, i) => (i * 360) / 8);
 export function Mascot({ pose = 'idle', size = 120, animate = true }: {
   pose?: MascotPose; size?: number; animate?: boolean;
 }) {
+  const colors = useThemeColors();
   const p = getPose(pose);
   const bob = useSharedValue(0);
 

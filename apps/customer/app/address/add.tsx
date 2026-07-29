@@ -4,18 +4,17 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { MapPinPicker, type LatLng } from '../../src/components/MapPinPicker';
-import { colors, font, radius } from '../../src/theme';
+import { font, radius } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
 import type { Address, AddressKind, Hotel } from '../../src/data/types';
@@ -24,6 +23,8 @@ import { selection, success } from '../../src/haptics';
 import { useGoBack } from '../../src/lib/navigation';
 
 export default function AddAddress() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const goBack = useGoBack('/address/picker');
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -143,7 +144,7 @@ export default function AddAddress() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton fallback="/address/picker" />
         <Text style={styles.title}>{t('address.add')}</Text>
@@ -211,7 +212,7 @@ export default function AddAddress() {
                     setHandoff(h);
                   }}
                   style={[styles.segBtn, handoff === h && styles.segBtnActive]}>
-                  <Text style={[styles.segText, handoff === h && { color: colors.white }]}>
+                  <Text style={[styles.segText, handoff === h && { color: colors.onInk }]}>
                     {h === 'lobby' ? t('address.lobby') : h === 'reception' ? t('address.reception') : t('address.poolside')}
                   </Text>
                 </Pressable>
@@ -283,7 +284,7 @@ export default function AddAddress() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -302,7 +303,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: font.sizes.xl,
     color: colors.ink,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   hotelRow: {
     flexDirection: 'row',
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.line,
     borderRadius: radius.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   hotelIcon: { fontSize: 20 },
   hotelName: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
@@ -330,10 +331,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-});
+}));

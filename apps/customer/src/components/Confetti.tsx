@@ -1,9 +1,7 @@
-import { AccessibilityInfo, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, View } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
 import { useEffect, useState } from 'react';
-import { colors } from '../theme';
-
-const DEFAULT_PALETTE = [colors.accent, colors.sea, colors.star];
+import { makeStyles, useThemeColors } from '../themeProvider';
 
 export interface Particle {
   id: number; x: number; angle: number; distance: number; color: string; delay: number;
@@ -21,6 +19,7 @@ export function buildParticles(count: number, palette: string[]): Particle[] {
 }
 
 function Dot({ p, progress }: { p: Particle; progress: { value: number } }) {
+  const styles = useStyles();
   const style = useAnimatedStyle(() => {
     const rad = (p.angle * Math.PI) / 180;
     const t = progress.value;
@@ -36,13 +35,17 @@ function Dot({ p, progress }: { p: Particle; progress: { value: number } }) {
   return <Animated.View style={[styles.dot, { backgroundColor: p.color }, style]} />;
 }
 
-export function Confetti({ visible, count = 14, palette = DEFAULT_PALETTE }: {
+export function Confetti({ visible, count = 14, palette }: {
   visible: boolean; count?: number; palette?: string[];
 }) {
+  const styles = useStyles();
+  const colors = useThemeColors();
   const progress = useSharedValue(0);
   // Fail closed for a11y: stay hidden until the OS reduce-motion setting is known to be off.
   const [reduceMotion, setReduceMotion] = useState(true);
-  const particles = buildParticles(count, palette);
+  // Resolved from the active palette rather than a module-scope default, so the
+  // confetti picks up the brighter dark-mode accent instead of the light coral.
+  const particles = buildParticles(count, palette ?? [colors.accent, colors.sea, colors.star]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +68,7 @@ export function Confetti({ visible, count = 14, palette = DEFAULT_PALETTE }: {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   dot: { position: 'absolute', width: 10, height: 10, borderRadius: 3 },
-});
+}));

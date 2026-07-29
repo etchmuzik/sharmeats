@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, font } from '../theme';
+import { Pressable, Text, View } from 'react-native';
+import { font } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
@@ -12,6 +13,8 @@ import { LEGAL_URLS, openLegal } from '../legal';
  * it drops into the existing settings/profile card without a new design system.
  */
 export function LegalRows() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const t = useT();
   const dir = useDirection();
 
@@ -48,8 +51,8 @@ export function LegalRows() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 },
   rowIcon: { width: 26, alignItems: 'center' },
   rowLabel: { flex: 1, fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.semibold },
-});
+}));

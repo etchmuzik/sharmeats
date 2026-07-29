@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, font, spacing } from '../theme';
+import { Text, View } from 'react-native';
+import { font, spacing } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 
@@ -15,6 +16,7 @@ import { useDirection } from '../lib/direction';
  * lot during checkout.
  */
 export function CheckoutPromiseCard({ promisedTime }: { promisedTime: string }) {
+  const styles = useStyles();
   const t = useT();
   const dir = useDirection();
   return (
@@ -28,7 +30,7 @@ export function CheckoutPromiseCard({ promisedTime }: { promisedTime: string }) 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -48,4 +50,4 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.ink },
   sub: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },
-});
+}));

@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { ErrorBoundaryProps } from 'expo-router';
-import { colors, font, radius } from '../theme';
+import { font, radius } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 import { captureError } from '../lib/analytics';
 
@@ -15,6 +16,7 @@ import { captureError } from '../lib/analytics';
  * captureError so a real on-device crash becomes a visible, diagnosable event.
  */
 export function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const styles = useStyles();
   const t = useT();
   const router = useRouter();
   captureError(error, { where: 'ScreenErrorBoundary' });
@@ -49,14 +51,14 @@ export function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, padding: 32, gap: 16 },
   emoji: { fontSize: 40 },
   msg: { fontSize: font.sizes.lg, color: colors.ink2, textAlign: 'center', lineHeight: 24 },
   detail: { fontSize: font.sizes.sm, color: colors.ink2, textAlign: 'center', opacity: 0.6 },
   row: { flexDirection: 'row', gap: 12, marginTop: 8 },
   primary: { paddingHorizontal: 22, paddingVertical: 12, borderRadius: radius.pill, backgroundColor: colors.ink },
-  primaryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  primaryText: { color: colors.onInk, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   secondary: { paddingHorizontal: 22, paddingVertical: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line },
   secondaryText: { color: colors.ink, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
-});
+}));

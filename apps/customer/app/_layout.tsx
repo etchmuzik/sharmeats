@@ -11,6 +11,7 @@ import { initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics'
 import { configureNotificationHandler, registerForPush, useNotificationRouting } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
+import { ThemeProvider, useThemeColors } from '../src/themeProvider';
 
 // App-wide safety net: any uncaught render error in any route degrades to a
 // friendly retry screen (and is reported) instead of white-screening the app.
@@ -90,29 +91,44 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F6F5F2' } }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="signin" />
-          <Stack.Screen name="otp" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="restaurant/[id]" />
-          <Stack.Screen name="item/[id]" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="checkout" />
-          <Stack.Screen name="address/picker" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="address/add" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="payment/picker" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="order/[id]" />
-          <Stack.Screen name="order/[id]/review" />
-          <Stack.Screen name="order/[id]/chat" />
-          <Stack.Screen name="settings" />
-          <Stack.Screen name="settings/allergies" />
-          <Stack.Screen name="help" />
-          <Stack.Screen name="support" />
-          <Stack.Screen name="edit-profile" />
-          <Stack.Screen name="delete-account" />
-        </Stack>
+        <ThemeProvider>
+          <RootNavigator />
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * The navigator lives below ThemeProvider so `contentStyle` can read the active
+ * palette. That background is what shows THROUGH during a screen transition and
+ * behind an overscroll, so leaving it a hardcoded off-white flashed a white
+ * frame on every push in dark mode.
+ */
+function RootNavigator() {
+  const colors = useThemeColors();
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="signin" />
+      <Stack.Screen name="otp" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="restaurant/[id]" />
+      <Stack.Screen name="item/[id]" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="checkout" />
+      <Stack.Screen name="address/picker" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="address/add" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="payment/picker" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="order/[id]" />
+      <Stack.Screen name="order/[id]/review" />
+      <Stack.Screen name="order/[id]/chat" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="settings/allergies" />
+      <Stack.Screen name="help" />
+      <Stack.Screen name="support" />
+      <Stack.Screen name="edit-profile" />
+      <Stack.Screen name="delete-account" />
+    </Stack>
   );
 }

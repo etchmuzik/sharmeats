@@ -3,9 +3,10 @@ import { View } from 'react-native';
 import { TabBar } from '../../src/components/TabBar';
 import { ActiveOrderBanner } from '../../src/components/ActiveOrderBanner';
 import { TermsConsentGate } from '../../src/components/TermsConsentGate';
-import { colors } from '../../src/theme';
+import { useThemeColors } from '../../src/themeProvider';
 
 export default function TabsLayout() {
+  const colors = useThemeColors();
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Slot />

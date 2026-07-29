@@ -3,7 +3,8 @@ import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'r
 import MapView, { Marker, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Icon } from './Icon';
-import { colors, font, radius } from '../theme';
+import { font, radius } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { selection, success } from '../haptics';
 
 export interface LatLng {
@@ -58,6 +59,8 @@ export function MapPinPicker({
   labels,
   height = 240,
 }: MapPinPickerProps) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const mapRef = useRef<MapView | null>(null);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<'denied' | 'failed' | null>(null);
@@ -186,7 +189,7 @@ export function MapPinPicker({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   mapWrap: {
     borderRadius: radius.lg,
     overflow: 'hidden',
@@ -200,7 +203,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -212,4 +215,4 @@ const styles = StyleSheet.create({
   hint: { fontSize: font.sizes.base, color: colors.ink2, fontWeight: font.weights.medium },
   error: { fontSize: font.sizes.base, color: colors.accentDark, fontWeight: font.weights.medium },
   errorLink: { textDecorationLine: 'underline' },
-});
+}));

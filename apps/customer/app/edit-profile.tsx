@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
-import { colors, font, radius } from '../src/theme';
+import { font, radius } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { useDirection } from '../src/lib/direction';
 import { success } from '../src/haptics';
@@ -15,6 +15,8 @@ import { db } from '../src/data';
 // update() but had no UI (audit gap). Keeps onboarding light: name is optional
 // at signup, editable here anytime.
 export default function EditProfileScreen() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
@@ -56,7 +58,7 @@ export default function EditProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <BackButton />
         <Text style={styles.headerTitle}>{t('profile.editProfile')}</Text>
@@ -103,7 +105,7 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row',
@@ -111,7 +113,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
@@ -119,7 +121,7 @@ const styles = StyleSheet.create({
   label: { fontSize: font.sizes.base, color: colors.ink2, fontWeight: font.weights.semibold, marginBottom: 8 },
   input: {
     borderRadius: radius.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: 14,
@@ -127,4 +129,4 @@ const styles = StyleSheet.create({
     fontSize: font.sizes.lg,
     color: colors.ink,
   },
-});
+}));

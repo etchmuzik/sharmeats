@@ -1,7 +1,9 @@
-import { Text, View, StyleSheet } from 'react-native';
-import { colors, font } from '../theme';
+import { Text, View } from 'react-native';
+import { font } from '../theme';
+import { makeStyles } from '../themeProvider';
 
 export function TouristSafeBadge() {
+  const styles = useStyles();
   return (
     <View style={styles.b}>
       <Text style={styles.star}>★</Text>
@@ -10,7 +12,7 @@ export function TouristSafeBadge() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   b: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -28,4 +30,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-});
+}));

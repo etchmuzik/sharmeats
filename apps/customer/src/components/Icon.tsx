@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme';
+import { useThemeColors } from '../themeProvider';
 
 /**
  * Semantic icon wrapper over @expo/vector-icons (Ionicons), replacing the
@@ -129,12 +129,16 @@ type Props = {
   accessibilityLabel?: string;
 };
 
-export function Icon({ name, size = 18, color = colors.ink, active = false, accessibilityLabel }: Props) {
+export function Icon({ name, size, color, active = false, accessibilityLabel }: Props) {
+  // The default ink color has to be resolved from the ACTIVE palette, so it
+  // cannot be a default parameter value the way it was — a default parameter is
+  // evaluated against whatever `colors` was imported at module load.
+  const colors = useThemeColors();
   return (
     <Ionicons
       name={resolveGlyph(name, active)}
-      size={size}
-      color={color}
+      size={size ?? 18}
+      color={color ?? colors.ink}
       accessibilityElementsHidden={!accessibilityLabel}
       importantForAccessibility={accessibilityLabel ? 'yes' : 'no-hide-descendants'}
       accessibilityLabel={accessibilityLabel}

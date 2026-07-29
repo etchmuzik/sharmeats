@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import MapView, { Marker } from 'react-native-maps';
 import { BackButton } from '../../src/components/BackButton';
 import { Icon } from '../../src/components/Icon';
 import { OrderCelebration, shouldCelebrate } from '../../src/components/OrderCelebration';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
 import { SavedOrdersCapError } from '../../src/data/repositories/savedOrders';
@@ -51,6 +51,8 @@ function hasUnresolvableMods(items: { modifierChoices?: { optionId?: string }[] 
 }
 
 export default function OrderTracking() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const { id, celebrate } = useLocalSearchParams<{ id: string; celebrate?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -204,7 +206,7 @@ export default function OrderTracking() {
   if (!order) {
     return (
       <View style={styles.loading}>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <Text style={{ color: colors.ink3 }}>{t('common.loading')}</Text>
       </View>
     );
@@ -252,7 +254,7 @@ export default function OrderTracking() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
 
       <View style={styles.map}>
         <MapView
@@ -273,7 +275,7 @@ export default function OrderTracking() {
             coordinate={{ latitude: destination.lat, longitude: destination.lng }}
             anchor={{ x: 0.5, y: 0.5 }}>
             <View style={styles.destMarker}>
-              <Icon name="location" size={20} color={colors.white} accessibilityLabel="Your delivery location" />
+              <Icon name="location" size={20} color={colors.onAccent} accessibilityLabel="Your delivery location" />
             </View>
           </Marker>
           {driverLoc && order.rider && (
@@ -281,7 +283,7 @@ export default function OrderTracking() {
               coordinate={{ latitude: driverLoc.lat, longitude: driverLoc.lng }}
               anchor={{ x: 0.5, y: 0.5 }}>
               <View style={[styles.riderMarker, driverIsStale && styles.riderMarkerStale]}>
-                <Icon name={vehicleIconName(order.rider.vehicle)} size={18} color={colors.white} accessibilityLabel="Your driver" />
+                <Icon name={vehicleIconName(order.rider.vehicle)} size={18} color={colors.onAccent} accessibilityLabel="Your driver" />
               </View>
             </Marker>
           )}
@@ -535,14 +537,14 @@ export default function OrderTracking() {
                 accessibilityRole="button"
                 accessibilityLabel={t('order.messageInApp')}
                 style={[styles.actBtn, { backgroundColor: colors.accent }]}>
-                <Icon name="chat" size={20} color={colors.white} />
+                <Icon name="chat" size={20} color={colors.onAccent} />
               </Pressable>
               <Pressable
                 onPress={() => contactRider('call', order.rider?.phone)}
                 accessibilityRole="button"
                 accessibilityLabel={t('order.callDriver')}
                 style={[styles.actBtn, { backgroundColor: colors.green }]}>
-                <Icon name="phone" size={20} color={colors.white} />
+                <Icon name="phone" size={20} color={colors.onAccent} />
               </Pressable>
             </View>
           </View>
@@ -753,7 +755,7 @@ function handoffLabel(
   }
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   loading: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   map: {
     height: 280,
@@ -798,12 +800,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green },
-  liveText: { color: colors.white, fontSize: font.sizes.xs, fontWeight: '800', letterSpacing: 0.5 },
+  liveText: { color: colors.onInk, fontSize: font.sizes.xs, fontWeight: '800', letterSpacing: 0.5 },
   mapNav: { position: 'absolute', left: 14 },
 
   sheet: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     marginTop: -22,
@@ -826,14 +828,14 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bulletCheck: { color: colors.white, fontSize: 12, lineHeight: 12, fontWeight: '900' as const },
-  bulletNow: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.white },
+  bulletCheck: { color: colors.onAccent, fontSize: 12, lineHeight: 12, fontWeight: '900' as const },
+  bulletNow: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.onAccent },
   stTitle: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.ink },
   stTime: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
 
@@ -859,7 +861,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     padding: 14,
     borderRadius: radius.xl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.seaSoft,
   },
@@ -893,7 +895,7 @@ const styles = StyleSheet.create({
   riderMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   riderMetaText: { fontSize: font.sizes.md, color: colors.ink2 },
   plate: { backgroundColor: colors.ink, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 4 },
-  plateText: { color: colors.white, fontSize: font.sizes.xs, fontWeight: '900' as const, letterSpacing: 0.6 },
+  plateText: { color: colors.onInk, fontSize: font.sizes.xs, fontWeight: '900' as const, letterSpacing: 0.6 },
   actBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   actIcon: { fontSize: 18 },
 
@@ -903,7 +905,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   summaryTitle: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink, marginBottom: 8 },
   summaryLine: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
@@ -930,7 +932,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     gap: 10,
   },
   contactAddressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
@@ -957,7 +959,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     alignItems: 'center',
   },
-  reviewBtnText: { color: colors.white, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
+  reviewBtnText: { color: colors.onAccent, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
 
   cancelledCard: {
     marginTop: 18,
@@ -994,7 +996,7 @@ const styles = StyleSheet.create({
   debugText: { color: colors.ink2, fontSize: font.sizes.md, fontWeight: font.weights.bold },
 
   saveCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -1023,5 +1025,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  saveBtnText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
-});
+  saveBtnText: { color: colors.onAccent, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+}));

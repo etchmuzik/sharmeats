@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Mascot } from './Mascot/Mascot';
 import type { MascotPose } from './Mascot/poses';
 import { PressableScale } from './PressableScale';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { makeStyles } from '../themeProvider';
 
 export interface EmptyStateProps {
   pose?: MascotPose;
@@ -12,6 +13,7 @@ export interface EmptyStateProps {
 }
 
 export function EmptyState({ pose = 'shrug', title, body, cta }: EmptyStateProps) {
+  const styles = useStyles();
   return (
     <View style={styles.wrap}>
       <Mascot pose={pose} size={128} />
@@ -26,10 +28,10 @@ export function EmptyState({ pose = 'shrug', title, body, cta }: EmptyStateProps
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxxl, gap: spacing.md },
   title: { fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: colors.ink, textAlign: 'center', marginTop: spacing.sm },
   body: { fontSize: font.sizes.xl, color: colors.ink2, textAlign: 'center', lineHeight: 20 },
   cta: { marginTop: spacing.md, backgroundColor: colors.accent, paddingVertical: 14, paddingHorizontal: 28, borderRadius: radius.pill },
-  ctaLabel: { color: colors.white, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
-});
+  ctaLabel: { color: colors.onAccent, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
+}));

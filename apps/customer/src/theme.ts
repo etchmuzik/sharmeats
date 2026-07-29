@@ -11,14 +11,18 @@
  * because a React Native `StyleSheet.create` at module scope bakes its color
  * values in at import time and can never follow a theme change.
  *
- * Two tokens exist purely to keep dark mode honest, and replace the overloaded
- * `white` that used to serve both jobs:
+ * Three tokens exist purely to keep dark mode honest, and replace the
+ * overloaded `white` that used to serve all of these jobs at once:
  *
  *   - `surface`  — a card/panel background. Lifts AWAY from `bg` in both
  *                  themes (whiter than the canvas in light, lighter grey than
  *                  the canvas in dark).
- *   - `onAccent` — a label or icon sitting ON a filled accent/dark control.
+ *   - `onAccent` — a label or icon sitting ON a filled accent control.
  *                  Stays near-white in BOTH themes.
+ *   - `onInk`    — a label or icon on an `ink`-FILLED control. Must INVERT with
+ *                  `ink` (near-white in light, near-black in dark), because the
+ *                  "selected chip" pattern here fills with `ink` and `ink` is
+ *                  itself near-white on the dark theme.
  *
  * `white` survives as a literal for the few places that genuinely want white
  * regardless of theme — the rings around map markers and avatars, which sit on
@@ -33,6 +37,25 @@
  * import cycle.
  */
 export type ThemeMode = 'system' | 'light' | 'dark';
+
+/** The scheme actually rendered, once `system` has been resolved. */
+export type ColorScheme = 'light' | 'dark';
+
+/**
+ * Resolve the mode the user picked against what the OS reports.
+ *
+ * Lives here rather than in themeProvider so it is testable without pulling in
+ * react-native (whose Flow-typed source vitest cannot parse).
+ *
+ * `system` is deliberately strict about what counts as dark: RN's
+ * `useColorScheme()` can return null (value not yet known) or 'unspecified',
+ * and treating either as dark would flash a dark frame on a light device during
+ * the first render. Only a literal 'dark' opts in.
+ */
+export function resolveScheme(mode: ThemeMode, system: string | null | undefined): ColorScheme {
+  if (mode === 'light' || mode === 'dark') return mode;
+  return system === 'dark' ? 'dark' : 'light';
+}
 
 /** The token contract both palettes satisfy. */
 export interface Palette {
@@ -67,8 +90,19 @@ export interface Palette {
   black: string;
   /** Card / panel background. Lifted away from `bg` in both themes. */
   surface: string;
-  /** Label or icon on a filled accent / dark control. Near-white in both. */
+  /** Label or icon on a filled accent control. Near-white in both themes. */
   onAccent: string;
+  /**
+   * Label or icon on an `ink`-FILLED control (the selected chip / segmented
+   * control / primary pill). This has to INVERT with `ink`, not track
+   * `onAccent`: `ink` is near-black in light and near-white in dark, so a
+   * fixed near-white label vanishes on the dark theme's light chip.
+   */
+  onInk: string;
+  /** Muted secondary text on an `ink`-filled control. Inverts with `ink`. */
+  onInkMuted: string;
+  /** Translucent chip/fill layered on an `ink`-filled control. */
+  onInkOverlay: string;
 }
 
 export const lightColors: Palette = {
@@ -101,6 +135,9 @@ export const lightColors: Palette = {
   black: '#141210',
   surface: '#FFFDFA',
   onAccent: '#FFFDFA',
+  onInk: '#FFFDFA',
+  onInkMuted: 'rgba(255,255,255,0.75)',
+  onInkOverlay: 'rgba(255,255,255,0.16)',
 };
 
 /**
@@ -151,6 +188,9 @@ export const darkColors: Palette = {
   black: '#000000',
   surface: '#1A1817',
   onAccent: '#FFFDFA',
+  onInk: '#100F0E',
+  onInkMuted: 'rgba(16,15,14,0.72)',
+  onInkOverlay: 'rgba(16,15,14,0.14)',
 };
 
 /**

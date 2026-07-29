@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('@expo/vector-icons', () => ({ Ionicons: { glyphMap: {} } }));
-vi.mock('../theme', () => ({ colors: { ink: '#000' } }));
+// Stubbed so importing Icon does not pull in the real themeProvider, which
+// imports react-native — Flow-typed source that vitest cannot parse. The test
+// only exercises resolveGlyph, a pure function.
+vi.mock('../themeProvider', () => ({ useThemeColors: () => ({ ink: '#000' }) }));
 
 import { resolveGlyph } from './Icon';
 

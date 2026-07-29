@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { Icon, type IconName } from '../../src/components/Icon';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { db } from '../../src/data';
@@ -24,6 +24,8 @@ const ICON: Record<PaymentMethod['kind'], IconName> = {
 };
 
 export default function PaymentPicker() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const goBack = useGoBack('/checkout');
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -40,7 +42,7 @@ export default function PaymentPicker() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton fallback="/checkout" />
         <Text style={styles.title}>{t('payment.title')}</Text>
@@ -94,7 +96,7 @@ export default function PaymentPicker() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.line,
     borderRadius: radius.xl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     ...shadow.soft,
   },
   cardActive: { borderColor: colors.accent },
@@ -127,18 +129,18 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.white },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.onAccent },
   bottom: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-});
+}));

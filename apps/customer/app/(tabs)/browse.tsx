@@ -5,15 +5,14 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius } from '../../src/theme';
+import { font, radius } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { CuisinePill } from '../../src/components/CuisinePill';
 import { CuisineChip } from '../../src/components/CuisineChip';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
@@ -78,6 +77,8 @@ const SORTS: { key: SortKey; tKey: string; emoji: string }[] = [
 ];
 
 export default function BrowseTab() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
@@ -193,7 +194,7 @@ export default function BrowseTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.top, { paddingTop: insets.top + 14 }]}>
         <Text style={styles.title}>{t('browse.title')}</Text>
         <View style={styles.searchBox}>
@@ -312,7 +313,7 @@ export default function BrowseTab() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   top: {
     paddingHorizontal: 20,
     paddingBottom: 6,
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: radius.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -367,4 +368,4 @@ const styles = StyleSheet.create({
   menuName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
   menuSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
   menuPrice: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold },
-});
+}));

@@ -4,7 +4,6 @@ import {
   Image,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -19,7 +18,8 @@ import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { QuantityStepper } from '../../src/components/QuantityStepper';
 import { AllergyChipRow } from '../../src/components/AllergyChipRow';
 import { ModifierGroup } from '../../src/components/ModifierGroup';
-import { colors, font, radius } from '../../src/theme';
+import { font, radius } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { db } from '../../src/data';
 import {
   ALLERGY_TO_FLAG,
@@ -42,6 +42,8 @@ interface SelectionMap {
 }
 
 export default function ItemModal() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const { id, lineId } = useLocalSearchParams<{ id: string; lineId?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -135,7 +137,7 @@ export default function ItemModal() {
   if (loadError && (!item || !restaurant)) {
     return (
       <View style={styles.loading}>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <View style={[styles.loadNav, { top: insets.top + 6 }]}>
           <BackButton onPress={goBack} />
         </View>
@@ -158,7 +160,7 @@ export default function ItemModal() {
   if (!item || !restaurant) {
     return (
       <View style={styles.loading}>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <View style={[styles.loadNav, { top: insets.top + 6 }]}>
           <BackButton onPress={goBack} />
         </View>
@@ -419,7 +421,7 @@ export default function ItemModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   loading: {
     flex: 1,
     alignItems: 'center',
@@ -437,7 +439,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.ink,
   },
-  retryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  retryText: { color: colors.onInk, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   hero: { height: 280, backgroundColor: '#222', position: 'relative' },
   // Spans the hero so the back button stays left and the save heart sits right.
   navWrap: {
@@ -459,7 +461,7 @@ const styles = StyleSheet.create({
     // any food photo.
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  saveIcon: { fontSize: 20, color: colors.white, lineHeight: 24 },
+  saveIcon: { fontSize: 20, color: colors.onAccent, lineHeight: 24 },
   saveIconOn: { color: colors.accent },
   body: { padding: 20 },
   name: { fontSize: 28, fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.5 },
@@ -489,9 +491,9 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.white },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.onAccent },
   check: {
     width: 22,
     height: 22,
@@ -500,9 +502,9 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
-  checkMark: { color: colors.white, fontSize: 14, lineHeight: 14, fontWeight: '900' as const },
+  checkMark: { color: colors.onAccent, fontSize: 14, lineHeight: 14, fontWeight: '900' as const },
   optLabel: { flex: 1, fontSize: font.sizes.xl, color: colors.ink },
   optPrice: { fontSize: font.sizes.lg, color: colors.ink2, fontWeight: font.weights.bold },
   notesWrap: { marginTop: 22 },
@@ -514,7 +516,7 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: font.sizes.lg,
     color: colors.ink,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     minHeight: 70,
     textAlignVertical: 'top',
   },
@@ -534,7 +536,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     gap: 12,
   },
   allergySummaryText: {
@@ -588,10 +590,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-});
+}));

@@ -1,5 +1,6 @@
-import { Text, StyleSheet } from 'react-native';
-import { colors, radius, font } from '../theme';
+import { Text } from 'react-native';
+import { radius, font } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { PressableScale } from './PressableScale';
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function CuisinePill({ label, emoji, active, onPress }: Props) {
+  const styles = useStyles();
   return (
     <PressableScale
       haptic="selection"
@@ -22,9 +24,9 @@ export function CuisinePill({ label, emoji, active, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   pill: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: 14,
@@ -33,5 +35,5 @@ const styles = StyleSheet.create({
   },
   active: { backgroundColor: colors.ink, borderColor: colors.ink },
   label: { fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.ink },
-  labelActive: { color: colors.white },
-});
+  labelActive: { color: colors.onInk },
+}));
