@@ -217,6 +217,23 @@ describe('cart server sync', () => {
     expect(useCart.getState().lines).toHaveLength(1);
   });
 
+  it('degrades safely when the RPC does not exist yet (migs 168/169 unapplied)', async () => {
+    // This client is shipping BEFORE the migrations are applied to production, so
+    // upsert_my_cart genuinely does not exist there and PostgREST answers
+    // PGRST202. That must be indistinguishable from being offline: basket intact,
+    // no throw, version untouched so a later retry still starts from 0.
+    const { db } = await import('../data');
+    (db.cart.upsert as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      Object.assign(new Error('Could not find the function public.upsert_my_cart'), {
+        code: 'PGRST202',
+      }),
+    );
+    useCart.getState().add(LINE);
+    await expect(vi.advanceTimersByTimeAsync(1500)).resolves.not.toThrow();
+    expect(useCart.getState().lines).toHaveLength(1);
+    expect(useCart.getState().serverVersion).toBe(0);
+  });
+
   it('mirrors an emptied basket, so the other device stops offering it', async () => {
     useCart.setState({
       restaurantId: 'r1',
