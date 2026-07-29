@@ -2,10 +2,14 @@ import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { captureError } from '../lib/crash';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 
 /** Route-level recovery instead of losing the kitchen queue to a white screen. */
 export function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  // Expo-router can mount this ABOVE the layout that provides the theme, in
+  // which case the context default (light) applies — the intended degradation.
+  const colors = useThemeColors();
   const router = useRouter();
   useEffect(() => {
     captureError(error, { where: 'restaurant.ScreenErrorBoundary' });
@@ -39,7 +43,7 @@ export function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
             paddingVertical: spacing.md,
           }}
         >
-          <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>Retry</Text>
         </Pressable>
         <Pressable
           onPress={() => router.replace('/home')}

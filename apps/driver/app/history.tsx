@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { getHistory, getMyDriver, type DeliveryHistoryItem } from '../src/jobs';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { useThemeColors } from '../src/themeProvider';
 import { Icon } from '../src/components/Icon';
 
 /** Past deliveries for the signed-in driver, newest first (buried feature). */
 export default function HistoryScreen() {
+  const colors = useThemeColors();
   const [items, setItems] = useState<DeliveryHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +50,7 @@ export default function HistoryScreen() {
             }}
             style={{ marginTop: spacing.lg, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl }}
           >
-            <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
+            <Text style={{ color: colors.onAccent, fontWeight: '700' }}>Retry</Text>
           </Pressable>
         </View>
       ) : (
@@ -81,7 +83,7 @@ export default function HistoryScreen() {
           renderItem={({ item }) => (
             <View
               style={{
-                backgroundColor: colors.white,
+                backgroundColor: colors.surface,
                 borderWidth: 1,
                 borderColor: colors.line,
                 borderRadius: radius.xl,
@@ -101,7 +103,7 @@ export default function HistoryScreen() {
                   {item.tip > 0 ? ` · ${item.tip} EGP tip` : ''}
                 </Text>
               </View>
-              <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.green }}>
+              <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.greenText }}>
                 {item.total} EGP
               </Text>
             </View>

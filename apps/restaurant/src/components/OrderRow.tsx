@@ -34,7 +34,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { OrderStatus, RestaurantOrder } from '../orders';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { AllergenBanner } from './AllergenBanner';
 import { ContactButtons } from './ContactButtons';
@@ -137,6 +138,7 @@ export function OrderRow({
   muted = false,
   warnedIds,
 }: Props) {
+  const colors = useThemeColors();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
 
@@ -180,7 +182,7 @@ export function OrderRow({
           borderColor,
           borderRadius: radius.xl,
           borderCurve: 'continuous',
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           padding: spacing.lg,
           gap: spacing.sm,
           boxShadow:
@@ -393,7 +395,7 @@ export function OrderRow({
             gap: spacing.sm,
           }}
         >
-          <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.red }}>
+          <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.redText }}>
             Reason for rejecting (optional)
           </Text>
           <TextInput
@@ -409,7 +411,7 @@ export function OrderRow({
               borderRadius: radius.md,
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.sm,
-              backgroundColor: colors.white,
+              backgroundColor: colors.surface,
               color: colors.ink,
             }}
           />
@@ -452,7 +454,8 @@ export function OrderRow({
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.white }}>
+              {/* onInk: the fill is `red`, which inverts to a light coral. */}
+              <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.onInk }}>
                 Confirm reject
               </Text>
             </Pressable>
@@ -482,7 +485,7 @@ export function OrderRow({
                 opacity: busy ? 0.5 : 1,
               }}
             >
-              <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.red }}>Reject</Text>
+              <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.redText }}>Reject</Text>
             </Pressable>
           )}
           {onAccept && (
@@ -510,9 +513,9 @@ export function OrderRow({
               }}
             >
               {busy ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color={colors.onInk} />
               ) : (
-                <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.white }}>
+                <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.onInk }}>
                   {waiting === 'critical' ? 'Accept now' : 'Accept'}
                 </Text>
               )}
@@ -540,9 +543,9 @@ export function OrderRow({
               }}
             >
               {busy ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color={colors.onAccent} />
               ) : (
-                <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.white }}>
+                <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.onAccent }}>
                   {primary.label}
                 </Text>
               )}

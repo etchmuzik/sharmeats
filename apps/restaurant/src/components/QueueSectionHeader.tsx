@@ -3,7 +3,8 @@
  * The "New" section is accented so the eye lands there first on a busy tablet.
  */
 import { Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 
 type Props = {
   title: string;
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function QueueSectionHeader({ title, count, accent }: Props) {
+  const colors = useThemeColors();
   return (
     <View
       style={{

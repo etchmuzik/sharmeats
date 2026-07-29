@@ -7,7 +7,8 @@
  * generates a support call.
  */
 import { Switch, Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 
 type Props = {
   online: boolean;
@@ -16,11 +17,12 @@ type Props = {
 };
 
 export function OnlineToggle({ online, verified, onToggle }: Props) {
+  const colors = useThemeColors();
   return (
     <View
       style={{
         margin: spacing.xl,
-        backgroundColor: online ? colors.accentSoft : colors.white,
+        backgroundColor: online ? colors.accentSoft : colors.surface,
         borderRadius: radius.xl,
         borderCurve: 'continuous',
         borderWidth: online ? 2 : 1,

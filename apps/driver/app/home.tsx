@@ -28,7 +28,8 @@ import * as Notifications from 'expo-notifications';
 import { isStreaming, pingOnce, stopStreaming } from '../src/location';
 import { unreadCount } from '../src/messages';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { useThemeColors } from '../src/themeProvider';
 import { Icon } from '../src/components/Icon';
 import { useToast } from '../src/components/Toast';
 import { LEGAL_URLS, openLegal } from '../src/legal';
@@ -37,9 +38,11 @@ import { OnlineToggle } from '../src/components/OnlineToggle';
 import { ActiveJobCard } from '../src/components/ActiveJobCard';
 import { EarningsGrid } from '../src/components/EarningsGrid';
 import { AvatarButton } from '../src/components/AvatarButton';
+import { ThemeToggle } from '../src/components/ThemeToggle';
 import { notifyError, notifySuccess, tapLight, tapMedium } from '../src/lib/haptics';
 
 export default function Home() {
+  const colors = useThemeColors();
   const router = useRouter();
   const { signOut } = useAuth();
   const { toast } = useToast();
@@ -235,7 +238,7 @@ export default function Home() {
           accessibilityLabel="Retry loading your profile"
           style={{ marginTop: spacing.lg, minHeight: 48, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, borderCurve: 'continuous', paddingHorizontal: spacing.xl }}
         >
-          <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>Retry</Text>
         </Pressable>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md }}>
           <Text style={{ color: colors.ink3, fontWeight: '600' }}>Sign out</Text>
@@ -258,7 +261,7 @@ export default function Home() {
           Your account isn't linked to a driver profile yet. Contact Sharm Eats ops to get set up.
         </Text>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={{ marginTop: spacing.lg, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md }}>
-          <Text style={{ color: colors.accent, fontWeight: '600' }}>Sign out</Text>
+          <Text style={{ color: colors.accentText, fontWeight: '600' }}>Sign out</Text>
         </Pressable>
       </ScrollView>
     );
@@ -300,6 +303,9 @@ export default function Home() {
             </Text>
           </View>
         </View>
+        {/* Appearance override lives here rather than behind a menu: a shift
+            spans full sun to full dark, and neither theme is readable in both. */}
+        <ThemeToggle />
       </View>
 
       <OnlineToggle online={online} verified={driver.is_verified} onToggle={toggleOnline} />
@@ -347,7 +353,7 @@ export default function Home() {
               minHeight: 128,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: colors.white,
+              backgroundColor: colors.surface,
               borderWidth: 1,
               borderColor: colors.line,
               borderRadius: radius.xl,
@@ -424,6 +430,7 @@ function QuickLink({
   label: string;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={() => {
@@ -440,11 +447,11 @@ function QuickLink({
         opacity: pressed ? 0.6 : 1,
       })}
     >
-      <Icon name={icon} size={16} color={colors.accent} />
-      <Text style={{ flex: 1, color: colors.accent, fontWeight: '600', fontSize: font.sizes.base }}>
+      <Icon name={icon} size={16} color={colors.accentText} />
+      <Text style={{ flex: 1, color: colors.accentText, fontWeight: '600', fontSize: font.sizes.base }}>
         {label}
       </Text>
-      <Icon name="chevronForward" size={14} color={colors.accent} />
+      <Icon name="chevronForward" size={14} color={colors.accentText} />
     </Pressable>
   );
 }

@@ -10,7 +10,8 @@
 import { Pressable, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { Job } from '../jobs';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { cardEnter, listReflow } from './motion';
 import { tapLight } from '../lib/haptics';
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
+  const colors = useThemeColors();
   return (
     <Animated.View entering={cardEnter} layout={listReflow}>
       <Pressable
@@ -71,13 +73,21 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
         >
           Active delivery
         </Text>
-        <Text selectable style={{ color: colors.white, fontSize: font.sizes.xl, fontWeight: '700' }}>
+        {/* onInk*, not white/hardcoded greys: this slab is filled with `ink`,
+            which is near-white on the dark theme — a fixed light label would
+            vanish on it. The two greys below were literal hexes for the same
+            reason and are now tokens that invert with the slab. */}
+        <Text selectable style={{ color: colors.onInk, fontSize: font.sizes.xl, fontWeight: '700' }}>
           {job.short_code} · {job.restaurant_name}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ color: '#cfd6da', fontSize: font.sizes.sm }}>{statusLabel(job.status)}</Text>
-          <Text style={{ color: '#8d979c', fontSize: font.sizes.sm }}>· tap to continue</Text>
-          <Icon name="chevronForward" size={13} color="#8d979c" />
+          <Text style={{ color: colors.onInkMuted, fontSize: font.sizes.sm }}>
+            {statusLabel(job.status)}
+          </Text>
+          <Text style={{ color: colors.onInkFaint, fontSize: font.sizes.sm }}>
+            · tap to continue
+          </Text>
+          <Icon name="chevronForward" size={13} color={colors.onInkFaint} />
         </View>
 
         {unreadMsgs > 0 && (
@@ -102,8 +112,8 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            <Icon name="chat" size={14} color={colors.white} />
-            <Text style={{ color: colors.white, fontWeight: '700', fontSize: font.sizes.sm }}>
+            <Icon name="chat" size={14} color={colors.onAccent} />
+            <Text style={{ color: colors.onAccent, fontWeight: '700', fontSize: font.sizes.sm }}>
               {unreadMsgs} new message{unreadMsgs === 1 ? '' : 's'}
             </Text>
           </Pressable>

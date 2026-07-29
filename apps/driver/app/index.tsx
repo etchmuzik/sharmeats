@@ -3,9 +3,11 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../src/auth';
 import { isSupabaseConfigured } from '../src/supabase';
-import { colors, font } from '../src/theme';
+import { font } from '../src/theme';
+import { useThemeColors } from '../src/themeProvider';
 
 export default function Index() {
+  const colors = useThemeColors();
   const { session, loading } = useAuth();
 
   if (!isSupabaseConfigured()) {

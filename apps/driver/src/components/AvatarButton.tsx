@@ -16,7 +16,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { getDriverPhotoUrl, uploadDriverPhoto } from '../avatar';
-import { colors, font } from '../theme';
+import { font } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { useToast } from './Toast';
 import { notifySuccess, tapLight } from '../lib/haptics';
 
@@ -28,6 +29,7 @@ type Props = {
 };
 
 export function AvatarButton({ name }: Props) {
+  const colors = useThemeColors();
   const { toast } = useToast();
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

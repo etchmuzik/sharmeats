@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme';
+import { useThemeColors } from '../themeProvider';
 
 /**
  * Semantic icon wrapper over @expo/vector-icons (Ionicons), replacing the
@@ -48,7 +48,11 @@ export type IconName =
   | 'help'
   | 'signout'
   | 'person'
-  | 'trophy';
+  | 'trophy'
+  // Appearance control: the icon reflects which theme mode is active.
+  | 'themeAuto'
+  | 'themeLight'
+  | 'themeDark';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -88,6 +92,9 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   signout: 'log-out-outline',
   person: 'person-outline',
   trophy: 'trophy-outline',
+  themeAuto: 'contrast-outline',
+  themeLight: 'sunny-outline',
+  themeDark: 'moon-outline',
 };
 
 type Props = {
@@ -98,12 +105,17 @@ type Props = {
   accessibilityLabel?: string;
 };
 
-export function Icon({ name, size = 18, color = colors.ink, accessibilityLabel }: Props) {
+export function Icon({ name, size = 18, color, accessibilityLabel }: Props) {
+  // The default ink color has to be resolved from the ACTIVE palette, so it
+  // cannot be a default parameter value the way it was — a default parameter is
+  // evaluated against whatever `colors` was imported at module load, which
+  // would pin every unstyled icon to the light theme.
+  const colors = useThemeColors();
   return (
     <Ionicons
       name={MAP[name]}
       size={size}
-      color={color}
+      color={color ?? colors.ink}
       accessibilityElementsHidden={!accessibilityLabel}
       importantForAccessibility={accessibilityLabel ? 'yes' : 'no-hide-descendants'}
       accessibilityLabel={accessibilityLabel}

@@ -14,7 +14,8 @@ import { advance, collectCod, fetchJob, type Job } from '../../src/jobs';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { parseWkbPoint } from '../../src/geo';
 import { openDirections } from '../../src/navigation';
-import { colors, font, radius, spacing } from '../../src/theme';
+import { font, radius, spacing } from '../../src/theme';
+import { useThemeColors } from '../../src/themeProvider';
 import { Icon } from '../../src/components/Icon';
 import { HotelHandoffCard } from '../../src/components/HotelHandoffCard';
 import { DropoffPreferenceCard } from '../../src/components/DropoffPreferenceCard';
@@ -22,6 +23,7 @@ import { DeliveryCountdown } from '../../src/components/DeliveryCountdown';
 import { useToast } from '../../src/components/Toast';
 
 export default function JobScreen() {
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -241,7 +243,7 @@ export default function JobScreen() {
             landmark={addr.landmark}
           />
         ) : (
-          <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
               Deliver to
             </Text>
@@ -284,7 +286,7 @@ export default function JobScreen() {
             before. Only render when the customer actually left one. */}
         {job.kitchen_notes?.trim() ? (
           <View style={{ marginTop: spacing.md, backgroundColor: colors.amberSoft, borderRadius: radius.xl, padding: spacing.lg }}>
-            <Text style={{ fontSize: font.sizes.xs, color: colors.amber, fontWeight: '700', textTransform: 'uppercase' }}>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.amberText, fontWeight: '700', textTransform: 'uppercase' }}>
               Note from the customer
             </Text>
             <Text style={{ fontSize: font.sizes.base, color: colors.ink, marginTop: 4 }}>
@@ -295,14 +297,14 @@ export default function JobScreen() {
 
         {/* Order items — so the driver can verify the bag before leaving the restaurant. */}
         {job.items.length > 0 && (
-          <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
               {job.items.length} {job.items.length === 1 ? 'item' : 'items'} in the bag
             </Text>
             <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
               {job.items.map((it, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-                  <Text style={{ color: colors.accent, fontWeight: '800', fontSize: font.sizes.base, minWidth: 22 }}>
+                  <Text style={{ color: colors.accentText, fontWeight: '800', fontSize: font.sizes.base, minWidth: 22 }}>
                     {it.quantity ?? 1}×
                   </Text>
                   <View style={{ flex: 1 }}>
@@ -373,7 +375,7 @@ export default function JobScreen() {
       </ScrollView>
 
       {/* Action bar */}
-      <View style={{ padding: spacing.xl, paddingBottom: insets.bottom + spacing.md, borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.white }}>
+      <View style={{ padding: spacing.xl, paddingBottom: insets.bottom + spacing.md, borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.surface }}>
         {job.status === 'ready' && (
           <Action label="Picked up from restaurant" busy={busy} onPress={() => doAdvance('picked_up')} />
         )}
@@ -391,7 +393,7 @@ export default function JobScreen() {
         {['delivered', 'cancelled', 'rejected'].includes(job.status) && (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {job.status === 'delivered' && <Icon name="check" size={18} color={colors.green} />}
-            <Text style={{ textAlign: 'center', color: colors.green, fontWeight: '700' }}>
+            <Text style={{ textAlign: 'center', color: colors.greenText, fontWeight: '700' }}>
               {job.status === 'delivered' ? 'Delivered' : job.status}
             </Text>
           </View>
@@ -416,6 +418,7 @@ function confirmBackgroundTracking(): Promise<boolean> {
 }
 
 function Action({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -425,7 +428,7 @@ function Action({ label, busy, onPress }: { label: string; busy: boolean; onPres
       accessibilityState={{ disabled: busy, busy }}
       style={{ backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center', opacity: busy ? 0.6 : 1 }}
     >
-      {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ color: colors.white, fontSize: font.sizes.lg, fontWeight: '700' }}>{label}</Text>}
+      {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontSize: font.sizes.lg, fontWeight: '700' }}>{label}</Text>}
     </Pressable>
   );
 }
@@ -439,6 +442,7 @@ function NavButton({
   label: string;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -455,8 +459,9 @@ function NavButton({
         paddingVertical: spacing.lg,
       }}
     >
-      <Icon name={icon} size={18} color={colors.white} />
-      <Text style={{ color: colors.white, fontWeight: '700', fontSize: font.sizes.base }}>{label}</Text>
+      {/* onInk: this button is filled with `ink`, which inverts to near-white. */}
+      <Icon name={icon} size={18} color={colors.onInk} />
+      <Text style={{ color: colors.onInk, fontWeight: '700', fontSize: font.sizes.base }}>{label}</Text>
     </Pressable>
   );
 }
@@ -470,6 +475,7 @@ function ContactButton({
   label: string;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}

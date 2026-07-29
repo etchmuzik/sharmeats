@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native';
 import { Icon } from './Icon';
 import { allergenLabel, type AllergenKey } from '../orders';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 
 /**
  * [H-REST2] Prominent kitchen allergy briefing. `orders.aggregate_allergens` is
@@ -10,6 +11,7 @@ import { colors, font, radius, spacing } from '../theme';
  * be missed at a glance on a busy tablet. Renders nothing when there are none.
  */
 export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null | undefined }) {
+  const colors = useThemeColors();
   if (!allergens || allergens.length === 0) return null;
   return (
     <View
@@ -26,14 +28,14 @@ export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null 
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Icon name="alert" size={16} color={colors.red} />
+        <Icon name="alert" size={16} color={colors.redText} />
         <Text
           style={{
             fontSize: font.sizes.xs,
             fontWeight: '800',
             letterSpacing: 0.5,
             textTransform: 'uppercase',
-            color: colors.red,
+            color: colors.redText,
           }}
         >
           Allergy alert
@@ -50,7 +52,7 @@ export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null 
               paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.white }}>
+            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.onInk }}>
               {allergenLabel(a)}
             </Text>
           </View>

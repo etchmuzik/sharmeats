@@ -12,7 +12,8 @@ import {
   subscribeOrders,
   type RestaurantOrder,
 } from '../../src/orders';
-import { colors, font, radius, spacing } from '../../src/theme';
+import { font, radius, spacing } from '../../src/theme';
+import { useThemeColors } from '../../src/themeProvider';
 
 /** Format the delivery address for the kitchen from its snapshot. */
 function addressLine(order: RestaurantOrder): string {
@@ -30,6 +31,7 @@ function addressLine(order: RestaurantOrder): string {
  * note, delivery address, and contact entry points (call + in-app chat).
  */
 export default function OrderDetail() {
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -92,7 +94,7 @@ export default function OrderDetail() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md }}>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>Order not found</Text>
         <Pressable onPress={() => router.back()} style={{ padding: spacing.md }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>Go back</Text>
+          <Text style={{ color: colors.accentText, fontWeight: '700' }}>Go back</Text>
         </Pressable>
       </View>
     );
@@ -106,7 +108,7 @@ export default function OrderDetail() {
           paddingTop: spacing.md,
           paddingHorizontal: spacing.lg,
           paddingBottom: spacing.md,
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
           borderBottomColor: colors.line,
           flexDirection: 'row',
@@ -131,7 +133,7 @@ export default function OrderDetail() {
         <AllergenBanner allergens={order.aggregate_allergens} />
 
         {/* Items */}
-        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.white, padding: spacing.lg, gap: spacing.md }}>
+        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, gap: spacing.md }}>
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: colors.ink2 }}>
             Items
           </Text>
@@ -147,7 +149,7 @@ export default function OrderDetail() {
                 </Text>
               ) : null}
               {it.allergens && it.allergens.length > 0 ? (
-                <Text style={{ fontSize: font.sizes.sm, color: colors.red, marginLeft: spacing.md, fontWeight: '700' }}>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.redText, marginLeft: spacing.md, fontWeight: '700' }}>
                   Contains: {it.allergens.map(allergenLabel).join(', ')}
                 </Text>
               ) : null}
@@ -157,13 +159,13 @@ export default function OrderDetail() {
                   the bag needs to know to verify, not merely that it is Rx. */}
               {it.requiresPrescription ? (
                 <Text
-                  style={{ fontSize: font.sizes.sm, color: colors.red, marginLeft: spacing.md, fontWeight: '800' }}
+                  style={{ fontSize: font.sizes.sm, color: colors.redText, marginLeft: spacing.md, fontWeight: '800' }}
                   accessibilityRole="text">
                   Rx — prescription required, verify before handover
                 </Text>
               ) : null}
               {it.notes ? (
-                <Text style={{ fontSize: font.sizes.sm, color: colors.amber, marginLeft: spacing.md }}>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.amberText, marginLeft: spacing.md }}>
                   “{it.notes}”
                 </Text>
               ) : null}
@@ -174,13 +176,13 @@ export default function OrderDetail() {
         {/* Kitchen note */}
         {order.kitchen_notes ? (
           <View style={{ backgroundColor: colors.amberSoft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.amber }}>Kitchen note</Text>
-            <Text style={{ fontSize: font.sizes.base, color: colors.amber }}>{order.kitchen_notes}</Text>
+            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.amberText }}>Kitchen note</Text>
+            <Text style={{ fontSize: font.sizes.base, color: colors.amberText }}>{order.kitchen_notes}</Text>
           </View>
         ) : null}
 
         {/* Delivery */}
-        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.white, padding: spacing.lg, gap: spacing.sm }}>
+        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, gap: spacing.sm }}>
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: colors.ink2 }}>
             Delivery
           </Text>

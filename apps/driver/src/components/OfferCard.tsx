@@ -32,7 +32,8 @@ import {
   secondsRemaining,
   urgencyOf,
 } from '../offerUrgency';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing, type Palette } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { cardEnter, cardExit, listReflow, useCountdownBar, usePulse } from './motion';
 import { notifyWarning, tapHeavy, tapLight } from '../lib/haptics';
@@ -42,8 +43,13 @@ import { notifyWarning, tapHeavy, tapLight } from '../lib/haptics';
 // offerUrgency.test.ts, which covers the malformed-expiry and window-scaling
 // regressions this component previously had.
 
-/** Palette per urgency stage. Text/label always carries the meaning too. */
-function paletteOf(urgency: Urgency) {
+/**
+ * Palette per urgency stage. Text/label always carries the meaning too.
+ *
+ * Takes the active palette rather than importing it: as a module-scope function
+ * it would otherwise capture the light palette permanently.
+ */
+function paletteOf(urgency: Urgency, colors: Palette) {
   // `fg` is text/icon weight and `border` is border weight — deliberately
   // different tokens for the same semantic colour. See theme.ts: the border
   // values fail AA as small text, and this chip is read in direct sun.
@@ -129,11 +135,12 @@ type Props = {
 };
 
 export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
+  const colors = useThemeColors();
   const seconds = useCountdown(offer.offer_expires_at, onExpire);
   const payout = offer.delivery_fee_egp + offer.tip_egp;
   const urgency = urgencyOf(seconds);
   const expired = isExpired(seconds);
-  const palette = paletteOf(urgency);
+  const palette = paletteOf(urgency, colors);
 
   // Pulse only while critical AND not yet expired — an expired card should go
   // still, not keep demanding attention it can no longer act on.
@@ -173,7 +180,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
       layout={listReflow}
       style={[
         {
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           borderWidth: urgency === 'calm' ? 1 : 2,
           borderColor: palette.border,
           borderRadius: radius.xl,
@@ -253,7 +260,9 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
         )}
       </View>
 
-      <Text selectable style={{ color: colors.green, fontSize: font.sizes.xl, fontWeight: '800' }}>
+      {/* greenText: the payout is the figure a driver decides on, and the fill
+          value sits at 4.21:1 on the card — under the small-text floor. */}
+      <Text selectable style={{ color: colors.greenText, fontSize: font.sizes.xl, fontWeight: '800' }}>
         You earn {payout} EGP
       </Text>
 
@@ -292,7 +301,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <Text style={{ color: colors.red, fontWeight: '600' }}>Decline</Text>
+          <Text style={{ color: colors.redText, fontWeight: '600' }}>Decline</Text>
         </Pressable>
         <Pressable
           onPress={() => {
@@ -314,7 +323,11 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             opacity: pressed ? 0.85 : 1,
           })}
         >
-          <Text style={{ color: colors.white, fontWeight: '800', fontSize: font.sizes.lg }}>
+          {/* onInk, not white: BOTH fills behind this label invert with the
+              theme — green and ink3 are dark in light and light in dark. A
+              white label scored 2.27:1 on the dark green Accept button, the
+              single most important control in this app. */}
+          <Text style={{ color: colors.onInk, fontWeight: '800', fontSize: font.sizes.lg }}>
             {expired ? 'Expired' : 'Accept'}
           </Text>
         </Pressable>

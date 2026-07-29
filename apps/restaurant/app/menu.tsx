@@ -13,7 +13,8 @@ import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
 import { getMyRestaurant } from '../src/orders';
 import { getMenuItems, setItemAvailability, type MenuItem } from '../src/menu';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { useThemeColors } from '../src/themeProvider';
 
 /**
  * Menu availability screen ("86-ing"). Staff flip a dish out-of-stock from the
@@ -21,6 +22,7 @@ import { colors, font, radius, spacing } from '../src/theme';
  * are rejected immediately. Optimistic toggle with rollback on failure.
  */
 export default function Menu() {
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
 
@@ -117,7 +119,7 @@ export default function Menu() {
             borderRadius: radius.lg,
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm,
-            backgroundColor: colors.white,
+            backgroundColor: colors.surface,
             color: colors.ink,
             fontSize: font.sizes.base,
           }}
@@ -141,7 +143,7 @@ export default function Menu() {
                 borderWidth: 1,
                 borderColor: colors.line,
                 borderRadius: radius.lg,
-                backgroundColor: colors.white,
+                backgroundColor: colors.surface,
                 paddingHorizontal: spacing.lg,
                 paddingVertical: spacing.md,
                 opacity: item.is_available ? 1 : 0.7,
@@ -160,6 +162,8 @@ export default function Menu() {
                 onValueChange={() => toggle(item)}
                 disabled={busyIds.has(item.id)}
                 trackColor={{ true: colors.green, false: colors.line }}
+                // Literal white: the thumb rides a coloured track, not a surface,
+                // so it should stay white on both themes like a native switch.
                 thumbColor={colors.white}
                 accessibilityLabel={`${item.name} ${item.is_available ? 'available' : 'out of stock'}`}
               />

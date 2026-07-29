@@ -38,7 +38,8 @@ import {
   permissionDeniedMessage,
   PERMISSION_DENIED_COPY,
 } from '../src/capabilities';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { OrderRow } from '../src/components/OrderRow';
 import { KitchenHeader } from '../src/components/KitchenHeader';
 import { QueueSectionHeader } from '../src/components/QueueSectionHeader';
@@ -52,6 +53,8 @@ const CHIME_REPEAT_MS = 25_000;
 const MUTE_KEY = 'chime:muted';
 
 export default function Home() {
+  const colors = useThemeColors();
+  const homeStyles = useHomeStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -394,7 +397,7 @@ export default function Home() {
             paddingHorizontal: spacing.xl,
           }}
         >
-          <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>Retry</Text>
         </Pressable>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
           <Text style={{ color: colors.ink3, fontWeight: '700' }}>Sign out</Text>
@@ -413,7 +416,7 @@ export default function Home() {
           This account isn&apos;t linked to a restaurant yet. Ask the Sharm Eats team to add you as staff.
         </Text>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>Sign out</Text>
+          <Text style={{ color: colors.accentText, fontWeight: '700' }}>Sign out</Text>
         </Pressable>
       </View>
     );
@@ -568,7 +571,7 @@ export default function Home() {
   );
 }
 
-const homeStyles = StyleSheet.create({
+const useHomeStyles = makeStyles((colors) => ({
   centeredState: {
     flex: 1,
     alignItems: 'center',
@@ -610,4 +613,4 @@ const homeStyles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 48,
   },
-});
+}));

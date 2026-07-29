@@ -18,8 +18,9 @@
 import { Pressable, Text, View } from 'react-native';
 import type { KitchenContext } from '../orders';
 import { staffRoleLabel } from '../capabilities';
-import { colors, font, radius, spacing } from '../theme';
-import { Icon } from './Icon';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors, useThemeMode, type ThemeMode } from '../themeProvider';
+import { Icon, type IconName } from './Icon';
 import { LogoButton } from './LogoButton';
 import { selection, tapMedium } from '../lib/haptics';
 
@@ -66,6 +67,7 @@ export function KitchenHeader({
   compact,
   onNavigate,
 }: Props) {
+  const colors = useThemeColors();
   const openLabel = togglingOpen
     ? '…'
     : kitchen.isMultiBrand
@@ -81,7 +83,7 @@ export function KitchenHeader({
       style={{
         paddingHorizontal: spacing.lg,
         paddingBottom: spacing.md,
-        backgroundColor: colors.white,
+        backgroundColor: colors.surface,
         borderBottomWidth: 1,
         borderBottomColor: colors.line,
         gap: spacing.sm,
@@ -246,6 +248,11 @@ export function KitchenHeader({
           </Text>
         </Pressable>
 
+        {/* Appearance, sat next to the chime because it is the same KIND of
+            setting: per-device, set once by whoever runs this counter, and not
+            worth a trip into a Settings screen this app does not have. */}
+        <ThemeControl compact={compact} />
+
         <NavControl label="Menu" a11y="Menu availability" compact={compact} onPress={() => onNavigate('/menu')} />
         <NavControl label="Docs" a11y="Verification documents" compact={compact} onPress={() => onNavigate('/kyc')} />
         <NavControl label="Tier" a11y="View tier status" compact={compact} onPress={() => onNavigate('/tier')} />
@@ -290,6 +297,60 @@ export function KitchenHeader({
   );
 }
 
+/**
+ * Appearance control: cycles System → Light → Dark on tap.
+ *
+ * WHY A MANUAL OVERRIDE, when the app already follows the OS: this counter
+ * tablet is shared and often never leaves the wall, so its OS appearance is
+ * whatever it was provisioned with — nobody is going into iOS Settings mid
+ * service. A bright galley wants Light pinned regardless of a 2am schedule
+ * flipping the system to dark; a dim prep station wants the opposite.
+ *
+ * Cycling rather than a three-way picker because there is no Settings screen in
+ * this app to host one. The icon plus label carries the state; the accessibility
+ * label states the current mode and what tapping does.
+ */
+function ThemeControl({ compact }: { compact: boolean }) {
+  const colors = useThemeColors();
+  const { mode, cycleMode } = useThemeMode();
+  const current = THEME_PRESENTATION[mode];
+
+  return (
+    <Pressable
+      onPress={() => {
+        selection();
+        cycleMode();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`Appearance: ${current.label}`}
+      accessibilityHint={`Switches to ${THEME_PRESENTATION[THEME_NEXT[mode]].label}`}
+      style={[
+        CONTROL_BASE,
+        { flexDirection: 'row', gap: 5, backgroundColor: colors.accentSoft },
+        compact && { flexGrow: 1, flexBasis: '46%' },
+      ]}
+    >
+      <Icon name={current.icon} size={14} color={colors.accentDark} />
+      <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accentDark }}>
+        {current.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+const THEME_PRESENTATION: Record<ThemeMode, { icon: IconName; label: string }> = {
+  system: { icon: 'themeAuto', label: 'Auto' },
+  light: { icon: 'themeLight', label: 'Light' },
+  dark: { icon: 'themeDark', label: 'Dark' },
+};
+
+/** Order must match the provider's cycle so the hint names the right next step. */
+const THEME_NEXT: Record<ThemeMode, ThemeMode> = {
+  system: 'light',
+  light: 'dark',
+  dark: 'system',
+};
+
 function NavControl({
   label,
   a11y,
@@ -301,6 +362,7 @@ function NavControl({
   compact: boolean;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={() => {
@@ -315,7 +377,7 @@ function NavControl({
         compact && { flexGrow: 1, flexBasis: '28%' },
       ]}
     >
-      <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>{label}</Text>
+      <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accentText }}>{label}</Text>
     </Pressable>
   );
 }
@@ -333,6 +395,7 @@ function BrandChip({
   closed?: boolean;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={() => {
@@ -347,7 +410,7 @@ function BrandChip({
         {
           borderWidth: 1,
           borderColor: selected ? colors.accent : colors.line,
-          backgroundColor: selected ? colors.accentSoft : colors.white,
+          backgroundColor: selected ? colors.accentSoft : colors.surface,
         },
       ]}
     >

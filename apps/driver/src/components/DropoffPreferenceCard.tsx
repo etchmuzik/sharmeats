@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { Icon, type IconName } from './Icon';
 
 const COPY: Record<string, { icon: IconName; title: string }> = {
@@ -21,6 +22,7 @@ interface Props {
  * the bell") is impossible to miss before the driver knocks/rings anyway.
  */
 export function DropoffPreferenceCard({ preference, note }: Props) {
+  const colors = useThemeColors();
   if (!preference) return null;
   const copy = COPY[preference];
   if (!copy) return null;
@@ -37,8 +39,10 @@ export function DropoffPreferenceCard({ preference, note }: Props) {
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <Icon name={copy.icon} size={20} color={colors.amber} />
-        <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: '800', color: colors.amber }}>
+        {/* amberText, not amber: this is a 16px bold LABEL on amberSoft, where
+            the fill value sits at 3.26:1 — under the 4.5:1 small-text floor. */}
+        <Icon name={copy.icon} size={20} color={colors.amberText} />
+        <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: '800', color: colors.amberText }}>
           {copy.title}
         </Text>
       </View>

@@ -22,7 +22,8 @@ import {
   type MessageRole,
   type OrderMessage,
 } from '../../../src/messages';
-import { colors, font, radius, spacing } from '../../../src/theme';
+import { font, radius, spacing } from '../../../src/theme';
+import { useThemeColors } from '../../../src/themeProvider';
 
 /** Friendly label for the OTHER party's role on a bubble. */
 function roleLabel(role: MessageRole): string {
@@ -37,6 +38,7 @@ function roleLabel(role: MessageRole): string {
  * Live via Realtime; the thread is marked read on open and on each new inbound.
  */
 export default function Chat() {
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
@@ -160,7 +162,7 @@ export default function Chat() {
                     <View
                       style={{
                         maxWidth: '82%',
-                        backgroundColor: mine ? colors.accent : colors.white,
+                        backgroundColor: mine ? colors.accent : colors.surface,
                         borderWidth: mine ? 0 : 1,
                         borderColor: colors.line,
                         borderRadius: radius.xl,
@@ -168,7 +170,7 @@ export default function Chat() {
                         paddingVertical: spacing.sm,
                       }}
                     >
-                      <Text style={{ fontSize: font.sizes.base, color: mine ? colors.white : colors.ink }}>
+                      <Text style={{ fontSize: font.sizes.base, color: mine ? colors.onAccent : colors.ink }}>
                         {m.body}
                       </Text>
                     </View>
@@ -191,7 +193,7 @@ export default function Chat() {
             paddingHorizontal: spacing.lg,
             paddingTop: spacing.sm,
             paddingBottom: insets.bottom + spacing.sm,
-            backgroundColor: colors.white,
+            backgroundColor: colors.surface,
             borderTopWidth: 1,
             borderTopColor: colors.line,
           }}
@@ -230,9 +232,9 @@ export default function Chat() {
             }}
           >
             {sending ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={colors.onAccent} />
             ) : (
-              <Icon name="send" size={20} color={colors.white} accessibilityLabel="Send" />
+              <Icon name="send" size={20} color={colors.onAccent} accessibilityLabel="Send" />
             )}
           </Pressable>
         </View>

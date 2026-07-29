@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getMyRestaurantTier, type RestaurantTierInfo } from '../src/loyalty';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { makeStyles, useThemeColors } from '../src/themeProvider';
 
 const TIER_LABEL: Record<RestaurantTierInfo['tier'], string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
 
@@ -13,6 +14,8 @@ const NEXT_THRESHOLD: Record<RestaurantTierInfo['tier'], number | null> = { bron
 const TIER_FLOOR: Record<RestaurantTierInfo['tier'], number> = { bronze: 0, silver: 50, gold: 200 };
 
 export default function Tier() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const [tier, setTier] = useState<RestaurantTierInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,7 +67,7 @@ export default function Tier() {
         {tier ? TIER_LABEL[tier.tier] : 'Bronze'} tier
       </Text>
       {tier?.featured && (
-        <Text style={{ color: colors.accent, fontWeight: '600', marginTop: spacing.xs }}>Featured placement active</Text>
+        <Text style={{ color: colors.accentText, fontWeight: '600', marginTop: spacing.xs }}>Featured placement active</Text>
       )}
       {nextThreshold ? (
         <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>{ordersToNext} more orders to next tier</Text>
@@ -114,6 +117,7 @@ export default function Tier() {
 }
 
 function Benefit({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.benefitRow}>
       <Text style={styles.benefitLabel}>{label}</Text>
@@ -122,7 +126,7 @@ function Benefit({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   content: {
     width: '100%',
     maxWidth: 720,
@@ -149,7 +153,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     padding: spacing.lg,
     gap: spacing.md,
   },
@@ -165,4 +169,4 @@ const styles = StyleSheet.create({
   },
   benefitLabel: { flex: 1, fontSize: font.sizes.sm, color: colors.ink2 },
   benefitValue: { flexShrink: 1, maxWidth: '58%', fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink, textAlign: 'right' },
-});
+}));
