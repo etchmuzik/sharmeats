@@ -11,6 +11,7 @@ import { Mascot } from '../../src/components/Mascot/Mascot';
 import { useCart } from '../../src/store/cart';
 import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
+import { isCrossSellEligible } from '../../src/lib/crossSell';
 import { success, tap } from '../../src/haptics';
 import { db } from '../../src/data';
 import type { CartItem, MenuItem, Restaurant } from '../../src/data/types';
@@ -43,7 +44,8 @@ export default function CartTab() {
   const belowMin = shortBy > 0;
 
   // Cross-sell rail: cheap, one-tap-addable items from the same restaurant.
-  // Only items with no required modifier group can be added without the modal.
+  // Eligibility (no required modifiers, in stock, NOT prescription-only) lives
+  // in `isCrossSellEligible` — see src/lib/crossSell.ts for why Rx is excluded.
   const cartItemIds = useMemo(() => new Set(lines.map((l) => l.itemId)), [lines]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   useEffect(() => {
@@ -63,12 +65,7 @@ export default function CartTab() {
   const suggestions = useMemo(
     () =>
       menuItems
-        .filter(
-          (i) =>
-            i.isAvailable &&
-            !cartItemIds.has(i.id) &&
-            i.modifiers.every((m) => !m.required),
-        )
+        .filter((i) => isCrossSellEligible(i) && !cartItemIds.has(i.id))
         .sort((a, b) => a.priceEgp - b.priceEgp)
         .slice(0, 6),
     [menuItems, cartItemIds],
