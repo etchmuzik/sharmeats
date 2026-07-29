@@ -1,6 +1,7 @@
 import { getSupabase } from './client';
 import { rowToMenuItem, rowToMenuSection } from './mappers';
-import type { MenuItem, MenuSection, Modifier } from '../types';
+import { restaurantsWithAllFlags, type FlaggedItemRow } from '../menuFlags';
+import type { MenuItem, MenuSearchHit, MenuSection, Modifier } from '../types';
 
 /**
  * Load modifier groups + options for a set of menu items and attach them.
@@ -101,6 +102,74 @@ export const menusRepoSupabase = {
       .filter((s) => sectionIdsWithItems.has(s.id));
 
     return { sections, items };
+  },
+
+  /**
+   * Cross-restaurant dish search in ONE round trip, via the search_menu_items
+   * RPC (mig 169).
+   *
+   * This replaced a loop that called `forRestaurant` per restaurant — four round
+   * trips each here, plus modifier hydration the results never render.
+   *
+   * The RPC rather than a `.or('name.ilike...,description.ilike...')` filter
+   * because that filter is PostgREST SYNTAX built from user input: a comma or a
+   * paren in the search box changes how it parses, and `%` / `_` silently widen
+   * the match. The RPC binds the query as a parameter and escapes the LIKE
+   * metacharacters server-side.
+   *
+   * It is SECURITY INVOKER, so RLS decides visibility exactly as it did before.
+   */
+  async search(query: string, limit = 12): Promise<MenuSearchHit[]> {
+    const q = query.trim();
+    // Mirrors the RPC's own floor; skipping the call entirely saves a round trip
+    // on every one-character prefix while the user is still typing.
+    if (q.length < 2) return [];
+
+    const { data, error } = await getSupabase().rpc('search_menu_items', {
+      p_query: q,
+      p_limit: limit,
+    });
+    if (error) throw error;
+
+    type Row = {
+      item_id: string;
+      item_name: string;
+      item_image: string | null;
+      price_egp: number;
+      restaurant_id: string;
+      restaurant_name: string;
+    };
+    return ((data ?? []) as Row[]).map((r) => ({
+      itemId: r.item_id,
+      itemName: r.item_name,
+      itemImage: r.item_image ?? '',
+      priceEgp: r.price_egp,
+      restaurantId: r.restaurant_id,
+      restaurantName: r.restaurant_name,
+    }));
+  },
+
+  /**
+   * Restaurant ids that can satisfy every one of `flags`, in ONE round trip.
+   *
+   * Also replaced a per-restaurant loop. `overlaps` narrows to items carrying at
+   * least one requested flag, which is all the union check needs, and the
+   * projection is two columns instead of whole item rows with modifier trees.
+   */
+  async restaurantsWithFlags(flags: readonly string[]): Promise<Set<string>> {
+    if (flags.length === 0) return new Set();
+
+    const { data, error } = await getSupabase()
+      .from('menu_items')
+      .select('restaurant_id, flags')
+      .eq('is_available', true)
+      .overlaps('flags', flags as string[]);
+    if (error) throw error;
+
+    const rows: FlaggedItemRow[] = ((data ?? []) as { restaurant_id: string; flags: string[] | null }[]).map(
+      (r) => ({ restaurantId: r.restaurant_id, flags: r.flags ?? [] }),
+    );
+    return restaurantsWithAllFlags(rows, flags);
   },
 
   async getItem(itemId: string): Promise<MenuItem | null> {

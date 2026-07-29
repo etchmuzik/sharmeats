@@ -18,7 +18,7 @@ import { CuisineChip } from '../../src/components/CuisineChip';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
 import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
-import type { Cuisine, MenuItem, Restaurant } from '../../src/data/types';
+import type { Cuisine, MenuSearchHit, Restaurant } from '../../src/data/types';
 import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { formatEgp } from '../../src/lib/format';
@@ -55,10 +55,9 @@ const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
   { key: 'pizza', tKey: 'cuisine.pizza', emoji: '🍕' },
 ];
 
-interface MenuMatch {
-  item: MenuItem;
-  restaurant: Restaurant;
-}
+// Search results come back as MenuSearchHit — six fields, one round trip. The
+// old shape held a whole MenuItem plus its Restaurant, which is what forced the
+// per-restaurant fetch loop in the first place.
 
 // Halal is the default in Egypt — no filter needed. Keep vegetarian + GF only.
 const FLAG_FILTERS: { key: 'vegetarian' | 'glutenfree'; tKey: string; emoji: string }[] = [
@@ -86,32 +85,43 @@ export default function BrowseTab() {
   const [cuisine, setCuisine] = useState<Cuisine | 'all'>('all');
   const [query, setQuery] = useState('');
   const [all, setAll] = useState<Restaurant[]>([]);
-  const [menuMatches, setMenuMatches] = useState<MenuMatch[]>([]);
+  const [menuMatches, setMenuMatches] = useState<MenuSearchHit[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFlags, setActiveFlags] = useState<Set<'vegetarian' | 'glutenfree'>>(new Set());
   const [sort, setSort] = useState<SortKey>('recommended');
   const [openNow, setOpenNow] = useState(false);
-  // Map restaurant id → set of item flags present in that restaurant's menu.
-  const [flagsByRestaurant, setFlagsByRestaurant] = useState<Map<string, Set<string>>>(new Map());
+  // Restaurant ids that satisfy EVERY active dietary filter, resolved server-side
+  // in one query. This replaced a per-restaurant loop that fetched whole menus
+  // (with modifier trees it never read) just to union their flags.
+  const [flagMatchIds, setFlagMatchIds] = useState<Set<string>>(new Set());
+
+  // Sorted+joined so the effect re-runs when the flag SET CHANGES, not merely
+  // when its size does: swapping vegetarian for gluten-free keeps size at 1, and
+  // keying on `.size` left the previous filter's ids in place.
+  const activeFlagKey = [...activeFlags].sort().join(',');
 
   useEffect(() => {
-    if (activeFlags.size === 0) return;
+    const flags = activeFlagKey ? activeFlagKey.split(',') : [];
+    if (flags.length === 0) {
+      setFlagMatchIds(new Set());
+      return;
+    }
     let cancelled = false;
-    (async () => {
-      const rs = await db.restaurants.list();
-      const map = new Map<string, Set<string>>();
-      for (const r of rs) {
-        const m = await db.menus.forRestaurant(r.id);
-        const flags = new Set<string>();
-        for (const item of m.items) for (const f of item.flags) flags.add(f);
-        map.set(r.id, flags);
-      }
-      if (!cancelled) setFlagsByRestaurant(map);
-    })();
+    db.menus
+      .restaurantsWithFlags(flags)
+      .then((ids) => {
+        if (!cancelled) setFlagMatchIds(ids);
+      })
+      // A failed index must not strand the list: fall back to matching nothing,
+      // which is visibly "no results for this filter" rather than silently
+      // showing restaurants that may not qualify.
+      .catch(() => {
+        if (!cancelled) setFlagMatchIds(new Set());
+      });
     return () => {
       cancelled = true;
     };
-  }, [activeFlags.size]);
+  }, [activeFlagKey]);
 
   const load = useCallback(async () => {
     const r = await db.restaurants.list();
@@ -128,41 +138,39 @@ export default function BrowseTab() {
     setRefreshing(false);
   }, [load]);
 
-  // Cross-restaurant menu-item search when query is non-empty.
+  // One debounced value drives BOTH the query and the analytics event.
+  //
+  // The search effect used to key on the raw `query`, so it fired on every
+  // keystroke while only the analytics call was debounced. Combined with a
+  // per-restaurant fetch loop that cost four round trips each, a single typed
+  // word issued hundreds of requests, most of them for prefixes the user had
+  // already moved past.
+  const debouncedQuery = useDebounce(query, 300);
+
+  // Cross-restaurant dish search — one round trip via db.menus.search.
   useEffect(() => {
-    const q = query.toLowerCase().trim();
+    const q = debouncedQuery.trim();
     if (q.length < 2) {
       setMenuMatches([]);
       return;
     }
     let cancelled = false;
-    (async () => {
-      const rs = await db.restaurants.list();
-      const matches: MenuMatch[] = [];
-      for (const r of rs) {
-        const m = await db.menus.forRestaurant(r.id);
-        for (const item of m.items) {
-          if (
-            item.name.toLowerCase().includes(q) ||
-            item.description.toLowerCase().includes(q)
-          ) {
-            matches.push({ item, restaurant: r });
-            if (matches.length >= 12) break;
-          }
-        }
-        if (matches.length >= 12) break;
-      }
-      if (!cancelled) setMenuMatches(matches);
-    })();
+    db.menus
+      .search(q, 12)
+      .then((hits) => {
+        // A slower earlier request must not overwrite a newer result.
+        if (!cancelled) setMenuMatches(hits);
+      })
+      .catch(() => {
+        if (!cancelled) setMenuMatches([]);
+      });
     return () => {
       cancelled = true;
     };
-  }, [query]);
+  }, [debouncedQuery]);
 
-  // Analytics: fire search_performed once typing settles (debounced ~600ms) so
-  // PostHog sees one event per search, not one per keystroke. We log only the
-  // query length — never the raw text — to avoid capturing PII.
-  const debouncedQuery = useDebounce(query, 600);
+  // Analytics: one event per settled search rather than one per keystroke. We log
+  // only the query length — never the raw text — to avoid capturing PII.
   useEffect(() => {
     const q = debouncedQuery.trim();
     if (q.length < 2) return;
@@ -174,13 +182,10 @@ export default function BrowseTab() {
     const result = all.filter((r) => {
       if (openNow && !effectiveIsOpen(r)) return false;
       if (cuisine !== 'all' && !r.cuisines.includes(cuisine as Cuisine)) return false;
-      if (activeFlags.size > 0) {
-        const rflags = flagsByRestaurant.get(r.id);
-        if (!rflags) return false; // not yet indexed
-        for (const f of activeFlags) {
-          if (!rflags.has(f)) return false;
-        }
-      }
+      // flagMatchIds is empty until the index resolves, which correctly shows
+      // "no results" for a moment rather than briefly showing restaurants that
+      // may not qualify.
+      if (activeFlags.size > 0 && !flagMatchIds.has(r.id)) return false;
       if (!q) return true;
       return r.name.toLowerCase().includes(q) || r.cuisineLabel.toLowerCase().includes(q);
     });
@@ -190,7 +195,7 @@ export default function BrowseTab() {
     else if (sort === 'fee') result.sort((a, b) => a.deliveryFeeEgp - b.deliveryFeeEgp);
     else if (sort === 'fastest') result.sort((a, b) => a.prepTimeLow - b.prepTimeLow);
     return result;
-  }, [all, cuisine, query, activeFlags, flagsByRestaurant, openNow, sort]);
+  }, [all, cuisine, query, activeFlags, flagMatchIds, openNow, sort]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -278,22 +283,22 @@ export default function BrowseTab() {
               <Text style={styles.menuMatchTitle}>{t('browse.dishes')}</Text>
               {menuMatches.map((m) => (
                 <Pressable
-                  key={m.item.id}
+                  key={m.itemId}
                   onPress={() => {
                     tap();
-                    router.push(`/item/${m.item.id}` as never);
+                    router.push(`/item/${m.itemId}` as never);
                   }}
                   style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.85 }]}>
-                  <Image source={{ uri: m.item.image }} style={styles.menuImg} />
+                  <Image source={{ uri: m.itemImage }} style={styles.menuImg} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.menuName} numberOfLines={1}>
-                      {m.item.name}
+                      {m.itemName}
                     </Text>
                     <Text style={styles.menuSub} numberOfLines={1}>
-                      {m.restaurant.name}
+                      {m.restaurantName}
                     </Text>
                   </View>
-                  <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp)}</Text>
+                  <Text style={styles.menuPrice}>{formatEgp(m.priceEgp)}</Text>
                 </Pressable>
               ))}
               <Text style={styles.menuMatchTitle}>{t('browse.restaurants')}</Text>
