@@ -490,5 +490,7 @@
   "push.blockedTitle": "Notifiche disattivate",
   "push.blockedBody": "Hai disattivato le notifiche di Sharm Eats nelle impostazioni del dispositivo. Puoi riattivarle da lì.",
   "push.openSettings": "Apri le impostazioni",
-  "orders.reorderUnavailableNow": "Quel negozio non è disponibile in questo momento."
+  "orders.reorderUnavailableNow": "Quel negozio non è disponibile in questo momento.",
+  "item.rxRequired": "Ricetta necessaria",
+  "item.rxNote": "Devi mostrare una ricetta valida al corriere alla consegna. Senza, questo articolo non può essere consegnato."
 }

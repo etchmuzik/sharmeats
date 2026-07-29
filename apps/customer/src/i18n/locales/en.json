@@ -490,5 +490,7 @@
   "push.blockedTitle": "Notifications are off",
   "push.blockedBody": "You've turned off notifications for Sharm Eats in your device settings. You can turn them back on there.",
   "push.openSettings": "Open device settings",
-  "orders.reorderUnavailableNow": "That store isn't available right now."
+  "orders.reorderUnavailableNow": "That store isn't available right now.",
+  "item.rxRequired": "Prescription required",
+  "item.rxNote": "You must show a valid prescription to the driver on delivery. Without it this item cannot be handed over."
 }

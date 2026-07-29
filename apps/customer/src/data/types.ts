@@ -190,6 +190,29 @@ export interface MenuItem {
   flags: ItemFlag[];
   isAvailable: boolean;
   modifiers: Modifier[];
+  /**
+   * CATALOG IDENTITY — populated for every vertical, meaningful mostly outside
+   * food. These columns have existed on menu_items since the category-agnostic
+   * schema landed, but `rowToMenuItem` discarded them, so the app could not
+   * tell a 1 L carton from a 6-pack, or a prescription medicine from sunscreen.
+   *
+   * Optional because a food item legitimately has none of them, and because a
+   * cached item from a build before this shipped will not carry them either.
+   */
+  sku?: string;
+  barcode?: string;
+  /** Sold-by unit: '1 L', '500 g', '30 pcs'. Shown next to the price. */
+  unit?: string;
+  /**
+   * The item cannot be dispensed without a valid prescription.
+   *
+   * SAFETY-RELEVANT, not cosmetic: pharmacy is live and its catalog already
+   * contains a prescription-only antibiotic. Without this the app renders it
+   * identically to sunscreen, and a customer only discovers the requirement
+   * when the driver refuses to hand it over. The server enforces the rule
+   * regardless (mig 160); this is what makes it VISIBLE before checkout.
+   */
+  requiresPrescription?: boolean;
 }
 
 export type AddressKind = 'hotel' | 'street' | 'beach_pin';

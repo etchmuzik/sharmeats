@@ -490,5 +490,7 @@
   "push.blockedTitle": "الإشعارات متوقفة",
   "push.blockedBody": "لقد أوقفت إشعارات Sharm Eats من إعدادات جهازك. يمكنك تفعيلها من هناك.",
   "push.openSettings": "فتح إعدادات الجهاز",
-  "orders.reorderUnavailableNow": "هذا المتجر غير متاح حاليًا."
+  "orders.reorderUnavailableNow": "هذا المتجر غير متاح حاليًا.",
+  "item.rxRequired": "يتطلب وصفة طبية",
+  "item.rxNote": "يجب إظهار وصفة طبية سارية للسائق عند التوصيل. بدونها لا يمكن تسليم هذا المنتج."
 }

@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { FlagBadge } from '../../src/components/FlagBadge';
+import { RxBadge } from '../../src/components/RxBadge';
 import { TouristSafeBadge } from '../../src/components/TouristSafeBadge';
 import { OwnBrandBadge } from '../../src/components/OwnBrandBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
@@ -281,6 +282,11 @@ export default function RestaurantDetail() {
                     </Text>
                     <View style={styles.itemMeta}>
                       <Text style={styles.itemPrice}>{formatEgp(it.priceEgp)}</Text>
+                      {/* Sold-by unit. Meaningless for a burger, essential for
+                          groceries: 48 EGP tells you nothing until you know
+                          whether it buys 1 L or a 6-pack. */}
+                      {it.unit && <Text style={styles.itemUnit}>/ {it.unit}</Text>}
+                      {it.requiresPrescription && <RxBadge compact />}
                       {it.flags.map((f) => (
                         <FlagBadge key={f} flag={f} />
                       ))}
@@ -462,6 +468,7 @@ const styles = StyleSheet.create({
   itemDesc: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 4, lineHeight: 18 },
   itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' },
   itemPrice: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
+  itemUnit: { fontSize: font.sizes.md, color: colors.ink3, marginLeft: -2 },
   itemPh: { width: 84, height: 84, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.bgSoft, position: 'relative' },
   addCircle: {
     position: 'absolute',

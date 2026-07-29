@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { FlagBadge } from '../../src/components/FlagBadge';
+import { RxBadge } from '../../src/components/RxBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { QuantityStepper } from '../../src/components/QuantityStepper';
 import { AllergyChipRow } from '../../src/components/AllergyChipRow';
@@ -302,10 +303,22 @@ export default function ItemModal() {
           <Text style={styles.desc}>{item.description}</Text>
           <View style={styles.metaRow}>
             <Text style={styles.price}>{formatEgp(item.priceEgp)}</Text>
+            {item.unit && <Text style={styles.unit}>/ {item.unit}</Text>}
             {item.flags.map((f) => (
               <FlagBadge key={f} flag={f} />
             ))}
           </View>
+
+          {/* The detail screen is the last surface before add-to-cart, so it
+              carries the full condition rather than just the badge: the
+              customer needs to know they must produce a prescription AT THE
+              DOOR, while they can still decide not to order. */}
+          {item.requiresPrescription && (
+            <View style={styles.rxNotice} accessibilityRole="alert">
+              <RxBadge />
+              <Text style={styles.rxNoticeText}>{t('item.rxNote')}</Text>
+            </View>
+          )}
 
           {item.modifiers.map((m) => (
             <ModifierGroup
@@ -453,6 +466,9 @@ const styles = StyleSheet.create({
   desc: { fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 22, marginTop: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
   price: { fontSize: font.sizes['3xl'], fontWeight: font.weights.extrabold, color: colors.ink },
+  unit: { fontSize: font.sizes.lg, color: colors.ink3, marginLeft: -2 },
+  rxNotice: { marginTop: 14, padding: 12, borderRadius: radius.lg, backgroundColor: colors.redSoft, gap: 8, alignItems: 'flex-start' },
+  rxNoticeText: { fontSize: font.sizes.md, color: colors.ink, lineHeight: 19 },
   modGroup: { marginTop: 22 },
   modHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 },
   modTitle: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },

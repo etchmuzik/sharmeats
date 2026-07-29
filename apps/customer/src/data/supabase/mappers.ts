@@ -251,6 +251,13 @@ interface MenuItemRow {
   image: string;
   flags: string[];
   is_available: boolean;
+  // Catalog identity, nullable in the database for every food row. Declared
+  // optional AND nullable because this row shape is also satisfied by cached
+  // payloads written before these columns were selected.
+  sku?: string | null;
+  barcode?: string | null;
+  unit?: string | null;
+  requires_prescription?: boolean | null;
 }
 
 export function rowToMenuItem(i: MenuItemRow): MenuItem {
@@ -265,6 +272,16 @@ export function rowToMenuItem(i: MenuItemRow): MenuItem {
     flags: i.flags as MenuItem['flags'],
     isAvailable: i.is_available,
     modifiers: [],
+    // Catalog identity. The menu query already selects '*', so these arrived
+    // from the database all along and were simply dropped here -- which is why
+    // a pharmacy's prescription-only item was indistinguishable from sunscreen.
+    // `?? undefined` rather than passing null through: the type models "this
+    // item has no unit" as absence, and a null would render as the string
+    // "null" in any careless template.
+    sku: i.sku ?? undefined,
+    barcode: i.barcode ?? undefined,
+    unit: i.unit ?? undefined,
+    requiresPrescription: i.requires_prescription ?? undefined,
   };
 }
 

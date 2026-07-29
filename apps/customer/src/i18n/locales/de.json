@@ -490,5 +490,7 @@
   "push.blockedTitle": "Benachrichtigungen sind aus",
   "push.blockedBody": "Du hast Benachrichtigungen für Sharm Eats in den Geräteeinstellungen deaktiviert. Dort kannst du sie wieder aktivieren.",
   "push.openSettings": "Geräteeinstellungen öffnen",
-  "orders.reorderUnavailableNow": "Dieser Shop ist derzeit nicht verfügbar."
+  "orders.reorderUnavailableNow": "Dieser Shop ist derzeit nicht verfügbar.",
+  "item.rxRequired": "Rezept erforderlich",
+  "item.rxNote": "Du musst dem Fahrer bei der Lieferung ein gültiges Rezept vorzeigen. Ohne dieses kann der Artikel nicht übergeben werden."
 }
