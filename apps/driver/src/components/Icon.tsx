@@ -52,7 +52,9 @@ export type IconName =
   // Appearance control: the icon reflects which theme mode is active.
   | 'themeAuto'
   | 'themeLight'
-  | 'themeDark';
+  | 'themeDark'
+  // Handoff photo capture (proof of delivery).
+  | 'camera';
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
@@ -95,6 +97,7 @@ const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   themeAuto: 'contrast-outline',
   themeLight: 'sunny-outline',
   themeDark: 'moon-outline',
+  camera: 'camera-outline',
 };
 
 type Props = {

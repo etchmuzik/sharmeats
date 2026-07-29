@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { advance, collectCod, fetchJob, type Job } from '../../src/jobs';
+import { isProofRequired, recordProof } from '../../src/proofOfDelivery';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { parseWkbPoint } from '../../src/geo';
 import { openDirections } from '../../src/navigation';
@@ -31,6 +33,13 @@ export default function JobScreen() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Handoff photo, held locally until the delivery is confirmed. Capture is
+  // instant and offline; the UPLOAD deliberately happens after the status
+  // advance, so a weak signal can never strand a completed delivery.
+  const [proof, setProof] = useState<{ uri: string; mime?: string | null; size?: number | null } | null>(
+    null,
+  );
+  const [capturing, setCapturing] = useState(false);
   const trackingErrorShown = useRef(false);
 
   const load = useCallback(async () => {
@@ -89,6 +98,52 @@ export default function JobScreen() {
     [id, load],
   );
 
+  const capturePhoto = useCallback(async () => {
+    setCapturing(true);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Camera needed',
+          'Allow camera access to photograph the handoff. This is the only record that the order arrived.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        // 0.6 keeps a doorway legible while staying well inside the bucket's
+        // 5 MB ceiling on a slow connection.
+        quality: 0.6,
+      });
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+      const asset = result.assets[0];
+      setProof({ uri: asset.uri, mime: asset.mimeType, size: asset.fileSize });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't open the camera.", 'error');
+    } finally {
+      setCapturing(false);
+    }
+  }, [toast]);
+
+  /**
+   * Index the captured photo AFTER the delivery is already recorded.
+   *
+   * Never throws: the delivery has happened and the driver is done. A failed
+   * upload is surfaced as a warning and left for ops
+   * (ops_deliveries_missing_proof) rather than being allowed to undo or block
+   * anything the driver already completed.
+   */
+  const uploadProofBestEffort = useCallback(
+    async (orderId: string) => {
+      if (!proof) return;
+      try {
+        await recordProof(orderId, proof.uri, Date.now(), proof.mime, proof.size);
+      } catch {
+        toast('Delivered, but the photo did not upload. Ops has been flagged.', 'error');
+      }
+    },
+    [proof, toast],
+  );
+
   const completeDelivery = useCallback(async () => {
     if (!id || !job) return;
     // COD: confirm cash collected before marking delivered.
@@ -105,6 +160,9 @@ export default function JobScreen() {
               try {
                 await collectCod(id, job.total_egp);
                 await advance(id, 'delivered');
+                // After the advance, on purpose: the photo must never gate the
+                // status change (see src/proofOfDelivery.ts).
+                await uploadProofBestEffort(id);
                 await stopStreaming();
                 router.replace('/home');
               } catch (e) {
@@ -122,6 +180,7 @@ export default function JobScreen() {
     setBusy(true);
     try {
       await advance(id, 'delivered');
+      await uploadProofBestEffort(id);
       await stopStreaming();
       router.replace('/home');
     } catch (e) {
@@ -129,7 +188,7 @@ export default function JobScreen() {
     } finally {
       setBusy(false);
     }
-  }, [id, job, router, toast]);
+  }, [id, job, router, toast, uploadProofBestEffort]);
 
   const navigateTo = useCallback(
     async (kind: 'restaurant' | 'dropoff') => {
@@ -383,7 +442,25 @@ export default function JobScreen() {
           <Action label="Start delivery" busy={busy} onPress={() => doAdvance('out_for_delivery')} />
         )}
         {job.status === 'out_for_delivery' && (
-          <Action label="Complete delivery" busy={busy} onPress={completeDelivery} />
+          <View style={{ gap: spacing.md }}>
+            {/* Handoff photo. Required only where nobody is at the door to
+                receive the order — for an in-person handoff the customer is the
+                witness, and demanding a photo of them would be worse than
+                useless. isProofRequired mirrors mig 168's SQL definition. */}
+            <ProofRow
+              required={isProofRequired(job.dropoff_preference)}
+              captured={proof !== null}
+              capturing={capturing}
+              onCapture={capturePhoto}
+              onRetake={capturePhoto}
+            />
+            <Action
+              label="Complete delivery"
+              busy={busy}
+              disabled={isProofRequired(job.dropoff_preference) && proof === null}
+              onPress={completeDelivery}
+            />
+          </View>
         )}
         {['accepted', 'preparing'].includes(job.status) && (
           <Text style={{ textAlign: 'center', color: colors.ink2 }}>
@@ -417,18 +494,130 @@ function confirmBackgroundTracking(): Promise<boolean> {
   });
 }
 
-function Action({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
+function Action({
+  label,
+  busy,
+  disabled = false,
+  onPress,
+}: {
+  label: string;
+  busy: boolean;
+  /** Not allowed YET (e.g. a required photo is missing) — distinct from `busy`. */
+  disabled?: boolean;
+  onPress: () => void;
+}) {
   const colors = useThemeColors();
+  const blocked = busy || disabled;
   return (
     <Pressable
       onPress={onPress}
-      disabled={busy}
+      disabled={blocked}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: busy, busy }}
-      style={{ backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center', opacity: busy ? 0.6 : 1 }}
+      accessibilityState={{ disabled: blocked, busy }}
+      style={{ backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center', opacity: blocked ? 0.6 : 1 }}
     >
       {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontSize: font.sizes.lg, fontWeight: '700' }}>{label}</Text>}
+    </Pressable>
+  );
+}
+
+/**
+ * Handoff-photo control.
+ *
+ * When a photo is REQUIRED the copy says why, because a driver who does not know
+ * why the Complete button is dim will read it as a broken app and call dispatch.
+ * When it is optional the control is still offered — a driver who senses a
+ * dispute coming should be able to protect themselves.
+ */
+function ProofRow({
+  required,
+  captured,
+  capturing,
+  onCapture,
+  onRetake,
+}: {
+  required: boolean;
+  captured: boolean;
+  capturing: boolean;
+  onCapture: () => void;
+  onRetake: () => void;
+}) {
+  const colors = useThemeColors();
+
+  if (captured) {
+    return (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          backgroundColor: colors.greenSoft,
+          borderRadius: radius.lg,
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.md,
+        }}
+      >
+        <Icon name="check" size={18} color={colors.greenText} />
+        <Text style={{ flex: 1, color: colors.greenText, fontWeight: '700', fontSize: font.sizes.base }}>
+          Handoff photo ready
+        </Text>
+        <Pressable
+          onPress={onRetake}
+          accessibilityRole="button"
+          accessibilityLabel="Retake the handoff photo"
+          hitSlop={8}
+          style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm }}
+        >
+          <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: font.sizes.sm }}>
+            Retake
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onCapture}
+      disabled={capturing}
+      accessibilityRole="button"
+      accessibilityLabel={required ? 'Take the required handoff photo' : 'Take an optional handoff photo'}
+      accessibilityState={{ busy: capturing, disabled: capturing }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        minHeight: 52,
+        borderWidth: required ? 2 : 1,
+        borderColor: required ? colors.amber : colors.line,
+        backgroundColor: required ? colors.amberSoft : colors.surface,
+        borderRadius: radius.lg,
+        paddingHorizontal: spacing.lg,
+        opacity: capturing ? 0.6 : 1,
+      }}
+    >
+      {capturing ? (
+        <ActivityIndicator color={required ? colors.amberText : colors.accentText} />
+      ) : (
+        <Icon name="camera" size={18} color={required ? colors.amberText : colors.accentText} />
+      )}
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            color: required ? colors.amberText : colors.ink,
+            fontWeight: '700',
+            fontSize: font.sizes.base,
+          }}
+        >
+          {required ? 'Photo required' : 'Add a handoff photo'}
+        </Text>
+        <Text style={{ color: colors.ink2, fontSize: font.sizes.xs }}>
+          {required
+            ? 'Nobody is there to receive it — photograph where you left the order'
+            : 'Optional, but it protects you if the order is disputed'}
+        </Text>
+      </View>
     </Pressable>
   );
 }

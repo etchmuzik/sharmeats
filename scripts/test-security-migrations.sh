@@ -48,7 +48,8 @@ for test_file in \
   "supabase/tests/124_signup_role_hint_lockdown.test.sql" \
   "supabase/tests/126_cloud_kitchen_foundation.test.sql" \
   "supabase/tests/127_129_service_area.test.sql" \
-  "supabase/tests/130_133_ops_finance.test.sql"
+  "supabase/tests/130_133_ops_finance.test.sql" \
+  "supabase/tests/168_proof_of_delivery.test.sql"
 do
   test_database="test_$(basename "${test_file}" .test.sql | tr -c '[:alnum:]' '_')"
   "${postgres_bin_dir}/createdb" \

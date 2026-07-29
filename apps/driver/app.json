@@ -70,7 +70,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Sharm Eats needs photo access so you can upload your verification documents."
+          "photosPermission": "Sharm Eats needs photo access so you can upload your verification documents.",
+          "cameraPermission": "Sharm Eats needs the camera so you can photograph a delivery handoff as proof it arrived."
         }
       ]
     ],
