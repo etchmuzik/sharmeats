@@ -60,12 +60,12 @@ Status meanings:
 | Explain removed/changed items before checkout | Planned | [02 § A](02-second-order-and-saved-intent.md#slice-a--authoritative-cart-preparation) |
 | Home/Orders “Order again” entry | Built; verify | [02 current evidence](02-second-order-and-saved-intent.md#current-evidence) |
 | Reorder impression-to-delivery analytics | Planned | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate) |
-| Consented 7/14-day reminder | Planned after Package 03 | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
+| Consented 7/14-day reminder | **Built, DARK** — migs 177/178 `reorder_cadence_sweep`, cron active, `lifecycle_mode=observe` so nothing sends until an operator opts in | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Merge guest/server favorites without loss | Built, including durable offline removal (commit `db6e255`) | [02 § B](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Real notification controls | Built (migs 142/143, `expo-push` v15, prod-verified 2026-07-27) | [03 § A status](03-notifications-and-crm.md#slice-a-status) |
 | Consent provenance, quiet hours, locale | **Built** — quiet hours corrected (mig 142); consent event trail live (mig 147), re-verified in prod 2026-07-30 | [03 § A3](03-notifications-and-crm.md#a3-consent-model) |
 | Server campaign consent enforcement | Built/partial; harden | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
-| Frequency caps and unsubscribe | Planned | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
+| Frequency caps and unsubscribe | **Built (caps)** — mig 176: global + per-event weekly caps, active-order suppression, idempotency, deterministic holdouts. Unsubscribe already live via notification prefs | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Gate: second-order, consent and campaign attribution | Planned measurement | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate), [03 acceptance](03-notifications-and-crm.md#acceptance-gate) |
 
 ## Phase 3 — proper notifications and loved items
@@ -84,7 +84,7 @@ Status meanings:
 | Cross-device saved sync and offline merge | Built/partial; server item sync + restaurant removal hardening built, full offline item mutation proof remains | [02 § B–C](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Reopened/back-in-stock/real offer triggers | Planned after outbox | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Cross-device cart snapshots | **Complete and LIVE** — migs 168/169/170 prod-applied 2026-07-29, conflict sheet shipped, TTL cron job `sharmeats-expired-cart-sweep` active | [02 § D](02-second-order-and-saved-intent.md#slice-d--server-backed-active-cart) |
-| Safe abandoned-cart reminder | Planned | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
+| Safe abandoned-cart reminder | **Built, DARK** — migs 177/178 `abandoned_cart_sweep`, cron active, observe mode | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Explainable recommendations, no premature AI | Planned | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations) |
 
 ## Phase 4 — cards and public launch
