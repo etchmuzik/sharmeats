@@ -107,6 +107,35 @@ export async function uploadDriverPhoto(
   return url;
 }
 
+/**
+ * The driver's current photo URL, or null.
+ *
+ * Deliberately its OWN query rather than a column on getMyDriver's select:
+ * PostgREST rejects the whole select if any named column is missing, so adding
+ * photo_url there would break the entire home screen for every driver whose
+ * app updated (OTA) before migration 167 was applied. Kept separate and
+ * fail-soft, the worst case in that window is "no photo yet" — the screen
+ * still works. No release-order trap.
+ */
+export async function getDriverPhotoUrl(): Promise<string | null> {
+  try {
+    const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from('drivers')
+      .select('photo_url')
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    if (error) return null; // column absent pre-migration, or transient — cosmetic either way
+    return (data?.photo_url as string | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Clears the photo. Removes the bytes too — a driver removing their picture expects it gone. */
 export async function removeDriverPhoto(): Promise<void> {
   const supabase = getSupabase();

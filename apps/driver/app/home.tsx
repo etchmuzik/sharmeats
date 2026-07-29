@@ -36,6 +36,7 @@ import { OfferCard } from '../src/components/OfferCard';
 import { OnlineToggle } from '../src/components/OnlineToggle';
 import { ActiveJobCard } from '../src/components/ActiveJobCard';
 import { EarningsGrid } from '../src/components/EarningsGrid';
+import { AvatarButton } from '../src/components/AvatarButton';
 import { notifyError, notifySuccess, tapLight, tapMedium } from '../src/lib/haptics';
 
 export default function Home() {
@@ -284,17 +285,20 @@ export default function Home() {
           driver's own name must stay on screen: these devices are shared between
           riders, and earnings plus COD liability are per-driver. "Whose account
           is this?" has to be answerable without opening a menu. */}
-      <View style={{ paddingHorizontal: spacing.xl, gap: 2 }}>
-        <Text selectable style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
-          {driver.name?.split(' ')[0] ?? 'Driver'}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>{driver.vehicle} ·</Text>
-          <Icon name="star" size={12} color={colors.star} />
-          <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
-            {driver.rating}
-            {!driver.is_verified && '  · pending verification'}
+      <View style={{ paddingHorizontal: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <AvatarButton name={driver.name} />
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text selectable style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
+            {driver.name?.split(' ')[0] ?? 'Driver'}
           </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>{driver.vehicle} ·</Text>
+            <Icon name="star" size={12} color={colors.star} />
+            <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
+              {driver.rating}
+              {!driver.is_verified && '  · pending verification'}
+            </Text>
+          </View>
         </View>
       </View>
 

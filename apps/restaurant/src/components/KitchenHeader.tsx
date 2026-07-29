@@ -20,6 +20,7 @@ import type { KitchenContext } from '../orders';
 import { staffRoleLabel } from '../capabilities';
 import { colors, font, radius, spacing } from '../theme';
 import { Icon } from './Icon';
+import { LogoButton } from './LogoButton';
 import { selection, tapMedium } from '../lib/haptics';
 
 const CONTROL_BASE = {
@@ -96,6 +97,15 @@ export function KitchenHeader({
           gap: spacing.sm,
         }}
       >
+        {/* Logo is single-brand only: a cloud kitchen would need one per brand,
+            and a header can honestly represent only one. Multi-brand logo
+            management belongs in a per-brand screen when that exists. */}
+        {!kitchen.isMultiBrand && kitchen.brands[0] && (
+          <LogoButton
+            restaurantId={kitchen.brands[0].restaurantId}
+            name={kitchen.brands[0].name}
+          />
+        )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text
             selectable
