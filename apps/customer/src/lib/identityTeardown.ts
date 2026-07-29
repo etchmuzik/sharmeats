@@ -46,6 +46,7 @@ import { db } from '../data';
 import { useCart } from '../store/cart';
 import { useSession } from '../store/session';
 import { resetAnalyticsUser } from './analytics';
+import { clearNotificationAttribution } from './notificationAttribution';
 import { unregisterPush } from './push';
 
 /**
@@ -132,6 +133,10 @@ export async function transitionIdentity(): Promise<IdentityTransitionResult> {
   useCart.getState().clear();
   useSession.getState().signOut();
   resetAnalyticsUser();
+  // [P03-F] Forget any open notification-attribution window, so the next person to
+  // use this device does not have their orders credited to a campaign the previous
+  // person tapped.
+  clearNotificationAttribution();
 
   // 4. Bytes at rest. Remove rather than blank: `clear()` above writes an empty
   //    cart shape back, and "present but empty" is not the same as absent.

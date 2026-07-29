@@ -28,6 +28,8 @@ import {
   type PermissionState,
   type PrimerContext,
 } from './pushPermission';
+import { routeForNotification, routeDestination } from './notificationRoute';
+import { openAttributionWindow } from './notificationAttribution';
 
 let lastToken: string | null = null;
 
@@ -153,29 +155,8 @@ export async function requestPushPermission(context: PrimerContext): Promise<boo
   }
 }
 
-// Map a notification's data payload to an in-app route.
-//
-// Precedence: an explicit `route` from the sender wins; otherwise fall back to
-// the historical orderId-based routing so pushes queued by older senders (and
-// every already-delivered notification) still work.
-//
-// `route` exists because the payload used to carry only orderId, which forced
-// senders with no order to smuggle another id into that field — a credit with
-// no order sent the USER id, so "credit added to your wallet" opened
-// /order/<userId>, a screen that cannot load. Only in-app absolute paths are
-// accepted: a push is remote input, and handing an arbitrary string to the
-// router would let a malformed payload navigate anywhere.
-function routeForNotification(data: Record<string, unknown> | undefined): string | null {
-  if (!data) return null;
-  const event = typeof data.event === 'string' ? data.event : '';
-  const orderId = typeof data.orderId === 'string' ? data.orderId : '';
-  const route = typeof data.route === 'string' ? data.route : '';
-  if (route.startsWith('/') && !route.startsWith('//')) return route;
-  if (event === 'support_reply') return '/support';
-  if (event === 'new_message' && orderId) return `/order/${orderId}/chat`;
-  if (orderId) return `/order/${orderId}`;
-  return null;
-}
+/** Message ids are uuids we minted; anything else is not ours. */
+const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
  * Record a notification open BEFORE navigating (package 01 §4).
@@ -195,13 +176,32 @@ function routeForNotification(data: Record<string, unknown> | undefined): string
 function trackNotificationOpen(data: Record<string, unknown> | undefined, route: string): void {
   const rawEvent = typeof data?.event === 'string' ? data.event : '';
   const event = /^[a-z0-9_]{1,40}$/.test(rawEvent) ? rawEvent : 'unknown';
-  const destination = route.split('/').filter(Boolean)[0] ?? 'unknown';
+  const destination = routeDestination(route);
   const campaignId = typeof data?.campaignId === 'string' ? data.campaignId : undefined;
+  const messageId = typeof data?.messageId === 'string' ? data.messageId : undefined;
+  const validCampaign = campaignId && /^[a-zA-Z0-9-]{1,64}$/.test(campaignId) ? campaignId : undefined;
+  const validMessage = messageId && UUID_RE.test(messageId) ? messageId : undefined;
+
   track('notification_opened', {
     notification_event: event,
     destination,
-    ...(campaignId && /^[a-zA-Z0-9-]{1,64}$/.test(campaignId) ? { campaign_id: campaignId } : {}),
+    ...(validCampaign ? { campaign_id: validCampaign } : {}),
+    // The message id is a uuid we minted (mig 171) — not free text — so it is safe
+    // as an analytics property and is what joins a tap to its push server-side.
+    ...(validMessage ? { message_id: validMessage } : {}),
   });
+
+  // [P03-F] Open the attribution window for subsequent funnel events. Bounded, so
+  // an order placed a week after a tap is not credited to that notification.
+  if (validMessage) openAttributionWindow(validMessage, validCampaign);
+
+  // [P03-F] Tell the server, so open rate is measurable from the push side rather
+  // than only from the analytics provider. Fire-and-forget by design: the repo
+  // swallows every failure, because attribution is worth strictly less than the
+  // customer reaching the screen they tapped.
+  if (isBackendLive && validMessage) {
+    void db.user.recordNotificationOpen(validMessage);
+  }
 }
 
 /**

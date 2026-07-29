@@ -184,4 +184,19 @@ export const userRepo = {
     };
     return delay({ ...notificationPrefs });
   },
+
+  /**
+   * Record that a notification was opened (Package 03 Slice F).
+   *
+   * The mock keeps the ids it was told about so a test can assert the call
+   * happened, and swallows nothing — the LIVE adapter is where failure is
+   * tolerated, because attribution must never break routing.
+   */
+  async recordNotificationOpen(messageId: string): Promise<void> {
+    openedMessageIds.push(messageId);
+    return delay(undefined);
+  },
 };
+
+/** Test seam: which message ids the mock was asked to record. */
+export const openedMessageIds: string[] = [];

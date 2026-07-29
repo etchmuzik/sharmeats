@@ -353,6 +353,26 @@ export const userRepoSupabase = {
       timezone: row?.timezone ?? 'Africa/Cairo',
     };
   },
+
+  /**
+   * Record that a notification was opened (Package 03 Slice F).
+   *
+   * DELIBERATELY SWALLOWS EVERYTHING. This runs on the notification-tap path,
+   * immediately before navigation, and attribution is worth strictly less than the
+   * customer reaching the screen they tapped. So a missing session, an old backend
+   * without the RPC (PGRST202), or being offline must all be no-ops rather than
+   * anything that could interrupt routing.
+   *
+   * The server decides whether the caller is really the recipient — see mig 175. A
+   * non-recipient gets silence, so nothing here needs to guess.
+   */
+  async recordNotificationOpen(messageId: string): Promise<void> {
+    try {
+      await getSupabase().rpc('record_notification_open', { p_message_id: messageId });
+    } catch {
+      // See above: attribution never blocks a tap.
+    }
+  },
 };
 
 interface FavoriteItemRow {

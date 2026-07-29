@@ -13,6 +13,7 @@
 import * as Sentry from '@sentry/react-native';
 import PostHog from 'posthog-react-native';
 import { getReleaseInfo, releaseProperties } from './release';
+import { notificationAttribution } from './notificationAttribution';
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
@@ -181,6 +182,12 @@ export function track(event: AnalyticsEvent, props?: AnalyticsProps): void {
 export function buildProperties(props?: AnalyticsProps): Record<string, string | number | boolean | null> {
   const merged: Record<string, unknown> = {
     ...releaseProperties(),
+    // [P03-F] Notification attribution, when a tap opened a window that is still
+    // open. Merged BEFORE call-site props so a screen can override it, and before
+    // the deny-list so it is still subject to the same PII stripping as everything
+    // else — both ids are uuids we minted, so they pass, but the guard is not
+    // bypassed for them.
+    ...notificationAttribution(),
     ...(context.locale ? { locale: context.locale } : {}),
     ...(context.currency ? { display_currency: context.currency } : {}),
     ...(context.authState ? { auth_state: context.authState } : {}),
