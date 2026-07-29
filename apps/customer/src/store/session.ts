@@ -2,17 +2,24 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { detectDeviceLanguage } from '../lib/deviceLocale';
 import { mergeFavorites } from './favoritesMerge';
+import type { ThemeMode } from '../theme';
 
 const STORAGE_KEY = '@sharmeats:session:v1';
 
 export type Locale = 'en' | 'ar' | 'ru' | 'it' | 'de';
 export type Currency = 'EGP' | 'EUR' | 'USD' | 'GBP' | 'RUB';
+export type { ThemeMode };
 
 interface SessionState {
   isSignedIn: boolean;
   phone: string | null;
   locale: Locale;
   currency: Currency;
+  /**
+   * Light/dark preference. Defaults to `system` so the app matches the phone
+   * without anyone having to find the setting.
+   */
+  themeMode: ThemeMode;
   selectedAddressId: string | null;
   allergyNudgeDismissed: boolean;
   /** Saved restaurant ids. Local-first; synced with the backend in live mode. */
@@ -62,6 +69,7 @@ interface SessionState {
   signOut: () => void;
   setLocale: (l: Locale) => void;
   setCurrency: (c: Currency) => void;
+  setThemeMode: (m: ThemeMode) => void;
   setSelectedAddressId: (id: string | null) => void;
   dismissAllergyNudge: () => void;
   toggleFavorite: (restaurantId: string) => void;
@@ -81,6 +89,7 @@ type PersistedSession = Pick<
   | 'phone'
   | 'locale'
   | 'currency'
+  | 'themeMode'
   | 'selectedAddressId'
   | 'allergyNudgeDismissed'
   | 'favoriteIds'
@@ -98,6 +107,7 @@ function snapshot(s: SessionState): PersistedSession {
     phone: s.phone,
     locale: s.locale,
     currency: s.currency,
+    themeMode: s.themeMode,
     selectedAddressId: s.selectedAddressId,
     allergyNudgeDismissed: s.allergyNudgeDismissed,
     favoriteIds: s.favoriteIds,
@@ -121,6 +131,7 @@ export const useSession = create<SessionState>((set, get) => ({
   // launch (see hydrate) and by the user's explicit choice thereafter.
   locale: 'en',
   currency: 'EGP',
+  themeMode: 'system',
   // No fake default: a real (esp. anonymous) user has no saved address until
   // they add one. The old mock id 'a-hotel-hilton' never matches a live row, so
   // it made checkout silently unresolvable. null is the honest empty state and
@@ -146,6 +157,10 @@ export const useSession = create<SessionState>((set, get) => ({
           phone: parsed.phone ?? null,
           locale: (parsed.locale as Locale) ?? detectDeviceLanguage(),
           currency: (parsed.currency as Currency) ?? 'EGP',
+          // A session persisted before dark mode existed has no themeMode.
+          // 'system' is the right upgrade: it matches the phone rather than
+          // pinning existing users to light forever.
+          themeMode: (parsed.themeMode as ThemeMode) ?? 'system',
           selectedAddressId: parsed.selectedAddressId ?? null,
           allergyNudgeDismissed: parsed.allergyNudgeDismissed ?? false,
           favoriteIds: Array.isArray(parsed.favoriteIds) ? parsed.favoriteIds : [],
@@ -218,6 +233,11 @@ export const useSession = create<SessionState>((set, get) => ({
 
   setCurrency: (currency) => {
     set({ currency });
+    persist(snapshot(get()));
+  },
+
+  setThemeMode: (themeMode) => {
+    set({ themeMode });
     persist(snapshot(get()));
   },
 
