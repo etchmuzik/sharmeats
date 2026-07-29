@@ -83,7 +83,7 @@ Status meanings:
 | Separate restaurant/item favorites | Built | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
 | Cross-device saved sync and offline merge | Built/partial; server item sync + restaurant removal hardening built, full offline item mutation proof remains | [02 § B–C](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Reopened/back-in-stock/real offer triggers | Planned after outbox | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
-| Cross-device cart snapshots | **Built and LIVE** — migs 168/169 prod-applied 2026-07-29, 7/7 smoke checks passed; conflict sheet UI + TTL cron job still open | [02 § D](02-second-order-and-saved-intent.md#slice-d--server-backed-active-cart) |
+| Cross-device cart snapshots | **Complete and LIVE** — migs 168/169/170 prod-applied 2026-07-29, conflict sheet shipped, TTL cron job `sharmeats-expired-cart-sweep` active | [02 § D](02-second-order-and-saved-intent.md#slice-d--server-backed-active-cart) |
 | Safe abandoned-cart reminder | Planned | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Explainable recommendations, no premature AI | Planned | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations) |
 
