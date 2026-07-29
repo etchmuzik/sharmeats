@@ -38,6 +38,14 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { type Locale, resolveCopy, normalizeLocale } from './copy.ts';
 import { ESSENTIAL_EVENTS, recipientsAfterPrefs, type PrefRow } from './prefs.ts';
+import {
+  isRetryable,
+  recordAttempts,
+  recordMessage,
+  settleAttempts,
+  suppressMessage,
+  type AttemptOutcome,
+} from './outbox.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_CHUNK_SIZE = 100; // hard cap per https://docs.expo.dev/push-notifications/sending-notifications/
@@ -178,16 +186,26 @@ Deno.serve(async (req: Request) => {
     // recipient (table may not exist yet — handle gracefully).
     const { data: tokens, error } = await admin
       .from('push_tokens')
-      .select('token, user_id')
+      // [P03-C] `id` is selected so push_attempts can reference the token row.
+      // It is nullable there and ON DELETE SET NULL, so a missing id degrades to
+      // "we tried this token text" rather than losing the attempt entirely.
+      .select('id, token, user_id')
       .in('user_id', userIds);
     if (error) {
       // push_tokens not provisioned yet — no-op, don't fail the order flow.
       return new Response('ok (push_tokens unavailable)', { status: 200 });
     }
     const validTokens = (tokens ?? []).filter(
-      (t: { token: string; user_id: string }) => t.token?.startsWith('ExponentPushToken'),
+      (t: { id?: string; token: string; user_id: string }) =>
+        t.token?.startsWith('ExponentPushToken'),
     );
-    if (validTokens.length === 0) return new Response('ok (no tokens)', { status: 200 });
+
+
+    // Recording the "nobody has a token" case needs the copy/vertical values
+    // resolved below, so the suppression row is written after they exist — see
+    // the recordMessage call further down. Returning here without a row would
+    // hide the case entirely, so the flag is carried instead.
+    const noTokens = validTokens.length === 0;
 
     // Custom copy (campaigns) overrides the event COPY map when provided.
     const customTitle = body.title?.trim() || null;
@@ -219,6 +237,29 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // [P03-C] Record the LOGICAL message. Placed here because it needs the
+    // resolved copy overrides and vertical, and BEFORE the Expo call so that a
+    // network failure has a row to attach itself to — the case that previously
+    // vanished when index.ts caught the error and moved on.
+    //
+    // Recording NEVER blocks the send: outboxMsg is null on any failure (including
+    // the outbox tables not being deployed) and everything below still runs.
+    const outboxMsg = await recordMessage(admin, {
+      event: body.event,
+      orderId,
+      recipientUserIds: userIds,
+      route: body.route,
+      vertical,
+      customTitle,
+      customBody,
+      category: body.event === 'campaign' ? 'marketing' : 'operational',
+    });
+
+    if (noTokens) {
+      if (outboxMsg) await suppressMessage(admin, outboxMsg.id, 'no_token');
+      return new Response('ok (no tokens)', { status: 200 });
+    }
+
     const localeByUser = new Map<string, Locale>();
     if (!customTitle || !customBody) {
       const { data: userRows, error: localeErr } = await admin
@@ -234,8 +275,24 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // [P03-C] One attempt row per token, created BEFORE the Expo call. A row that
+    // only appeared after a successful response could never record a network
+    // failure — exactly the case that used to vanish.
+    const seeds = (validTokens as { id?: string; token: string; user_id: string }[]).map((t) => ({
+      token: t.token,
+      userId: t.user_id,
+      tokenId: t.id ?? null,
+    }));
+    const attempts = outboxMsg ? await recordAttempts(admin, outboxMsg.id, seeds) : [];
+    const attemptIdByToken = new Map<string, string | null>(
+      attempts.map((a) => [a.token, a.attemptId]),
+    );
+
     // [N4] Group messages by locale so each Expo chunk carries one language.
-    const messagesByLocale = new Map<Locale, ExpoMessage[]>();
+    // [P03-D] The token travels WITH the message so a positional ticket can be
+    // attributed to the right attempt row. Expo answers tickets[j] for chunk[j],
+    // and that correlation is the only link between a send and its receipt.
+    const messagesByLocale = new Map<Locale, { msg: ExpoMessage; token: string }[]>();
     for (const t of validTokens as { token: string; user_id: string }[]) {
       const locale = localeByUser.get(t.user_id) ?? 'en';
       const copy = resolveCopy(body.event, locale, vertical);
@@ -248,17 +305,23 @@ Deno.serve(async (req: Request) => {
           orderId,
           event: body.event,
           ...(body.route ? { route: body.route } : {}),
+          // [P03-F] The message id travels in the payload so a tap can be
+          // attributed back to this send. Bounded and non-sensitive.
+          ...(outboxMsg ? { messageId: outboxMsg.id } : {}),
         },
       };
       const group = messagesByLocale.get(locale);
-      if (group) group.push(message);
-      else messagesByLocale.set(locale, [message]);
+      if (group) group.push({ msg: message, token: t.token });
+      else messagesByLocale.set(locale, [{ msg: message, token: t.token }]);
     }
 
     // [M2] Send in Expo-sized chunks; collect dead tokens from error tickets.
     const deadTokens: string[] = [];
     let sent = 0;
     let total = 0;
+    // [P03-D] Every attempt's outcome is collected here and written once at the
+    // end, so a partial batch failure is recorded per token rather than lost.
+    const outcomes: AttemptOutcome[] = [];
     for (const [locale, messages] of messagesByLocale) {
       total += messages.length;
       for (let i = 0; i < messages.length; i += EXPO_CHUNK_SIZE) {
@@ -267,32 +330,94 @@ Deno.serve(async (req: Request) => {
           const res = await fetch(EXPO_PUSH_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify(chunk),
+            // Only the Expo message is sent; the token we tracked alongside it is
+            // ours and must not leak into the request body.
+            body: JSON.stringify(chunk.map((c) => c.msg)),
           });
           if (!res.ok) {
+            // [P03-D] THE BUG THIS PACKAGE EXISTS TO FIX. This used to `continue`,
+            // silently discarding the whole chunk with no record that these
+            // customers were owed a notification. Now every message in the chunk
+            // gets a durable outcome, and a 429/5xx is marked retryable so the
+            // dispatcher picks it up.
             console.error(`expo-push: Expo API ${res.status} for ${locale} chunk ${i / EXPO_CHUNK_SIZE}`);
-            continue; // best-effort: other chunks still go out
+            const retryable = res.status === 429 || res.status >= 500;
+            for (const c of chunk) {
+              outcomes.push({
+                attemptId: attemptIdByToken.get(c.token) ?? null,
+                status: retryable ? 'retryable_failed' : 'permanent_failed',
+                errorCode: `HTTP_${res.status}`,
+                // Bounded, and deliberately NOT the response body: an upstream
+                // error page could echo the notification content.
+                errorDetail: `Expo API returned ${res.status}`,
+              });
+            }
+            continue; // other chunks still go out
           }
           const payload = (await res.json().catch(() => null)) as { data?: ExpoTicket[] } | null;
           const tickets = payload?.data ?? [];
-          // Tickets are positional: tickets[j] answers chunk[j].
+          // Tickets are positional: tickets[j] answers chunk[j]. That correlation
+          // is the ONLY link between a send and the receipt polled for it later,
+          // which is why the token was carried through the grouping above.
           tickets.forEach((ticket, j) => {
+            const entry = chunk[j];
+            const attemptId = entry ? attemptIdByToken.get(entry.token) ?? null : null;
             if (ticket.status === 'ok') {
               sent++;
+              outcomes.push({
+                attemptId,
+                // [P03-D] The ticket id, previously parsed and thrown away. Slice
+                // E cannot exist without it.
+                ticketId: ticket.id ?? null,
+                status: 'expo_accepted',
+              });
               return;
             }
             const code = ticket.details?.error;
-            if (code === 'DeviceNotRegistered' && chunk[j]) {
-              deadTokens.push(chunk[j].to);
+            if (code === 'DeviceNotRegistered' && entry) {
+              deadTokens.push(entry.token);
             } else {
               console.error(`expo-push: ticket error ${code ?? 'unknown'}: ${ticket.message ?? ''}`);
             }
+            outcomes.push({
+              attemptId,
+              ticketId: ticket.id ?? null,
+              status: isRetryable(code) ? 'retryable_failed' : 'permanent_failed',
+              errorCode: code ?? null,
+              // ticket.message is Expo's own diagnostic, never our copy.
+              errorDetail: ticket.message ?? null,
+            });
           });
+          // A malformed response with fewer tickets than messages would otherwise
+          // leave those attempts stuck at 'queued' forever.
+          if (tickets.length < chunk.length) {
+            for (let k = tickets.length; k < chunk.length; k++) {
+              outcomes.push({
+                attemptId: attemptIdByToken.get(chunk[k].token) ?? null,
+                status: 'retryable_failed',
+                errorCode: 'NO_TICKET',
+                errorDetail: 'Expo returned fewer tickets than messages sent',
+              });
+            }
+          }
         } catch (e) {
           console.error(`expo-push: network error sending chunk: ${e}`);
+          // Network failure is retryable by definition, and now recorded.
+          for (const c of chunk) {
+            outcomes.push({
+              attemptId: attemptIdByToken.get(c.token) ?? null,
+              status: 'retryable_failed',
+              errorCode: 'NETWORK',
+              errorDetail: 'network error sending to Expo',
+            });
+          }
         }
       }
     }
+
+    // [P03-C/D] Persist every outcome and roll the message up. `complete` means
+    // Expo accepted all attempts — NOT delivered and NOT seen.
+    if (outboxMsg) await settleAttempts(admin, outboxMsg.id, outcomes);
 
     // [M2] Prune tokens Expo says are dead so we stop pushing to them.
     if (deadTokens.length > 0) {
