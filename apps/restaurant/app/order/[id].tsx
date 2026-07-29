@@ -151,6 +151,17 @@ export default function OrderDetail() {
                   Contains: {it.allergens.map(allergenLabel).join(', ')}
                 </Text>
               ) : null}
+              {/* Matches the allergen warning's shape deliberately: staff already
+                  scan this column for "something about this line needs care".
+                  States the ACTION, not just the property — the person packing
+                  the bag needs to know to verify, not merely that it is Rx. */}
+              {it.requiresPrescription ? (
+                <Text
+                  style={{ fontSize: font.sizes.sm, color: colors.red, marginLeft: spacing.md, fontWeight: '800' }}
+                  accessibilityRole="text">
+                  Rx — prescription required, verify before handover
+                </Text>
+              ) : null}
               {it.notes ? (
                 <Text style={{ fontSize: font.sizes.sm, color: colors.amber, marginLeft: spacing.md }}>
                   “{it.notes}”

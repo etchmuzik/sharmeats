@@ -310,6 +310,41 @@ export default function JobScreen() {
                     {it.notes ? (
                       <Text style={{ color: colors.ink3, fontSize: font.sizes.sm }}>{it.notes}</Text>
                     ) : null}
+                    {/* The driver is the last person between the pharmacy and
+                        the customer, so this is where the requirement can still
+                        be acted on. Deliberately states the ACTION ("check the
+                        prescription"), not just the property — a driver
+                        scanning a bag list needs to know what to DO. */}
+                    {it.requiresPrescription ? (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          marginTop: 4,
+                          alignSelf: 'flex-start',
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: radius.md,
+                          backgroundColor: colors.redSoft,
+                          borderWidth: 1,
+                          borderColor: colors.red,
+                        }}
+                        accessibilityRole="text"
+                        accessibilityLabel="Prescription required — check before handover">
+                        <Text
+                          style={{
+                            // redText, not red: the theme documents redText as
+                            // 5.53:1 on redSoft where plain red is only 4.04:1.
+                            // A safety warning has to clear AA.
+                            color: colors.redText,
+                            fontSize: font.sizes.sm,
+                            fontWeight: '800',
+                          }}>
+                          Rx — check prescription before handover
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
               ))}

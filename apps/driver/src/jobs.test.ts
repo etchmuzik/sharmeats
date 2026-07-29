@@ -39,7 +39,12 @@ describe('driver job normalization', () => {
 
     expect(job).not.toBeNull();
     expect(job?.restaurant_geo).toBe('point-wkb');
-    expect(job?.items).toEqual([{ name: 'Koshari', quantity: 2, notes: null }]);
+    // A legacy order (pre-mig-160) carries no requiresPrescription key, so the
+    // normalizer must default it to FALSE — never undefined, which would read
+    // as "unknown" at a handover, and never true.
+    expect(job?.items).toEqual([
+      { name: 'Koshari', quantity: 2, notes: null, requiresPrescription: false },
+    ]);
   });
 
   it('returns null for an absent order row', () => {

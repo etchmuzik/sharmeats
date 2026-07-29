@@ -19,6 +19,18 @@ export interface JobItem {
   name: string;
   quantity?: number;
   notes?: string | null;
+  /**
+   * This line needs a valid prescription at handover.
+   *
+   * Snapshotted onto the order at placement (mig 160), so it reflects what was
+   * true when the customer ordered — not what the catalog says today. The
+   * driver is the last person between the pharmacy and the customer, so this
+   * is the only place the requirement can still be acted on.
+   *
+   * Optional: orders placed before mig 160 have no such key, and must render
+   * as "no special handling" rather than crash or falsely warn.
+   */
+  requiresPrescription?: boolean;
 }
 
 export interface Job {
@@ -104,6 +116,9 @@ export function normalizeJob(row: Record<string, unknown> | null): Job | null {
     name: String(it.name ?? 'Item'),
     quantity: typeof it.quantity === 'number' ? it.quantity : (it.qty as number | undefined),
     notes: (it.notes as string | null) ?? null,
+    // `=== true` rather than a truthy cast: a missing key on a pre-mig-160
+    // order must read as false, never as "maybe".
+    requiresPrescription: it.requiresPrescription === true,
   }));
   return {
     id: row.id as string,

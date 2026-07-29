@@ -31,6 +31,16 @@ export interface OrderItem {
   modifierChoices?: { optionName?: string }[];
   notes?: string;
   allergens?: AllergenKey[];
+  /**
+   * This line cannot be dispensed without a valid prescription.
+   *
+   * Snapshotted onto orders.items at placement (mig 160), so it reflects what
+   * was true when the customer ordered rather than what the catalog says now.
+   *
+   * Optional on purpose: orders placed before mig 160 carry no such key, and
+   * must render as an ordinary line rather than as a false warning.
+   */
+  requiresPrescription?: boolean;
 }
 
 /** Structured allergen keys (mirrors the DB allergy_key_type enum, migration 003). */
