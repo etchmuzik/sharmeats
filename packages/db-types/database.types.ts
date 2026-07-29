@@ -212,6 +212,58 @@ export type Database = {
           },
         ]
       }
+      customer_carts: {
+        Row: {
+          expires_at: string
+          items: Json
+          kitchen_notes: string | null
+          restaurant_id: string | null
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          expires_at?: string
+          items?: Json
+          kitchen_notes?: string | null
+          restaurant_id?: string | null
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          expires_at?: string
+          items?: Json
+          kitchen_notes?: string | null
+          restaurant_id?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_carts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "customer_carts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_carts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_credit_balance: {
         Row: {
           balance_egp: number
@@ -2294,6 +2346,7 @@ export type Database = {
           segment_size: number | null
           sent_by: string | null
           settled_at: string | null
+          suppressed_blocked: number
           suppressed_count: number
           suppressed_no_consent: number | null
           suppressed_no_token: number | null
@@ -2314,6 +2367,7 @@ export type Database = {
           segment_size?: number | null
           sent_by?: string | null
           settled_at?: string | null
+          suppressed_blocked?: number
           suppressed_count?: number
           suppressed_no_consent?: number | null
           suppressed_no_token?: number | null
@@ -2334,6 +2388,7 @@ export type Database = {
           segment_size?: number | null
           sent_by?: string | null
           settled_at?: string | null
+          suppressed_blocked?: number
           suppressed_count?: number
           suppressed_no_consent?: number | null
           suppressed_no_token?: number | null
@@ -3745,6 +3800,10 @@ export type Database = {
         Args: { p_capability: string; p_user_id: string }
         Returns: undefined
       }
+      assert_platform_owner_locked: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       assign_driver: {
         Args: { p_driver_id: string; p_order_id: string }
         Returns: undefined
@@ -3776,6 +3835,7 @@ export type Database = {
       }
       can_view_vertical: { Args: { p_vertical_id: string }; Returns: boolean }
       claim_support_case: { Args: { p_case_id: string }; Returns: undefined }
+      clear_my_cart: { Args: never; Returns: undefined }
       delivery_feasibility: {
         Args: { p_dropoff: unknown; p_restaurant_id: string }
         Returns: {
@@ -4267,6 +4327,10 @@ export type Database = {
           vehicle: Database["public"]["Enums"]["vehicle_type"]
         }[]
       }
+      offboard_platform_owner: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
       open_support_case: {
         Args: { p_message?: string; p_order_id?: string; p_reason_code: string }
         Returns: string
@@ -4396,6 +4460,7 @@ export type Database = {
           segment_size: number | null
           sent_by: string | null
           settled_at: string | null
+          suppressed_blocked: number
           suppressed_count: number
           suppressed_no_consent: number | null
           suppressed_no_token: number | null
@@ -5183,6 +5248,19 @@ export type Database = {
           table_name: string
         }
         Returns: string
+      }
+      upsert_my_cart: {
+        Args: {
+          p_expected_version: number
+          p_items: Json
+          p_kitchen_notes: string
+          p_restaurant_id: string
+        }
+        Returns: {
+          expires_at: string
+          updated_at: string
+          version: number
+        }[]
       }
       user_can_view_vertical: {
         Args: { p_user_id: string; p_vertical_id: string }
