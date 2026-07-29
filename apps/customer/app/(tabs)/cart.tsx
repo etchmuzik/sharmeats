@@ -12,6 +12,11 @@ import { useCart } from '../../src/store/cart';
 import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
 import { isCrossSellEligible } from '../../src/lib/crossSell';
+import { CartConflictSheet } from '../../src/components/CartConflictSheet';
+import { decideRestore } from '../../src/lib/cartSync';
+import { restoreServerCart, restoreFailureReason } from '../../src/lib/cartRestore';
+import { isBackendLive } from '../../src/data';
+import type { ServerCart } from '../../src/data/types';
 import { success, tap } from '../../src/haptics';
 import { db } from '../../src/data';
 import type { CartItem, MenuItem, Restaurant } from '../../src/data/types';
@@ -27,7 +32,10 @@ export default function CartTab() {
   const subtotal = useCart((s) => s.subtotal());
   const setQuantity = useCart((s) => s.setQuantity);
   const remove = useCart((s) => s.remove);
-  const clear = useCart((s) => s.clear);
+  // clearEverywhere, not clear: an explicit empty is one of the two cases that
+  // should retire the SERVER cart too (the other is a confirmed placement).
+  // Plain clear() is local-only and belongs to sign-out — see the store.
+  const clearEverywhere = useCart((s) => s.clearEverywhere);
   const addLine = useCart((s) => s.add);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
 
@@ -38,6 +46,130 @@ export default function CartTab() {
     }
     db.restaurants.get(restaurantId).then(setRestaurant);
   }, [restaurantId]);
+
+  // ---- Cross-device cart reconciliation (Package 02 Slice D) --------------
+  // On focus, compare this device's basket against the stored one. A difference
+  // is ALWAYS shown to the customer (never auto-resolved) — see decideRestore.
+  const adoptPrepared = useCart((s) => s.adoptPrepared);
+  const setServerVersion = useCart((s) => s.setServerVersion);
+  const syncToServer = useCart((s) => s.syncToServer);
+  const [conflict, setConflict] = useState<{
+    cart: ServerCart;
+    sameRestaurant: boolean;
+    stale: boolean;
+    name: string;
+  } | null>(null);
+  const [resolving, setResolving] = useState(false);
+  // Check once per mount. A cart edited locally then re-checked would fight the
+  // debounced sync, and the conflict is a startup question, not a per-keystroke one.
+  const conflictChecked = useRef(false);
+
+  useEffect(() => {
+    if (!isBackendLive || conflictChecked.current) return;
+    conflictChecked.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const server = await db.cart.get();
+        if (cancelled) return;
+        const decision = decideRestore(
+          { restaurantId, lines },
+          server,
+        );
+        if (decision.kind === 'in_sync') {
+          setServerVersion(decision.cart.version);
+          return;
+        }
+        if (decision.kind === 'adopt_server') {
+          // Local basket is empty, so there is nothing to lose: bring the saved
+          // cart back without asking. It still goes through prepare_cart.
+          try {
+            const restored = await restoreServerCart(decision.cart);
+            if (cancelled) return;
+            adoptPrepared({ ...restored, version: decision.cart.version });
+            track('cart_restored', {
+              source: 'server_cart',
+              lineCount: restored.lines.length,
+              droppedCount: restored.droppedCount,
+              stale: decision.stale,
+            });
+          } catch (e) {
+            // A failed restore must leave the (empty) local cart alone.
+            track('cart_restore_failed', { reason: restoreFailureReason(e) });
+          }
+          return;
+        }
+        if (decision.kind === 'ask') {
+          const name =
+            (await db.restaurants.get(decision.cart.restaurantId ?? '').catch(() => null))?.name ??
+            t('cart.title');
+          if (cancelled) return;
+          setConflict({
+            cart: decision.cart,
+            sameRestaurant: decision.sameRestaurant,
+            stale: decision.stale,
+            name,
+          });
+          track('cart_conflict_shown', {
+            sameRestaurant: decision.sameRestaurant,
+            stale: decision.stale,
+          });
+        }
+      } catch {
+        // Offline, or the RPC is not deployed. The local basket is authoritative
+        // and untouched; the next launch tries again.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately mount-only: `lines`/`restaurantId` are read once as the
+    // starting state. Re-running on every edit would re-ask mid-shopping.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const keepLocalCart = () => {
+    setConflict(null);
+    track('cart_conflict_resolved', { choice: 'local' });
+    // Force this device's basket to win by writing on top of the server's
+    // current version. Re-read it first: the local serverVersion is -1 or stale
+    // by definition here, so reusing it would just conflict again.
+    void (async () => {
+      try {
+        const current = await db.cart.get();
+        setServerVersion(current?.version ?? 0);
+        syncToServer();
+      } catch {
+        // Next mutation retries.
+      }
+    })();
+  };
+
+  const useSavedCart = () => {
+    if (!conflict) return;
+    setResolving(true);
+    void (async () => {
+      try {
+        const restored = await restoreServerCart(conflict.cart);
+        adoptPrepared({ ...restored, version: conflict.cart.version });
+        track('cart_conflict_resolved', { choice: 'saved' });
+        track('cart_restored', {
+          source: 'conflict_sheet',
+          lineCount: restored.lines.length,
+          droppedCount: restored.droppedCount,
+          stale: conflict.stale,
+        });
+        setConflict(null);
+      } catch (e) {
+        track('cart_restore_failed', { reason: restoreFailureReason(e) });
+        // Keep the sheet open on failure rather than silently falling back to a
+        // basket the customer did not choose.
+        setResolving(false);
+        return;
+      }
+      setResolving(false);
+    })();
+  };
 
   const minOrder = restaurant?.minOrderEgp ?? 0;
   const shortBy = Math.max(0, minOrder - subtotal);
@@ -152,10 +284,19 @@ export default function CartTab() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="dark" />
+      <CartConflictSheet
+        visible={conflict !== null}
+        savedRestaurantName={conflict?.name ?? ''}
+        sameRestaurant={conflict?.sameRestaurant ?? false}
+        stale={conflict?.stale ?? false}
+        resolving={resolving}
+        onKeepLocal={keepLocalCart}
+        onUseSaved={useSavedCart}
+      />
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>{t('cart.title')}</Text>
         <Pressable
-          onPress={clear}
+          onPress={() => void clearEverywhere()}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={t('cart.clear')}>
