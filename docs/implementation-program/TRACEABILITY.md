@@ -63,7 +63,7 @@ Status meanings:
 | Consented 7/14-day reminder | Planned after Package 03 | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Merge guest/server favorites without loss | Built, including durable offline removal (commit `db6e255`) | [02 § B](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Real notification controls | Built (migs 142/143, `expo-push` v15, prod-verified 2026-07-27) | [03 § A status](03-notifications-and-crm.md#slice-a-status) |
-| Consent provenance, quiet hours, locale | Partial — quiet hours built and corrected; consent **event trail** (A3) still missing | [03 § A3](03-notifications-and-crm.md#a3-consent-model) |
+| Consent provenance, quiet hours, locale | **Built** — quiet hours corrected (mig 142); consent event trail live (mig 147), re-verified in prod 2026-07-30 | [03 § A3](03-notifications-and-crm.md#a3-consent-model) |
 | Server campaign consent enforcement | Built/partial; harden | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Frequency caps and unsubscribe | Planned | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Gate: second-order, consent and campaign attribution | Planned measurement | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate), [03 acceptance](03-notifications-and-crm.md#acceptance-gate) |
@@ -75,7 +75,7 @@ Status meanings:
 | Durable ticket IDs and truthful states | Planned | [03 § C–D](03-notifications-and-crm.md#slice-c--durable-push-outbox-and-attempts) |
 | Expo receipt polling | Planned | [03 § E](03-notifications-and-crm.md#slice-e--receipt-poller) |
 | Dead-token pruning and bounded retry | Partial/planned | [03 § D–E](03-notifications-and-crm.md#slice-d--sender-ticket-storage-and-retries) |
-| Stop calling HTTP 2xx delivered | Planned correction | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
+| Stop calling HTTP 2xx delivered | **Built** — migs 148/164; `send_push_campaign` returns per-reason suppression counts + `dry_run`, no "delivered" claim | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Test send, draft, scheduling, failure detail | Planned | [03 § A4/G](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Allow-listed payload routes | Partial/planned | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
 | Notification inbox after transport | Deferred by gate | [03 § H](03-notifications-and-crm.md#slice-h--notification-inbox-last) |

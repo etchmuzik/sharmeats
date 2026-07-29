@@ -21,13 +21,25 @@ Official implementation reference:
   acceptance, not device delivery.
 - the edge function parses tickets and prunes immediately rejected dead tokens
   but does not store ticket IDs or poll receipts.
-- push permission is requested during root startup before a contextual primer.
+- ~~push permission is requested during root startup before a contextual primer.~~
+  **Corrected.** `app/_layout.tsx` no longer prompts; `src/components/PushPrimer.tsx`
+  asks contextually at a value moment (Slice B).
 - migration 138 and its client preference UI are live in commit `b245b8e`.
   Marketing defaults off, is filtered server-side and respects quiet hours.
-- **Slice A1 and A2 are closed.** Both migration-138 defects were corrected and
-  verified in production on 2026-07-27; see "Slice A status" below. The
-  remaining open Slice A work is A3 (consent event audit trail) and A4
-  (campaign suppression counts and operator state names).
+- **Slice A is closed in full, and so is Slice B.** A1/A2 were corrected on
+  2026-07-27; A3 landed as mig 147 and A4 as migs 148 + 164. Re-verified against
+  production on 2026-07-30 — see "Slice A status" below. This section previously
+  described A3/A4 as open and is corrected here rather than acted on.
+- **The remaining gap is transport durability, and it is narrower than it looks.**
+  All 15 `net.http_post` senders already carry `exception when others` guards
+  (verified 2026-07-30 against `pg_get_functiondef` for every one), so a push
+  outage does NOT threaten an order or financial transaction — the rollout note
+  below about transactions committing is already satisfied. What is genuinely
+  missing is that `expo-push` parses tickets and then DISCARDS them
+  (`index.ts` ~line 279), and a non-OK Expo response `continue`s past the chunk
+  (~line 274). So a push lost to a 429 or 5xx is lost silently and permanently,
+  and there is no stored ticket to check a receipt against later. Slices C-E
+  exist to fix exactly that.
 
 ## Expected repository surfaces
 
@@ -50,8 +62,8 @@ Official implementation reference:
 |---|---|---|
 | A1 misleading transactional switch | **Closed** — opt-out contract chosen and enforced | mig 143, `expo-push` v15 |
 | A2 `in_quiet_hours` volatility | **Closed** | mig 142 |
-| A3 consent event audit trail | **Open** | `notification_consent_events` does not exist |
-| A4 campaign counts and operator states | **Open** | `send_push_campaign` still returns one integer |
+| A3 consent event audit trail | **Closed** | mig 147 — `notification_consent_events` live (id/user_id/channel/granted/actor_id/source/policy_version/created_at, RLS on) |
+| A4 campaign counts and operator states | **Closed** | migs 148 + 164 — `send_push_campaign` returns `(campaign_id, segment_size, recipients, suppressed_no_consent, suppressed_quiet_hours, suppressed_no_token, dry_run)` |
 
 ### A1. No misleading transactional switch — CLOSED
 
