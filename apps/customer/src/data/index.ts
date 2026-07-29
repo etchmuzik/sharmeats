@@ -10,6 +10,7 @@
  * change.
  */
 import { authRepo } from './repositories/auth';
+import { cartRepo } from './repositories/cart';
 import { hotelsRepo } from './repositories/hotels';
 import { menusRepo } from './repositories/menus';
 import { messagesRepo } from './repositories/messages';
@@ -21,6 +22,7 @@ import { supportRepo } from './repositories/support';
 import { userRepo } from './repositories/user';
 
 import { authRepoSupabase } from './supabase/auth';
+import { cartRepoSupabase } from './supabase/cart';
 import { hotelsRepoSupabase } from './supabase/hotels';
 import { menusRepoSupabase } from './supabase/menus';
 import { messagesRepoSupabase } from './supabase/messages';
@@ -45,6 +47,7 @@ export const db = useSupabase
       rewards: rewardsRepoSupabase,
       messages: messagesRepoSupabase,
       support: supportRepoSupabase,
+      cart: cartRepoSupabase,
     }
   : {
       auth: authRepo,
@@ -57,6 +60,7 @@ export const db = useSupabase
       rewards: rewardsRepo,
       messages: messagesRepo,
       support: supportRepo,
+      cart: cartRepo,
     };
 
 export type DB = typeof db;

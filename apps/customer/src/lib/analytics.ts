@@ -87,7 +87,15 @@ export type AnalyticsEvent =
   | 'reorder_prepared'
   | 'order_delivered'
   | 'review_prompt_shown'
-  | 'review_prompt_result';
+  | 'review_prompt_result'
+  // --- Package 02 §D server-backed cart -----------------------------------
+  // `cart_restored` above is shared with the Package 01 funnel: a cross-device
+  // restore IS a cart restore, and splitting it would double-count.
+  | 'cart_synced'
+  | 'cart_conflict_shown'
+  | 'cart_conflict_resolved'
+  | 'cart_restore_failed'
+  | 'cart_abandoned_eligible';
 
 export type AnalyticsProps = Record<string, string | number | boolean | null | undefined>;
 

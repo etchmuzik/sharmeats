@@ -16,9 +16,56 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
+// The store gained a `../data` import when server-cart sync landed (Slice D).
+// That module pulls in the Supabase client and therefore `react-native`, which
+// Vitest cannot parse — so it is mocked here. The mocks double as the assertion
+// surface for "did the store call the server, and with what".
+//
+// `isBackendLive: true` so the sync path actually runs; with the real default
+// (mock backend) every server call would be skipped and these tests would pass
+// while asserting nothing.
+const h = vi.hoisted(() => ({
+  calls: [] as string[],
+  upsertResult: { ok: true, version: 1, updatedAt: '', expiresAt: '' } as
+    | { ok: true; version: number; updatedAt: string; expiresAt: string }
+    | { ok: false; conflict: true },
+}));
+
+vi.mock('../data', () => ({
+  isBackendLive: true,
+  db: {
+    cart: {
+      get: vi.fn(async () => {
+        h.calls.push('cart.get');
+        return null;
+      }),
+      upsert: vi.fn(async () => {
+        h.calls.push('cart.upsert');
+        return h.upsertResult;
+      }),
+      clear: vi.fn(async () => {
+        h.calls.push('cart.clear');
+      }),
+    },
+  },
+}));
+
+vi.mock('../lib/analytics', () => ({ track: vi.fn() }));
+
 import { useCart } from './cart';
 
 const STORAGE_KEY = '@sharmeats:cart:v1';
+
+const LINE = {
+  itemId: 'i1',
+  restaurantId: 'r1',
+  restaurantName: 'Test',
+  name: 'X',
+  basePriceEgp: 10,
+  image: '',
+  quantity: 1,
+  modifierChoices: [],
+};
 
 describe('cart hydrate — corrupt/old-format storage must not crash', () => {
   beforeEach(() => {
@@ -69,5 +116,133 @@ describe('cart hydrate — corrupt/old-format storage must not crash', () => {
     await useCart.getState().hydrate();
     expect(useCart.getState().hydrated).toBe(true);
     expect(useCart.getState().lines).toEqual([]);
+  });
+});
+
+/**
+ * Slice D — the local/server clear distinction.
+ *
+ * This is the invariant most at risk of being "simplified" away later: `clear()`
+ * and `clearEverywhere()` look redundant until you remember that identity
+ * teardown calls the former on every sign-out. If `clear()` ever starts deleting
+ * the server row, handing a phone to a friend silently destroys the owner's
+ * basket on all their other devices.
+ */
+describe('cart clear — local vs server', () => {
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    h.calls.length = 0;
+    h.upsertResult = { ok: true, version: 1, updatedAt: '', expiresAt: '' };
+    useCart.setState({
+      restaurantId: 'r1',
+      restaurantName: 'Test',
+      lines: [{ lineId: 'l1', ...LINE }],
+      hydrated: true,
+      serverVersion: 4,
+    });
+  });
+
+  it('clear() empties the basket locally and NEVER calls the server', async () => {
+    useCart.getState().clear();
+    expect(useCart.getState().lines).toEqual([]);
+    expect(useCart.getState().restaurantId).toBeNull();
+    // The whole point: sign-out must not delete the account's stored cart.
+    expect(h.calls).not.toContain('cart.clear');
+  });
+
+  it('clearEverywhere() empties locally AND retires the server row', async () => {
+    await useCart.getState().clearEverywhere();
+    expect(useCart.getState().lines).toEqual([]);
+    expect(h.calls).toContain('cart.clear');
+    // Version resets so the next write starts a fresh row rather than colliding.
+    expect(useCart.getState().serverVersion).toBe(0);
+  });
+
+  it('clearEverywhere() survives a failing server call', async () => {
+    const { db } = await import('../data');
+    (db.cart.clear as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('offline'));
+    // Must not reject: by this point the customer's order is already placed.
+    await expect(useCart.getState().clearEverywhere()).resolves.toBeUndefined();
+    expect(useCart.getState().lines).toEqual([]);
+  });
+});
+
+describe('cart server sync', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    for (const k of Object.keys(store)) delete store[k];
+    h.calls.length = 0;
+    h.upsertResult = { ok: true, version: 7, updatedAt: '', expiresAt: '' };
+    useCart.setState({
+      restaurantId: null,
+      restaurantName: null,
+      lines: [],
+      hydrated: true,
+      serverVersion: 0,
+    });
+  });
+
+  it('debounces rapid edits into a single write', async () => {
+    const add = useCart.getState().add;
+    add(LINE);
+    add(LINE);
+    add(LINE);
+    // Nothing yet — the timer has not fired.
+    expect(h.calls).not.toContain('cart.upsert');
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(h.calls.filter((c) => c === 'cart.upsert')).toHaveLength(1);
+  });
+
+  it('records the server version returned by an accepted write', async () => {
+    useCart.getState().add(LINE);
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(useCart.getState().serverVersion).toBe(7);
+  });
+
+  it('marks the version unknown on conflict instead of overwriting', async () => {
+    h.upsertResult = { ok: false, conflict: true };
+    useCart.getState().add(LINE);
+    await vi.advanceTimersByTimeAsync(1500);
+    // -1 = "re-read before writing again". Critically it is NOT the other
+    // device's version, which would let the next write clobber their basket.
+    expect(useCart.getState().serverVersion).toBe(-1);
+  });
+
+  it('keeps the local basket intact when the server write throws', async () => {
+    const { db } = await import('../data');
+    (db.cart.upsert as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('offline'));
+    useCart.getState().add(LINE);
+    await vi.advanceTimersByTimeAsync(1500);
+    // Offline must never cost the customer their basket.
+    expect(useCart.getState().lines).toHaveLength(1);
+  });
+
+  it('mirrors an emptied basket, so the other device stops offering it', async () => {
+    useCart.setState({
+      restaurantId: 'r1',
+      restaurantName: 'Test',
+      lines: [{ lineId: 'l1', ...LINE }],
+      serverVersion: 0,
+    });
+    h.calls.length = 0;
+    useCart.getState().remove('l1');
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(h.calls).toContain('cart.upsert');
+    expect(useCart.getState().lines).toEqual([]);
+  });
+
+  it('adoptPrepared replaces the basket and records the version', () => {
+    useCart.getState().adoptPrepared({
+      restaurantId: 'r9',
+      restaurantName: 'Adopted',
+      lines: [{ lineId: 'old-id', ...LINE, itemId: 'i9' }],
+      version: 12,
+    });
+    const s = useCart.getState();
+    expect(s.restaurantId).toBe('r9');
+    expect(s.serverVersion).toBe(12);
+    expect(s.lines).toHaveLength(1);
+    // Fresh lineId, like loadFromOrder — a reused id collides on quantity edits.
+    expect(s.lines[0]?.lineId).not.toBe('old-id');
   });
 });
