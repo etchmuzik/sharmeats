@@ -72,9 +72,9 @@ Status meanings:
 
 | Roadmap commitment | Status | Specification / acceptance |
 |---|---|---|
-| Durable ticket IDs and truthful states | Planned | [03 § C–D](03-notifications-and-crm.md#slice-c--durable-push-outbox-and-attempts) |
-| Expo receipt polling | Planned | [03 § E](03-notifications-and-crm.md#slice-e--receipt-poller) |
-| Dead-token pruning and bounded retry | Partial/planned | [03 § D–E](03-notifications-and-crm.md#slice-d--sender-ticket-storage-and-retries) |
+| Durable ticket IDs and truthful states | **Built** — migs 171/172/173 prod-applied; tickets stored per attempt, states are expo_accepted/provider_accepted (never "delivered"). expo-push deploy pending | [03 § C–D](03-notifications-and-crm.md#slice-c--durable-push-outbox-and-attempts) |
+| Expo receipt polling | **Built** — `expo-push-receipts` + mig 174, cron `sharmeats-push-receipts` every 15 min active; function deploy pending | [03 § E](03-notifications-and-crm.md#slice-e--receipt-poller) |
+| Dead-token pruning and bounded retry | **Built** — mig 173: SKIP LOCKED claim, capped exponential backoff with jitter, 5-attempt cap as the dead letter, stale-claim reclaim | [03 § D–E](03-notifications-and-crm.md#slice-d--sender-ticket-storage-and-retries) |
 | Stop calling HTTP 2xx delivered | **Built** — migs 148/164; `send_push_campaign` returns per-reason suppression counts + `dry_run`, no "delivered" claim | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Test send, draft, scheduling, failure detail | Planned | [03 § A4/G](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Allow-listed payload routes | Partial/planned | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
