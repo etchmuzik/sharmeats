@@ -77,7 +77,7 @@ Status meanings:
 | Dead-token pruning and bounded retry | **Built** — mig 173: SKIP LOCKED claim, capped exponential backoff with jitter, 5-attempt cap as the dead letter, stale-claim reclaim | [03 § D–E](03-notifications-and-crm.md#slice-d--sender-ticket-storage-and-retries) |
 | Stop calling HTTP 2xx delivered | **Built** — migs 148/164; `send_push_campaign` returns per-reason suppression counts + `dry_run`, no "delivered" claim | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Test send, draft, scheduling, failure detail | Planned | [03 § A4/G](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
-| Allow-listed payload routes | Partial/planned | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
+| Allow-listed payload routes | **Built** — real anchored allow-list (mig 175 + `lib/notificationRoute.ts`); replaced a prefix check that had allowed traversal and reached /signin and /delete-account | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
 | Notification inbox after transport | Deferred by gate | [03 § H](03-notifications-and-crm.md#slice-h--notification-inbox-last) |
 | Menu-item favorites and Saved screen | Built (migrations 139/140, commit `6e60681`) | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
 | Separate restaurant/item favorites | Built | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
