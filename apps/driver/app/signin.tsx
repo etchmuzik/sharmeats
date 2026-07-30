@@ -119,7 +119,7 @@ export default function SignIn() {
             autoCapitalize="none"
             autoCorrect={false}
             textContentType="username"
-            placeholder="driver@sharmeats.eg"
+            placeholder="driver@sharmeats.online"
             placeholderTextColor={colors.ink3}
             accessibilityLabel={t('signin.email')}
             style={[styles.input, { textAlign: 'left', writingDirection: 'ltr' }]}

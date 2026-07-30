@@ -62,7 +62,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="ops@sharmeats.com"
+            placeholder="admin@sharmeats.online"
             autoComplete="username"
             className="w-full rounded-xl border border-line px-4 py-3 outline-none focus:border-accent"
           />
