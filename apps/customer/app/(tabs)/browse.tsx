@@ -19,7 +19,7 @@ import { CuisineChip } from '../../src/components/CuisineChip';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
 import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
-import type { Cuisine, MenuItem, Restaurant } from '../../src/data/types';
+import type { Cuisine, ItemFlag, MenuItem, Restaurant } from '../../src/data/types';
 import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { formatEgp } from '../../src/lib/format';
@@ -92,27 +92,42 @@ export default function BrowseTab() {
   const [activeFlags, setActiveFlags] = useState<Set<'vegetarian' | 'glutenfree'>>(new Set());
   const [sort, setSort] = useState<SortKey>('recommended');
   const [openNow, setOpenNow] = useState(false);
-  // Map restaurant id → set of item flags present in that restaurant's menu.
-  const [flagsByRestaurant, setFlagsByRestaurant] = useState<Map<string, Set<string>>>(new Map());
+  const [flagResult, setFlagResult] = useState<{
+    key: string;
+    restaurantIds: Set<string>;
+  } | null>(null);
+  const [dietaryFilterFailed, setDietaryFilterFailed] = useState(false);
+  const [menuSearchFailed, setMenuSearchFailed] = useState(false);
+  const [catalogRefreshGeneration, setCatalogRefreshGeneration] = useState(0);
+  const debouncedQuery = useDebounce(query, 600);
+  const activeFlagKey = [...activeFlags].sort().join('|');
 
   useEffect(() => {
-    if (activeFlags.size === 0) return;
+    if (activeFlagKey === '') {
+      setFlagResult(null);
+      setDietaryFilterFailed(false);
+      return;
+    }
+
     let cancelled = false;
+    setFlagResult(null);
+    setDietaryFilterFailed(false);
     (async () => {
-      const rs = await db.restaurants.list();
-      const map = new Map<string, Set<string>>();
-      for (const r of rs) {
-        const m = await db.menus.forRestaurant(r.id);
-        const flags = new Set<string>();
-        for (const item of m.items) for (const f of item.flags) flags.add(f);
-        map.set(r.id, flags);
+      try {
+        const selectedFlags = activeFlagKey.split('|') as ItemFlag[];
+        const ids = await db.menus.restaurantIdsForFlags(selectedFlags);
+        if (!cancelled) setFlagResult({ key: activeFlagKey, restaurantIds: ids });
+      } catch {
+        if (!cancelled) {
+          setFlagResult({ key: activeFlagKey, restaurantIds: new Set() });
+          setDietaryFilterFailed(true);
+        }
       }
-      if (!cancelled) setFlagsByRestaurant(map);
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeFlags.size]);
+  }, [activeFlagKey, catalogRefreshGeneration]);
 
   const load = useCallback(async () => {
     const r = await db.restaurants.list();
@@ -125,45 +140,51 @@ export default function BrowseTab() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    setCatalogRefreshGeneration((generation) => generation + 1);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
-  // Cross-restaurant menu-item search when query is non-empty.
+  // Cross-restaurant menu-item search uses Package 07's visibility-scoped,
+  // bounded RPC, then hydrates only the returned rows.
   useEffect(() => {
-    const q = query.toLowerCase().trim();
-    if (q.length < 2) {
+    const q = debouncedQuery.trim();
+    if (q.length < 2 || all.length === 0) {
       setMenuMatches([]);
+      setMenuSearchFailed(false);
       return;
     }
     let cancelled = false;
+    setMenuSearchFailed(false);
     (async () => {
-      const rs = await db.restaurants.list();
-      const matches: MenuMatch[] = [];
-      for (const r of rs) {
-        const m = await db.menus.forRestaurant(r.id);
-        for (const item of m.items) {
-          if (
-            item.name.toLowerCase().includes(q) ||
-            item.description.toLowerCase().includes(q)
-          ) {
-            matches.push({ item, restaurant: r });
-            if (matches.length >= 12) break;
-          }
+      try {
+        const restaurantsById = new Map(
+          all.map((restaurant) => [restaurant.id, restaurant]),
+        );
+        const items = await db.menus.search(q, 12);
+        const matches = items.flatMap((item): MenuMatch[] => {
+          const restaurant = restaurantsById.get(item.restaurantId);
+          return restaurant ? [{ item, restaurant }] : [];
+        });
+        if (!cancelled) setMenuMatches(matches);
+      } catch {
+        if (!cancelled) {
+          setMenuMatches([]);
+          setMenuSearchFailed(true);
         }
-        if (matches.length >= 12) break;
       }
-      if (!cancelled) setMenuMatches(matches);
     })();
     return () => {
       cancelled = true;
     };
-  }, [query]);
+  }, [all, debouncedQuery, catalogRefreshGeneration]);
 
   // Analytics: fire search_performed once typing settles (debounced ~600ms) so
   // PostHog sees one event per search, not one per keystroke. We log only the
   // query length — never the raw text — to avoid capturing PII.
-  const debouncedQuery = useDebounce(query, 600);
   useEffect(() => {
     const q = debouncedQuery.trim();
     if (q.length < 2) return;
@@ -176,10 +197,8 @@ export default function BrowseTab() {
       if (openNow && !effectiveIsOpen(r)) return false;
       if (cuisine !== 'all' && !r.cuisines.includes(cuisine as Cuisine)) return false;
       if (activeFlags.size > 0) {
-        const rflags = flagsByRestaurant.get(r.id);
-        if (!rflags) return false; // not yet indexed
-        for (const f of activeFlags) {
-          if (!rflags.has(f)) return false;
+        if (flagResult?.key !== activeFlagKey || !flagResult.restaurantIds.has(r.id)) {
+          return false;
         }
       }
       if (!q) return true;
@@ -191,7 +210,11 @@ export default function BrowseTab() {
     else if (sort === 'fee') result.sort((a, b) => a.deliveryFeeEgp - b.deliveryFeeEgp);
     else if (sort === 'fastest') result.sort((a, b) => a.prepTimeLow - b.prepTimeLow);
     return result;
-  }, [all, cuisine, query, activeFlags, flagsByRestaurant, openNow, sort]);
+  }, [all, cuisine, query, activeFlags, activeFlagKey, flagResult, openNow, sort]);
+  const displayedMenuMatches =
+    query.trim() === debouncedQuery.trim() ? menuMatches : [];
+  const visibleMenuSearchFailed =
+    query.trim() === debouncedQuery.trim() && menuSearchFailed;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -274,38 +297,73 @@ export default function BrowseTab() {
         contentContainerStyle={{ padding: 16, paddingBottom: 120 + insets.bottom, gap: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
-          menuMatches.length > 0 ? (
+          displayedMenuMatches.length > 0 || visibleMenuSearchFailed ? (
             <View style={styles.menuMatchWrap}>
-              <Text style={styles.menuMatchTitle}>{t('browse.dishes')}</Text>
-              {menuMatches.map((m) => (
-                <Pressable
-                  key={m.item.id}
-                  onPress={() => {
-                    tap();
-                    router.push(`/item/${m.item.id}` as never);
-                  }}
-                  style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.85 }]}>
-                  <Image source={{ uri: m.item.image }} style={styles.menuImg} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.menuName} numberOfLines={1}>
-                      {m.item.name}
-                    </Text>
-                    <Text style={styles.menuSub} numberOfLines={1}>
-                      {m.restaurant.name}
-                    </Text>
-                  </View>
-                  <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp)}</Text>
-                </Pressable>
-              ))}
-              <Text style={styles.menuMatchTitle}>{t('browse.restaurants')}</Text>
+              {visibleMenuSearchFailed && (
+                <View accessibilityRole="alert" style={styles.catalogError}>
+                  <Text style={styles.catalogErrorText}>{t('common.error')}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      setCatalogRefreshGeneration((generation) => generation + 1)
+                    }
+                    style={styles.retryButton}
+                  >
+                    <Text style={styles.retryText}>{t('common.retry')}</Text>
+                  </Pressable>
+                </View>
+              )}
+              {displayedMenuMatches.length > 0 && (
+                <>
+                  <Text style={styles.menuMatchTitle}>{t('browse.dishes')}</Text>
+                  {displayedMenuMatches.map((m) => (
+                    <Pressable
+                      key={m.item.id}
+                      onPress={() => {
+                        tap();
+                        router.push(`/item/${m.item.id}` as never);
+                      }}
+                      style={({ pressed }) => [
+                        styles.menuRow,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <Image source={{ uri: m.item.image }} style={styles.menuImg} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.menuName} numberOfLines={1}>
+                          {m.item.name}
+                        </Text>
+                        <Text style={styles.menuSub} numberOfLines={1}>
+                          {m.restaurant.name}
+                        </Text>
+                      </View>
+                      <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp)}</Text>
+                    </Pressable>
+                  ))}
+                  <Text style={styles.menuMatchTitle}>{t('browse.restaurants')}</Text>
+                </>
+              )}
             </View>
           ) : null
         }
         renderItem={({ item }) => <RestaurantCard restaurant={item} />}
         ListEmptyComponent={
-          menuMatches.length === 0 ? (
+          displayedMenuMatches.length === 0 ? (
             <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <Text style={{ color: colors.ink3 }}>{t('browse.empty')}</Text>
+              <Text style={{ color: colors.ink3, textAlign: 'center' }}>
+                {dietaryFilterFailed ? t('common.error') : t('browse.empty')}
+              </Text>
+              {dietaryFilterFailed && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    setCatalogRefreshGeneration((generation) => generation + 1)
+                  }
+                  style={styles.retryButton}
+                >
+                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                </Pressable>
+              )}
             </View>
           ) : null
         }
@@ -369,4 +427,29 @@ const styles = StyleSheet.create({
   menuName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
   menuSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
   menuPrice: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold },
+  catalogError: {
+    alignItems: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+  },
+  catalogErrorText: {
+    color: colors.ink2,
+    fontSize: font.sizes.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    minHeight: 44,
+    marginTop: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+  },
+  retryText: {
+    color: colors.white,
+    fontSize: font.sizes.md,
+    fontWeight: font.weights.bold,
+  },
 });

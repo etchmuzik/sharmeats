@@ -1,4 +1,4 @@
-import { RESTAURANTS } from '../mock/restaurants';
+import { PUBLIC_RESTAURANTS } from '../mock/restaurants';
 import type { Cuisine, Restaurant, Review } from '../types';
 
 // Canned review pool for mock mode — sliced deterministically per restaurant
@@ -22,10 +22,11 @@ function hashCode(s: string): number {
 
 const delay = <T>(value: T, ms = 80): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
+const publicRestaurantIds = new Set(PUBLIC_RESTAURANTS.map((restaurant) => restaurant.id));
 
 export const restaurantsRepo = {
   async list(filter?: { cuisine?: Cuisine; query?: string }): Promise<Restaurant[]> {
-    let out = RESTAURANTS;
+    let out = PUBLIC_RESTAURANTS;
     if (filter?.cuisine) {
       out = out.filter((r) => r.cuisines.includes(filter.cuisine!));
     }
@@ -39,19 +40,21 @@ export const restaurantsRepo = {
   },
 
   async listFeatured(): Promise<Restaurant[]> {
-    return delay(RESTAURANTS.filter((r) => r.featured));
+    return delay(PUBLIC_RESTAURANTS.filter((r) => r.featured));
   },
 
   async get(id: string): Promise<Restaurant | null> {
-    return delay(RESTAURANTS.find((r) => r.id === id) ?? null);
+    return delay(PUBLIC_RESTAURANTS.find((r) => r.id === id) ?? null);
   },
 
   async getBySlug(slug: string): Promise<Restaurant | null> {
-    return delay(RESTAURANTS.find((r) => r.slug === slug) ?? null);
+    return delay(PUBLIC_RESTAURANTS.find((r) => r.slug === slug) ?? null);
   },
 
   /** Mock reviews — deterministic per restaurant (live mode uses get_restaurant_reviews). */
   async reviews(restaurantId: string, limit = 20): Promise<Review[]> {
+    if (!publicRestaurantIds.has(restaurantId)) return delay([]);
+
     const seed = hashCode(restaurantId);
     const count = 3 + (seed % 4); // 3–6 reviews
     const start = seed % REVIEW_POOL.length;

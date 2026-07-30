@@ -1,6 +1,10 @@
 import { getSupabase } from './client';
 import { rowToMenuItem, rowToMenuSection } from './mappers';
-import type { MenuItem, MenuSection, Modifier } from '../types';
+import type { ItemFlag, MenuItem, MenuSection, Modifier } from '../types';
+import {
+  escapeCatalogPattern,
+  orderCatalogItems,
+} from '../../lib/catalogSearch';
 
 /**
  * Load modifier groups + options for a set of menu items and attach them.
@@ -72,6 +76,67 @@ async function attachModifiers(items: MenuItem[]): Promise<MenuItem[]> {
 }
 
 export const menusRepoSupabase = {
+  async restaurantIdsForFlags(flags: ItemFlag[]): Promise<Set<string>> {
+    if (flags.length === 0) return new Set();
+
+    // Supabase projects cap a single Data API response (commonly at 1,000
+    // rows). Page until exhaustion so a growing catalog never silently drops
+    // restaurants beyond that boundary.
+    const pageSize = 250;
+    const restaurantIds = new Set<string>();
+    let afterId: string | null = null;
+    for (;;) {
+      let query = getSupabase()
+        .from('menu_items')
+        .select('id,restaurant_id')
+        .eq('is_available', true)
+        .contains('flags', flags);
+      if (afterId) query = query.gt('id', afterId);
+
+      const { data, error } = await query.order('id').limit(pageSize);
+      if (error) throw error;
+
+      const page = (data ?? []) as { id: string; restaurant_id: string }[];
+      if (page.length === 0) break;
+      for (const row of page) restaurantIds.add(row.restaurant_id);
+      afterId = page[page.length - 1].id;
+    }
+
+    return restaurantIds;
+  },
+
+  async search(query: string, limit = 12): Promise<MenuItem[]> {
+    const normalized = query.trim();
+    if (normalized.length < 2 || limit <= 0) return [];
+
+    // Package 07 migration 188 owns visibility, availability and bounded
+    // keyset search. Hydrate only the returned IDs so Browse gets images and
+    // descriptions without downloading every restaurant menu.
+    const { data: matches, error: searchError } = await getSupabase().rpc(
+      'search_catalog',
+      {
+        p_query: escapeCatalogPattern(normalized),
+        p_vertical: null,
+        p_restaurant_id: null,
+        p_limit: Math.min(limit, 100),
+        p_after_name: null,
+        p_after_id: null,
+      },
+    );
+    if (searchError) throw searchError;
+
+    const ids = ((matches ?? []) as { item_id: string }[]).map((row) => row.item_id);
+    if (ids.length === 0) return [];
+
+    const { data: items, error: hydrateError } = await getSupabase()
+      .from('menu_items')
+      .select('*')
+      .in('id', ids);
+    if (hydrateError) throw hydrateError;
+
+    return orderCatalogItems(ids, (items ?? []).map(rowToMenuItem));
+  },
+
   async forRestaurant(
     restaurantId: string,
   ): Promise<{ sections: MenuSection[]; items: MenuItem[] }> {
