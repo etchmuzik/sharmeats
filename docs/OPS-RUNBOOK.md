@@ -374,3 +374,75 @@ Note `requires_prescription` writes additionally take the merchant row and the
 vertical advisory lock (migration 160), so a *pharmacy* import holds locks
 slightly longer than a food one. Ordering still fixes it; the extra locks do
 not change the rule.
+
+## 9. Push transport — outbox, retries and receipts
+
+**Deployed 2026-07-30.** `expo-push` v17 and `expo-push-receipts` v1, both with
+`--no-verify-jwt` (they authenticate with the `x-internal-secret` header instead and
+fail CLOSED if `PUSH_INTERNAL_SECRET` is unset).
+
+### What each moving part does
+
+| Piece | Where | Runs |
+|---|---|---|
+| `expo-push` | edge function | called by 14 DB senders on every notification (`ops_alert` is NOT one — it targets Telegram/Slack, has no token or ticket, and is not a push) |
+| `expo-push-receipts` | edge function | cron `sharmeats-push-receipts`, every 15 min |
+| `claim_push_retries` / `settle_push_attempt` | mig 173 | retry claim + backoff |
+| `expired_cart_sweep` | mig 170 | cron `sharmeats-expired-cart-sweep`, 04:30 |
+
+### Reading the tables
+
+To list the senders, match the URL exactly — a `like '%/expo-push%'` also catches
+`push_receipt_sweep`, because `/expo-push-receipts` contains `/expo-push` as a
+substring, and reports 15:
+
+```sql
+select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and pg_get_functiondef(p.oid) like '%''/expo-push''%'   -- quoted literal, not a prefix
+ order by 1;
+```
+
+```sql
+-- Did anything fail to reach Expo?
+select status, suppression_reason, count(*)
+  from public.push_messages group by 1,2 order by 3 desc;
+
+-- Attempts stuck retrying, and what killed the dead ones
+select status, error_code, count(*)
+  from public.push_attempts group by 1,2 order by 3 desc;
+```
+
+`ATTEMPT_CAP` in `push_attempts.error_code` IS the dead-letter queue: five tries were
+made, the last error is on the row, and it will never be retried.
+
+### Vocabulary — this matters when reading a dashboard
+
+* `expo_accepted` — Expo took the message from us.
+* `provider_accepted` — APNs/FCM took it from Expo.
+* **Neither means a device displayed it, and neither means a human saw it.** Nothing
+  in this system knows that, so no column is called "delivered" and no report should
+  say it either.
+* `expired` — we never found out. An unknown, NOT a failure; counting it as one
+  overstates the failure rate.
+
+### Rollback
+
+Both functions are versioned, so a bad deploy rolls back by redeploying the previous
+commit:
+
+```bash
+git checkout <previous-sha> -- supabase/functions/expo-push
+supabase functions deploy expo-push --no-verify-jwt --project-ref ilqpsebcfbaoaogimhud
+git checkout HEAD -- supabase/functions/expo-push
+```
+
+`--no-verify-jwt` is NOT optional on either function. Deploying without it makes every
+DB sender fail with 401, because they authenticate by header rather than JWT.
+
+### Alerting
+
+The receipt poller raises an `ops_alert` only for PROJECT-WIDE failures
+(`InvalidCredentials`, `MismatchSenderId`, `ExperienceNotFound`) — never per dead
+token. One `DeviceNotRegistered` is routine; paging on it is how the channel gets
+muted and the credential failure that stops every push goes unnoticed.
