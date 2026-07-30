@@ -31,8 +31,9 @@ Decision (2026-06-06): go live **cash-on-delivery only**; add card (Paymob) late
 **Operate cash-only:** customers order (COD) → merchant accepts on
 merchant.sharmeats.online → admin dispatches on admin.sharmeats.online → driver
 delivers + collects cash (the app's "Collect X EGP" confirm settles it).
-Logins: dashboards `beyondtech.eg@gmail.com / SharmEats2026!`; driver test
-`ahmed.driver@sharmeats.test / Driver#Test2026`.
+Logins: dashboards sign in as `admin@sharmeats.online`; the driver test account
+is in the Supabase dashboard. **Passwords are never written down here** — this
+repo is public, so anything in it is published. Keep them in a password manager.
 
 ---
 
@@ -91,8 +92,29 @@ Owner: **you** (2 web-UI steps).
 
 ---
 
+## 🔴 Credential rotation — do these first
+
+This repo is **public**. Until 2026-07-30 this file printed the dashboard login
+in plaintext at the line above, so that password must be treated as burned:
+redacting it does not undo the exposure, because git history keeps the old blob
+and GitHub's forks, API and code-search may already hold copies.
+
+- ☐ **Rotate the `beyondtech.eg@gmail.com` password** — it is an `admin` role
+      account reaching dispatch, finance, commission and KYC approval. Better
+      still, retire it as the admin identity in favour of `admin@sharmeats.online`
+      (a real mailbox, so it can receive a password reset; the gmail is personal).
+- ☐ **Review Supabase auth logs** for sign-ins to that account you do not
+      recognise, going back to 2026-06-06 when the repo went public.
+- ☐ **Retire or repoint `ops@sharmeats.test`** — a second dormant `admin` account
+      (last sign-in 2026-06-04). `.test` is a reserved TLD that can never receive
+      mail, so it cannot be password-reset, only deleted or repointed.
+- ☐ **Rotate the Hostinger API token** that was pasted in chat (revoke in
+      hPanel → Account → API, generate fresh).
+
+Rule going forward: no password, token or API key in this repo, in any file.
+Mailbox addresses are fine; the secrets that open them are not.
+
 ## 🧹 Housekeeping (not blocking)
-- ☐ **Rotate the Hostinger API token** that was pasted in chat (revoke in hPanel → Account → API, generate fresh).
 - ☐ Delete the 3 unused Vercel projects (landing/merchant/admin) — nothing points to them.
 - ☐ Verify a real dashboard login in the browser (sign in at merchant.sharmeats.online, confirm live orders load).
 - ☐ Improve the privacy policy / add a dedicated app privacy URL if Apple wants more.

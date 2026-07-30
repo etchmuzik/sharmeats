@@ -221,9 +221,9 @@ to TestFlight; full App Store listing is only needed if you later publicly list
 it — most delivery fleets keep the driver app TestFlight-only or unlisted.)
 
 ### 4.4 Driver test login
-Use the seeded driver account (see project memory):
-`ahmed.driver@sharmeats.test` / `Driver#Test2026` (or create real driver
-accounts via the admin flow).
+Use the seeded driver account `ahmed.driver@sharmeats.test`; its password is in
+the password manager, not here — this repo is public. Or create real driver
+accounts via the admin flow.
 
 ---
 

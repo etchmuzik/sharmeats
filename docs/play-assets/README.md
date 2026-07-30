@@ -30,6 +30,7 @@ profile's `env` block when `appVersionSource: remote`). To get real screens:
    (repeat for `EXPO_PUBLIC_SUPABASE_ANON_KEY`), **or** just build the
    `production` profile (which is wired) and capture from that.
 2. Build, install on an emulator/device, sign in as the test driver
-   (`ahmed.driver@sharmeats.test` / `Driver#Test2026`), and capture: sign-in,
+   `ahmed.driver@sharmeats.test` (password in the password manager — this repo
+   is public), and capture: sign-in,
    online/home, a job card, active delivery, collect-cash confirm (2–8 shots,
    1080×2400). Drop them in a `driver-screenshots/` folder here.
