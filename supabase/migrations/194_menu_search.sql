@@ -1,4 +1,4 @@
--- 190_menu_search.sql
+-- 194_menu_search.sql
 --
 -- One-query cross-restaurant dish search, replacing an N+1 in the customer app.
 --

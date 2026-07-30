@@ -446,7 +446,7 @@ export default function JobScreen() {
             {/* Handoff photo. Required only where nobody is at the door to
                 receive the order — for an in-person handoff the customer is the
                 witness, and demanding a photo of them would be worse than
-                useless. isProofRequired mirrors mig 189's SQL definition. */}
+                useless. isProofRequired mirrors mig 193's SQL definition. */}
             <ProofRow
               required={isProofRequired(job.dropoff_preference)}
               captured={proof !== null}

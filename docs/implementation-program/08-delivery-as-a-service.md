@@ -21,6 +21,22 @@ customer may eventually see top-level choices such as **Food**, **Groceries**,
 **Health/Pharmacy** and **Send**, but only the first three are catalog commerce
 verticals.
 
+> **Status 2026-07-30 — E2 foundations session (owner-approved scope).** All
+> four "existing risk" claims below were verified TRUE; the dispatch one is
+> FIXED (mig 189: auto-assign now searches around the PICKUP). Built dark:
+> mig 190 Slice 0 (cities/service_areas, Sharm seeded from the real bbox
+> authority, fail-closed resolver, boundary-fixture equivalence proven);
+> mig 191 Slice A (delivery_service_configs disabled+closed, three pilot
+> cohorts, append-only access events, capability-gated config/cohort RPCs
+> reusing E0 — the platform owner from mig 187 is the grant root); mig 192
+> Slice B (pricing/parcel-policy versions with the owner's provisional
+> numbers flagged replace-before-trading, private quotes, quote_delivery_job —
+> delivery_dispatch-only, refusing on 8 fail-closed classes, idempotent).
+> Sharm is live-verified disabled/closed: NOTHING is visible or orderable.
+> Next per the spec's rollout: Slice C job model + custody state machine,
+> Slice D shared driver work claims, then internal manual-dispatch proof.
+> Gate 0 evidence register remains owner/compliance-gated.
+
 ## Current evidence
 
 Reusable primitives already exist:

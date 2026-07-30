@@ -13,7 +13,7 @@ export const metadata: Metadata = {
  * Public "follow my order" page.
  *
  * The customer taps Share in the app, which mints an unguessable token
- * (migration 191) and drops a link here. Whoever holds the link sees a
+ * (migration 195) and drops a link here. Whoever holds the link sees a
  * deliberately minimal view — status, ETA, restaurant, courier first name, and
  * the courier's position while the order is actually moving. Never the delivery
  * address, the contents, the prices, or anyone's phone number.
