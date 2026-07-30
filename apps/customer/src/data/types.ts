@@ -353,6 +353,44 @@ export interface PreparedCart {
   subtotalEgp: number;
 }
 
+/**
+ * One cart line as it is stored on the SERVER (mig 168).
+ *
+ * Identity only, deliberately: no price field exists here because none exists in
+ * the table. A price the client could persist and have trusted on restore would
+ * be a self-service discount, so restore goes back through `prepare_cart` for
+ * live prices. See the migration header for the full rationale.
+ */
+export interface ServerCartLine {
+  itemId: string;
+  quantity: number;
+  modifierOptionIds: string[];
+  notes?: string;
+}
+
+/** The caller's stored cart, as returned by a server-cart read. */
+export interface ServerCart {
+  restaurantId: string | null;
+  lines: ServerCartLine[];
+  kitchenNotes?: string;
+  /**
+   * Optimistic-concurrency token. Echo it back on the next write; a mismatch
+   * means another device wrote first and the app must ask which cart to keep.
+   */
+  version: number;
+  updatedAt: string;
+  /**
+   * TTL horizon. The server does NOT enforce this on read — a cart just past
+   * expiry is still offered, flagged stale, rather than silently lost.
+   */
+  expiresAt: string;
+}
+
+/** Result of a server-cart write. `conflict` means nothing was written. */
+export type ServerCartWrite =
+  | { ok: true; version: number; updatedAt: string; expiresAt: string }
+  | { ok: false; conflict: true };
+
 export type OrderStatus =
   | 'placed'
   | 'accepted'
@@ -559,4 +597,29 @@ export interface NotificationPrefsPatch {
   quietHoursEnd?: number;
   timezone?: string;
   clearQuietHours?: boolean;
+}
+
+/**
+ * One row in the notification inbox (Package 03 Slice H).
+ *
+ * `event` rather than body text is deliberate: ordinary events store no copy
+ * server-side (mig 171 keeps custom_* for campaigns only) and localize at dispatch,
+ * so the client localizes with the SAME table the push used. That is what stops the
+ * inbox drifting from the words the notification actually showed.
+ */
+export interface InboxMessage {
+  id: string;
+  event: string;
+  category: 'operational' | 'marketing';
+  orderId?: string;
+  route?: string;
+  vertical?: string;
+  /** Campaign copy overrides the event's localized copy, when present. */
+  customTitle?: string;
+  customBody?: string;
+  queuedAt: string;
+  /** When the PUSH was tapped (attribution). Distinct from readAt. */
+  openedAt?: string;
+  /** When the customer read it IN THE INBOX. Undefined = unread. */
+  readAt?: string;
 }

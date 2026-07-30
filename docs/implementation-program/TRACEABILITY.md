@@ -60,31 +60,31 @@ Status meanings:
 | Explain removed/changed items before checkout | Planned | [02 § A](02-second-order-and-saved-intent.md#slice-a--authoritative-cart-preparation) |
 | Home/Orders “Order again” entry | Built; verify | [02 current evidence](02-second-order-and-saved-intent.md#current-evidence) |
 | Reorder impression-to-delivery analytics | Planned | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate) |
-| Consented 7/14-day reminder | Planned after Package 03 | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
+| Consented 7/14-day reminder | **Built, DARK** — migs 177/178 `reorder_cadence_sweep`, cron active, `lifecycle_mode=observe` so nothing sends until an operator opts in | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Merge guest/server favorites without loss | Built, including durable offline removal (commit `db6e255`) | [02 § B](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Real notification controls | Built (migs 142/143, `expo-push` v15, prod-verified 2026-07-27) | [03 § A status](03-notifications-and-crm.md#slice-a-status) |
-| Consent provenance, quiet hours, locale | Partial — quiet hours built and corrected; consent **event trail** (A3) still missing | [03 § A3](03-notifications-and-crm.md#a3-consent-model) |
+| Consent provenance, quiet hours, locale | **Built** — quiet hours corrected (mig 142); consent event trail live (mig 147), re-verified in prod 2026-07-30 | [03 § A3](03-notifications-and-crm.md#a3-consent-model) |
 | Server campaign consent enforcement | Built/partial; harden | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
-| Frequency caps and unsubscribe | Planned | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
+| Frequency caps and unsubscribe | **Built (caps)** — mig 176: global + per-event weekly caps, active-order suppression, idempotency, deterministic holdouts. Unsubscribe already live via notification prefs | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Gate: second-order, consent and campaign attribution | Planned measurement | [02 acceptance](02-second-order-and-saved-intent.md#acceptance-gate), [03 acceptance](03-notifications-and-crm.md#acceptance-gate) |
 
 ## Phase 3 — proper notifications and loved items
 
 | Roadmap commitment | Status | Specification / acceptance |
 |---|---|---|
-| Durable ticket IDs and truthful states | Planned | [03 § C–D](03-notifications-and-crm.md#slice-c--durable-push-outbox-and-attempts) |
-| Expo receipt polling | Planned | [03 § E](03-notifications-and-crm.md#slice-e--receipt-poller) |
-| Dead-token pruning and bounded retry | Partial/planned | [03 § D–E](03-notifications-and-crm.md#slice-d--sender-ticket-storage-and-retries) |
-| Stop calling HTTP 2xx delivered | Planned correction | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
+| Durable ticket IDs and truthful states | **Built and LIVE** — migs 171/172/173 prod-applied; `expo-push` **v17 deployed 2026-07-30**. Verified end to end: a real send wrote a `push_messages` row with `suppression_reason=no_token` (the case that previously vanished), and a repeat of the same event deduped to one row | [03 § C–D](03-notifications-and-crm.md#slice-c--durable-push-outbox-and-attempts) |
+| Expo receipt polling | **Built and LIVE** — `expo-push-receipts` **v1 deployed 2026-07-30** + mig 174; cron `sharmeats-push-receipts` every 15 min. Was returning 404 on every run until the deploy; now returns `200 ok (nothing awaiting receipts)` | [03 § E](03-notifications-and-crm.md#slice-e--receipt-poller) |
+| Dead-token pruning and bounded retry | **Built** — mig 173: SKIP LOCKED claim, capped exponential backoff with jitter, 5-attempt cap as the dead letter, stale-claim reclaim | [03 § D–E](03-notifications-and-crm.md#slice-d--sender-ticket-storage-and-retries) |
+| Stop calling HTTP 2xx delivered | **Built** — migs 148/164; `send_push_campaign` returns per-reason suppression counts + `dry_run`, no "delivered" claim | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Test send, draft, scheduling, failure detail | Planned | [03 § A4/G](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
-| Allow-listed payload routes | Partial/planned | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
-| Notification inbox after transport | Deferred by gate | [03 § H](03-notifications-and-crm.md#slice-h--notification-inbox-last) |
+| Allow-listed payload routes | **Built** — real anchored allow-list (mig 175 + `lib/notificationRoute.ts`); replaced a prefix check that had allowed traversal and reached /signin and /delete-account | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
+| Notification inbox after transport | **Built DARK; the transport gate is now MET** — mig 179 applied and `expo-push` v17 deployed 2026-07-30, so `push_messages` now fills on every send. It was built ahead of that gate at owner direction and remains untested against organic traffic; client still behind `EXPO_PUBLIC_INBOX_ENABLED` (default off, unlinked) until real messages accumulate | [03 § H](03-notifications-and-crm.md#slice-h--notification-inbox-last) |
 | Menu-item favorites and Saved screen | Built (migrations 139/140, commit `6e60681`) | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
 | Separate restaurant/item favorites | Built | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
 | Cross-device saved sync and offline merge | Built/partial; server item sync + restaurant removal hardening built, full offline item mutation proof remains | [02 § B–C](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
 | Reopened/back-in-stock/real offer triggers | Planned after outbox | [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
-| Cross-device cart snapshots | Planned | [02 § D](02-second-order-and-saved-intent.md#slice-d--server-backed-active-cart) |
-| Safe abandoned-cart reminder | Planned | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
+| Cross-device cart snapshots | **Complete and LIVE** — migs 168/169/170 prod-applied 2026-07-29, conflict sheet shipped, TTL cron job `sharmeats-expired-cart-sweep` active | [02 § D](02-second-order-and-saved-intent.md#slice-d--server-backed-active-cart) |
+| Safe abandoned-cart reminder | **Built, DARK** — migs 177/178 `abandoned_cart_sweep`, cron active, observe mode | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations), [03 § G](03-notifications-and-crm.md#slice-g--lifecycle-crm) |
 | Explainable recommendations, no premature AI | Planned | [02 § E](02-second-order-and-saved-intent.md#slice-e--lifecycle-reminders-and-simple-recommendations) |
 
 ## Phase 4 — cards and public launch
@@ -183,7 +183,7 @@ Status meanings:
 
 | Not-now decision | Enforced in plan |
 |---|---|
-| Inbox before receipts/preferences | 03 H depends on A–G |
+| Inbox before receipts/preferences | **Deferral NOT held** — H was built ahead of its gate at owner direction (2026-07-30) and ships dark; receipts remain unproven because `expo-push` is undeployed |
 | Opaque AI before explainable signals | 02 F |
 | Public cards before reconciliation/refunds | 04 B acceptance gate |
 | Grocery/pharmacy before food proof | 07 Gate 0 |

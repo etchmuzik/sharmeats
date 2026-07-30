@@ -71,7 +71,10 @@ export default function Checkout() {
   const restaurantId = useCart((s) => s.restaurantId);
   const restaurantName = useCart((s) => s.restaurantName);
   const subtotal = useCart((s) => s.subtotal());
-  const clear = useCart((s) => s.clear);
+  // clearEverywhere: the order is placed, so the basket is genuinely finished
+  // and the server row should be retired rather than left for another device to
+  // restore. Local-only clear() is for sign-out.
+  const clearEverywhere = useCart((s) => s.clearEverywhere);
 
   // [031] Idempotency key for this checkout attempt. Stable across retries
   // (double-tap, network retry) so place_order returns the existing order
@@ -300,7 +303,10 @@ export default function Checkout() {
       }
 
       success();
-      clear();
+      // Fire-and-forget: the order is already placed and clear_my_cart is
+      // idempotent, so a failed retire must not turn a successful order into an
+      // error dialog. The next sync or placement cleans up.
+      void clearEverywhere();
       router.replace(`/order/${order.id}?celebrate=1`);
     } catch (e) {
       captureError(e, { where: 'checkout.place' });

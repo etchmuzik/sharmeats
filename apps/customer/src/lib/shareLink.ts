@@ -16,7 +16,7 @@ export const SHARE_PATH = '/track';
 /**
  * Build the shareable URL for a token.
  *
- * The token is URL-safe hex from mig 170, but it is still encoded rather than
+ * The token is URL-safe hex from mig 182, but it is still encoded rather than
  * interpolated raw — a helper that only works for well-formed input is one
  * schema change away from producing a broken or ambiguous link.
  */
