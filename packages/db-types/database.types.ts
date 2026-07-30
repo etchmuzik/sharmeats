@@ -658,6 +658,156 @@ export type Database = {
           },
         ]
       }
+      delivery_parcel_bands: {
+        Row: {
+          band_code: string
+          max_declared_value_egp: number
+          max_weight_kg: number
+          policy_version_id: string
+        }
+        Insert: {
+          band_code: string
+          max_declared_value_egp: number
+          max_weight_kg: number
+          policy_version_id: string
+        }
+        Update: {
+          band_code?: string
+          max_declared_value_egp?: number
+          max_weight_kg?: number
+          policy_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_parcel_bands_policy_version_id_fkey"
+            columns: ["policy_version_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_parcel_policy_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_parcel_categories: {
+        Row: {
+          category: string
+          is_allowed: boolean
+          policy_version_id: string
+        }
+        Insert: {
+          category: string
+          is_allowed: boolean
+          policy_version_id: string
+        }
+        Update: {
+          category?: string
+          is_allowed?: boolean
+          policy_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_parcel_categories_policy_version_id_fkey"
+            columns: ["policy_version_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_parcel_policy_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_parcel_policy_versions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          prohibited_goods_version: string
+          status: string
+          terms_version: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          prohibited_goods_version: string
+          status?: string
+          terms_version: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          prohibited_goods_version?: string
+          status?: string
+          terms_version?: string
+        }
+        Relationships: []
+      }
+      delivery_pricing_versions: {
+        Row: {
+          active_from: string | null
+          approved_by: string | null
+          base_fee_egp: number
+          created_at: string
+          currency: string
+          distance_multiplier: number
+          driver_base_earning_egp: number
+          driver_per_started_km_egp: number
+          id: string
+          included_distance_m: number
+          max_fee_egp: number
+          min_fee_egp: number
+          per_started_km_egp: number
+          retired_at: string | null
+          service_area_id: string
+          status: string
+        }
+        Insert: {
+          active_from?: string | null
+          approved_by?: string | null
+          base_fee_egp: number
+          created_at?: string
+          currency?: string
+          distance_multiplier?: number
+          driver_base_earning_egp: number
+          driver_per_started_km_egp?: number
+          id?: string
+          included_distance_m?: number
+          max_fee_egp: number
+          min_fee_egp: number
+          per_started_km_egp: number
+          retired_at?: string | null
+          service_area_id: string
+          status?: string
+        }
+        Update: {
+          active_from?: string | null
+          approved_by?: string | null
+          base_fee_egp?: number
+          created_at?: string
+          currency?: string
+          distance_multiplier?: number
+          driver_base_earning_egp?: number
+          driver_per_started_km_egp?: number
+          id?: string
+          included_distance_m?: number
+          max_fee_egp?: number
+          min_fee_egp?: number
+          per_started_km_egp?: number
+          retired_at?: string | null
+          service_area_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_pricing_versions_service_area_id_fkey"
+            columns: ["service_area_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_service_configs: {
         Row: {
           default_merchant_exposure_limit_egp: number
@@ -5490,6 +5640,26 @@ export type Database = {
           p_subtotal?: number
         }
         Returns: number
+      }
+      quote_delivery_job: {
+        Args: {
+          p_declared_value_egp: number
+          p_dropoff_lat: number
+          p_dropoff_lng: number
+          p_fragile: boolean
+          p_idempotency_key: string
+          p_package_count: number
+          p_parcel_band_code: string
+          p_parcel_category: string
+          p_pickup_lat: number
+          p_pickup_lng: number
+        }
+        Returns: {
+          billable_distance_m: number
+          expires_at: string
+          price_egp: number
+          quote_id: string
+        }[]
       }
       recent_push_campaigns: {
         Args: { p_limit?: number }
