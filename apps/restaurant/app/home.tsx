@@ -303,25 +303,36 @@ export default function Home() {
       ...kitchen,
       brands: kitchen.brands.map((b) => ({ ...b, isOpen: next })),
     });
+    // [P06 Stage 3] allSettled, not all: the spec requires a VISIBLE per-brand
+    // result. Promise.all failed fast — some brand writes had already landed,
+    // some never ran, and the operator learned only "could not update", not
+    // WHICH storefronts were still taking orders with a dead fryer.
+    const targets = prevKitchen.brands.filter((b) => b.isOpen !== next);
     try {
-      await Promise.all(
-        prevKitchen.brands
-          .filter((b) => b.isOpen !== next)
-          .map((b) => setRestaurantOpen(b.restaurantId, next)),
+      const results = await Promise.allSettled(
+        targets.map((b) => setRestaurantOpen(b.restaurantId, next)),
       );
-    } catch (e) {
-      // Partial failure is possible (Promise.all: some brand writes succeeded,
-      // some didn't) — reverting to the pre-toggle snapshot would disagree
-      // with the server for the brands that DID flip, and the kiosk would
-      // show storefronts as open that are closed (or vice versa) until the
-      // next reload. Re-sync from the server instead of guessing.
-      notifyError();
-      toast(
-        permissionDeniedMessage(e) ??
-          (e instanceof Error ? e.message : 'Could not update status'),
-        'error',
-      );
-      await load();
+      const failed = results
+        .map((r, i) => (r.status === 'rejected' ? { brand: targets[i], reason: r.reason } : null))
+        .filter((f): f is { brand: (typeof targets)[number]; reason: unknown } => f !== null);
+      if (failed.length > 0) {
+        // Name every brand that did NOT flip, with the first failure's cause
+        // (an RLS denial reads as "manager required", not a raw error).
+        notifyError();
+        const names = failed.map((f) => f.brand.name).join(', ');
+        const cause =
+          permissionDeniedMessage(failed[0].reason) ??
+          (failed[0].reason instanceof Error ? failed[0].reason.message : 'update failed');
+        toast(
+          `${targets.length - failed.length}/${targets.length} brands updated — still ${
+            next ? 'closed' : 'OPEN'
+          }: ${names} (${cause})`,
+          'error',
+        );
+        // The optimistic flip is wrong for the failed brands; re-sync rather
+        // than guessing which writes landed.
+        await load();
+      }
     } finally {
       setTogglingOpen(false);
     }

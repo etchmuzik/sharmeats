@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 
 /**
- * The shape mig 186's get_shared_order returns. Deliberately small: no address,
+ * The shape mig 191's get_shared_order returns. Deliberately small: no address,
  * no items, no prices, no phone, no customer name, no ids.
  */
 interface SharedOrder {

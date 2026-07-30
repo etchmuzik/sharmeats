@@ -34,7 +34,7 @@ create table public.menu_items (
   is_available  boolean not null default true
 );
 
-\ir ../migrations/185_menu_search.sql
+\ir ../migrations/190_menu_search.sql
 
 insert into public.restaurants (id, name, is_active) values
   ('60000000-0000-0000-0000-000000000001', 'Koshary House', true),
@@ -215,4 +215,4 @@ $$;
 
 rollback;
 
-\echo '185_menu_search.test.sql: PASS'
+\echo '190_menu_search.test.sql: PASS'

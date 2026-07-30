@@ -49,7 +49,9 @@ export interface OpsDriver {
 export const CUISINES = [
   'italian', 'seafood', 'egyptian', 'sushi', 'healthy', 'burgers', 'cafe',
   'asian', 'pizza', 'breakfast', 'late_night', 'street_food', 'sweets',
-  'grocery', 'pharmacy',
+  // grocery/pharmacy removed (Package 07 Program A): verticals are commerce
+  // workflows, not cuisines. Vertical assignment is admin_assign_merchant_vertical
+  // (mig 158), not a cuisine tag.
 ] as const;
 export type Cuisine = (typeof CUISINES)[number];
 

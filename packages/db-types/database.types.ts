@@ -1352,6 +1352,53 @@ export type Database = {
           },
         ]
       }
+      menu_item_availability_events: {
+        Row: {
+          actor_user_id: string | null
+          changed_at: string
+          id: string
+          idempotency_key: string | null
+          menu_item_id: string
+          new_available: boolean
+          previous_available: boolean | null
+          reason_code: string | null
+          restaurant_id: string
+          source: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          changed_at?: string
+          id?: string
+          idempotency_key?: string | null
+          menu_item_id: string
+          new_available: boolean
+          previous_available?: boolean | null
+          reason_code?: string | null
+          restaurant_id: string
+          source?: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          changed_at?: string
+          id?: string
+          idempotency_key?: string | null
+          menu_item_id?: string
+          new_available?: boolean
+          previous_available?: boolean | null
+          reason_code?: string | null
+          restaurant_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_item_availability_events_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_items: {
         Row: {
           barcode: string | null
@@ -3067,6 +3114,8 @@ export type Database = {
           accepts_card: boolean
           accepts_cash: boolean
           address: string | null
+          busy_extra_minutes: number
+          busy_until: string | null
           commission_pct: number
           cover_image: string
           created_at: string
@@ -3115,6 +3164,8 @@ export type Database = {
           accepts_card?: boolean
           accepts_cash?: boolean
           address?: string | null
+          busy_extra_minutes?: number
+          busy_until?: string | null
           commission_pct?: number
           cover_image: string
           created_at?: string
@@ -3163,6 +3214,8 @@ export type Database = {
           accepts_card?: boolean
           accepts_cash?: boolean
           address?: string | null
+          busy_extra_minutes?: number
+          busy_until?: string | null
           commission_pct?: number
           cover_image?: string
           created_at?: string
@@ -4305,6 +4358,17 @@ export type Database = {
         }[]
       }
       batch_shadow_sweep: { Args: never; Returns: number }
+      brand_gate_report: {
+        Args: { p_days?: number; p_restaurant_id: string }
+        Returns: {
+          gate_name: string
+          gate_no: number
+          measurable: boolean
+          measured_value: string
+          passed: boolean
+          threshold: string
+        }[]
+      }
       can_access_order_thread: {
         Args: { p_order_id: string }
         Returns: boolean
@@ -4741,6 +4805,23 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      marketplace_integrity_findings: {
+        Args: never
+        Returns: {
+          check_name: string
+          detail: string
+          entity_id: string
+        }[]
+      }
+      marketplace_integrity_report: {
+        Args: never
+        Returns: {
+          check_name: string
+          detail: string
+          entity_id: string
+        }[]
+      }
+      marketplace_integrity_sweep: { Args: never; Returns: number }
       menu_items_staff_writable_columns: { Args: never; Returns: string[] }
       my_cash_balance: { Args: never; Returns: number }
       my_cod_capacity: {
@@ -5219,6 +5300,26 @@ export type Database = {
         Returns: undefined
       }
       rider_snapshot: { Args: { p_driver_id: string }; Returns: Json }
+      search_catalog: {
+        Args: {
+          p_after_id?: string
+          p_after_name?: string
+          p_limit?: number
+          p_query: string
+          p_restaurant_id?: string
+          p_vertical?: string
+        }
+        Returns: {
+          is_available: boolean
+          item_id: string
+          name: string
+          price_egp: number
+          restaurant_id: string
+          sku: string
+          unit: string
+          vertical_id: string
+        }[]
+      }
       send_order_message: {
         Args: { p_body: string; p_order_id: string }
         Returns: {
@@ -5274,6 +5375,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_busy_mode: {
+        Args: {
+          p_duration_minutes?: number
+          p_extra_minutes: number
+          p_restaurant_id: string
+        }
+        Returns: string
       }
       set_notification_prefs: {
         Args: {

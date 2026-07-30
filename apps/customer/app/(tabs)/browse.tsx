@@ -46,8 +46,10 @@ const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
   { key: 'street_food', tKey: 'cuisine.street_food', emoji: '🥙' },
   { key: 'egyptian', tKey: 'cuisine.egyptian', emoji: '🍲' },
   { key: 'sweets', tKey: 'cuisine.sweets', emoji: '🍯' },
-  { key: 'grocery', tKey: 'cuisine.grocery', emoji: '🛒' },
-  { key: 'pharmacy', tKey: 'cuisine.pharmacy', emoji: '💊' },
+  // grocery/pharmacy chips removed (Package 07 Program A): a vertical is a
+  // commerce WORKFLOW, not a cuisine. Their discovery surface arrives with the
+  // vertical navigation work; a chip filtering the food list to zero rows only
+  // taught customers the categories are broken.
   { key: 'italian', tKey: 'cuisine.italian', emoji: '🍝' },
   { key: 'seafood', tKey: 'cuisine.seafood', emoji: '🐟' },
   { key: 'sushi', tKey: 'cuisine.sushi', emoji: '🍣' },

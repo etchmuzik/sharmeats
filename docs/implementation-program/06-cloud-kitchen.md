@@ -10,6 +10,41 @@ The commercial and sequencing source of truth remains
 [`../CLOUD-KITCHEN-PLAN.md`](../CLOUD-KITCHEN-PLAN.md). This package specifies
 the remaining product, data, operational and verification work.
 
+> **Status 2026-07-30 — recon + build session.** Claims verified against the
+> live repo/database; deliveries and corrections:
+>
+> * The own-brand infrastructure credit belongs to **mig 126 alone** (1063
+>   lines) — the "126-129, 152-166" range in this file is wrong: 127-129 are
+>   fee/zone fixes and 152-166 are the vertical-authority program. The
+>   protection is genuinely layered: four independent guards keep own brands
+>   unfeaturable, the settlement exclusion has three legs, and
+>   `ranking_integrity_audit` is a security-invoker view.
+> * **Built this session:** mig 184 — the weekly fair-marketplace integrity
+>   sweep this file requires (nothing watched the invariants; first prod run:
+>   0 violations) + urgent food-safety escalation (`food_safety` reason ->
+>   `urgent` priority, previously UNREACHABLE, -> immediate ops page). Mig 185
+>   — `brand_gate_report` encoding the plan's real **seven** gates (this file
+>   lists five), measuring what the data can prove and returning NULL for
+>   owner-evidence gates (COGS, second cook) — NULL blocks. Mig 186 — busy
+>   mode with bounded self-expiring prep bumps flowing into
+>   `delivery_feasibility`, so checkout ETAs and the SLA engine move together.
+>   `scripts/validate-cost-import.sh` — the Stage-1 read-only CSV validator.
+>   Restaurant app: pause-all now reports per-brand results, the ticket
+>   detail carries the brand tag, and item-86 works on every brand of a
+>   multi-brand kitchen (it silently operated on the lowest-id brand only).
+> * **Corrected claims:** "combined brand-tagged queue and pause-all" was
+>   PARTIAL (no per-brand pause exists, and pause-all had no per-brand
+>   result); busy mode and post-acceptance prep/ready timers did not exist;
+>   'urgent' support priority was legal but unreachable.
+> * **Still open (product):** per-brand pause, post-acceptance prep/ready
+>   timers and stalled-order aging, structured out-of-stock reason codes on
+>   reject, test-order mode.
+> * **Owner-gated, untouched by design:** Stage 0 dossier, provisioning
+>   (0 kitchens / 0 own-brand rows in prod — correctly unfabricated), real
+>   recipes/costs, counter/dine-in decision, Stage 7 inventory. Note: prod has
+>   44 active third-party merchant rows — gate 7's >= 40 passes on rows;
+>   whether they are genuinely TRADING is the owner's judgment.
+
 ## Current evidence
 
 Already built and live:

@@ -8,6 +8,7 @@ import { AllergenBanner } from '../../src/components/AllergenBanner';
 import { ContactButtons } from '../../src/components/ContactButtons';
 import {
   allergenLabel,
+  getMyKitchen,
   getOrder,
   subscribeOrders,
   type RestaurantOrder,
@@ -38,6 +39,20 @@ export default function OrderDetail() {
   const { toast } = useToast();
 
   const [order, setOrder] = useState<RestaurantOrder | null>(null);
+  const [brandTag, setBrandTag] = useState<string | undefined>(undefined);
+
+  // Same rule as the queue: only multi-brand kitchens tag; a single-brand
+  // merchant never sees a chip. Failure means no chip, never a broken screen.
+  useEffect(() => {
+    if (!order?.restaurant_id) return;
+    getMyKitchen()
+      .then((k) => {
+        if (k?.isMultiBrand) {
+          setBrandTag(k.brands.find((b) => b.restaurantId === order.restaurant_id)?.shortName);
+        }
+      })
+      .catch(() => {});
+  }, [order?.restaurant_id]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -117,7 +132,28 @@ export default function OrderDetail() {
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>{order.short_code}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>{order.short_code}</Text>
+            {brandTag ? (
+              // [P06 Stage 3] Brand identity rides on the ticket DETAIL too —
+              // the queue already tags tickets, but the cook works from this
+              // screen, and in a multi-brand kitchen "which brand's packaging
+              // and station" is part of the order, not decoration.
+              <View
+                accessibilityLabel={`Brand ${brandTag}`}
+                style={{
+                  backgroundColor: colors.ink,
+                  borderRadius: radius.sm,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                }}
+              >
+                <Text style={{ fontSize: font.sizes.xs, fontWeight: '800', color: colors.white }}>
+                  {brandTag}
+                </Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
             {new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {order.status}
           </Text>

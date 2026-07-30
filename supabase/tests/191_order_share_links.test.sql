@@ -98,7 +98,7 @@ create table public.orders (
   address_snapshot   jsonb
 );
 
-\ir ../migrations/186_order_share_links.sql
+\ir ../migrations/191_order_share_links.sql
 
 insert into public.users (id) values
   ('70000000-0000-0000-0000-000000000001'),   -- customer who orders
@@ -467,4 +467,4 @@ $$;
 
 rollback;
 
-\echo '186_order_share_links.test.sql: PASS'
+\echo '191_order_share_links.test.sql: PASS'
