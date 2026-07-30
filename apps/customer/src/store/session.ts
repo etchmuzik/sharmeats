@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { detectDeviceLanguage } from '../lib/deviceLocale';
 import { mergeFavorites } from './favoritesMerge';
+import {
+  addRecentSearch,
+  removeRecentSearch,
+  sanitizeRecentSearches,
+} from '../lib/recentSearches';
 import type { ThemeMode } from '../theme';
 
 const STORAGE_KEY = '@sharmeats:session:v1';
@@ -62,6 +67,17 @@ interface SessionState {
    * came from. Kept as a plain map so it survives AsyncStorage round-tripping.
    */
   favoriteItemRestaurantIds: Record<string, string>;
+  /**
+   * Queries the user has actually committed to — submitted, or followed
+   * through to a result. Never a keystroke prefix (see browse.tsx).
+   *
+   * Lives HERE, in the identity-scoped blob, rather than under a key of its
+   * own, so `transitionIdentity()` already erases it when the device changes
+   * hands. Search history is among the most revealing data this app holds: the
+   * catalogue includes a pharmacy vertical, so a query can be health
+   * information about whoever typed it.
+   */
+  recentSearches: string[];
   hydrated: boolean;
 
   hydrate: () => Promise<void>;
@@ -81,6 +97,9 @@ interface SessionState {
   toggleFavoriteItem: (menuItemId: string, restaurantId: string) => void;
   markFavoriteItemSynced: (menuItemId: string) => void;
   mergeFavoriteItemsFromServer: (serverIds: string[]) => string[];
+  rememberSearch: (query: string) => void;
+  forgetSearch: (query: string) => void;
+  clearRecentSearches: () => void;
 }
 
 type PersistedSession = Pick<
@@ -99,6 +118,7 @@ type PersistedSession = Pick<
   | 'favoriteItemIds'
   | 'syncedFavoriteItemIds'
   | 'favoriteItemRestaurantIds'
+  | 'recentSearches'
 >;
 
 function snapshot(s: SessionState): PersistedSession {
@@ -117,6 +137,7 @@ function snapshot(s: SessionState): PersistedSession {
     favoriteItemIds: s.favoriteItemIds,
     syncedFavoriteItemIds: s.syncedFavoriteItemIds,
     favoriteItemRestaurantIds: s.favoriteItemRestaurantIds,
+    recentSearches: s.recentSearches,
   };
 }
 
@@ -145,6 +166,7 @@ export const useSession = create<SessionState>((set, get) => ({
   favoriteItemIds: [],
   syncedFavoriteItemIds: [],
   favoriteItemRestaurantIds: {},
+  recentSearches: [],
   hydrated: false,
 
   hydrate: async () => {
@@ -193,6 +215,10 @@ export const useSession = create<SessionState>((set, get) => ({
             parsed.favoriteItemRestaurantIds && typeof parsed.favoriteItemRestaurantIds === 'object'
               ? parsed.favoriteItemRestaurantIds
               : {},
+          // Sanitised rather than trusted: these strings are rendered into
+          // tappable rows, and the blob may come from an older build, a
+          // half-written file, or a restored backup.
+          recentSearches: sanitizeRecentSearches(parsed.recentSearches),
           hydrated: true,
         });
         return;
@@ -222,6 +248,10 @@ export const useSession = create<SessionState>((set, get) => ({
       favoriteItemIds: [],
       syncedFavoriteItemIds: [],
       favoriteItemRestaurantIds: {},
+      // In-memory clearing matters as much as the key removal below: a browse
+      // screen mounted at sign-out would keep rendering the previous person's
+      // search history, and the next write would persist it straight back.
+      recentSearches: [],
     });
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
   },
@@ -365,5 +395,33 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ favoriteItemIds: merged, syncedFavoriteItemIds: synced });
     persist(snapshot(get()));
     return needsUpload;
+  },
+
+  /**
+   * Called only for a query the user COMMITTED to — submitted from the
+   * keyboard, or followed through to a result. Never on a keystroke: recording
+   * every debounced prefix would fill the list with "piz" and "pizz" and evict
+   * the searches worth keeping.
+   */
+  rememberSearch: (query) => {
+    const recentSearches = addRecentSearch(get().recentSearches, query);
+    // addRecentSearch returns a copy even when nothing changed (too short, or
+    // already newest), so compare before writing to avoid a pointless render
+    // and AsyncStorage write on every submit of the same term.
+    const current = get().recentSearches;
+    if (recentSearches.length === current.length && recentSearches.every((q, i) => q === current[i]))
+      return;
+    set({ recentSearches });
+    persist(snapshot(get()));
+  },
+
+  forgetSearch: (query) => {
+    set({ recentSearches: removeRecentSearch(get().recentSearches, query) });
+    persist(snapshot(get()));
+  },
+
+  clearRecentSearches: () => {
+    set({ recentSearches: [] });
+    persist(snapshot(get()));
   },
 }));

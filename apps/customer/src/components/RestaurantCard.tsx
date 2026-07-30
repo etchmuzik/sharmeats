@@ -12,7 +12,18 @@ import { TouristSafeBadge } from './TouristSafeBadge';
 import { OwnBrandBadge } from './OwnBrandBadge';
 import { useT } from '../i18n';
 
-export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
+export function RestaurantCard({
+  restaurant,
+  onOpen,
+}: {
+  restaurant: Restaurant;
+  /**
+   * Side-effect to run just before navigating. Browse uses it to record a
+   * search the user followed through on; the card itself stays responsible for
+   * navigation so every caller behaves the same.
+   */
+  onOpen?: () => void;
+}) {
   const colors = useThemeColors();
   const styles = useStyles();
   const router = useRouter();
@@ -24,6 +35,7 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
     <PressableScale
       haptic="tap"
       onPress={() => {
+        onOpen?.();
         router.push(`/restaurant/${restaurant.id}` as never);
       }}
       style={styles.card}>

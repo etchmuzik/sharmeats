@@ -81,6 +81,11 @@ export type AnalyticsEvent =
   | 'order_share_revoked'
   | 'referral_shared'
   | 'saved_order_created'
+  // Search memory. Carries `kind` and lengths only — never the query text,
+  // which is exactly the free-text this app refuses to send (a pharmacy search
+  // is health information about the person who typed it).
+  | 'search_recent_used'
+  | 'search_recents_cleared'
   // --- Package 01 §4 canonical funnel ------------------------------------
   // Documented in docs/ANALYTICS-DICTIONARY.md. The funnel these complete is
   //   app_opened -> restaurant_viewed -> add_to_cart -> checkout_opened

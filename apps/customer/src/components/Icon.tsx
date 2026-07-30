@@ -14,6 +14,7 @@ import { useThemeColors } from '../themeProvider';
 export type IconName =
   | 'location'
   | 'search'
+  | 'history' // a previous search, replayed
   | 'cart'
   | 'card'
   | 'cash'
@@ -58,6 +59,7 @@ export type IconName =
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
   search: 'search-outline',
+  history: 'time-outline',
   cart: 'bag-handle-outline',
   card: 'card-outline',
   cash: 'cash-outline',

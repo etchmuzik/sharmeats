@@ -25,6 +25,7 @@ import { formatEgp } from '../../src/lib/format';
 import { effectiveIsOpen } from '../../src/lib/openHours';
 import { tap } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
+import { useSession } from '../../src/store/session';
 
 /**
  * Debounce a changing value so effects fire after typing settles, not on every
@@ -95,6 +96,11 @@ export default function BrowseTab() {
   // (with modifier trees it never read) just to union their flags.
   const [flagMatchIds, setFlagMatchIds] = useState<Set<string>>(new Set());
 
+  const recentSearches = useSession((s) => s.recentSearches);
+  const rememberSearch = useSession((s) => s.rememberSearch);
+  const forgetSearch = useSession((s) => s.forgetSearch);
+  const clearRecentSearches = useSession((s) => s.clearRecentSearches);
+
   // Sorted+joined so the effect re-runs when the flag SET CHANGES, not merely
   // when its size does: swapping vegetarian for gluten-free keeps size at 1, and
   // keying on `.size` left the previous filter's ids in place.
@@ -123,9 +129,21 @@ export default function BrowseTab() {
     };
   }, [activeFlagKey]);
 
+  // Distinguishes "the catalogue is empty" from "the catalogue has not arrived
+  // yet". Without it the list is empty on the very first render, so an empty
+  // state flashes — now telling the user their search matched nothing before a
+  // search has even run.
+  const [loaded, setLoaded] = useState(false);
+
   const load = useCallback(async () => {
-    const r = await db.restaurants.list();
-    setAll(r);
+    try {
+      const r = await db.restaurants.list();
+      setAll(r);
+    } finally {
+      // Set even on failure: a fetch that errored has still finished, and
+      // leaving the screen blank forever is worse than showing the empty state.
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -197,6 +215,54 @@ export default function BrowseTab() {
     return result;
   }, [all, cuisine, query, activeFlags, flagMatchIds, openNow, sort]);
 
+  const trimmedQuery = query.trim();
+
+  // How many filters are narrowing the list. This drives the empty state:
+  // "nothing matches what you typed" and "your filters excluded everything" are
+  // different problems, and only the second one has a fix the user can act on.
+  // Sort is excluded — it reorders, it never removes.
+  const activeFilterCount = (openNow ? 1 : 0) + activeFlags.size + (cuisine !== 'all' ? 1 : 0);
+
+  const clearFilters = useCallback(() => {
+    tap();
+    setOpenNow(false);
+    setActiveFlags(new Set());
+    setCuisine('all');
+  }, []);
+
+  /**
+   * Record a query the user COMMITTED to — submitted from the keyboard, or
+   * followed through to a dish or a restaurant.
+   *
+   * Deliberately NOT the debounced query. Recording what people type would fill
+   * an eight-slot list with "piz" and "pizz" and evict the searches actually
+   * worth keeping; committing is the only signal that a query meant something.
+   */
+  const commitSearch = useCallback(
+    (q: string) => {
+      rememberSearch(q);
+    },
+    [rememberSearch],
+  );
+
+  /** Replay a saved search. Re-recording it promotes it back to the top. */
+  const runRecentSearch = useCallback(
+    (q: string) => {
+      tap();
+      setQuery(q);
+      rememberSearch(q);
+      // Length only, never the text — see the analytics deny-list.
+      track('search_recent_used', { queryLength: q.length });
+    },
+    [rememberSearch],
+  );
+
+  // Shown whenever the box is empty rather than while it is focused. Gating on
+  // focus would race the blur that fires when a row is tapped: the panel would
+  // unmount before the press landed.
+  const showRecents = trimmedQuery.length === 0 && recentSearches.length > 0;
+  const isSearching = trimmedQuery.length > 0 || activeFilterCount > 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemedStatusBar />
@@ -211,7 +277,21 @@ export default function BrowseTab() {
             placeholderTextColor={colors.ink3}
             style={styles.input}
             accessibilityLabel={t('home.searchHint')}
+            returnKeyType="search"
+            onSubmitEditing={() => commitSearch(query)}
           />
+          {trimmedQuery.length > 0 && (
+            <Pressable
+              onPress={() => {
+                tap();
+                setQuery('');
+              }}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('browse.clearSearch')}>
+              <Icon name="close" size={16} color={colors.ink3} />
+            </Pressable>
+          )}
         </View>
         {/* [App v2] circular category chips — the arc picker's lighter, all-13
             interpretation. RTL is mirrored explicitly because this app never
@@ -278,40 +358,141 @@ export default function BrowseTab() {
         contentContainerStyle={{ padding: 16, paddingBottom: 120 + insets.bottom, gap: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
-          menuMatches.length > 0 ? (
-            <View style={styles.menuMatchWrap}>
-              <Text style={styles.menuMatchTitle}>{t('browse.dishes')}</Text>
-              {menuMatches.map((m) => (
-                <Pressable
-                  key={m.itemId}
-                  onPress={() => {
-                    tap();
-                    router.push(`/item/${m.itemId}` as never);
-                  }}
-                  style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.85 }]}>
-                  <Image source={{ uri: m.itemImage }} style={styles.menuImg} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.menuName} numberOfLines={1}>
-                      {m.itemName}
+          <View>
+            {showRecents && (
+              <View style={styles.recentWrap}>
+                <View style={styles.recentHead}>
+                  <Text style={styles.sectionTitle}>{t('browse.recent')}</Text>
+                  <Pressable
+                    onPress={() => {
+                      tap();
+                      clearRecentSearches();
+                      track('search_recents_cleared', { count: recentSearches.length });
+                    }}
+                    hitSlop={8}
+                    accessibilityRole="button">
+                    <Text style={styles.recentClear}>{t('browse.clearAll')}</Text>
+                  </Pressable>
+                </View>
+                {recentSearches.map((q) => (
+                  <Pressable
+                    key={q.toLowerCase()}
+                    onPress={() => runRecentSearch(q)}
+                    style={({ pressed }) => [
+                      styles.recentRow,
+                      { flexDirection: dir.isRtl ? 'row-reverse' : 'row' },
+                      pressed && { opacity: 0.85 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('browse.searchAgain', { query: q })}>
+                    <Icon name="history" size={16} color={colors.ink3} />
+                    <Text style={styles.recentText} numberOfLines={1}>
+                      {q}
                     </Text>
-                    <Text style={styles.menuSub} numberOfLines={1}>
-                      {m.restaurantName}
-                    </Text>
-                  </View>
-                  <Text style={styles.menuPrice}>{formatEgp(m.priceEgp)}</Text>
-                </Pressable>
-              ))}
-              <Text style={styles.menuMatchTitle}>{t('browse.restaurants')}</Text>
-            </View>
-          ) : null
+                    <Pressable
+                      onPress={() => {
+                        tap();
+                        forgetSearch(q);
+                      }}
+                      hitSlop={12}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('browse.forgetSearch', { query: q })}>
+                      <Icon name="close" size={15} color={colors.ink3} />
+                    </Pressable>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {menuMatches.length > 0 && (
+              <View style={styles.menuMatchWrap}>
+                <Text style={styles.sectionTitle}>
+                  {t('browse.dishesCount', { count: menuMatches.length })}
+                </Text>
+                {menuMatches.map((m) => (
+                  <Pressable
+                    key={m.itemId}
+                    onPress={() => {
+                      tap();
+                      // Following a dish through is a completed search, even
+                      // though the user never pressed the keyboard's search key.
+                      commitSearch(query);
+                      router.push(`/item/${m.itemId}` as never);
+                    }}
+                    style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.85 }]}>
+                    <Image source={{ uri: m.itemImage }} style={styles.menuImg} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuName} numberOfLines={1}>
+                        {m.itemName}
+                      </Text>
+                      <Text style={styles.menuSub} numberOfLines={1}>
+                        {m.restaurantName}
+                      </Text>
+                    </View>
+                    <Text style={styles.menuPrice}>{formatEgp(m.priceEgp)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* A count, and the heading that separates dishes from places. Both
+                only once something is actually narrowing the list — an
+                unfiltered browse does not need to be told how many merchants
+                exist. */}
+            {isSearching && filtered.length > 0 && (
+              <Text style={styles.sectionTitle}>
+                {t('browse.restaurantsCount', { count: filtered.length })}
+              </Text>
+            )}
+          </View>
         }
-        renderItem={({ item }) => <RestaurantCard restaurant={item} />}
+        renderItem={({ item }) => (
+          <RestaurantCard
+            restaurant={item}
+            // Opening a restaurant off the back of a query is the strongest
+            // signal the search was worth remembering. Gated on the QUERY, not
+            // on isSearching — arriving via a filter alone is not a search.
+            onOpen={trimmedQuery.length > 0 ? () => commitSearch(query) : undefined}
+          />
+        )}
         ListEmptyComponent={
-          menuMatches.length === 0 ? (
-            <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <Text style={{ color: colors.ink3 }}>{t('browse.empty')}</Text>
+          // Nothing at all until the first load resolves: an empty state that
+          // appears before the catalogue arrives says the search matched
+          // nothing when no search has run.
+          !loaded ? null : (
+            <View style={styles.emptyWrap}>
+              {menuMatches.length > 0 ? (
+                // Dishes DID match, so this is not a dead end and does not
+                // deserve the full treatment — just an explanation of why the
+                // places list under the dishes is empty.
+                <Text style={styles.emptyBody}>{t('browse.emptyDishesOnly')}</Text>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>
+                    {activeFilterCount > 0
+                      ? t('browse.emptyFiltered')
+                      : trimmedQuery.length > 0
+                        ? t('browse.emptyQuery', { query: trimmedQuery })
+                        : t('browse.empty')}
+                  </Text>
+                  {/* Filters are the only empty state with a fix the user can
+                      act on, so it gets a button rather than a suggestion. */}
+                  {activeFilterCount > 0 ? (
+                    <Pressable
+                      onPress={clearFilters}
+                      style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]}
+                      accessibilityRole="button">
+                      <Text style={styles.emptyBtnText}>{t('browse.clearFilters')}</Text>
+                    </Pressable>
+                  ) : (
+                    trimmedQuery.length > 0 && (
+                      <Text style={styles.emptyBody}>{t('browse.emptyQueryHint')}</Text>
+                    )
+                  )}
+                </>
+              )}
             </View>
-          ) : null
+          )
         }
       />
     </View>
@@ -349,7 +530,7 @@ const useStyles = makeStyles((colors) => ({
   flagRow: { gap: 8, paddingTop: 4, paddingBottom: 14, alignItems: 'center' },
   sortDivider: { width: 1, height: 22, backgroundColor: colors.line2, marginHorizontal: 4 },
   menuMatchWrap: { gap: 6, marginBottom: 14 },
-  menuMatchTitle: {
+  sectionTitle: {
     fontSize: font.sizes.sm,
     color: colors.ink3,
     fontWeight: font.weights.bold,
@@ -358,6 +539,46 @@ const useStyles = makeStyles((colors) => ({
     paddingTop: 10,
     paddingBottom: 4,
   },
+  recentWrap: { gap: 2, marginBottom: 10 },
+  recentHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  // ink2, not ink3: this is the only way to remove history, so it has to be
+  // legible rather than decorative. ink3 is a 5.2:1 hint colour; a control that
+  // destroys data should not read as a hint.
+  recentClear: {
+    fontSize: font.sizes.sm,
+    color: colors.ink2,
+    fontWeight: font.weights.bold,
+  },
+  recentRow: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 8,
+    borderRadius: radius.md,
+  },
+  recentText: { flex: 1, fontSize: font.sizes.lg, color: colors.ink },
+  emptyWrap: { paddingTop: 48, alignItems: 'center', gap: 10, paddingHorizontal: 24 },
+  emptyTitle: {
+    fontSize: font.sizes.lg,
+    color: colors.ink,
+    fontWeight: font.weights.bold,
+    textAlign: 'center',
+  },
+  emptyBody: { fontSize: font.sizes.md, color: colors.ink2, textAlign: 'center', lineHeight: 20 },
+  emptyBtn: {
+    marginTop: 4,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: radius.lg,
+  },
+  // onInk, not white: `ink` inverts between themes, so a label pinned to
+  // near-white disappears on the light fill the dark theme uses.
+  emptyBtnText: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.md },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
