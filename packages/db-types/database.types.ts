@@ -1031,6 +1031,65 @@ export type Database = {
           },
         ]
       }
+      delivery_proofs: {
+        Row: {
+          captured_at: string
+          created_at: string
+          driver_id: string
+          dropoff_preference: string | null
+          id: string
+          order_id: string
+          storage_path: string
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string
+          driver_id: string
+          dropoff_preference?: string | null
+          id?: string
+          order_id: string
+          storage_path: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          driver_id?: string
+          dropoff_preference?: string | null
+          id?: string
+          order_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_proofs_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "delivery_proofs_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_proofs_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_proofs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_service_configs: {
         Row: {
           default_merchant_exposure_limit_egp: number
@@ -2787,6 +2846,45 @@ export type Database = {
             foreignKeyName: "order_refunds_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_shares: {
+        Row: {
+          created_at: string
+          created_by: string
+          order_id: string
+          revoked_at: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          order_id: string
+          revoked_at?: string | null
+          token: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          order_id?: string
+          revoked_at?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_shares_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_shares_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -4989,6 +5087,23 @@ export type Database = {
         }[]
       }
       anonymize_my_account: { Args: never; Returns: undefined }
+      append_merchant_menu_item: {
+        Args: {
+          p_description: string
+          p_flags: Database["public"]["Enums"]["item_flag_type"][]
+          p_image: string
+          p_is_available: boolean
+          p_name: string
+          p_price_egp: number
+          p_restaurant_id: string
+          p_section_id: string
+        }
+        Returns: string
+      }
+      append_merchant_menu_section: {
+        Args: { p_name: string; p_restaurant_id: string }
+        Returns: string
+      }
       apply_as_restaurant: {
         Args: {
           p_address: string
@@ -5008,26 +5123,6 @@ export type Database = {
           p_prep_low: number
           p_terms_version: string
           p_zone: Database["public"]["Enums"]["zone_type"]
-        }
-        Returns: string
-      }
-      append_merchant_menu_item: {
-        Args: {
-          p_description: string
-          p_flags: Database["public"]["Enums"]["item_flag_type"][]
-          p_image: string
-          p_is_available: boolean
-          p_name: string
-          p_price_egp: number
-          p_restaurant_id: string
-          p_section_id: string
-        }
-        Returns: string
-      }
-      append_merchant_menu_section: {
-        Args: {
-          p_name: string
-          p_restaurant_id: string
         }
         Returns: string
       }
@@ -5142,6 +5237,7 @@ export type Database = {
           status: string
         }[]
       }
+      create_order_share: { Args: { p_order_id: string }; Returns: string }
       current_fx_rates: {
         Args: never
         Returns: {
@@ -5160,6 +5256,14 @@ export type Database = {
           eta_minutes: number
           in_range: boolean
         }[]
+      }
+      delivery_proof_path_indexed: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
+      delivery_proof_required: {
+        Args: { p_dropoff_preference: string }
+        Returns: boolean
       }
       disablelongtransactions: { Args: never; Returns: string }
       dispatch_sweep: { Args: never; Returns: number }
@@ -5424,6 +5528,23 @@ export type Database = {
           reviewer: string
         }[]
       }
+      get_shared_order: {
+        Args: { p_token: string }
+        Returns: {
+          driver_lat: number
+          driver_lng: number
+          driver_name: string
+          driver_pinged_at: string
+          driver_rating: number
+          driver_vehicle: string
+          eta_at: string
+          restaurant_lat: number
+          restaurant_lng: number
+          restaurant_name: string
+          short_code: string
+          status: string
+        }[]
+      }
       gettransactionid: { Args: never; Returns: unknown }
       grant_delivery_pilot_access: {
         Args: {
@@ -5464,10 +5585,7 @@ export type Database = {
         Returns: boolean
       }
       import_merchant_menu: {
-        Args: {
-          p_restaurant_id: string
-          p_rows: Json
-        }
+        Args: { p_restaurant_id: string; p_rows: Json }
         Returns: Json
       }
       in_quiet_hours: {
@@ -5780,6 +5898,18 @@ export type Database = {
       }
       ops_alert: { Args: { p_text: string }; Returns: undefined }
       ops_daily_digest: { Args: never; Returns: undefined }
+      ops_deliveries_missing_proof: {
+        Args: { p_since?: string }
+        Returns: {
+          assigned_driver_id: string
+          delivered_at: string
+          dropoff_preference: string
+          order_id: string
+          payment_method: string
+          short_code: string
+          total_egp: number
+        }[]
+      }
       ops_stats_text: { Args: { p_scope: string }; Returns: string }
       payment_reconciliation_findings: {
         Args: { p_days?: number }
@@ -6000,6 +6130,10 @@ export type Database = {
         }
         Returns: string
       }
+      record_delivery_proof: {
+        Args: { p_order_id: string; p_storage_path: string }
+        Returns: string
+      }
       record_fx_observation: {
         Args: {
           p_allow_jump?: boolean
@@ -6084,6 +6218,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      revoke_order_share: { Args: { p_order_id: string }; Returns: undefined }
       revoke_platform_capability: {
         Args: { p_capability: string; p_reason: string; p_user_id: string }
         Returns: undefined
