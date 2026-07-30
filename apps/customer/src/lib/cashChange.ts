@@ -10,6 +10,22 @@ function normalizeDigits(value: string): string {
     .replace(/[\s,٬،]/g, '');
 }
 
+// Egypt's largest circulating banknote. A customer pays with notes, so a
+// plausible tender sits within a few of these above the bill.
+const LARGEST_NOTE_EGP = 200;
+const MAX_CHANGE_NOTES = 5;
+
+/**
+ * The most a driver could plausibly be asked to make change for.
+ *
+ * Scales with the order so a large bill can still be paid with large notes,
+ * while a mistyped digit on a small order is caught at checkout rather than at
+ * the doorstep, where the only outcomes are a failed handoff or a dispute.
+ */
+function maxPlausibleTender(payableEgp: number): number {
+  return payableEgp + LARGEST_NOTE_EGP * MAX_CHANGE_NOTES;
+}
+
 /**
  * Interpret the optional note value as the cash amount the customer will hand
  * to the driver. EGP order totals are integer-valued throughout the platform.
@@ -26,7 +42,8 @@ export function cashTenderForTotal(input: string, totalEgp: number): CashTender 
     !Number.isSafeInteger(tenderEgp) ||
     tenderEgp <= 0 ||
     !Number.isFinite(payableEgp) ||
-    tenderEgp < payableEgp
+    tenderEgp < payableEgp ||
+    tenderEgp > maxPlausibleTender(payableEgp)
   ) {
     return { kind: 'invalid' };
   }

@@ -32,6 +32,34 @@ describe('cashTenderForTotal', () => {
       expect(cashTenderForTotal(value, 572)).toEqual({ kind: 'invalid' });
     }
   });
+
+  it('rejects a tender the driver could not plausibly make change for', () => {
+    // A doorstep handoff fails if the driver is asked to carry change no
+    // courier float covers. Caught at checkout, not at the door.
+    for (const value of ['60000', '999999999999']) {
+      expect(cashTenderForTotal(value, 572)).toEqual({ kind: 'invalid' });
+    }
+  });
+
+  it('still accepts a realistic large-note tender', () => {
+    // Egypt's largest circulating note is 200 EGP; paying a 572 EGP order with
+    // 1000 (5 x 200) must remain valid.
+    expect(cashTenderForTotal('1000', 572)).toEqual({
+      kind: 'valid',
+      tenderEgp: 1000,
+      changeEgp: 428,
+    });
+  });
+
+  it('scales the ceiling with the order total', () => {
+    // A large order legitimately needs a large tender: 4000 on a 3800 order is
+    // fine even though it exceeds the ceiling of a small order.
+    expect(cashTenderForTotal('4000', 3800)).toEqual({
+      kind: 'valid',
+      tenderEgp: 4000,
+      changeEgp: 200,
+    });
+  });
 });
 
 describe('composeDriverDropoffNote', () => {
