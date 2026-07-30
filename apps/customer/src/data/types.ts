@@ -624,3 +624,22 @@ export interface ServerFxRate {
 export interface FxRepository {
   currentRates(): Promise<ServerFxRate[]>;
 }
+
+// ---------------------------------------------------------------------------
+// Acquisition attribution (Package 05 Slice D)
+// ---------------------------------------------------------------------------
+
+export interface AcquisitionTouchInput {
+  installId: string;
+  source: string;
+  campaign: string | null;
+  partnerCode: string | null;
+  deepLink: string | null;
+}
+
+export interface AcquisitionRepository {
+  /** Fire-and-forget: server degrades junk to 'unknown', drops unlisted partner codes. */
+  recordTouch(t: AcquisitionTouchInput): Promise<void>;
+  /** Binds this install's anonymous touches to the signed-in user. */
+  claim(installId: string): Promise<void>;
+}

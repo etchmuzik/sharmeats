@@ -38,6 +38,84 @@ export type Database = {
         }
         Relationships: []
       }
+      acquisition_partners: {
+        Row: {
+          code: string
+          created_at: string
+          is_active: boolean
+          label: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          is_active?: boolean
+          label: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          is_active?: boolean
+          label?: string
+        }
+        Relationships: []
+      }
+      acquisition_touches: {
+        Row: {
+          campaign: string | null
+          claimed_at: string | null
+          deep_link: string | null
+          id: string
+          install_id: string
+          kind: string
+          medium: string | null
+          occurred_at: string
+          partner_code: string | null
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          campaign?: string | null
+          claimed_at?: string | null
+          deep_link?: string | null
+          id?: string
+          install_id: string
+          kind: string
+          medium?: string | null
+          occurred_at?: string
+          partner_code?: string | null
+          source: string
+          user_id?: string | null
+        }
+        Update: {
+          campaign?: string | null
+          claimed_at?: string | null
+          deep_link?: string | null
+          id?: string
+          install_id?: string
+          kind?: string
+          medium?: string | null
+          occurred_at?: string
+          partner_code?: string | null
+          source?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acquisition_touches_partner_code_fkey"
+            columns: ["partner_code"]
+            isOneToOne: false
+            referencedRelation: "acquisition_partners"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "acquisition_touches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       addresses: {
         Row: {
           apartment: string | null
@@ -2055,6 +2133,7 @@ export type Database = {
       orders: {
         Row: {
           accepted_at: string | null
+          acquisition_touch_id: string | null
           address_id: string | null
           address_snapshot: Json
           aggregate_allergens:
@@ -2116,6 +2195,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          acquisition_touch_id?: string | null
           address_id?: string | null
           address_snapshot: Json
           aggregate_allergens?:
@@ -2177,6 +2257,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          acquisition_touch_id?: string | null
           address_id?: string | null
           address_snapshot?: Json
           aggregate_allergens?:
@@ -2237,6 +2318,13 @@ export type Database = {
           zone?: Database["public"]["Enums"]["zone_type"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_acquisition_touch_id_fkey"
+            columns: ["acquisition_touch_id"]
+            isOneToOne: false
+            referencedRelation: "acquisition_touches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_address_id_fkey"
             columns: ["address_id"]
@@ -3980,6 +4068,18 @@ export type Database = {
       }
       _st_within: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
       abandoned_cart_sweep: { Args: never; Returns: number }
+      acquisition_report: {
+        Args: { p_days?: number }
+        Returns: {
+          campaign: string
+          first_orders: number
+          installs: number
+          partner_code: string
+          repeat_orders: number
+          signed_up: number
+          source: string
+        }[]
+      }
       addauth: { Args: { "": string }; Returns: boolean }
       addgeometrycolumn:
         | {
@@ -4210,6 +4310,10 @@ export type Database = {
         Returns: boolean
       }
       can_view_vertical: { Args: { p_vertical_id: string }; Returns: boolean }
+      claim_acquisition_touches: {
+        Args: { p_install_id: string }
+        Returns: undefined
+      }
       claim_push_retries: {
         Args: { p_limit?: number }
         Returns: {
@@ -5003,6 +5107,17 @@ export type Database = {
       }
       reconcile_push_campaigns: { Args: never; Returns: number }
       reconcile_stale_card_orders: { Args: never; Returns: number }
+      record_acquisition_touch: {
+        Args: {
+          p_campaign?: string
+          p_deep_link?: string
+          p_install_id: string
+          p_medium?: string
+          p_partner_code?: string
+          p_source: string
+        }
+        Returns: undefined
+      }
       record_cash_handin: {
         Args: {
           p_amount_egp: number

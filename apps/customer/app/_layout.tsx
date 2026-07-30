@@ -9,6 +9,7 @@ import { db, isBackendLive } from '../src/data';
 import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
 import { identifyUser, initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics';
 import { hydrateFxRates, refreshFxRates } from '../src/currency/rates';
+import { claimAcquisition, initAcquisition } from '../src/lib/acquisition';
 import { configureNotificationHandler, registerForPush, useNotificationRouting } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
@@ -59,6 +60,8 @@ export default function RootLayout() {
         if (id) identifyUser(id);
       })
       .catch(() => {});
+    // [P05-D] Attribution survives registration: bind this install's touches.
+    void claimAcquisition();
   }, [hydrated, isSignedIn]);
 
   // app_opened is the head of the funnel, so it must not fire before the
@@ -77,6 +80,8 @@ export default function RootLayout() {
     // waits on network), then a fresh fetch. Both are fire-and-forget: a
     // conversion hint must never delay startup or surface a network error.
     void hydrateFxRates().then(() => refreshFxRates());
+    // [P05-D] Acquisition capture: initial URL, live links, organic default.
+    void initAcquisition();
     // In live mode, ensure a real Supabase session exists before any screen
     // queries the backend (the server-authority RPCs require auth.uid()).
     // Anonymous sign-in is the zero-friction guest path; failures are logged
