@@ -7,19 +7,9 @@ import { selection } from '../haptics';
 import { useCart } from '../store/cart';
 import { useUnreadBadges } from '../hooks/useUnreadBadges';
 import { useT } from '../i18n';
-import { Icon, type IconName } from './Icon';
+import { MAIN_TABS, mainTabKeyForPath } from '../navigation/mainNavigation';
+import { Icon } from './Icon';
 import { PressableScale } from './PressableScale';
-
-type TabKey = 'home' | 'browse' | 'cart' | 'orders' | 'rewards' | 'profile';
-
-const TABS: { key: TabKey; icon: IconName; tKey: string; path: string }[] = [
-  { key: 'home', icon: 'home', tKey: 'tabs.home', path: '/(tabs)/home' },
-  { key: 'browse', icon: 'search', tKey: 'tabs.browse', path: '/(tabs)/browse' },
-  { key: 'cart', icon: 'cart', tKey: 'tabs.cart', path: '/(tabs)/cart' },
-  { key: 'orders', icon: 'receipt', tKey: 'tabs.orders', path: '/(tabs)/orders' },
-  { key: 'rewards', icon: 'gift', tKey: 'tabs.rewards', path: '/(tabs)/rewards' },
-  { key: 'profile', icon: 'person', tKey: 'tabs.profile', path: '/(tabs)/profile' },
-];
 
 /**
  * App v2 floating pill nav: a dark rounded bar hovering above the bottom edge;
@@ -36,6 +26,7 @@ export function TabBar() {
   const t = useT();
   const scale = useRef(new Animated.Value(1)).current;
   const prevCount = useRef(cartCount);
+  const activeKey = mainTabKeyForPath(pathname);
 
   useEffect(() => {
     if (cartCount > prevCount.current) {
@@ -49,12 +40,15 @@ export function TabBar() {
 
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 14) }]}>
-      {TABS.map((tab) => {
-        const active = pathname.includes(tab.key);
+      {MAIN_TABS.map((tab) => {
+        const active = activeKey === tab.key;
         return (
           <PressableScale
             key={tab.key}
             haptic="none"
+            accessibilityRole="tab"
+            accessibilityLabel={t(tab.tKey)}
+            accessibilityState={{ selected: active }}
             onPress={() => {
               if (!active) selection();
               router.replace(tab.path as never);

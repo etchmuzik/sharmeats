@@ -14,6 +14,7 @@ import { LegalRows } from '../../src/components/LegalRows';
 import { useUnreadBadges } from '../../src/hooks/useUnreadBadges';
 import type { User } from '../../src/data/types';
 import { transitionIdentity } from '../../src/lib/identityTeardown';
+import { ACCOUNT_ROUTES } from '../../src/navigation/mainNavigation';
 
 interface Row {
   icon: IconName;
@@ -52,6 +53,11 @@ export default function ProfileTab() {
     { icon: 'currency', label: t('profile.currency'), value: currency, onPress: () => router.push('/settings') },
     { icon: 'bell', label: t('profile.notifications'), onPress: () => router.push('/settings') },
     { icon: 'star', label: t('saved.title'), onPress: () => router.push('/saved') },
+    {
+      icon: 'gift',
+      label: t('rewards.title'),
+      onPress: () => router.push(ACCOUNT_ROUTES.rewards),
+    },
     { icon: 'gift', label: t('profile.invite'), onPress: () => router.push('/invite') },
     { icon: 'chat', label: t('profile.support'), badge: unread.support, onPress: () => router.push('/support') },
     { icon: 'help', label: t('profile.help'), onPress: () => router.push('/help') },
