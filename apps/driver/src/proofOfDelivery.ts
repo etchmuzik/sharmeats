@@ -2,7 +2,7 @@
  * Proof of delivery: a photo captured at handoff.
  *
  * WHY IT IS NOT A HARD GATE: `advance_order_status` is untouched and never
- * refuses a delivery for missing proof (see mig 182). The button in the UI waits
+ * refuses a delivery for missing proof (see mig 184). The button in the UI waits
  * for a photo where one is required, but the status transition does not wait for
  * the upload — a driver on bad mobile data must never be stranded on an order
  * they have physically completed. `recordProof` is therefore called AFTER the
@@ -21,7 +21,7 @@ import { getSupabase } from './supabase';
  * Dropoff preferences where nobody is at the door, so a photo is the only
  * evidence the handoff happened.
  *
- * MUST stay in step with `public.delivery_proof_required(text)` in mig 182 —
+ * MUST stay in step with `public.delivery_proof_required(text)` in mig 184 —
  * the DB copy drives the ops report, this copy drives the button. A mismatch
  * would either nag drivers for photos ops never asks about, or quietly stop
  * requiring one that ops then flags as missing.
@@ -61,7 +61,7 @@ export function validateProofUpload(
  * Shape is load-bearing twice over: the storage INSERT policy matches this with
  * a regex, and `record_delivery_proof` reconstructs it to confirm the path
  * belongs to both the caller and the order. Changing it here without changing
- * mig 182 breaks uploads outright.
+ * mig 184 breaks uploads outright.
  */
 export function buildProofPath(
   userId: string,

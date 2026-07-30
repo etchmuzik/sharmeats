@@ -22,7 +22,8 @@ import { db } from '../src/data';
 import type { Address, AllergyKey, DropoffPreference, PaymentMethod, Restaurant } from '../src/data/types';
 import { formatEgp, formatTime } from '../src/lib/format';
 import { serviceFeeEgp } from '../src/lib/serviceFee';
-import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
+import { formatCurrencyAtRate, fxRateLineAtRate, ALL_CURRENCIES } from '../src/currency/fx';
+import { resolveRate } from '../src/currency/rates';
 import { success, selection } from '../src/haptics';
 import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
@@ -192,11 +193,18 @@ export default function Checkout() {
         if (cancelled) return;
         setQuotedFee(fee);
         setQuoteState('ok');
+        // [P05-E] The quote resolving IS the service-area decision for this
+        // address — the backend only prices addresses it will deliver to.
+        track('service_area_checked', { result: 'in_area' });
       })
       .catch(() => {
         if (cancelled) return;
         setQuotedFee(null);
         setQuoteState('failed');
+        // 'failed', not 'out_of_area': a network error is indistinguishable
+        // from a radius rejection here, and claiming out-of-area would poison
+        // the funnel with connectivity noise.
+        track('service_area_checked', { result: 'failed' });
       });
     return () => {
       cancelled = true;
@@ -288,6 +296,22 @@ export default function Checkout() {
         scheduled: !!scheduledFor,
         promo: promoApplied?.code ?? null,
       });
+
+      // [P05-E] Retention marker: this order follows at least one DELIVERED
+      // order — the customer came back after a completed first experience.
+      // Deliberately not "second placed order": a placed-then-cancelled first
+      // order proves nothing about the product. Fire-and-forget; the redirect
+      // must never wait on an analytics lookup, and a network failure here
+      // just means one lost event.
+      void db.orders
+        .list()
+        .then((prior) => {
+          const delivered = prior.filter(
+            (o) => o.id !== order.id && o.status === 'delivered',
+          ).length;
+          if (delivered >= 1) track('second_order', { priorDelivered: delivered });
+        })
+        .catch(() => {});
 
       // Card payment: open Paymob hosted checkout. The order stays 'pending'
       // (and hidden from the merchant) until the HMAC-verified webhook flips it
@@ -696,14 +720,30 @@ export default function Checkout() {
             <Text style={styles.totTotalLabel}>{t('checkout.total')}</Text>
             <Text style={styles.totTotalVal}>{formatEgp(total)}</Text>
           </View>
-          {currency !== 'EGP' && (
-            <Text style={styles.conv}>
-              {t('checkout.conversion', {
-                amount: formatCurrency(total, currency as Currency),
-                rate: fxRateLine(currency as Currency) ?? '',
-              })}
-            </Text>
-          )}
+          {currency !== 'EGP' &&
+            (() => {
+              // [P05-B] The rate now comes from the server resolver (mig 182),
+              // not the static table. A stale or static-fallback rate switches
+              // to the dated "approximate" wording — a stale rate may still
+              // CONVERT (a two-week-old real rate beats a planning number) but
+              // must never present itself as current.
+              const resolved = resolveRate(currency as Currency);
+              if (!resolved) return null;
+              const amount = formatCurrencyAtRate(total, currency as Currency, resolved.rate);
+              const rate = fxRateLineAtRate(currency as Currency, resolved.rate) ?? '';
+              return (
+                <Text style={styles.conv}>
+                  {resolved.stale
+                    ? t('checkout.conversionStale', {
+                        amount,
+                        date: resolved.effectiveAt
+                          ? new Date(resolved.effectiveAt).toLocaleDateString()
+                          : '—',
+                      })
+                    : t('checkout.conversion', { amount, rate })}
+                </Text>
+              );
+            })()}
         </View>
       </ScrollView>
 

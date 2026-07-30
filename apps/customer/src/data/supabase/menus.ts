@@ -106,7 +106,7 @@ export const menusRepoSupabase = {
 
   /**
    * Cross-restaurant dish search in ONE round trip, via the search_menu_items
-   * RPC (mig 183).
+   * RPC (mig 185).
    *
    * This replaced a loop that called `forRestaurant` per restaurant — four round
    * trips each here, plus modifier hydration the results never render.

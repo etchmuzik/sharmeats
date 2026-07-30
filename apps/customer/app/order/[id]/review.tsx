@@ -10,6 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as StoreReview from 'expo-store-review';
+import { recordReviewPrompt, reviewPromptEligibility } from '../../../src/lib/reviewPrompt';
 import { BackButton } from '../../../src/components/BackButton';
 import { PrimaryButton } from '../../../src/components/PrimaryButton';
 import { font, radius } from '../../../src/theme';
@@ -65,6 +66,15 @@ export default function Review() {
     // App-store rating is the top conversion factor for tourist search discovery.
     if (food >= 4 && delivery >= 4) {
       try {
+        // [P05-F] Local frequency policy on top of the OS throttle: cooldown,
+        // once per app version, lifetime cap. The refusal reason is recorded so
+        // "eligible but suppressed" is distinguishable from "asked".
+        const gate = await reviewPromptEligibility();
+        if (!gate.eligible) {
+          track('review_prompt_result', { result: 'suppressed', reason: gate.reason });
+          setTimeout(() => router.replace('/(tabs)/orders'), 1100);
+          return;
+        }
         const available = await StoreReview.isAvailableAsync();
         // "shown" here means WE ASKED THE OS, not that a human saw a dialog:
         // iOS silently rate-limits requestReview() and resolves either way, so
@@ -73,6 +83,7 @@ export default function Review() {
         track('review_prompt_shown', { trigger: 'high_rating', available });
         if (available) {
           await StoreReview.requestReview();
+          await recordReviewPrompt();
           track('review_prompt_result', { result: 'requested' });
         } else {
           track('review_prompt_result', { result: 'unavailable' });

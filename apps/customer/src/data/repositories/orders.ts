@@ -331,7 +331,7 @@ export const ordersRepo = {
   /** Debug: jump an order to delivered immediately. */
   // In-memory share tokens. The mock backend has no server to enforce ownership;
   // the real rules (owner-only, live orders only, revocation) are asserted in
-  // supabase/tests/184_order_share_links.test.sql.
+  // supabase/tests/186_order_share_links.test.sql.
   async createShare(orderId: string): Promise<string> {
     const existing = MOCK_SHARES.get(orderId);
     if (existing) return delay(existing);

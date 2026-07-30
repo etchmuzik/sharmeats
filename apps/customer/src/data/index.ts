@@ -11,6 +11,8 @@
  */
 import { authRepo } from './repositories/auth';
 import { cartRepo } from './repositories/cart';
+import { fxRepo } from './repositories/fx';
+import { acquisitionRepo } from './repositories/acquisition';
 import { hotelsRepo } from './repositories/hotels';
 import { menusRepo } from './repositories/menus';
 import { messagesRepo } from './repositories/messages';
@@ -23,6 +25,8 @@ import { userRepo } from './repositories/user';
 
 import { authRepoSupabase } from './supabase/auth';
 import { cartRepoSupabase } from './supabase/cart';
+import { fxRepoSupabase } from './supabase/fx';
+import { acquisitionRepoSupabase } from './supabase/acquisition';
 import { hotelsRepoSupabase } from './supabase/hotels';
 import { menusRepoSupabase } from './supabase/menus';
 import { messagesRepoSupabase } from './supabase/messages';
@@ -48,6 +52,8 @@ export const db = useSupabase
       messages: messagesRepoSupabase,
       support: supportRepoSupabase,
       cart: cartRepoSupabase,
+      fx: fxRepoSupabase,
+      acquisition: acquisitionRepoSupabase,
     }
   : {
       auth: authRepo,
@@ -61,6 +67,8 @@ export const db = useSupabase
       messages: messagesRepo,
       support: supportRepo,
       cart: cartRepo,
+      fx: fxRepo,
+      acquisition: acquisitionRepo,
     };
 
 export type DB = typeof db;

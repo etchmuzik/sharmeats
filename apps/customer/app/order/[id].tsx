@@ -563,7 +563,7 @@ export default function OrderTracking() {
 
         {/* Follow-my-order. Offered only while the delivery is actually live —
             there is nothing to follow before it moves or after it lands, and
-            mig 184 refuses to mint a link for a terminal order anyway. */}
+            mig 186 refuses to mint a link for a terminal order anyway. */}
         {!isCancelled && order.status !== 'delivered' && (
           <View style={styles.shareCard}>
             <View style={{ flex: 1 }}>

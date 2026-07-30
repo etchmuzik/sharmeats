@@ -13,9 +13,9 @@ const NEEDLE = ALL_ITEMS[0].name.slice(0, 4).toLowerCase();
 
 /**
  * Contract tests for the mock adapter's search. The Supabase adapter answers the
- * same shape from the search_menu_items RPC (mig 183), whose own behaviour —
+ * same shape from the search_menu_items RPC (mig 185), whose own behaviour —
  * ordering, the two-character floor, LIKE-metacharacter escaping, limit clamping
- * — is asserted in supabase/tests/183_menu_search.test.sql. These pin the JS side
+ * — is asserted in supabase/tests/185_menu_search.test.sql. These pin the JS side
  * so the two adapters cannot drift apart silently.
  */
 describe('menusRepo.search', () => {

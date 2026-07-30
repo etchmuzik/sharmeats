@@ -85,6 +85,43 @@ describe('PII deny-list', () => {
   });
 });
 
+describe('push-attribution id exemption (regression)', () => {
+  // The 'message' fragment silently ate message_id and attributed_message_id in
+  // PRODUCTION — every event lost the client half of P03-F push attribution,
+  // while a comment claimed the ids "pass". These tests assert on the
+  // post-buildProperties output, which is exactly what the old suite never did.
+  const UUID = '3c9f5f2a-8f6e-4e6a-9d2b-1a2b3c4d5e6f';
+
+  it('ships message_id when the value is a minted token', () => {
+    const props = buildProperties({ message_id: UUID });
+    expect(props.message_id).toBe(UUID);
+  });
+
+  it('ships attributed_message_id when the value is a minted token', () => {
+    const props = buildProperties({ attributed_message_id: UUID });
+    expect(props.attributed_message_id).toBe(UUID);
+  });
+
+  it('still DROPS an exempt key whose value is not a minted token', () => {
+    // The exemption is structural, not a trust grant: free text under an
+    // exempt key dies anyway.
+    const props = buildProperties({ message_id: 'call me at +20100, room 412' });
+    expect(props).not.toHaveProperty('message_id');
+  });
+
+  it('exempts by EXACT key only — fragment-adjacent keys still die', () => {
+    for (const key of ['message', 'support_message', 'message_text', 'customer_message_id_note']) {
+      expect(buildProperties({ [key]: UUID })).not.toHaveProperty(key);
+    }
+  });
+
+  it('campaign ids never needed the exemption and still pass', () => {
+    const props = buildProperties({ campaign_id: 'summer-24', attributed_campaign_id: 'summer-24' });
+    expect(props.campaign_id).toBe('summer-24');
+    expect(props.attributed_campaign_id).toBe('summer-24');
+  });
+});
+
 describe('common property enrichment', () => {
   it('attaches release identity to every event', () => {
     const props = buildProperties();

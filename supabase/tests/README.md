@@ -8,7 +8,7 @@ long time ten of them looked like forgotten work when they were not.
 Recognisable by a real include of their own migration:
 
 ```sql
-\ir ../migrations/182_proof_of_delivery.sql
+\ir ../migrations/184_proof_of_delivery.sql
 ```
 
 They stub the small slice of the Supabase surface they need (the `anon` /

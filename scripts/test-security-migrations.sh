@@ -50,9 +50,9 @@ test_files=(
   "supabase/tests/127_129_service_area.test.sql"
   "supabase/tests/130_133_ops_finance.test.sql"
   "supabase/tests/144_admin_test_ops_alert.test.sql"
-  "supabase/tests/182_proof_of_delivery.test.sql"
-  "supabase/tests/183_menu_search.test.sql"
-  "supabase/tests/184_order_share_links.test.sql"
+  "supabase/tests/184_proof_of_delivery.test.sql"
+  "supabase/tests/185_menu_search.test.sql"
+  "supabase/tests/186_order_share_links.test.sql"
 )
 
 # Guard against silent orphaning.

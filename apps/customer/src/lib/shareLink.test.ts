@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SHARE_PATH, shareUrlFor, tokenFromShareUrl } from './shareLink';
 
-// Shaped like the real thing: 16 bytes of hex from mig 184's gen_random_bytes.
+// Shaped like the real thing: 16 bytes of hex from mig 186's gen_random_bytes.
 const TOKEN = 'a3f1c09e5b7d2648ff0a1b2c3d4e5f60';
 
 describe('shareUrlFor', () => {
@@ -24,7 +24,7 @@ describe('shareUrlFor', () => {
   });
 
   it('percent-encodes rather than interpolating raw', () => {
-    // Not a token mig 184 would ever mint, but the helper must not produce an
+    // Not a token mig 186 would ever mint, but the helper must not produce an
     // ambiguous URL if the token format ever changes.
     const url = shareUrlFor('a b&c=d');
     expect(url).not.toContain('a b&c=d');

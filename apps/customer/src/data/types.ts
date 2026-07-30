@@ -623,3 +623,41 @@ export interface InboxMessage {
   /** When the customer read it IN THE INBOX. Undefined = unread. */
   readAt?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Display FX (Package 05 Slice B)
+// ---------------------------------------------------------------------------
+
+/** One active server rate. Display metadata only — pricing never touches it. */
+export interface ServerFxRate {
+  quoteCurrency: string;
+  /** EGP per 1 unit of the quote currency. */
+  rate: number;
+  source: string;
+  effectiveAt: string;
+  /** Server-computed: past stale_after. A stale rate must be LABELED stale. */
+  stale: boolean;
+}
+
+export interface FxRepository {
+  currentRates(): Promise<ServerFxRate[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Acquisition attribution (Package 05 Slice D)
+// ---------------------------------------------------------------------------
+
+export interface AcquisitionTouchInput {
+  installId: string;
+  source: string;
+  campaign: string | null;
+  partnerCode: string | null;
+  deepLink: string | null;
+}
+
+export interface AcquisitionRepository {
+  /** Fire-and-forget: server degrades junk to 'unknown', drops unlisted partner codes. */
+  recordTouch(t: AcquisitionTouchInput): Promise<void>;
+  /** Binds this install's anonymous touches to the signed-in user. */
+  claim(installId: string): Promise<void>;
+}

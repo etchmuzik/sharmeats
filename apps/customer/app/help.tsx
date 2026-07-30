@@ -10,24 +10,30 @@ import { Icon } from '../src/components/Icon';
 
 const SUPPORT_PHONE = '201005551234'; // Placeholder; real number set at launch.
 
-const FAQ = [
-  {
-    q: 'How does the 15-minute SLA work?',
-    a: 'We tell you the delivery time up front. If your order arrives more than 15 minutes late, we automatically credit 10% of the order back to your sharmeats wallet — no support ticket needed.',
-  },
-  {
-    q: 'Can I pay with my home-country card?',
-    a: 'Yes. We accept Visa and Mastercard from any country. Prices are shown in EGP and your home currency at the daily FX rate, then charged in EGP.',
-  },
-  {
-    q: 'Do you deliver to hotel rooms?',
-    a: 'Yes. We have direct partnerships with the major Sharm resorts. Pick your hotel, enter your room number, and choose lobby/reception/poolside handoff.',
-  },
-  {
-    q: 'What does "Tourist-safe" mean?',
-    a: 'Restaurants with this badge have an English menu, clear allergen + halal/veg/pork flags on every item, and have maintained accurate operating hours for 30+ days.',
-  },
-];
+/**
+ * FAQ copy lives in the locale files, not here (Package 05 Slice A).
+ *
+ * The previous hardcoded-English version carried two claims that were simply
+ * false in production — "We accept Visa and Mastercard from any country" while
+ * the app ships cash-only (EXPO_PUBLIC_PAYMENTS_CARD_ENABLED=false), and "at
+ * the daily FX rate" while the rate table is static and manually reviewed. It
+ * also promised "direct partnerships with the major Sharm resorts" (unverified
+ * marketing) and a "30+ days accurate hours" badge mechanism that does not
+ * exist. Because the strings were hardcoded EN, none of it was translated and
+ * none of it went through locale review.
+ *
+ * The replacement keys state only what the product verifiably does: cash today
+ * with cards "when available", indicative conversion, the SLA credit WITH its
+ * EGP 100 cap, and allergy flags as communication rather than medical
+ * guarantee. Card copy must not change here until Package 04 Slice B's
+ * enablement gate — the truth changes first, then the copy.
+ */
+const FAQ_KEYS = [
+  { q: 'help.q1', a: 'help.a1' },
+  { q: 'help.q2', a: 'help.a2' },
+  { q: 'help.q3', a: 'help.a3' },
+  { q: 'help.q4', a: 'help.a4' },
+] as const;
 
 export default function Help() {
   const colors = useThemeColors();
@@ -79,15 +85,15 @@ export default function Help() {
           </View>
           <View style={styles.contactLine}>
             <Icon name="help" size={18} color={colors.sea} />
-            <Text style={styles.contactRow}>Daily, 8 AM to 2 AM EET</Text>
+            <Text style={styles.contactRow}>{t('help.hours')}</Text>
           </View>
         </View>
 
         <Text style={styles.faqHead}>{t('help.faq')}</Text>
-        {FAQ.map((f) => (
+        {FAQ_KEYS.map((f) => (
           <View key={f.q} style={styles.card}>
-            <Text style={styles.q}>{f.q}</Text>
-            <Text style={styles.a}>{f.a}</Text>
+            <Text style={styles.q}>{t(f.q)}</Text>
+            <Text style={styles.a}>{t(f.a)}</Text>
           </View>
         ))}
       </ScrollView>

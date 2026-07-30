@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { detectDeviceLanguage } from '../lib/deviceLocale';
+import { asSupportedCurrency, type Currency } from '../currency/fx';
 import { mergeFavorites } from './favoritesMerge';
 import {
   addRecentSearch,
@@ -12,8 +13,17 @@ import type { ThemeMode } from '../theme';
 const STORAGE_KEY = '@sharmeats:session:v1';
 
 export type Locale = 'en' | 'ar' | 'ru' | 'it' | 'de';
-export type Currency = 'EGP' | 'EUR' | 'USD' | 'GBP' | 'RUB';
+// Re-exported from the fx module rather than redefined: two hand-maintained
+// copies of this union had already drifted into existence, and a currency added
+// to one but not the other would type-check in isolation and break at runtime.
+export type { Currency } from '../currency/fx';
 export type { ThemeMode };
+
+const SUPPORTED_LOCALES: readonly string[] = ['en', 'ar', 'ru', 'it', 'de'];
+
+function asSupportedLocale(value: unknown): Locale | null {
+  return typeof value === 'string' && SUPPORTED_LOCALES.includes(value) ? (value as Locale) : null;
+}
 
 interface SessionState {
   isSignedIn: boolean;
@@ -177,8 +187,11 @@ export const useSession = create<SessionState>((set, get) => ({
         set({
           isSignedIn: parsed.isSignedIn ?? false,
           phone: parsed.phone ?? null,
-          locale: (parsed.locale as Locale) ?? detectDeviceLanguage(),
-          currency: (parsed.currency as Currency) ?? 'EGP',
+          // Boundary validation, not casts: persisted values are external data.
+          // A corrupted currency used to crash the checkout conversion line
+          // (see asSupportedCurrency); an unknown locale rendered raw i18n keys.
+          locale: asSupportedLocale(parsed.locale) ?? detectDeviceLanguage(),
+          currency: asSupportedCurrency(parsed.currency),
           // A session persisted before dark mode existed has no themeMode.
           // 'system' is the right upgrade: it matches the phone rather than
           // pinning existing users to light forever.
