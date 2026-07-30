@@ -139,8 +139,8 @@ export default function JobScreen() {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
         Alert.alert(
-          'Camera needed',
-          'Allow camera access to photograph the handoff. This is the only record that the order arrived.',
+          t('proof.cameraNeededTitle'),
+          t('proof.cameraNeededBody'),
         );
         return;
       }
@@ -153,7 +153,7 @@ export default function JobScreen() {
       const asset = result.assets[0];
       setProof({ uri: asset.uri, mime: asset.mimeType, size: asset.fileSize });
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Couldn't open the camera.", 'error');
+      toast(e instanceof Error ? e.message : t('proof.cameraOpenFailed'), 'error');
     } finally {
       setCapturing(false);
     }
@@ -173,7 +173,7 @@ export default function JobScreen() {
       try {
         await recordProof(orderId, proof.uri, Date.now(), proof.mime, proof.size);
       } catch {
-        toast('Delivered, but the photo did not upload. Ops has been flagged.', 'error');
+        toast(t('proof.uploadFailed'), 'error');
       }
     },
     [proof, toast],
@@ -276,7 +276,7 @@ export default function JobScreen() {
           }}
           style={{ minHeight: 48, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, paddingHorizontal: spacing.xl }}
         >
-          <Text style={{ color: colors.white, fontWeight: '700' }}>{t('common.retry')}</Text>
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -638,6 +638,7 @@ function ProofRow({
   onRetake: () => void;
 }) {
   const colors = useThemeColors();
+  const { t } = useI18n();
 
   if (captured) {
     return (
@@ -654,17 +655,17 @@ function ProofRow({
       >
         <Icon name="check" size={18} color={colors.greenText} />
         <Text style={{ flex: 1, color: colors.greenText, fontWeight: '700', fontSize: font.sizes.base }}>
-          Handoff photo ready
+          {t('proof.ready')}
         </Text>
         <Pressable
           onPress={onRetake}
           accessibilityRole="button"
-          accessibilityLabel="Retake the handoff photo"
+          accessibilityLabel={t('proof.retakeA11y')}
           hitSlop={8}
           style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm }}
         >
           <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: font.sizes.sm }}>
-            Retake
+            {t('proof.retake')}
           </Text>
         </Pressable>
       </View>
@@ -676,7 +677,7 @@ function ProofRow({
       onPress={onCapture}
       disabled={capturing}
       accessibilityRole="button"
-      accessibilityLabel={required ? 'Take the required handoff photo' : 'Take an optional handoff photo'}
+      accessibilityLabel={required ? t('proof.takeRequiredA11y') : t('proof.takeOptionalA11y')}
       accessibilityState={{ busy: capturing, disabled: capturing }}
       style={{
         flexDirection: 'row',
@@ -704,12 +705,12 @@ function ProofRow({
             fontSize: font.sizes.base,
           }}
         >
-          {required ? 'Photo required' : 'Add a handoff photo'}
+          {required ? t('proof.required') : t('proof.optional')}
         </Text>
         <Text style={{ color: colors.ink2, fontSize: font.sizes.xs }}>
           {required
-            ? 'Nobody is there to receive it — photograph where you left the order'
-            : 'Optional, but it protects you if the order is disputed'}
+            ? t('proof.requiredHint')
+            : t('proof.optionalHint')}
         </Text>
       </View>
     </Pressable>

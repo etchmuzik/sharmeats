@@ -155,6 +155,13 @@ const en = {
   'allergen.soy': 'Soy',
   'allergen.spicy': 'Spicy',
   'allergen.sesame': 'Sesame',
+  // Appearance control in KitchenHeader. It sits beside 30 translated controls in
+  // a header that applies RTL direction, so it localises like the rest of them.
+  'theme.auto': 'Auto',
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+  'theme.a11y': 'Appearance: {mode}',
+  'theme.hint': 'Switches to {next}',
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -307,6 +314,11 @@ const ar: Record<TranslationKey, string> = {
   'allergen.soy': 'صويا',
   'allergen.spicy': 'حار',
   'allergen.sesame': 'سمسم',
+  'theme.auto': 'تلقائي',
+  'theme.light': 'فاتح',
+  'theme.dark': 'داكن',
+  'theme.a11y': 'المظهر: {mode}',
+  'theme.hint': 'التبديل إلى {next}',
 };
 
 export const dictionaries = { en, ar } as const;

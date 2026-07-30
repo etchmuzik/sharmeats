@@ -24,6 +24,7 @@ import { Icon, type IconName } from './Icon';
 import { LogoButton } from './LogoButton';
 import { selection, tapMedium } from '../lib/haptics';
 import { useLocale } from '../locale';
+import type { TranslationKey } from '../i18n';
 
 const CONTROL_BASE = {
   // 48, not the 44pt iOS floor: these are pressed with wet or gloved hands on a
@@ -354,8 +355,10 @@ export function KitchenHeader({
  */
 function ThemeControl({ compact }: { compact: boolean }) {
   const colors = useThemeColors();
+  const { t } = useLocale();
   const { mode, cycleMode } = useThemeMode();
   const current = THEME_PRESENTATION[mode];
+  const label = t(current.labelKey);
 
   return (
     <Pressable
@@ -364,8 +367,10 @@ function ThemeControl({ compact }: { compact: boolean }) {
         cycleMode();
       }}
       accessibilityRole="button"
-      accessibilityLabel={`Appearance: ${current.label}`}
-      accessibilityHint={`Switches to ${THEME_PRESENTATION[THEME_NEXT[mode]].label}`}
+      accessibilityLabel={t('theme.a11y', { mode: label })}
+      accessibilityHint={t('theme.hint', {
+        next: t(THEME_PRESENTATION[THEME_NEXT[mode]].labelKey),
+      })}
       style={[
         CONTROL_BASE,
         { flexDirection: 'row', gap: 5, backgroundColor: colors.accentSoft },
@@ -374,16 +379,16 @@ function ThemeControl({ compact }: { compact: boolean }) {
     >
       <Icon name={current.icon} size={14} color={colors.accentDark} />
       <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accentDark }}>
-        {current.label}
+        {label}
       </Text>
     </Pressable>
   );
 }
 
-const THEME_PRESENTATION: Record<ThemeMode, { icon: IconName; label: string }> = {
-  system: { icon: 'themeAuto', label: 'Auto' },
-  light: { icon: 'themeLight', label: 'Light' },
-  dark: { icon: 'themeDark', label: 'Dark' },
+const THEME_PRESENTATION: Record<ThemeMode, { icon: IconName; labelKey: TranslationKey }> = {
+  system: { icon: 'themeAuto', labelKey: 'theme.auto' },
+  light: { icon: 'themeLight', labelKey: 'theme.light' },
+  dark: { icon: 'themeDark', labelKey: 'theme.dark' },
 };
 
 /** Order must match the provider's cycle so the hint names the right next step. */
