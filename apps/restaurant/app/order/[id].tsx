@@ -15,6 +15,8 @@ import {
 import { colors, font, radius, spacing } from '../../src/theme';
 import { useLocale } from '../../src/locale';
 import type { TranslationKey, TranslationParams } from '../../src/i18n';
+import { captureError } from '../../src/lib/crash';
+import { operationalErrorKey } from '../../src/operationalErrors';
 
 /** Format the delivery address for the kitchen from its snapshot. */
 type Translate = (key: TranslationKey, params?: TranslationParams) => string;
@@ -74,7 +76,8 @@ export default function OrderDetail() {
         setOrder(row);
       }
     } catch (e) {
-      toast(e instanceof Error ? e.message : t('detail.loadError'), 'error');
+      captureError(e, { where: 'restaurant.order.load', orderId: id });
+      toast(t(operationalErrorKey('orderLoad')), 'error');
     } finally {
       setLoading(false);
     }

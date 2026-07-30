@@ -39,18 +39,20 @@ export function cashTenderForTotal(input: string, totalEgp: number): CashTender 
 }
 
 /**
- * Add one concise English operational sentence for the currently English-only
- * driver app. The customer-authored note remains first and unchanged.
+ * Append a versioned machine-readable marker for the driver app.
+ *
+ * The driver owns presentation and localization. Keeping the transport marker
+ * separate from customer prose also lets it remove only the generated line and
+ * preserve the customer-authored note exactly.
  */
 export function composeDriverDropoffNote(
   customerNote: string,
   tender: CashTender,
 ): string {
-  const note = customerNote.trim();
-  if (tender.kind !== 'valid' || tender.changeEgp === 0) return note;
+  if (tender.kind !== 'valid' || tender.changeEgp === 0) return customerNote;
 
-  const cashInstruction =
-    `Cash: customer will pay ${tender.tenderEgp} EGP; ` +
-    `bring ${tender.changeEgp} EGP change.`;
-  return note ? `${note} · ${cashInstruction}` : cashInstruction;
+  const marker =
+    `[[sharmeats:cash-change:v1:tender=${tender.tenderEgp};` +
+    `change=${tender.changeEgp}]]`;
+  return customerNote ? `${customerNote}\n${marker}` : marker;
 }

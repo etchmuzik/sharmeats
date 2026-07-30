@@ -3,6 +3,10 @@ import { colors, font, radius, spacing } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { useI18n } from '../i18n-context';
 import type { TranslationKey } from '../i18n';
+import {
+  parseCashChangeNote,
+  shouldRenderDropoffCard,
+} from '../cashChangeNote';
 
 const COPY: Record<string, { icon: IconName; title: TranslationKey }> = {
   hand_to_me: { icon: 'handoff', title: 'dropoff.handToGuest' },
@@ -24,9 +28,12 @@ interface Props {
  */
 export function DropoffPreferenceCard({ preference, note }: Props) {
   const { t } = useI18n();
-  if (!preference) return null;
-  const copy = COPY[preference];
-  if (!copy) return null;
+  const copy = preference ? COPY[preference] : undefined;
+  const parsed = parseCashChangeNote(note);
+  const { customerNote, cashChange } = parsed;
+  if (!shouldRenderDropoffCard(Boolean(copy), parsed)) return null;
+  const title = copy?.title ?? (cashChange ? 'cashChange.title' : 'dropoff.noteTitle');
+  const icon = copy?.icon ?? (cashChange ? 'cash' : 'handoff');
 
   return (
     <View
@@ -40,13 +47,31 @@ export function DropoffPreferenceCard({ preference, note }: Props) {
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <Icon name={copy.icon} size={20} color={colors.amber} />
+        <Icon name={icon} size={20} color={colors.amber} />
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: '800', color: colors.amber }}>
-          {t(copy.title)}
+          {t(title)}
         </Text>
       </View>
-      {note ? (
-        <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, marginTop: 4 }}>{note}</Text>
+      {customerNote ? (
+        <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, marginTop: 4 }}>
+          {customerNote}
+        </Text>
+      ) : null}
+      {cashChange ? (
+        <Text
+          accessibilityRole="text"
+          style={{
+            fontSize: font.sizes.base,
+            color: colors.ink,
+            fontWeight: '800',
+            marginTop: customerNote ? spacing.sm : 4,
+          }}
+        >
+          {t('cashChange.instruction', {
+            tender: cashChange.tenderEgp,
+            change: cashChange.changeEgp,
+          })}
+        </Text>
       ) : null}
     </View>
   );

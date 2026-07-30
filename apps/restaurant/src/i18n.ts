@@ -43,6 +43,11 @@ const en = {
   'header.allOrdersA11y': 'Show all brands, {{count}} active orders',
   'header.brandFilterA11y': 'Filter to {{brand}}, {{count}} active orders{{paused}}',
   'header.pausedSuffix': ', paused',
+  'header.logoPermission': 'Allow photo access in Settings to set a logo.',
+  'header.logoUpdated': 'Logo updated.',
+  'header.logoUploadError': "Couldn't upload the logo. Try again.",
+  'header.logoChangeA11y': 'Change the restaurant logo',
+  'header.logoAddA11y': 'Add a restaurant logo',
   'home.updateOrderError': 'Could not update order',
   'home.permissionDenied':
     'Your account does not have permission for that. Ask the restaurant owner or a manager.',
@@ -190,6 +195,11 @@ const ar: Record<TranslationKey, string> = {
   'header.allOrdersA11y': 'عرض كل العلامات، {{count}} طلبات نشطة',
   'header.brandFilterA11y': 'عرض {{brand}}، {{count}} طلبات نشطة{{paused}}',
   'header.pausedSuffix': '، متوقفة',
+  'header.logoPermission': 'اسمح بالوصول إلى الصور من الإعدادات لإضافة شعار.',
+  'header.logoUpdated': 'تم تحديث الشعار.',
+  'header.logoUploadError': 'تعذر رفع الشعار. حاول مرة أخرى.',
+  'header.logoChangeA11y': 'تغيير شعار المطعم',
+  'header.logoAddA11y': 'إضافة شعار للمطعم',
   'home.updateOrderError': 'تعذر تحديث الطلب',
   'home.permissionDenied':
     'لا يملك حسابك صلاحية تنفيذ ذلك. اطلب المساعدة من مالك المطعم أو المدير.',

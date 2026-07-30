@@ -29,6 +29,11 @@ Base: `b14433695bf7af74af22fb23bdf36cc0750dd284`
   failures map to localized recovery copy. Raw exceptions are sent to the
   existing crash diagnostics with safe operation/order/assignment context and
   are not the primary Arabic toast or inline error.
+- The customer cash-change quick win is read through a versioned
+  `dropoff_note` marker. The driver strips only the generated marker, preserves
+  customer-authored prose exactly, and renders the tender/change instruction
+  from typed EN/AR copy. A note or cash marker now renders even when the
+  customer did not select a separate drop-off preference.
 - Android's required persistent location notification reads the same locale key
   directly from AsyncStorage before the foreground task starts, so it is safe
   when React is not mounted.
@@ -49,6 +54,10 @@ Base: `b14433695bf7af74af22fb23bdf36cc0750dd284`
 - known operational error classification and raw-message suppression;
 - background-safe Android notification copy with invalid-locale fallback.
 
+`apps/driver/src/cashChangeNote.test.ts` covers the cross-app v1 marker,
+customer-note preservation, fail-visible unknown versions and note-only card
+rendering.
+
 ## Verification
 
 Run from `apps/driver`:
@@ -58,7 +67,7 @@ npm run typecheck
 # tsc --noEmit — passed
 
 npm test
-# 6 files passed, 44 tests passed
+# 7 files passed, 50 tests passed
 
 git diff --check
 # passed

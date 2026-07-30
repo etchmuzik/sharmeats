@@ -43,6 +43,8 @@ import { KitchenHeader } from '../src/components/KitchenHeader';
 import { QueueSectionHeader } from '../src/components/QueueSectionHeader';
 import { notifyError, notifySuccess } from '../src/lib/haptics';
 import { useLocale } from '../src/locale';
+import { captureError } from '../src/lib/crash';
+import { operationalErrorKey } from '../src/operationalErrors';
 
 // [H-REST3] Live data shows merchants miss ~2/3 of orders into the 180s
 // auto-accept timeout — a single missed chime = a late kitchen. Re-fire the
@@ -260,8 +262,13 @@ export default function Home() {
             .filter((o) => isActive(o.status)),
         );
       } catch (e) {
+        captureError(e, {
+          where: 'restaurant.home.advanceOrder',
+          orderId: order.id,
+          nextStatus: next,
+        });
         notifyError();
-        toast(e instanceof Error ? e.message : t('home.updateOrderError'), 'error');
+        toast(t(operationalErrorKey('orderUpdate')), 'error');
       } finally {
         setBusy(order.id, false);
       }
@@ -317,16 +324,18 @@ export default function Home() {
         // Name every brand that did NOT flip, with the first failure's cause
         // (an RLS denial reads as "manager required", not a raw error).
         notifyError();
+        for (const failure of failed) {
+          captureError(failure.reason, {
+            where: 'restaurant.home.toggleOpen',
+            restaurantId: failure.brand.restaurantId,
+            intendedOpen: next,
+          });
+        }
         const names = failed.map((f) => f.brand.name).join(', ');
         const permissionDenied = permissionDeniedMessage(failed[0].reason) !== null;
-        // A recognized permission failure gets client-owned localized copy.
-        // Any other server Error stays verbatim so localization never hides the
-        // authoritative operational cause.
         const cause = permissionDenied
           ? t('home.permissionDenied')
-          : failed[0].reason instanceof Error
-            ? failed[0].reason.message
-            : t('home.updateFailed');
+          : t(operationalErrorKey('brandToggle'));
         toast(
           t('home.brandUpdatePartial', {
             updated: targets.length - failed.length,

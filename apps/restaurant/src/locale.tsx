@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -17,6 +18,7 @@ import {
   type TranslationKey,
   type TranslationParams,
 } from './i18n';
+import { shouldApplyPersistedLocale } from './localePersistence';
 
 const LOCALE_STORAGE_KEY = 'restaurant:locale';
 
@@ -39,12 +41,15 @@ const LocaleContext = createContext<LocaleState | null>(null);
  */
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<RestaurantLocale>('en');
+  const userSelectedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
     AsyncStorage.getItem(LOCALE_STORAGE_KEY)
       .then((stored) => {
-        if (mounted) setLocaleState(normalizeLocale(stored));
+        if (shouldApplyPersistedLocale(mounted, userSelectedRef.current)) {
+          setLocaleState(normalizeLocale(stored));
+        }
       })
       .catch(() => {
         // English remains the fail-safe locale if storage is unavailable.
@@ -55,6 +60,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setLocale = useCallback((next: RestaurantLocale) => {
+    userSelectedRef.current = true;
     setLocaleState(next);
     AsyncStorage.setItem(LOCALE_STORAGE_KEY, next).catch(() => {
       // The in-memory switch remains useful for this shift even if persistence

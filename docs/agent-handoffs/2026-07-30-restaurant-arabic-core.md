@@ -31,6 +31,11 @@ or copy `node_modules`.
   - Native route titles for menu, verification, tier, order and chat.
 - Applied immediate RTL direction to operational screen/container layouts.
   Arabic letter spacing and uppercase transforms are disabled.
+- A locale selected before the initial AsyncStorage read completes now wins;
+  delayed hydration cannot switch the operator back to a stale preference.
+- Core order/menu/open-state failures and logo upload feedback use typed safe
+  EN/AR recovery copy. Raw Supabase diagnostics are sent to crash reporting
+  with operation identifiers and are not shown in the kitchen UI.
 - Kept order codes, money values, brand tags and other technical identifiers
   LTR so they are not visually reordered. Restaurant names, menu item names,
   notes and address data remain server/customer content and are not translated.
@@ -42,8 +47,6 @@ or copy `node_modules`.
 - Sign-in, KYC/legal body copy, tier body copy and chat message-composer body
   copy remain English. The route titles are localized, but translating those
   lower-frequency/legal surfaces should be a separate reviewed pass.
-- Server-provided error messages remain verbatim. Only client-owned fallback
-  errors are localized.
 - The provider does **not** call `I18nManager.forceRTL()`. Native forced RTL
   requires an app reload, which is unsafe during an active kitchen ticket.
   Operational content changes direction immediately; native header/back chrome
@@ -60,7 +63,7 @@ npm run typecheck
   PASS
 
 npm test
-  PASS — 4 files, 46 tests
+  PASS — 6 files, 50 tests
 
 npx expo export --platform web --output-dir /tmp/sharmeats-restaurant-i18n-web
   PASS — Metro bundled 1,894 modules

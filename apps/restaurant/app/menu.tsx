@@ -16,6 +16,8 @@ import { getMyKitchen } from '../src/orders';
 import { getMenuItems, setItemAvailability, type MenuItem } from '../src/menu';
 import { colors, font, radius, spacing } from '../src/theme';
 import { useLocale } from '../src/locale';
+import { captureError } from '../src/lib/crash';
+import { operationalErrorKey } from '../src/operationalErrors';
 
 /**
  * Menu availability screen ("86-ing"). Staff flip a dish out-of-stock from the
@@ -64,7 +66,11 @@ export default function Menu() {
         const rows = await getMenuItems(target);
         setItems(rows);
       } catch (e) {
-        toast(e instanceof Error ? e.message : t('menu.loadError'), 'error');
+        captureError(e, {
+          where: 'restaurant.menu.load',
+          requestedRestaurantId: brandId ?? null,
+        });
+        toast(t(operationalErrorKey('menuLoad')), 'error');
       } finally {
         setLoading(false);
       }
@@ -102,7 +108,12 @@ export default function Menu() {
       } catch (e) {
         // Roll back on failure.
         setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_available: !next } : i)));
-        toast(e instanceof Error ? e.message : t('menu.updateError'), 'error');
+        captureError(e, {
+          where: 'restaurant.menu.setAvailability',
+          itemId: item.id,
+          intendedAvailable: next,
+        });
+        toast(t(operationalErrorKey('menuUpdate')), 'error');
       } finally {
         setBusyIds((s) => {
           const nextSet = new Set(s);

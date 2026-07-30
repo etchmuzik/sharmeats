@@ -48,7 +48,23 @@ describe('composeDriverDropoffNote', () => {
         tenderEgp: 600,
         changeEgp: 28,
       }),
-    ).toBe('Meet at reception · Cash: customer will pay 600 EGP; bring 28 EGP change.');
+    ).toBe(
+      'Meet at reception\n[[sharmeats:cash-change:v1:tender=600;change=28]]',
+    );
+  });
+
+  it('preserves customer-authored whitespace byte-for-byte before the marker', () => {
+    const customerNote = '  Meet at reception \n';
+
+    expect(
+      composeDriverDropoffNote(customerNote, {
+        kind: 'valid',
+        tenderEgp: 600,
+        changeEgp: 28,
+      }),
+    ).toBe(
+      `${customerNote}\n[[sharmeats:cash-change:v1:tender=600;change=28]]`,
+    );
   });
 
   it('does not add a redundant instruction for exact cash', () => {

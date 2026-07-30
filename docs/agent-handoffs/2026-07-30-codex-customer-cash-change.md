@@ -21,9 +21,12 @@ the hotel gate.
   common thousands separators.
 - An amount below the live order total is rejected inline and disables the
   place-order button.
-- A valid amount is converted into an exact driver instruction using the
-  existing `dropoff_note`, for example:
-  `Cash: customer will pay 600 EGP; bring 28 EGP change.`
+- A valid amount is encoded as a versioned marker in the existing
+  `dropoff_note`, for example:
+  `[[sharmeats:cash-change:v1:tender=600;change=28]]`.
+- The driver app removes that generated marker and renders a typed EN/AR
+  instruction with the exact tender and change amounts. Unknown future marker
+  versions remain visible rather than being silently discarded.
 - The customer-authored driver note remains first and unchanged.
 - Exact cash and an empty optional field add no redundant note.
 - The UI copy is present in EN, AR, RU, IT and DE.
@@ -49,8 +52,8 @@ npm test
 Verified in this worktree:
 
 - TypeScript: pass
-- Vitest: 43 files, 473 tests passed
-- Focused cash-change suite: 8 tests passed
+- Integrated Vitest suite: 48 files, 496 tests passed
+- Focused cash-change suite: 9 tests passed
 - `git diff --check`: pass
 
 ## Integration notes
@@ -58,9 +61,8 @@ Verified in this worktree:
 - No database or RPC change: the delivery instruction uses the existing
   snapshotted `dropoff_note` that already reaches the assigned driver.
 - No Package 06, restaurant, merchant, admin, or Claude `main` file changed.
-- The generated operational sentence is intentionally English because the
-  driver app is currently English-only. The restaurant-Arabic workstream is
-  separate; when driver localization lands, this instruction should become
-  structured data or be localized at render time.
+- This integration depends on the driver-side v1 marker parser. Deploy the
+  customer writer and driver reader together; older drivers will show the
+  marker verbatim, while newer drivers localize it at render time.
 - This commit is independent from the navigation and scheduled-order gate
   commits and can be cherry-picked on its own.

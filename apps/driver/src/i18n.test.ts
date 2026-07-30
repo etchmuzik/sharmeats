@@ -88,4 +88,13 @@ describe('driver localization', () => {
       body: 'Sharing your live location for the active delivery.',
     });
   });
+
+  it('localizes the structured cash-change instruction without changing amounts', () => {
+    expect(
+      translate('en', 'cashChange.instruction', { tender: 600, change: 28 }),
+    ).toBe('Customer will pay 600 EGP. Bring 28 EGP change.');
+    expect(
+      translate('ar', 'cashChange.instruction', { tender: 600, change: 28 }),
+    ).toBe('سيدفع العميل 600 ج.م. أحضر 28 ج.م فكة.');
+  });
 });
