@@ -78,7 +78,7 @@ Status meanings:
 | Stop calling HTTP 2xx delivered | **Built** — migs 148/164; `send_push_campaign` returns per-reason suppression counts + `dry_run`, no "delivered" claim | [03 § A4](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Test send, draft, scheduling, failure detail | Planned | [03 § A4/G](03-notifications-and-crm.md#a4-campaign-enforcement-and-operator-truth) |
 | Allow-listed payload routes | **Built** — real anchored allow-list (mig 175 + `lib/notificationRoute.ts`); replaced a prefix check that had allowed traversal and reached /signin and /delete-account | [03 § F](03-notifications-and-crm.md#slice-f--notification-open-attribution) |
-| Notification inbox after transport | Deferred by gate | [03 § H](03-notifications-and-crm.md#slice-h--notification-inbox-last) |
+| Notification inbox after transport | **Built DARK against an UNMET gate** (owner-directed, 2026-07-30) — mig 179 applied; client behind `EXPO_PUBLIC_INBOX_ENABLED`, default off, unlinked. The gate is still open: `push_messages` is empty until `expo-push` deploys, so this is unexercised against real data | [03 § H](03-notifications-and-crm.md#slice-h--notification-inbox-last) |
 | Menu-item favorites and Saved screen | Built (migrations 139/140, commit `6e60681`) | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
 | Separate restaurant/item favorites | Built | [02 § C](02-second-order-and-saved-intent.md#slice-c--menu-item-favourites-and-saved-screen) |
 | Cross-device saved sync and offline merge | Built/partial; server item sync + restaurant removal hardening built, full offline item mutation proof remains | [02 § B–C](02-second-order-and-saved-intent.md#slice-b--harden-guest-and-offline-favourite-merge) |
@@ -183,7 +183,7 @@ Status meanings:
 
 | Not-now decision | Enforced in plan |
 |---|---|
-| Inbox before receipts/preferences | 03 H depends on A–G |
+| Inbox before receipts/preferences | **Deferral NOT held** — H was built ahead of its gate at owner direction (2026-07-30) and ships dark; receipts remain unproven because `expo-push` is undeployed |
 | Opaque AI before explainable signals | 02 F |
 | Public cards before reconciliation/refunds | 04 B acceptance gate |
 | Grocery/pharmacy before food proof | 07 Gate 0 |
