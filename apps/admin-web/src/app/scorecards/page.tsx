@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { AdminHeader } from '../AdminHeader';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -108,23 +109,11 @@ export default function ScorecardsPage() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
-        <div>
-          <div className="text-lg font-extrabold">
-            Sharm Eats <span className="text-accent">Scorecards</span>
-          </div>
-          <div className="text-xs text-ink3">Restaurant performance · {phase.displayName}</div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Dispatch
-          </Link>
-          <SignOutButton />
-        </div>
-      </header>
+      <AdminHeader
+        title="Restaurant scorecards"
+        description="Performance and service quality"
+        displayName={phase.displayName}
+      />
 
       <div className="mx-auto max-w-5xl space-y-4 p-6">
         <div className="flex items-center gap-2">
