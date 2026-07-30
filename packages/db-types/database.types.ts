@@ -1352,6 +1352,53 @@ export type Database = {
           },
         ]
       }
+      menu_item_availability_events: {
+        Row: {
+          actor_user_id: string | null
+          changed_at: string
+          id: string
+          idempotency_key: string | null
+          menu_item_id: string
+          new_available: boolean
+          previous_available: boolean | null
+          reason_code: string | null
+          restaurant_id: string
+          source: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          changed_at?: string
+          id?: string
+          idempotency_key?: string | null
+          menu_item_id: string
+          new_available: boolean
+          previous_available?: boolean | null
+          reason_code?: string | null
+          restaurant_id: string
+          source?: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          changed_at?: string
+          id?: string
+          idempotency_key?: string | null
+          menu_item_id?: string
+          new_available?: boolean
+          previous_available?: boolean | null
+          reason_code?: string | null
+          restaurant_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_item_availability_events_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_items: {
         Row: {
           barcode: string | null
@@ -5253,6 +5300,26 @@ export type Database = {
         Returns: undefined
       }
       rider_snapshot: { Args: { p_driver_id: string }; Returns: Json }
+      search_catalog: {
+        Args: {
+          p_after_id?: string
+          p_after_name?: string
+          p_limit?: number
+          p_query: string
+          p_restaurant_id?: string
+          p_vertical?: string
+        }
+        Returns: {
+          is_available: boolean
+          item_id: string
+          name: string
+          price_egp: number
+          restaurant_id: string
+          sku: string
+          unit: string
+          vertical_id: string
+        }[]
+      }
       send_order_message: {
         Args: { p_body: string; p_order_id: string }
         Returns: {

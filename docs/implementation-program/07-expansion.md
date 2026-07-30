@@ -16,6 +16,36 @@ roadmap-approved E0–E8 sequence in
 is explicit authority; Package 07 does not have to finish Rx/city before the
 internal or verified-merchant courier pilots.
 
+> **Status 2026-07-30 — recon + governance-repair session.** The "current
+> evidence" below is BADLY STALE: migs 152-166 (E0) built Program A0 in full —
+> launch stages with the exact effective-state rule, private-access generations
+> with append-only events, platform-owner/capability roots, and fail-closed
+> enforcement across reads, quote, cart preparation, place_order, saved orders
+> and favorites. TRACEABILITY still called it planned.
+>
+> **Found and repaired (mig 187, owner decisions 2026-07-30):**
+> `private.platform_owners` was EMPTY (the explicit owner release input was
+> never provided), so the sanctioned launch-stage RPC could authorize nobody —
+> and commit 79c7f6c enabled grocery+pharmacy by DIRECT UPDATE to seed pilot
+> merchants, leaving both catalogs anon-visible. Now: the real owner account is
+> seeded with expansion_launch_manager (RPC path usable), grocery+pharmacy are
+> **private** (audited; the two seeded pilot merchants intact), both expiry
+> sweepers are cron-scheduled, and the mig-177 lifecycle producers finally ask
+> the vertical gate (a reminder is a re-exposure path).
+>
+> **Also built:** grocery/pharmacy removed as cuisine aliases (customer +
+> admin-web; the one-taxonomy rule) and mig 188's C0 catalog foundations —
+> merchant-scoped SKU/barcode uniqueness, the append-only
+> `menu_item_availability_events` audit (trigger-derived, Data-API writes
+> tagged, no-op-silent, immutable), and server-side keyset-paginated
+> `search_catalog` riding the mig-153 RLS as its visibility authority.
+>
+> **Known E0 gaps left open (recorded, not hidden):** 'used' access events have
+> no writer; campaigns/push_campaigns carry no vertical dimension; browse UX is
+> still cuisine-only (vertical navigation is future work with its own copy).
+> Programs B (money precision), C1-C6, D (pharmacy) and E (city) remain
+> unstarted by design — each has explicit owner gates this spec defines.
+
 ## Current evidence
 
 - `verticals` contains food, grocery and pharmacy.
