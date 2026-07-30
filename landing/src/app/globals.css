@@ -103,6 +103,11 @@ html, body {
 .lpage .zgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:8px}
 .lpage .zone{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;font-size:15px;font-weight:800;letter-spacing:-.01em}
 .lpage .znote{color:var(--dim);font-size:13px;font-weight:600;margin:18px 0 0}
+.lpage .faq{padding:76px 0 0}
+.lpage .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:8px}
+.lpage .fitem{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+.lpage .fq{font-size:16px;font-weight:800;letter-spacing:-.01em;margin:0 0 8px}
+.lpage .fa{color:var(--dim);font-size:14px;font-weight:600;line-height:1.6;margin:0}
 .lpage .soul{padding:76px 0 112px}
 .lpage .sgrid{display:grid;grid-template-columns:1fr .85fr;gap:64px;align-items:center}
 .lpage .simgs{display:grid;grid-template-columns:1fr 1fr;gap:14px}

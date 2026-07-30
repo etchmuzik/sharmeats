@@ -214,6 +214,33 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── FAQ ─────────────────────────────────────────────────────
+          Every answer here was checked against the migrations, not against
+          what we intend to ship. That pass killed four earlier drafts: the
+          radius is enforced when the order is placed (no client calls
+          delivery_feasibility, so we cannot claim we warn you first); the
+          minimum is an admin-set column, not something a restaurant chooses;
+          per-order rewards are POINTS with a redemption rate, while the EGP
+          wallet is the separate refund/SLA-credit system; and service_fee_pct
+          is a live platform_settings row, so "no service fee" is a statement
+          about today rather than a permanent promise. Re-verify before
+          editing — a marketing page that overpromises is the bug this
+          section exists to avoid. */}
+      <section className="faq" id="faq">
+        <div className="shell">
+          <div className="kick"><span className="kdot" /><span>{t.faq_k}</span></div>
+          <h2 className="big">{t.faq_t}</h2>
+          <dl className="fgrid">
+            {([1, 2, 3, 4, 5, 6] as const).map((n) => (
+              <div className="fitem" key={n}>
+                <dt className="fq">{t[`faq_q${n}` as const]}</dt>
+                <dd className="fa">{t[`faq_a${n}` as const]}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
       {/* ── Local soul ──────────────────────────────────────────── */}
       <section className="soul">
         <div className="shell sgrid">
