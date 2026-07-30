@@ -131,6 +131,10 @@ export default function Checkout() {
   // from zone rules server-side (client p_delivery_fee is ignored), so only a
   // resolved quote guarantees the previewed total equals the door charge.
   const [quoteState, setQuoteState] = useState<'loading' | 'ok' | 'failed'>('loading');
+  // Separate from quoteState on purpose. A fee quote succeeding says nothing
+  // about the service area — quote_delivery_fee never reads distance — so
+  // "priced" and "deliverable" are two different answers and need two states.
+  const [outOfRange, setOutOfRange] = useState(false);
   const [promoInput, setPromoInput] = useState('');
   const [promoApplied, setPromoApplied] = useState<{ code: string; discount: number } | null>(null);
   const [promoError, setPromoError] = useState(false);
@@ -200,23 +204,36 @@ export default function Checkout() {
     if (!restaurantId || !address) return;
     let cancelled = false;
     setQuoteState('loading');
-    db.orders
-      .quoteDeliveryFee(restaurantId, address.id, subtotal)
-      .then((fee) => {
+    // Two questions, two RPCs. `quote_delivery_fee` answers "what will this
+    // cost", `delivery_feasibility` answers "will you deliver here at all".
+    // Checkout used to ask only the first and treat a price as permission,
+    // but quote_delivery_fee resolves a zone and returns a flat rule — it
+    // never reads distance or max_delivery_radius_m, and falls back to a flat
+    // 30 when nothing matches. So an out-of-range address priced fine, this
+    // button unlocked, and place_order raised OUT_OF_RANGE only after the tap.
+    Promise.all([
+      db.orders.quoteDeliveryFee(restaurantId, address.id, subtotal),
+      db.orders.checkDeliveryFeasibility(restaurantId, address.id),
+    ])
+      .then(([fee, feasibility]) => {
         if (cancelled) return;
         setQuotedFee(fee);
         setQuoteState('ok');
-        // [P05-E] The quote resolving IS the service-area decision for this
-        // address — the backend only prices addresses it will deliver to.
-        track('service_area_checked', { result: 'in_area' });
+        setOutOfRange(!feasibility.inRange);
+        track('service_area_checked', {
+          result: feasibility.inRange ? 'in_area' : 'out_of_area',
+        });
       })
       .catch(() => {
         if (cancelled) return;
         setQuotedFee(null);
         setQuoteState('failed');
-        // 'failed', not 'out_of_area': a network error is indistinguishable
-        // from a radius rejection here, and claiming out-of-area would poison
-        // the funnel with connectivity noise.
+        // Do NOT set outOfRange here. 'failed', not 'out_of_area': a network
+        // error is indistinguishable from a radius rejection at this layer,
+        // and telling someone in Naama Bay that we don't deliver to them
+        // because their signal dropped is worse than letting place_order
+        // decide. Blocking is reserved for an explicit in_range = false.
+        setOutOfRange(false);
         track('service_area_checked', { result: 'failed' });
       });
     return () => {
@@ -827,6 +844,15 @@ export default function Checkout() {
             </Text>
           </Pressable>
         )}
+        {/* Out of range: say so HERE rather than letting place_order raise
+            OUT_OF_RANGE after the tap. Reuses the same string the post-submit
+            error maps to, so the customer reads one consistent explanation
+            whichever path surfaces it — and it is already in all five locales. */}
+        {address && quoteState === 'ok' && outOfRange && (
+          <View style={styles.payErr}>
+            <Text style={styles.payErrText}>{t('error.outOfRange')}</Text>
+          </View>
+        )}
         {isCard && (
           <Text style={styles.cardHint}>
             {t('checkout.cardHint') !== 'checkout.cardHint'
@@ -892,6 +918,7 @@ export default function Checkout() {
             !phoneValid ||
             cashTenderInvalid ||
             quoteState !== 'ok' ||
+            outOfRange ||
             (isGuest && !guestConsent)
           }
         />

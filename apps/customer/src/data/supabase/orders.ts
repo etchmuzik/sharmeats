@@ -137,6 +137,49 @@ export const ordersRepoSupabase = {
   },
 
   /**
+   * Is this restaurant actually willing to deliver to this address?
+   *
+   * This exists because `quoteDeliveryFee` CANNOT answer that question, despite
+   * checkout having assumed it could. `quote_delivery_fee` resolves a zone and
+   * returns a flat rule price — it never reads distance, `max_delivery_radius_m`
+   * or `in_range`, and falls back to a flat 30 when no rule matches. So an
+   * out-of-range address quoted successfully, the Place button unlocked, and the
+   * rejection only arrived as OUT_OF_RANGE after the customer committed.
+   *
+   * `delivery_feasibility` is the only RPC that returns `in_range`, and it is the
+   * same one `place_order` gates on, so asking it here means the button agrees
+   * with the server instead of guessing.
+   *
+   * Note it FAILS OPEN by design (mig 186): a restaurant or address with no geo
+   * yields `in_range = true` rather than blocking a real order on missing data.
+   * We mirror that — an unreadable answer must never strand a deliverable order.
+   */
+  async checkDeliveryFeasibility(
+    restaurantId: string,
+    addressId: string,
+  ): Promise<{ inRange: boolean; etaMinutes: number | null }> {
+    const sb = getSupabase();
+    const { data: addr, error: addrErr } = await sb
+      .from('addresses')
+      .select('geo')
+      .eq('id', addressId)
+      .maybeSingle();
+    if (addrErr) throw addrErr;
+    const { data, error } = await sb.rpc('delivery_feasibility', {
+      p_restaurant_id: restaurantId,
+      p_dropoff: addr?.geo ?? null,
+    });
+    if (error) throw error;
+    // setof-returning RPC: PostgREST hands back an array of rows.
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      // Fail open, matching the SQL: only an explicit `false` blocks checkout.
+      inRange: row?.in_range !== false,
+      etaMinutes: typeof row?.eta_minutes === 'number' ? row.eta_minutes : null,
+    };
+  },
+
+  /**
    * Reconcile a proposed cart against the CURRENT menu, server-side (mig 145).
    *
    * Sends identity only — item id, quantity, chosen option ids, notes — exactly
