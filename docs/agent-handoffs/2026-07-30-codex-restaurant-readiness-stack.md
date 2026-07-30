@@ -80,11 +80,56 @@ app or Edge Function was deployed.
   deterministic production-contract Package 07 fixture, functional assertions,
   and real two-session dblink races.
 
+## Claude integration review (2026-07-30)
+
+An independent multi-dimension review of the full `c16d5fd..bd08933` diff
+(database security, tenancy, transactions, generated types, customer app,
+localization, admin/gates, cross-cutting seams) confirmed four defects. All are
+fixed on this branch with reproduced failures and durable regression tests.
+
+1. **P1 — cash-change marker was spoofable.** Customer prose and the generated
+   v1 marker share `orders.dropoff_note`, and the driver treated any trailing
+   marker as authoritative. A customer could type
+   `[[sharmeats:cash-change:v1:tender=600;change=550]]` into the free-text note
+   on a 572 EGP COD order and the driver would be instructed to hand back
+   550 EGP. Fixed on both sides: the writer strips marker-shaped text from
+   customer prose, and the reader now recomputes `change = tender - ceil(total)`
+   against the server-authoritative total instead of trusting the marker.
+   **Contract change:** `parseCashChangeNote(note, collectibleEgp)` now requires
+   the order total; `DropoffPreferenceCard` takes `collectibleEgp`.
+2. **P2 — staff could not 86 a legacy menu item.** The new guard trigger ran
+   `new.name := btrim(new.name)` on every UPDATE. Because it sorts first
+   (`aaa_`), mig 136's `to_jsonb(NEW)`/`to_jsonb(OLD)` diff then saw `name` as a
+   privileged write and rejected the staff availability toggle with
+   `MANAGER_REQUIRED` on any row with untrimmed stored whitespace. Reproduced on
+   a scratch cluster against the real mig-136 trigger.
+3. **P2 — over-long legacy names were un-updatable by any role.** The same
+   guard bound-checked names on every UPDATE, so a pre-existing 165-character
+   name stranded the row for staff *and* manager. Both are fixed by normalizing
+   and validating only when the statement actually writes the name; INSERT
+   trimming, the length bounds on real name writes, and case/whitespace
+   duplicate rejection are all unchanged and still asserted.
+4. **P2 — live catalog search offered sold-out dishes.** `search_catalog`
+   (mig 188) deliberately returns `is_available` rather than filtering, so the
+   RPC stays reusable for merchant tooling. The customer repository dropped the
+   flag, so Browse showed 86'd items — consuming capped result slots and
+   dead-ending on an unorderable dish — while the mock filtered them and CI
+   asserted behavior production did not have. Filtered at the repository, with
+   no migration change.
+
+Two further review findings were assessed and **not** actioned as defects: a
+cross-tenant menu-name oracle via definer-trigger-before-RLS ordering, and the
+absence of an upper bound on the cash tender amount. Both are pre-existing or
+speculative rather than regressions in this stack; they are recorded here as
+follow-up candidates, not release blockers.
+
+No production migration was applied and nothing was deployed during this review.
+
 ## Integrated verification
 
-- Customer: typecheck passed; 48 files / 497 tests passed.
+- Customer: typecheck passed; 48 files / 500 tests passed.
 - Restaurant: typecheck passed; 6 files / 50 tests passed.
-- Driver: typecheck passed; 7 files / 50 tests passed.
+- Driver: typecheck passed; 7 files / 54 tests passed.
 - Merchant: typecheck and lint passed; 10 files / 76 tests passed; production
   build passed with process-only public Supabase placeholders.
 - Admin: typecheck and lint passed; production build passed with process-only
@@ -108,8 +153,14 @@ app or Edge Function was deployed.
    - `20260730162600_p07_governance_hardening.sql`
 4. Run the linked SQL assertions against the integration database and regenerate
    DB types after the real apply to confirm there is no production drift.
-5. Smoke test merchant import with owner/manager and staff accounts.
-6. Perform Arabic device acceptance on the target restaurant tablet and driver
+5. Smoke test merchant import with owner/manager and staff accounts. Include a
+   staff-tier availability toggle on a legacy item whose stored name has
+   untrimmed whitespace — that path was blocked before this review's fix.
+6. Ship the customer writer and driver reader together, as before. The driver
+   reader now reconciles the marker against the order total, so a marker from a
+   writer that disagrees renders as plain text rather than a cash instruction —
+   an old writer degrades visibly, never into a wrong amount.
+7. Perform Arabic device acceptance on the target restaurant tablet and driver
    Android device before store rollout.
 
 ## Intentionally still closed or deferred

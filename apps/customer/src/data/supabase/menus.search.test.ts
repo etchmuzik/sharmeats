@@ -81,6 +81,20 @@ describe('menusRepoSupabase.search', () => {
     expect(inCalls).toEqual([{ column: 'id', values: ['b', 'a'] }]);
     expect(result.map((item) => item.id)).toEqual(['b', 'a']);
   });
+
+  it('drops sold-out items so Browse matches the mock and forRestaurant contract', async () => {
+    // search_catalog returns is_available for the caller to act on rather than
+    // filtering server-side (mig 188), so the repository owns the 86 filter.
+    rpcRows = [{ item_id: 'a' }, { item_id: 'b' }];
+    hydratedRows = [
+      row('a', 'r-a'),
+      { ...row('b', 'r-b'), is_available: false },
+    ];
+
+    const result = await menusRepoSupabase.search('kosh', 12);
+
+    expect(result.map((item) => item.id)).toEqual(['a']);
+  });
 });
 
 describe('menusRepoSupabase.restaurantIdsForFlags', () => {
