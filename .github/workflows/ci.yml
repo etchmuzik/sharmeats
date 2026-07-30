@@ -98,5 +98,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify PostgreSQL test runtime
         run: pg_config --version
-      - name: Test payment and KYC migrations in isolation
+      - name: Test security and governance migrations in isolated PostgreSQL
         run: ./scripts/test-security-migrations.sh

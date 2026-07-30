@@ -5011,6 +5011,26 @@ export type Database = {
         }
         Returns: string
       }
+      append_merchant_menu_item: {
+        Args: {
+          p_description: string
+          p_flags: Database["public"]["Enums"]["item_flag_type"][]
+          p_image: string
+          p_is_available: boolean
+          p_name: string
+          p_price_egp: number
+          p_restaurant_id: string
+          p_section_id: string
+        }
+        Returns: string
+      }
+      append_merchant_menu_section: {
+        Args: {
+          p_name: string
+          p_restaurant_id: string
+        }
+        Returns: string
+      }
       approve_restaurant: {
         Args: { p_decision: string; p_reason?: string; p_restaurant_id: string }
         Returns: undefined
@@ -5442,6 +5462,13 @@ export type Database = {
       i_have_platform_capability: {
         Args: { p_capability: string }
         Returns: boolean
+      }
+      import_merchant_menu: {
+        Args: {
+          p_restaurant_id: string
+          p_rows: Json
+        }
+        Returns: Json
       }
       in_quiet_hours: {
         Args: { p_end: number; p_start: number; p_tz: string }

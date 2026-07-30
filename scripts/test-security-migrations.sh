@@ -128,4 +128,43 @@ fi
   -d "${staff_role_database}" \
   -f "${project_root}/supabase/tests/20260730162500_merchant_menu_import.test.sql"
 
+p07_database="test_20260730162600_p07_governance"
+"${postgres_bin_dir}/createdb" \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  "${p07_database}"
+
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/tests/20260730162600_p07_governance_fixture.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/migrations/20260730162600_p07_governance_hardening.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/tests/20260730162600_p07_governance_hardening.test.sql"
+
+p07_test_user="$(id -un)"
+p07_dblink_dsn="dbname=${p07_database} user=${p07_test_user} host=${test_socket_dir} port=${test_db_port}"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -v "dblink_dsn=${p07_dblink_dsn}" \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/tests/20260730162600_p07_governance_concurrency.test.sql"
+
 echo "Security migration tests passed."

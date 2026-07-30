@@ -76,19 +76,24 @@ together or all roll back. The importer is append-only:
   - durable function/grant/trigger shape assertions;
   - manager success, staff denial, manager cross-tenant denial, admin
     cross-tenant success, server ordering, and whole-batch rollback coverage.
+- `packages/db-types/database.types.ts` and
+  `apps/merchant-web/src/lib/databaseTypes.test.ts`
+  - expose the three public menu RPC signatures without dropping the Package 08
+    or Package 07 generated additions;
+  - compile-time assertions bind argument names, enum arrays, JSON and return
+    types to the SQL contract.
 - `scripts/test-security-migrations.sh`
   - applies the timestamp migration and runs its durable regression after the
     migration-136 fixture/assertions.
 
-No new dependency, table, storage bucket, edge function, or generated type was
-added.
+No new dependency, table, storage bucket, or edge function was added.
 
 ## Verification performed
 
 - New tests were red first against the direct-insert client and missing lock
   helper, then green after implementation.
 - Full merchant-web Vitest:
-  `9 files / 75 tests passed`.
+  `10 files / 76 tests passed`.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed with zero warnings/errors (only Next's existing
   deprecation notice for `next lint`).
@@ -120,8 +125,9 @@ production.
 3. Run
    `supabase/tests/20260730162500_merchant_menu_import.test.sql` against the
    integration database.
-4. After production apply, run the repository's `npm run db:types` and commit
-   generated type changes if any.
+4. The generated public RPC signatures are already committed and compile-time
+   asserted. After production apply, run the repository's `npm run db:types`
+   and require no unexpected diff.
 5. Smoke test with an owner/manager account and a staff account.
 
 ## Conflicts and risks

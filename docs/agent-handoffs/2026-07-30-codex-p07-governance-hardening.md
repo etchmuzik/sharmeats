@@ -56,6 +56,13 @@ clients, or tampered onboarding drafts.
     `grant_vertical_private_access` users → vertical path while the producer
     reaches its ledger FK; the grant and suppression both complete without a
     deadlock.
+- `supabase/tests/20260730162600_p07_governance_fixture.sql` and
+  `scripts/test-security-migrations.sh`
+  - reproduce the relevant production roles, columns, constraints, user FK,
+    lifecycle writer and users → vertical grant lock order in a fresh local
+    Unix-socket PostgreSQL database;
+  - apply the real hardening migration and run both SQL suites on every CI
+    invocation, with no secret, project ref, external URI or skip path.
 - `apps/customer/src/data/supabase/mappers.test.ts`
   - rolling-deployment/stale-row cuisine decoder.
 
@@ -69,6 +76,8 @@ Against a disposable production-shaped PostgreSQL clone through migration 193:
 - committed migration + SQL assertions: passed;
 - two-session concurrency test: passed for both producers and the real
   private-access RPC lock order;
+- the repository security-migration harness passed end to end with the
+  deterministic production-contract fixture and both Package 07 suites;
 - customer full suite: 42 files / 466 tests passed;
 - customer typecheck passed;
 - merchant full suite: 6 files / 60 tests passed;
@@ -77,6 +86,8 @@ Against a disposable production-shaped PostgreSQL clone through migration 193:
 - merchant and admin production builds passed with temporary process-only
   Supabase build placeholders (no env file written);
 - standalone generated database-types TypeScript compile passed;
+- generated merchant RPC contract assertions passed without losing Package 08
+  delivery types or this migration's food-only cuisine type;
 - `git diff --check` passed.
 - independent read-only concurrency/security review: clean after correcting the
   existing users → vertical lock hierarchy and the LockAcquire cancellation
