@@ -18,6 +18,10 @@ import {
   DRIVER_LOCATION_TASK,
 } from './backgroundLocationTask';
 import { getSupabase } from './supabase';
+import {
+  DRIVER_LOCALE_STORAGE_KEY,
+  trackingNotificationCopy,
+} from './i18n';
 
 const DISTANCE_INTERVAL_M = 25; // emit a fix roughly every 25 meters of movement
 
@@ -72,6 +76,15 @@ export async function startStreaming(orderId: string): Promise<void> {
     );
   }
 
+  // This code can run while React is not mounted, so it deliberately reads the
+  // same persisted locale as LanguageProvider instead of using a hook. Falling
+  // back to English keeps Android's required foreground-service notification
+  // available even if storage is temporarily inaccessible.
+  const storedLocale = await AsyncStorage.getItem(DRIVER_LOCALE_STORAGE_KEY).catch(
+    () => null,
+  );
+  const notification = trackingNotificationCopy(storedLocale);
+
   await AsyncStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, normalizedOrderId);
   try {
     await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
@@ -84,8 +97,8 @@ export async function startStreaming(orderId: string): Promise<void> {
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: 'Sharm Eats delivery in progress',
-        notificationBody: 'Sharing your live location for the active delivery.',
+        notificationTitle: notification.title,
+        notificationBody: notification.body,
         notificationColor: '#0E7C91',
         killServiceOnDestroy: false,
       },

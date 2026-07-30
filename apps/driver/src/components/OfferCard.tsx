@@ -36,6 +36,7 @@ import { colors, font, radius, spacing } from '../theme';
 import { Icon } from './Icon';
 import { cardEnter, cardExit, listReflow, useCountdownBar, usePulse } from './motion';
 import { notifyWarning, tapHeavy, tapLight } from '../lib/haptics';
+import { useI18n } from '../i18n-context';
 
 // Escalation thresholds, timestamp parsing and bar scaling live in
 // `../offerUrgency` so they can be unit-tested without rendering — see
@@ -129,6 +130,7 @@ type Props = {
 };
 
 export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
+  const { direction, t } = useI18n();
   const seconds = useCountdown(offer.offer_expires_at, onExpire);
   const payout = offer.delivery_fee_egp + offer.tip_egp;
   const urgency = urgencyOf(seconds);
@@ -155,13 +157,16 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
       // identically at 60s and at 3s, and the Accept label only changes once
       // the job is already lost.
       AccessibilityInfo.announceForAccessibility(
-        `Offer from ${offer.restaurant_name} expires in ${CRITICAL_S} seconds`,
+        t('offer.criticalAnnouncement', {
+          restaurant: offer.restaurant_name,
+          seconds: CRITICAL_S,
+        }),
       );
     }
-  }, [urgency, expired, offer.restaurant_name]);
+  }, [urgency, expired, offer.restaurant_name, t]);
 
   const countdownLabel = expired
-    ? 'Expired'
+    ? t('offer.expired')
     : seconds === null
       ? null
       : formatCountdown(seconds);
@@ -181,6 +186,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
           padding: spacing.lg,
           marginBottom: spacing.md,
           gap: spacing.sm,
+          direction: direction.direction,
           boxShadow:
             urgency === 'critical'
               ? '0 4px 16px rgba(200, 65, 42, 0.18)'
@@ -215,9 +221,9 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
       )}
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, paddingRight: spacing.md }}>
+        <View style={{ flex: 1 }}>
           <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase' }}>
-            Pickup
+            {t('offer.pickup')}
           </Text>
           <Text selectable style={{ fontWeight: '700', color: colors.ink, fontSize: font.sizes.lg, marginTop: 2 }}>
             {offer.restaurant_name}
@@ -226,7 +232,11 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
         {countdownLabel !== null && (
           <View
             accessibilityRole="text"
-            accessibilityLabel={expired ? 'Offer expired' : `Expires in ${countdownLabel}`}
+            accessibilityLabel={
+              expired
+                ? t('offer.expiredA11y')
+                : t('offer.expiresIn', { time: countdownLabel })
+            }
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -254,19 +264,19 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
       </View>
 
       <Text selectable style={{ color: colors.green, fontSize: font.sizes.xl, fontWeight: '800' }}>
-        You earn {payout} EGP
+        {t('offer.earn', { amount: payout })}
       </Text>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <Icon name="navigate" size={16} color={colors.accentDark} />
-        <Text style={{ flex: 1, color: colors.ink2, fontSize: font.sizes.sm }}>
+        <Text style={{ flex: 1, color: colors.ink2, fontSize: font.sizes.sm, textAlign: direction.textAlign }}>
           {offer.dropoff_zone
-            ? `Drop-off area: ${formatZone(offer.dropoff_zone)}`
-            : 'Drop-off area appears when dispatch confirms it.'}
+            ? t('offer.dropoffArea', { zone: formatZone(offer.dropoff_zone) })
+            : t('offer.dropoffPending')}
         </Text>
       </View>
       <Text style={{ color: colors.ink3, fontSize: font.sizes.xs }}>
-        The exact address and customer contact unlock after you accept.
+        {t('offer.unlock')}
       </Text>
 
       {/* Accept is weighted 2:1 — a mis-tap here costs the driver a paid job. */}
@@ -278,7 +288,9 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
           }}
           disabled={expired}
           accessibilityRole="button"
-          accessibilityLabel={`Decline offer from ${offer.restaurant_name}`}
+          accessibilityLabel={t('offer.declineA11y', {
+            restaurant: offer.restaurant_name,
+          })}
           accessibilityState={{ disabled: expired }}
           style={({ pressed }) => ({
             flex: 1,
@@ -292,7 +304,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <Text style={{ color: colors.red, fontWeight: '600' }}>Decline</Text>
+          <Text style={{ color: colors.red, fontWeight: '600' }}>{t('offer.decline')}</Text>
         </Pressable>
         <Pressable
           onPress={() => {
@@ -301,7 +313,10 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
           }}
           disabled={expired}
           accessibilityRole="button"
-          accessibilityLabel={`Accept offer from ${offer.restaurant_name} for ${payout} EGP`}
+          accessibilityLabel={t('offer.acceptA11y', {
+            restaurant: offer.restaurant_name,
+            amount: payout,
+          })}
           accessibilityState={{ disabled: expired }}
           style={({ pressed }) => ({
             flex: 2,
@@ -315,7 +330,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
           })}
         >
           <Text style={{ color: colors.white, fontWeight: '800', fontSize: font.sizes.lg }}>
-            {expired ? 'Expired' : 'Accept'}
+            {expired ? t('offer.expired') : t('offer.accept')}
           </Text>
         </Pressable>
       </View>

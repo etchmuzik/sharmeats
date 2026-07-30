@@ -16,11 +16,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
 import { colors, font, radius, spacing } from '../src/theme';
 import { LEGAL_URLS, openLegal } from '../src/legal';
+import { LanguageToggle } from '../src/components/LanguageToggle';
+import { useI18n } from '../src/i18n-context';
+import { captureError } from '../src/lib/crash';
 
 export default function SignIn() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signInWithPassword } = useAuth();
+  const { direction, errorMessage, t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -33,7 +37,8 @@ export default function SignIn() {
       await signInWithPassword(email, password);
       router.replace('/home');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not sign in');
+      captureError(e, { where: 'driver.signin' });
+      setError(errorMessage('signin', e));
     } finally {
       setBusy(false);
     }
@@ -47,14 +52,28 @@ export default function SignIn() {
       <StatusBar style="light" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', paddingTop: insets.top + 40 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'flex-end',
+          paddingTop: insets.top + 40,
+          direction: direction.direction,
+        }}
       >
         <View style={{ paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxl }}>
+          <LanguageToggle inverted />
           <Text style={{ color: colors.white, fontSize: font.sizes.huge, fontWeight: '800' }}>
             Sharm Eats
           </Text>
-          <Text style={{ color: colors.accentSoft, fontSize: font.sizes.lg, marginTop: 4 }}>
-            Driver
+          <Text
+            style={{
+              color: colors.accentSoft,
+              fontSize: font.sizes.lg,
+              marginTop: 4,
+              textAlign: direction.textAlign,
+              writingDirection: direction.writingDirection,
+            }}
+          >
+            {t('signin.driver')}
           </Text>
         </View>
 
@@ -68,11 +87,19 @@ export default function SignIn() {
             gap: spacing.md,
           }}
         >
-          <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink }}>
-            Sign in
+          <Text
+            style={{
+              fontSize: font.sizes.xl,
+              fontWeight: '700',
+              color: colors.ink,
+              textAlign: direction.textAlign,
+              writingDirection: direction.writingDirection,
+            }}
+          >
+            {t('signin.title')}
           </Text>
-          <Text style={{ color: colors.ink2 }}>Use the email and password from dispatch.</Text>
-          <Text style={fieldLabel}>Email address</Text>
+          <Text style={{ color: colors.ink2, textAlign: direction.textAlign, writingDirection: direction.writingDirection }}>{t('signin.subtitle')}</Text>
+          <Text style={[fieldLabel, { textAlign: direction.textAlign, writingDirection: direction.writingDirection }]}>{t('signin.email')}</Text>
           <TextInput
             testID="driver-email-input"
             value={email}
@@ -83,20 +110,20 @@ export default function SignIn() {
             textContentType="username"
             placeholder="driver@sharmeats.eg"
             placeholderTextColor={colors.ink3}
-            accessibilityLabel="Email address"
-            style={inputStyle}
+            accessibilityLabel={t('signin.email')}
+            style={[inputStyle, { textAlign: 'left', writingDirection: 'ltr' }]}
           />
-          <Text style={fieldLabel}>Password</Text>
+          <Text style={[fieldLabel, { textAlign: direction.textAlign, writingDirection: direction.writingDirection }]}>{t('signin.password')}</Text>
           <TextInput
             testID="driver-password-input"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             textContentType="password"
-            placeholder="Password"
+            placeholder={t('signin.password')}
             placeholderTextColor={colors.ink3}
-            accessibilityLabel="Password"
-            style={inputStyle}
+            accessibilityLabel={t('signin.password')}
+            style={[inputStyle, { textAlign: 'left', writingDirection: 'ltr' }]}
             onSubmitEditing={() => email && password && submit()}
           />
           <Pressable
@@ -104,14 +131,14 @@ export default function SignIn() {
             onPress={submit}
             disabled={busy || !email || !password}
             accessibilityRole="button"
-            accessibilityLabel="Sign in"
+            accessibilityLabel={t('signin.submit')}
             accessibilityState={{ disabled: busy || !email || !password, busy }}
             style={[btnStyle, (busy || !email || !password) && { opacity: 0.5 }]}
           >
             {busy ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={btnText}>Sign in</Text>
+              <Text style={btnText}>{t('signin.submit')}</Text>
             )}
           </Pressable>
 
@@ -128,30 +155,30 @@ export default function SignIn() {
               )
             }
             accessibilityRole="link"
-            accessibilityLabel="Contact Sharm Eats support for sign-in help"
+            accessibilityLabel={t('signin.helpA11y')}
             style={helpLink}
           >
-            <Text style={helpLinkText}>Can’t sign in? Contact driver support</Text>
+            <Text style={[helpLinkText, { writingDirection: direction.writingDirection }]}>{t('signin.help')}</Text>
           </Pressable>
 
-          <Text style={{ marginTop: spacing.sm, fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center' }}>
-            By continuing you agree to our{' '}
+          <Text style={{ marginTop: spacing.sm, fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center', writingDirection: direction.writingDirection }}>
+            {t('signin.agreementPrefix')}{' '}
             <Text
               style={{ color: colors.accent, fontWeight: '600' }}
               onPress={() => openLegal(LEGAL_URLS.terms)}
               accessibilityRole="link"
-              accessibilityLabel="Terms of Service"
+              accessibilityLabel={t('signin.terms')}
             >
-              Terms of Service
+              {t('signin.terms')}
             </Text>
             {' · '}
             <Text
               style={{ color: colors.accent, fontWeight: '600' }}
               onPress={() => openLegal(LEGAL_URLS.privacy)}
               accessibilityRole="link"
-              accessibilityLabel="Privacy Policy"
+              accessibilityLabel={t('signin.privacy')}
             >
-              Privacy Policy
+              {t('signin.privacy')}
             </Text>
           </Text>
         </View>

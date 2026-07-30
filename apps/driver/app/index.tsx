@@ -4,18 +4,20 @@ import { Redirect } from 'expo-router';
 import { useAuth } from '../src/auth';
 import { isSupabaseConfigured } from '../src/supabase';
 import { colors, font } from '../src/theme';
+import { useI18n } from '../src/i18n-context';
 
 export default function Index() {
   const { session, loading } = useAuth();
+  const { direction, t } = useI18n();
 
   if (!isSupabaseConfigured()) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.bg }}>
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
-          Backend not configured
+        <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {t('index.backendTitle')}
         </Text>
-        <Text style={{ marginTop: 8, color: colors.ink2, textAlign: 'center' }}>
-          Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY, then restart.
+        <Text style={{ marginTop: 8, color: colors.ink2, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {t('index.backendBody')}
         </Text>
       </View>
     );

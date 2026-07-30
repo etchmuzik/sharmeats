@@ -19,6 +19,7 @@ import { getDriverPhotoUrl, uploadDriverPhoto } from '../avatar';
 import { colors, font } from '../theme';
 import { useToast } from './Toast';
 import { notifySuccess, tapLight } from '../lib/haptics';
+import { useI18n } from '../i18n-context';
 
 const SIZE = 56;
 
@@ -29,6 +30,7 @@ type Props = {
 
 export function AvatarButton({ name }: Props) {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -46,7 +48,7 @@ export function AvatarButton({ name }: Props) {
     tapLight();
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      toast('Allow photo access in Settings to set a profile photo.', 'error');
+      toast(t('avatar.permission'), 'error');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -62,13 +64,13 @@ export function AvatarButton({ name }: Props) {
       const newUrl = await uploadDriverPhoto(asset.uri, asset.mimeType, asset.fileSize);
       setUrl(newUrl);
       notifySuccess();
-      toast('Profile photo updated.', 'success');
+      toast(t('avatar.updated'), 'success');
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Couldn't upload the photo. Try again.", 'error');
+      toast(e instanceof Error ? e.message : t('avatar.uploadError'), 'error');
     } finally {
       setBusy(false);
     }
-  }, [toast]);
+  }, [t, toast]);
 
   const initial = (name ?? 'D').trim().charAt(0).toUpperCase() || 'D';
 
@@ -77,7 +79,7 @@ export function AvatarButton({ name }: Props) {
       onPress={pick}
       disabled={busy}
       accessibilityRole="button"
-      accessibilityLabel={url ? 'Change your profile photo' : 'Add a profile photo'}
+      accessibilityLabel={url ? t('avatar.changeA11y') : t('avatar.addA11y')}
       accessibilityState={{ busy, disabled: busy }}
       hitSlop={8}
       style={({ pressed }) => ({

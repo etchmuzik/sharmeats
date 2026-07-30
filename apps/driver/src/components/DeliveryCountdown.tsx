@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../theme';
+import { useI18n } from '../i18n-context';
 
 /**
  * Phase-aware delivery countdown shown on the active-job screen once a driver
@@ -41,6 +42,7 @@ function formatDelta(ms: number): string {
 }
 
 export function DeliveryCountdown({ etaAt, beforePickup, dropoffBufferMin = 20 }: Props) {
+  const { t } = useI18n();
   // Re-render every second. Seeded once; the interval drives the tick. We also
   // resync on app-foreground because JS timers are throttled/paused in the
   // background, so the displayed value could otherwise be stale on return.
@@ -71,8 +73,12 @@ export function DeliveryCountdown({ etaAt, beforePickup, dropoffBufferMin = 20 }
   const bg = overdue ? colors.redSoft : urgent ? colors.amberSoft : colors.accentSoft;
   const fg = overdue ? colors.red : urgent ? colors.amber : colors.accentDark;
 
-  const label = beforePickup ? 'Pick up by' : 'Deliver by';
-  const clockLabel = overdue ? (beforePickup ? 'Pickup overdue' : 'Delivery overdue') : label;
+  const label = beforePickup ? t('countdown.pickupBy') : t('countdown.deliverBy');
+  const clockLabel = overdue
+    ? beforePickup
+      ? t('countdown.pickupOverdue')
+      : t('countdown.deliveryOverdue')
+    : label;
 
   return (
     <View style={[styles.wrap, { backgroundColor: bg }]} accessibilityRole="timer">

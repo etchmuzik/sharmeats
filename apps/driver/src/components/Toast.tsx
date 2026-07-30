@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, spacing } from '../theme';
+import { useI18n } from '../i18n-context';
 
 /**
  * Non-blocking toast for the driver app. A courier on the move can't dismiss a
@@ -24,6 +25,7 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
+  const { direction } = useI18n();
   const [current, setCurrent] = useState<{ msg: string; kind: ToastKind } | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,7 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             },
           ]}
         >
-          <Text style={[styles.text, { color: fg }]} accessibilityLiveRegion="polite">
+          <Text style={[styles.text, { color: fg, writingDirection: direction.writingDirection }]} accessibilityLiveRegion="polite">
             {current.msg}
           </Text>
         </Animated.View>

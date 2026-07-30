@@ -1,13 +1,15 @@
 import { Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../theme';
 import { Icon, type IconName } from './Icon';
+import { useI18n } from '../i18n-context';
+import type { TranslationKey } from '../i18n';
 
-const COPY: Record<string, { icon: IconName; title: string }> = {
-  hand_to_me: { icon: 'handoff', title: 'Hand to the guest' },
-  leave_at_door: { icon: 'door', title: "Leave at the door, don't wait" },
-  meet_outside: { icon: 'walk', title: 'Guest will meet you outside' },
-  no_bell: { icon: 'quiet', title: "Don't ring the bell or knock" },
-  call_on_arrival: { icon: 'phone', title: 'Call the guest on arrival' },
+const COPY: Record<string, { icon: IconName; title: TranslationKey }> = {
+  hand_to_me: { icon: 'handoff', title: 'dropoff.handToGuest' },
+  leave_at_door: { icon: 'door', title: 'dropoff.leaveAtDoor' },
+  meet_outside: { icon: 'walk', title: 'dropoff.meetOutside' },
+  no_bell: { icon: 'quiet', title: 'dropoff.noBell' },
+  call_on_arrival: { icon: 'phone', title: 'dropoff.callOnArrival' },
 };
 
 interface Props {
@@ -21,6 +23,7 @@ interface Props {
  * the bell") is impossible to miss before the driver knocks/rings anyway.
  */
 export function DropoffPreferenceCard({ preference, note }: Props) {
+  const { t } = useI18n();
   if (!preference) return null;
   const copy = COPY[preference];
   if (!copy) return null;
@@ -39,7 +42,7 @@ export function DropoffPreferenceCard({ preference, note }: Props) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <Icon name={copy.icon} size={20} color={colors.amber} />
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: '800', color: colors.amber }}>
-          {copy.title}
+          {t(copy.title)}
         </Text>
       </View>
       {note ? (

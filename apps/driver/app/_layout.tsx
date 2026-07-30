@@ -10,6 +10,7 @@ import { colors } from '../src/theme';
 import { initCrashReporting } from '../src/lib/crash';
 import { getSupabase, isSupabaseConfigured } from '../src/supabase';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
+import { LanguageProvider, useI18n } from '../src/i18n-context';
 import '../src/backgroundLocationTask';
 
 export { ScreenErrorBoundary as ErrorBoundary };
@@ -37,43 +38,66 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <StatusBar style="dark" />
-            {/*
-              Native headers (large titles + native back) rather than
-              hand-rolled ones: they give correct safe-area handling for free via
-              `contentInsetAdjustmentBehavior="automatic"` on each screen's
-              scroller, and a back gesture drivers already know.
-
-              `index` and `signin` stay chrome-less — they are full-bleed gates,
-              not destinations you navigate back from.
-            */}
-            <Stack
-              screenOptions={{
-                contentStyle: { backgroundColor: colors.bg },
-                headerStyle: { backgroundColor: colors.bg },
-                headerTintColor: colors.accent,
-                headerTitleStyle: { color: colors.ink },
-                headerShadowVisible: false,
-                headerBackButtonDisplayMode: 'minimal',
-              }}
-            >
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="signin" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="home"
-                options={{ title: 'Deliveries', headerLargeTitle: true, headerBackVisible: false }}
-              />
-              <Stack.Screen name="job/[id]" options={{ title: 'Delivery' }} />
-              <Stack.Screen name="job/[id]/chat" options={{ title: 'Chat' }} />
-              <Stack.Screen name="history" options={{ title: 'History', headerLargeTitle: true }} />
-              <Stack.Screen name="tier" options={{ title: 'My tier' }} />
-              <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
-            </Stack>
-          </ToastProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <DriverStack />
+            </ToastProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function DriverStack() {
+  const { locale, t } = useI18n();
+
+  return (
+    <>
+      <StatusBar style="dark" />
+      {/*
+        Native headers (large titles + native back) rather than hand-rolled
+        ones: they give correct safe-area handling for free via
+        `contentInsetAdjustmentBehavior="automatic"` on each screen's scroller,
+        and a back gesture drivers already know.
+
+        `index` and `signin` stay chrome-less — they are full-bleed gates, not
+        destinations you navigate back from.
+      */}
+      <Stack
+        screenOptions={{
+          contentStyle: { backgroundColor: colors.bg },
+          headerStyle: { backgroundColor: colors.bg },
+          headerTintColor: colors.accent,
+          headerTitleStyle: { color: colors.ink },
+          // Native-stack does not expose a safe right-aligned title on iOS.
+          // Centering Arabic keeps the title visually balanced on Android and
+          // preserves native title/back gestures without forceRTL or a restart.
+          headerTitleAlign: locale === 'ar' ? 'center' : undefined,
+          headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
+        }}
+      >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="signin" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="home"
+          options={{
+            title: t('nav.deliveries'),
+            headerLargeTitle: true,
+            headerBackVisible: false,
+          }}
+        />
+        <Stack.Screen name="job/[id]" options={{ title: t('nav.delivery') }} />
+        <Stack.Screen name="job/[id]/chat" options={{ title: t('nav.chat') }} />
+        <Stack.Screen
+          name="history"
+          options={{ title: t('nav.history'), headerLargeTitle: true }}
+        />
+        <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
+        <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
+      </Stack>
+    </>
   );
 }
