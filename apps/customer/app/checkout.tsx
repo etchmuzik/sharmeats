@@ -28,6 +28,7 @@ import { success, selection } from '../src/haptics';
 import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
 import { LEGAL_URLS, openLegal } from '../src/legal';
+import { scheduledOrdersEnabled } from '../src/lib/scheduledOrders';
 
 // A session phone is only worth prefilling when it looks like a real number:
 // starts with + or a digit and carries at least 8 digits (same bar as the
@@ -95,6 +96,7 @@ export default function Checkout() {
   const locale = useSession((s) => s.locale);
   // Hide the FX/currency picker for locals on the default rail (AR + EGP).
   const showCurrencyPicker = !(locale === 'ar' && currency === 'EGP');
+  const canSchedule = scheduledOrdersEnabled();
 
   const [address, setAddress] = useState<Address | null>(null);
   const [payment, setPayment] = useState<PaymentMethod | null>(null);
@@ -125,6 +127,10 @@ export default function Checkout() {
   const [promoApplied, setPromoApplied] = useState<{ code: string; discount: number } | null>(null);
   const [promoError, setPromoError] = useState(false);
   const [promoChecking, setPromoChecking] = useState(false);
+  // The backend input and analytics use this fail-closed value, not only the
+  // visibility of the timing controls. A hidden control must never leave a
+  // stale scheduled timestamp capable of reaching place_order.
+  const effectiveScheduledFor = canSchedule ? scheduledFor : null;
 
   useEffect(() => {
     track('checkout_opened', { subtotal, itemCount: lines.length });
@@ -140,6 +146,7 @@ export default function Checkout() {
 
   // Generate 8 half-hour slots starting at the next half hour, capped at ~4h.
   const scheduleSlots = useMemo<number[]>(() => {
+    if (!canSchedule) return [];
     const now = Date.now();
     const firstSlot = new Date(now);
     firstSlot.setSeconds(0, 0);
@@ -149,7 +156,7 @@ export default function Checkout() {
       slots.push(firstSlot.getTime() + i * 30 * 60_000);
     }
     return slots;
-  }, []);
+  }, [canSchedule]);
 
   // Aggregate distinct allergens across all cart lines.
   const aggregateAllergens = useMemo<AllergyKey[]>(() => {
@@ -230,11 +237,11 @@ export default function Checkout() {
   // user picked one, else now + the restaurant's high prep estimate + a 5-min
   // dispatch buffer (mirrors dispatch_buffer_minutes default in mig 079).
   const promisedTime = useMemo<string | null>(() => {
-    if (scheduledFor) return formatTime(new Date(scheduledFor));
+    if (effectiveScheduledFor) return formatTime(new Date(effectiveScheduledFor));
     if (!restaurant) return null;
     const mins = (restaurant.prepTimeHigh || 30) + 5;
     return formatTime(new Date(Date.now() + mins * 60_000));
-  }, [scheduledFor, restaurant]);
+  }, [effectiveScheduledFor, restaurant]);
 
   const applyPromo = async () => {
     const code = promoInput.trim();
@@ -282,7 +289,7 @@ export default function Checkout() {
         dropoffPreference: dropoffPreference ?? undefined,
         dropoffNote: dropoffNote.trim() || undefined,
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
-        scheduledFor: scheduledFor ?? undefined,
+        scheduledFor: effectiveScheduledFor ?? undefined,
         promoCode: promoApplied?.code,
         customerPhone: contactPhone.trim(),
         idempotencyKey: idempotencyKey.current,
@@ -291,7 +298,7 @@ export default function Checkout() {
         orderId: order.id,
         total: order.totalEgp,
         payment: payment.kind,
-        scheduled: !!scheduledFor,
+        scheduled: !!effectiveScheduledFor,
         promo: promoApplied?.code ?? null,
       });
 
@@ -486,53 +493,56 @@ export default function Checkout() {
           </View>
         </View>
 
-        {/* Timing */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('checkout.timing')}</Text>
-          <View style={styles.timingRow}>
-            <Pressable
-              onPress={() => {
-                selection();
-                setScheduledFor(null);
-              }}
-              accessibilityRole="radio"
-              accessibilityLabel={t('checkout.timingAsap')}
-              accessibilityState={{ selected: scheduledFor === null }}
-              style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
-              <Icon name="bolt" size={14} color={scheduledFor === null ? colors.white : colors.accent} />
-              <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.white }]}>
-                {t('checkout.timingAsap')}
-              </Text>
-            </Pressable>
-            {scheduleSlots.map((slot) => {
-              const isSel = scheduledFor === slot;
-              return (
-                <Pressable
-                  key={slot}
-                  onPress={() => {
-                    selection();
-                    setScheduledFor(slot);
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityLabel={formatTime(new Date(slot))}
-                  accessibilityState={{ selected: isSel }}
-                  style={[styles.timingChip, isSel && styles.timingChipActive]}>
-                  <Text style={[styles.timingChipText, isSel && { color: colors.white }]}>
-                    {formatTime(new Date(slot))}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {scheduledFor !== null && (
-            <View style={styles.scheduledLineRow}>
-              <Icon name="calendar" size={15} color={colors.sea} />
-              <Text style={styles.scheduledLine}>
-                {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor)) })}
-              </Text>
+        {/* Timing is hidden until operating-hours validation and delayed
+            kitchen/dispatch release make a scheduled promise truthful. */}
+        {canSchedule && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t('checkout.timing')}</Text>
+            <View style={styles.timingRow}>
+              <Pressable
+                onPress={() => {
+                  selection();
+                  setScheduledFor(null);
+                }}
+                accessibilityRole="radio"
+                accessibilityLabel={t('checkout.timingAsap')}
+                accessibilityState={{ selected: scheduledFor === null }}
+                style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
+                <Icon name="bolt" size={14} color={scheduledFor === null ? colors.white : colors.accent} />
+                <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.white }]}>
+                  {t('checkout.timingAsap')}
+                </Text>
+              </Pressable>
+              {scheduleSlots.map((slot) => {
+                const isSel = scheduledFor === slot;
+                return (
+                  <Pressable
+                    key={slot}
+                    onPress={() => {
+                      selection();
+                      setScheduledFor(slot);
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityLabel={formatTime(new Date(slot))}
+                    accessibilityState={{ selected: isSel }}
+                    style={[styles.timingChip, isSel && styles.timingChipActive]}>
+                    <Text style={[styles.timingChipText, isSel && { color: colors.white }]}>
+                      {formatTime(new Date(slot))}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          )}
-        </View>
+            {scheduledFor !== null && (
+              <View style={styles.scheduledLineRow}>
+                <Icon name="calendar" size={15} color={colors.sea} />
+                <Text style={styles.scheduledLine}>
+                  {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor)) })}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Kitchen briefing */}
         <KitchenBriefing
