@@ -59,7 +59,7 @@ different JS; only `app_update_id` distinguishes them.
 | `reorder_tapped` | "Order again" / saved preset tapped | `restaurantId` | Growth | repeat intent |
 | `reorder_prepared` | after the cart is reconciled against the live menu | `source` (`orders_tab` \| `saved_preset`), `prepared_by` (`server` \| `client`), `outcome` (`exact` \| `changed` \| `all_unavailable`), `change_count`, `line_count` | Growth | reorder quality |
 | `notification_opened` | push tapped, **before** routing | `notification_event`, `destination`, `campaign_id` | CRM | push → order attribution |
-| `cart_restored` | a server/local cart is restored — **defined, no call site yet**: server-backed carts are Package 02 Slice D | `source` | Growth | cross-device continuity |
+| `cart_restored` | a server/local cart is restored (two call sites in the cart tab since Package 02 Slice D — this row previously said "no call site yet" long after they existed) | `source` | Growth | cross-device continuity |
 | `review_prompt_shown` | store-review prompt **requested** | `trigger`, `available` | Growth | rating funnel |
 | `review_prompt_result` | outcome of the request | `result` (`requested` \| `unavailable` \| `error`) | Growth | rating funnel |
 | `order_cancelled` | order cancelled | `restaurantId`, reason code | Ops | cancellation rate |
@@ -67,9 +67,11 @@ different JS; only `app_update_id` distinguishes them.
 | `favorite_toggled` | restaurant favourite toggled | `restaurantId` | Growth | saved intent |
 | `cross_sell_added` | cross-sell accepted | item id | Growth | AOV |
 | `push_permission` | primer shown/declined, or OS prompt resolved | `context` (`first_order` \| `marketing_opt_in` \| `settings`), `result` (`primer_shown` \| `primer_declined` \| `granted` \| `denied` \| `settings_opened`) — **never the token** | CRM | opt-in rate |
-| `search_performed` | search executed | result count | Growth | discovery |
+| `search_performed` | search executed | `queryLength` (the code never sent a result count — this row was wrong) | Growth | discovery |
 | `referral_shared` | referral link shared | channel | Growth | referral loop |
 | `saved_order_created` | preset saved | — | Growth | saved intent |
+| `service_area_checked` | the backend fee quote resolves for the selected address (Package 05 §E) | `result` (`in_area` \| `failed` — never `out_of_area`: a network error is indistinguishable from a radius rejection client-side) | Growth | funnel: address → checkout |
+| `second_order` | fires with `order_placed` when the account already has ≥ 1 **delivered** order (Package 05 §E) | `priorDelivered` | Growth | retention; funnel close |
 
 ### Events named for honesty
 
@@ -96,6 +98,13 @@ see `isBannedProperty`. A property whose name contains any of `phone`, `email`,
 `lat`, `lng`, `coordinate` (case-insensitive, substring) is **dropped** before
 the event is sent; the rest of the event still ships.
 
+One narrow exemption (2026-07-30): `message_id` and `attributed_message_id` —
+exact key match AND the value must look like a minted token
+(`isExemptAttributionId`). The `message` fragment had silently eaten both ids
+in production, destroying the client half of push→funnel attribution while an
+inline comment claimed they passed. Message TEXT under any other key still
+dies to the fragment scan, and free text under an exempt key is dropped too.
+
 This is structural on purpose. One `track('x', {notes})` written months from now
 by someone who never read this file would otherwise ship a customer's hotel room
 number or delivery instructions.
@@ -103,8 +112,13 @@ number or delivery instructions.
 Also:
 
 - `auth_state` records `signed_in`/`anonymous`, never the phone or user id;
-- `identifyUser()` runs only after an auth link, and `resetAnalyticsUser()` on
-  sign-out and account deletion;
+- `identifyUser()` runs once the session is phone-verified (root layout watches
+  `isSignedIn`; wired 2026-07-30 — this document claimed the wiring for months
+  while the function had zero call sites), and `resetAnalyticsUser()` on
+  sign-out and account deletion. Anonymous Supabase sessions are deliberately
+  NOT identified: their uid is replaced when verification lands in an existing
+  account, and identifying the throwaway uid would split one person into two
+  profiles;
 - notification payloads are untrusted network input: `notification_event` is
   length- and character-restricted, and the route is reduced to its first path
   segment (`/order/<id>` → `order`) so no order id is forwarded;

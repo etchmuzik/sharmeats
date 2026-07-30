@@ -48,3 +48,20 @@ export function currencyLabel(currency: Currency): string {
 }
 
 export const ALL_CURRENCIES: Currency[] = ['EGP', 'EUR', 'USD', 'GBP', 'RUB'];
+
+/**
+ * Boundary validator for values arriving from OUTSIDE the type system —
+ * AsyncStorage hydration, deep links, server rows.
+ *
+ * The session store used to cast its persisted string straight to `Currency`.
+ * A corrupted or legacy value (say "SAR") then flowed into formatCurrency and
+ * fxRateLine, where `RATES_PER_UNIT[target]` is undefined: the checkout
+ * conversion line rendered "undefinedNaN" and `.toFixed` on undefined threw a
+ * TypeError — a crash in checkout caused by a display preference. EGP is the
+ * only always-safe fallback: it needs no rate.
+ */
+export function asSupportedCurrency(value: unknown): Currency {
+  return typeof value === 'string' && (ALL_CURRENCIES as string[]).includes(value)
+    ? (value as Currency)
+    : 'EGP';
+}

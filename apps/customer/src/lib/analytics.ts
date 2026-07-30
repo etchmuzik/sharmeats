@@ -96,7 +96,14 @@ export type AnalyticsEvent =
   | 'cart_conflict_shown'
   | 'cart_conflict_resolved'
   | 'cart_restore_failed'
-  | 'cart_abandoned_eligible';
+  | 'cart_abandoned_eligible'
+  // --- Package 05 §E conversion funnel ------------------------------------
+  // service_area_checked fires when the backend fee quote resolves for the
+  // selected address (the servable-area decision the funnel actually gates on);
+  // second_order fires with order_placed when the account already has >= 1
+  // DELIVERED order — the retention marker, not mere reorder intent.
+  | 'service_area_checked'
+  | 'second_order';
 
 export type AnalyticsProps = Record<string, string | number | boolean | null | undefined>;
 
@@ -132,6 +139,32 @@ const BANNED_PROPERTY_FRAGMENTS = [
 export function isBannedProperty(key: string): boolean {
   const k = key.toLowerCase();
   return BANNED_PROPERTY_FRAGMENTS.some((f) => k.includes(f));
+}
+
+/**
+ * Exact-key exemptions from the deny-list, for ids WE mint.
+ *
+ * The 'message' fragment exists to block message TEXT (support/chat bodies).
+ * It also substring-matched `message_id` and `attributed_message_id` — the
+ * push-attribution ids from Package 03 Slice F — silently dropping them from
+ * every production event and defeating the client half of push→funnel
+ * attribution. (The inline comment here used to claim "both ids are uuids we
+ * minted, so they pass" — it was wrong, and no test covered those keys.)
+ *
+ * The exemption is deliberately NARROW: exact key match only (so
+ * `support_message_id_note` still dies to the fragment scan), and the VALUE
+ * must look like a minted token — the guard stays structural instead of
+ * trusting a future call site not to put free text under an exempt key.
+ */
+const EXEMPT_ID_KEYS = ['message_id', 'attributed_message_id'] as const;
+const MINTED_TOKEN_RE = /^[a-zA-Z0-9-]{1,64}$/;
+
+export function isExemptAttributionId(key: string, value: unknown): boolean {
+  return (
+    (EXEMPT_ID_KEYS as readonly string[]).includes(key.toLowerCase())
+    && typeof value === 'string'
+    && MINTED_TOKEN_RE.test(value)
+  );
 }
 
 /**
@@ -184,9 +217,10 @@ export function buildProperties(props?: AnalyticsProps): Record<string, string |
     ...releaseProperties(),
     // [P03-F] Notification attribution, when a tap opened a window that is still
     // open. Merged BEFORE call-site props so a screen can override it, and before
-    // the deny-list so it is still subject to the same PII stripping as everything
-    // else — both ids are uuids we minted, so they pass, but the guard is not
-    // bypassed for them.
+    // the deny-list so it is subject to the same stripping as everything else.
+    // Its `attributed_message_id` key survives only via the narrow
+    // isExemptAttributionId exemption — see the note on EXEMPT_ID_KEYS for the
+    // bug that motivated it.
     ...notificationAttribution(),
     ...(context.locale ? { locale: context.locale } : {}),
     ...(context.currency ? { display_currency: context.currency } : {}),
@@ -199,7 +233,7 @@ export function buildProperties(props?: AnalyticsProps): Record<string, string |
   for (const [k, v] of Object.entries(merged)) {
     // PostHog's property type rejects `undefined` — drop them.
     if (v === undefined) continue;
-    if (isBannedProperty(k)) {
+    if (isBannedProperty(k) && !isExemptAttributionId(k, v)) {
       if (isDev()) {
         console.warn(`[analytics] property "${k}" is not allowed and was dropped (PII deny-list).`);
       }

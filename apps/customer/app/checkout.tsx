@@ -190,11 +190,18 @@ export default function Checkout() {
         if (cancelled) return;
         setQuotedFee(fee);
         setQuoteState('ok');
+        // [P05-E] The quote resolving IS the service-area decision for this
+        // address — the backend only prices addresses it will deliver to.
+        track('service_area_checked', { result: 'in_area' });
       })
       .catch(() => {
         if (cancelled) return;
         setQuotedFee(null);
         setQuoteState('failed');
+        // 'failed', not 'out_of_area': a network error is indistinguishable
+        // from a radius rejection here, and claiming out-of-area would poison
+        // the funnel with connectivity noise.
+        track('service_area_checked', { result: 'failed' });
       });
     return () => {
       cancelled = true;
@@ -286,6 +293,22 @@ export default function Checkout() {
         scheduled: !!scheduledFor,
         promo: promoApplied?.code ?? null,
       });
+
+      // [P05-E] Retention marker: this order follows at least one DELIVERED
+      // order — the customer came back after a completed first experience.
+      // Deliberately not "second placed order": a placed-then-cancelled first
+      // order proves nothing about the product. Fire-and-forget; the redirect
+      // must never wait on an analytics lookup, and a network failure here
+      // just means one lost event.
+      void db.orders
+        .list()
+        .then((prior) => {
+          const delivered = prior.filter(
+            (o) => o.id !== order.id && o.status === 'delivered',
+          ).length;
+          if (delivered >= 1) track('second_order', { priorDelivered: delivered });
+        })
+        .catch(() => {});
 
       // Card payment: open Paymob hosted checkout. The order stays 'pending'
       // (and hidden from the merchant) until the HMAC-verified webhook flips it

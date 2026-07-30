@@ -7,7 +7,7 @@ import { useCart } from '../src/store/cart';
 import { useSession } from '../src/store/session';
 import { db, isBackendLive } from '../src/data';
 import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
-import { initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics';
+import { identifyUser, initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics';
 import { configureNotificationHandler, registerForPush, useNotificationRouting } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
@@ -40,6 +40,25 @@ export default function RootLayout() {
       authState: isSignedIn ? 'signed_in' : 'anonymous',
     });
   }, [locale, currency, isSignedIn]);
+
+  // Tie analytics/crash identity to the account — but only once PHONE-VERIFIED.
+  // identifyUser() existed for months with zero call sites (the analytics
+  // dictionary claimed this wiring; it did not exist), so every event stayed on
+  // the device-scoped anonymous id forever. Watching isSignedIn here covers
+  // both the OTP moment and cold starts of sessions signed in by older builds.
+  // Anonymous Supabase sessions are deliberately NOT identified: their uid is
+  // replaced when verification lands in an existing account, and identifying
+  // the throwaway uid would split one person into two PostHog profiles.
+  // Sign-out symmetry (posthog.reset) is already wired in identityTeardown.
+  useEffect(() => {
+    if (!hydrated || !isSignedIn) return;
+    db.auth
+      .currentUserId()
+      .then((id) => {
+        if (id) identifyUser(id);
+      })
+      .catch(() => {});
+  }, [hydrated, isSignedIn]);
 
   // app_opened is the head of the funnel, so it must not fire before the
   // context above is known -- an event with the wrong locale/currency is worse
