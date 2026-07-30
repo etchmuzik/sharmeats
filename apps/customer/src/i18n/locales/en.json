@@ -277,7 +277,7 @@
   "order.delivered": "Delivered",
   "order.min": "min",
   "order.slaChip": "On us if late by 15+ min",
-  "order.slaLine": "We promise {time}. If we miss by 15 minutes, {credit} is automatically credited to you. No support call needed.",
+  "order.slaLine": "Promised for {time}. If it has not arrived by {latest}, {credit} is credited automatically. No support call needed.",
   "order.statusPlaced": "Order placed",
   "order.statusAccepted": "Restaurant accepted",
   "order.statusPreparing": "Preparing your food",

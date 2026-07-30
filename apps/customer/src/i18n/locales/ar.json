@@ -277,7 +277,7 @@
   "order.delivered": "تم التسليم",
   "order.min": "دقيقة",
   "order.slaChip": "علينا لو تأخر +١٥ دقيقة",
-  "order.slaLine": "نعدك بالوصول الساعة {time}. لو تأخّرنا ١٥ دقيقة، يضاف {credit} رصيد تلقائي.",
+  "order.slaLine": "موعد الوصول الموعود {time}. إذا لم يصل طلبك بحلول {latest}، يضاف {credit} إلى رصيدك تلقائيًا. لا حاجة للاتصال بالدعم.",
   "order.statusPlaced": "تم تقديم الطلب",
   "order.statusAccepted": "المطعم قبل الطلب",
   "order.statusPreparing": "جاري تحضير الطعام",

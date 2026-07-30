@@ -277,7 +277,7 @@
   "order.delivered": "Geliefert",
   "order.min": "Min.",
   "order.slaChip": "Geht auf uns bei 15+ Min. Verspätung",
-  "order.slaLine": "Wir versprechen {time}. Verpassen wir es um 15 Minuten, werden dir {credit} automatisch gutgeschrieben, ganz ohne Anruf beim Support.",
+  "order.slaLine": "Versprochene Zeit: {time}. Ist die Bestellung bis {latest} nicht da, werden dir {credit} automatisch gutgeschrieben – ganz ohne Anruf beim Support.",
   "order.statusPlaced": "Bestellung aufgegeben",
   "order.statusAccepted": "Restaurant hat angenommen",
   "order.statusPreparing": "Dein Essen wird zubereitet",

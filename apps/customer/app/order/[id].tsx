@@ -25,6 +25,7 @@ import { SHARM_CENTER, type LatLng } from '../../src/components/MapPinPicker';
 import {
   CAMERA_REFIT_THRESHOLD_M,
   isDriverLocationStale,
+  latestArrivalAt,
   metersBetween,
   vehicleIconName,
 } from '../../src/lib/tracking';
@@ -220,6 +221,7 @@ export default function OrderTracking() {
   const remainingMin = Math.max(0, Math.ceil(remainingMs / 60_000));
   // What the engine actually credits (mig 062): 10% of SUBTOTAL, floored, 100 cap.
   const lateCreditEgp = slaCreditEgp(order.subtotalEgp);
+  const latestArrivalTime = formatTime(new Date(latestArrivalAt(order.etaAt)));
   const isCancelled = order.status === 'cancelled' || order.status === 'rejected';
   // Customers may only cancel before the restaurant accepts; once a card order
   // is paid, cancellation implies a refund flow we don't have yet — hide it.
@@ -353,6 +355,7 @@ export default function OrderTracking() {
           <Text style={styles.slaLine}>
             {t('order.slaLine', {
               time: formatTime(new Date(order.etaAt)),
+              latest: latestArrivalTime,
               credit: formatEgp(lateCreditEgp),
             })}
           </Text>

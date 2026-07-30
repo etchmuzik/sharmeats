@@ -2,10 +2,21 @@ import { describe, it, expect } from 'vitest';
 import {
   CAMERA_REFIT_THRESHOLD_M,
   isDriverLocationStale,
+  latestArrivalAt,
   metersBetween,
+  SLA_GRACE_MS,
   STALE_THRESHOLD_MS,
   vehicleIconName,
 } from './tracking';
+
+describe('latestArrivalAt — automatic-credit deadline', () => {
+  it('adds the fixed 15-minute grace period to the promised ETA', () => {
+    const etaAt = Date.UTC(2026, 6, 30, 18, 0);
+
+    expect(latestArrivalAt(etaAt)).toBe(etaAt + SLA_GRACE_MS);
+    expect(SLA_GRACE_MS).toBe(15 * 60_000);
+  });
+});
 
 describe('isDriverLocationStale — live-marker freshness check', () => {
   it('returns false when the fix is fresh (0ms old)', () => {

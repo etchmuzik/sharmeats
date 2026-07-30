@@ -1,5 +1,13 @@
 import type { IconName } from '../components/Icon';
 
+/** Fixed lateness window after the promised ETA before automatic credit applies. */
+export const SLA_GRACE_MS = 15 * 60_000;
+
+/** The exact customer-visible deadline for an on-time delivery. */
+export function latestArrivalAt(etaAt: number): number {
+  return etaAt + SLA_GRACE_MS;
+}
+
 /**
  * How long a live driver fix can go without an update before the tracking
  * screen tells the customer we've lost the live feed. The driver's own ping
