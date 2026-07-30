@@ -4931,7 +4931,7 @@ export type Database = {
         Args: {
           p_cover_image: string
           p_cuisine_label: string
-          p_cuisines: Database["public"]["Enums"]["cuisine_type"][]
+          p_cuisines: Database["public"]["Enums"]["food_cuisine_type"][]
           p_delivery_fee_egp: number
           p_description: string
           p_featured: boolean
@@ -4992,7 +4992,7 @@ export type Database = {
       apply_as_restaurant: {
         Args: {
           p_address: string
-          p_cuisines: Database["public"]["Enums"]["cuisine_type"][]
+          p_cuisines: Database["public"]["Enums"]["food_cuisine_type"][]
           p_description: string
           p_is_open_24h: boolean
           p_lat: number
@@ -6892,6 +6892,20 @@ export type Database = {
         | "meet_outside"
         | "no_bell"
         | "call_on_arrival"
+      food_cuisine_type:
+        | "italian"
+        | "seafood"
+        | "egyptian"
+        | "sushi"
+        | "healthy"
+        | "burgers"
+        | "cafe"
+        | "asian"
+        | "pizza"
+        | "breakfast"
+        | "late_night"
+        | "street_food"
+        | "sweets"
       handoff_type: "lobby" | "reception" | "poolside"
       item_flag_type:
         | "halal"
@@ -7107,6 +7121,21 @@ export const Constants = {
         "meet_outside",
         "no_bell",
         "call_on_arrival",
+      ],
+      food_cuisine_type: [
+        "italian",
+        "seafood",
+        "egyptian",
+        "sushi",
+        "healthy",
+        "burgers",
+        "cafe",
+        "asian",
+        "pizza",
+        "breakfast",
+        "late_night",
+        "street_food",
+        "sweets",
       ],
       handoff_type: ["lobby", "reception", "poolside"],
       item_flag_type: [

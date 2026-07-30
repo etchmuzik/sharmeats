@@ -40,6 +40,17 @@ internal or verified-merchant courier pilots.
 > tagged, no-op-silent, immutable), and server-side keyset-paginated
 > `search_catalog` riding the mig-153 RLS as its visibility authority.
 >
+> **Governance follow-up (migration
+> `20260730162600_p07_governance_hardening.sql`):** the two lifecycle producers
+> now take the canonical vertical transition lock in deterministic order and
+> re-check visibility before enqueue; `vertical_not_visible` is accepted and
+> retained in the decision ledger; the grocery/pharmacy private repair has a
+> lock-first database-owner path; and food cuisine is now an authoritative
+> database/RPC/generated-client domain. Legacy grocery/pharmacy cuisine tags are
+> removed from arrays without deleting merchants or food tags, and future
+> direct writes are rejected. A compatibility decoder also refuses stale or
+> unknown cuisine values during rolling client/database deployment.
+>
 > **Known E0 gaps left open (recorded, not hidden):** 'used' access events have
 > no writer; campaigns/push_campaigns carry no vertical dimension; browse UX is
 > still cuisine-only (vertical navigation is future work with its own copy).
