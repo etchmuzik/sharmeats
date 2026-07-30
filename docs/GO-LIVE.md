@@ -123,6 +123,36 @@ and GitHub's forks, API and code-search may already hold copies.
 Rule going forward: no password, token or API key in this repo, in any file.
 Mailbox addresses are fine; the secrets that open them are not.
 
+### Two-factor (TOTP) — and how to recover from a lost authenticator
+
+Enrol at **admin.sharmeats.online/security**. Once a factor is verified, signing
+in asks for a six-digit code after the password.
+
+**READ THIS BEFORE ENROLLING.** An MFA lockout is worse than a password lockout,
+and the 2026-07-30 incident showed how fast a single-admin lockout escalates. A
+forgotten password is recoverable by email; a lost authenticator device is **not
+recoverable by any self-service path** — that is the entire point of a second
+factor. A password reset does not help.
+
+Recovery requires deleting the factor server-side. Either:
+
+- Supabase dashboard → Authentication → Users → the account → remove the factor, or
+- as the `postgres` role:
+  ```sql
+  delete from auth.mfa_factors
+   where user_id = (select id from auth.users where email = 'admin@sharmeats.online');
+  ```
+
+Two things that make this much less likely to matter:
+
+- **Use an authenticator that syncs across devices** (1Password, Authy, iCloud
+  Keychain). A phone-only app means a lost phone is a lost account.
+- **Keep the setup key** shown during enrolment somewhere safe — in the password
+  manager, not in this repo. It regenerates the same codes on a new device.
+- **Enrol a second admin** before relying on this. One admin with one factor is
+  a single point of failure in both directions: lose it and nobody can dispatch,
+  approve KYC, or reach finance.
+
 ## 🧹 Housekeeping (not blocking)
 - ☐ Delete the 3 unused Vercel projects (landing/merchant/admin) — nothing points to them.
 - ☐ Verify a real dashboard login in the browser (sign in at merchant.sharmeats.online, confirm live orders load).

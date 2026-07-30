@@ -42,6 +42,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/driver-finance', label: 'Driver payouts', roles: ['admin'], group: 'Money' },
   { href: '/cash', label: 'Cash', roles: ['admin'], group: 'Money' },
   { href: '/founding-rates', label: 'Founding rates', roles: ['admin'], group: 'Money' },
+  // Both roles: securing your own account is never something to withhold, and
+  // the page only ever shows the signed-in user their own factors.
+  { href: '/security', label: 'Security', roles: ['admin', 'dispatcher'], group: 'Operations' },
 ];
 
 /** Group order in the sidebar. Derived from NAV_ITEMS would lose the intended order. */
