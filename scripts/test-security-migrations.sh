@@ -113,4 +113,19 @@ if [[ "${staff_role_passes}" -ne 40 ]]; then
   exit 1
 fi
 
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${staff_role_database}" \
+  -f "${project_root}/supabase/migrations/20260730162500_atomic_merchant_menu_import.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${staff_role_database}" \
+  -f "${project_root}/supabase/tests/20260730162500_merchant_menu_import.test.sql"
+
 echo "Security migration tests passed."
