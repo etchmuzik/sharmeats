@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   Switch,
@@ -11,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
-import { getMyRestaurant } from '../src/orders';
+import { getMyKitchen } from '../src/orders';
 import { getMenuItems, setItemAvailability, type MenuItem } from '../src/menu';
 import { colors, font, radius, spacing } from '../src/theme';
 
@@ -29,22 +30,54 @@ export default function Menu() {
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  // [P06 Stage 3] Multi-brand 86 fix: this screen silently operated on the
+  // LOWEST-id brand only, so a cloud-kitchen operator could never 86 an item
+  // on brand two — the switch flipped the wrong storefront's menu. The brand
+  // now comes from an explicit selector (single-brand accounts see no chips
+  // and behave exactly as before: the default IS the lowest id).
+  const [brands, setBrands] = useState<{ restaurantId: string; shortName: string }[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const ctx = await getMyRestaurant();
-      if (!ctx) {
-        setItems([]);
-        return;
+  const load = useCallback(
+    async (brandId?: string | null) => {
+      try {
+        const kitchen = await getMyKitchen();
+        if (!kitchen || kitchen.brands.length === 0) {
+          setItems([]);
+          return;
+        }
+        const sorted = [...kitchen.brands].sort((a, b) =>
+          a.restaurantId.localeCompare(b.restaurantId),
+        );
+        setBrands(
+          kitchen.isMultiBrand
+            ? sorted.map((b) => ({ restaurantId: b.restaurantId, shortName: b.shortName }))
+            : [],
+        );
+        const target =
+          brandId && sorted.some((b) => b.restaurantId === brandId)
+            ? brandId
+            : sorted[0].restaurantId;
+        setSelectedBrandId(target);
+        const rows = await getMenuItems(target);
+        setItems(rows);
+      } catch (e) {
+        toast(e instanceof Error ? e.message : 'Could not load menu', 'error');
+      } finally {
+        setLoading(false);
       }
-      const rows = await getMenuItems(ctx.restaurantId);
-      setItems(rows);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not load menu', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+    },
+    [toast],
+  );
+
+  const selectBrand = useCallback(
+    (brandId: string) => {
+      if (brandId === selectedBrandId) return;
+      setLoading(true);
+      void load(brandId);
+    },
+    [selectedBrandId, load],
+  );
 
   useEffect(() => {
     load();
@@ -52,9 +85,9 @@ export default function Menu() {
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
+    await load(selectedBrandId);   // keep the operator's brand selection
     setRefreshing(false);
-  }, [load]);
+  }, [load, selectedBrandId]);
 
   const toggle = useCallback(
     async (item: MenuItem) => {
@@ -102,6 +135,35 @@ export default function Menu() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.sm }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} />}
       >
+        {brands.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {brands.map((b) => {
+              const active = b.restaurantId === selectedBrandId;
+              return (
+                <Pressable
+                  key={b.restaurantId}
+                  onPress={() => selectBrand(b.restaurantId)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`Brand ${b.shortName}`}
+                  style={{
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.lg,
+                    borderWidth: 1,
+                    borderColor: active ? colors.ink : colors.line,
+                    backgroundColor: active ? colors.ink : colors.white,
+                  }}
+                >
+                  <Text style={{ fontSize: font.sizes.xs, fontWeight: '800', color: active ? colors.white : colors.ink }}>
+                    {b.shortName}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
         <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
           {outCount > 0 ? `${outCount} item${outCount === 1 ? '' : 's'} out of stock` : 'All items available'}
         </Text>
