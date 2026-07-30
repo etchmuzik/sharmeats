@@ -4746,6 +4746,37 @@ export type Database = {
       ops_alert: { Args: { p_text: string }; Returns: undefined }
       ops_daily_digest: { Args: never; Returns: undefined }
       ops_stats_text: { Args: { p_scope: string }; Returns: string }
+      payment_reconciliation_findings: {
+        Args: { p_days?: number }
+        Returns: {
+          age_days: number
+          amount_egp: number
+          detail: string
+          ledger_id: string
+          mismatch_class: string
+          order_id: string
+          payment_method: string
+          provider_ref: string
+          settlement_id: string
+          short_code: string
+        }[]
+      }
+      payment_reconciliation_report: {
+        Args: { p_days?: number }
+        Returns: {
+          age_days: number
+          amount_egp: number
+          detail: string
+          ledger_id: string
+          mismatch_class: string
+          order_id: string
+          payment_method: string
+          provider_ref: string
+          settlement_id: string
+          short_code: string
+        }[]
+      }
+      payment_reconciliation_sweep: { Args: never; Returns: number }
       place_order: {
         Args: {
           p_address_id: string

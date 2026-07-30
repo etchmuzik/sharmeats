@@ -1,0 +1,83 @@
+# Known applied-but-unstamped migrations (db-drift ledger baseline)
+#
+# Each file listed here exists in supabase/migrations/ and its content is live in
+# production, but no supabase_migrations.schema_migrations row records it — it was
+# applied by hand (dashboard SQL editor / execute_sql) before apply_migration
+# stamping became the working discipline. Verified 2026-07-30 while investigating
+# the mig-121 gap (see 180_payment_integrity_reapply.sql).
+#
+# PURPOSE: scripts/check-db-drift.sh treats these as explained history, so the
+# check is green today and fails the moment any NEW migration file lacks a ledger
+# row. This list must only ever SHRINK: when a row is reconciled into the ledger,
+# remove it here. Never add an entry to silence a failure — a new failure means a
+# migration was authored and not applied, which is exactly the mig-121 incident.
+#
+# NOT in this list (resolved differently):
+#   037/038/039/040 — stamped under prefix-less names; stem matching resolves them
+#   099_pin_trigger_helper_search_path — ledger has it under its pre-rename name 095_*
+#   20260724120946_kyc_upload_hardening — stamped under bare stem
+#   120/121 — reconciliation rows stamped 2026-07-30
+001_waitlist
+002_app_schema
+003_allergy_profile
+004_scheduled_orders
+005_extensions_postgis
+006_verticals_catalog
+007_roles_merchant_staff
+008_fleet
+009_order_items
+010_zones_config
+011_rpcs
+012_rls_super_app
+013_realtime_publication
+014_push_tokens
+015_fix_self_delivery_cod
+016_modifier_presentation
+017_zone_centroids_tuning
+018_push_fanout
+019_promo_codes
+020_reviews_rpc
+021_favorites
+022_account_deletion
+023_deletion_cascade_fks
+024_restaurant_contact_fields
+025_auto_dispatch
+026_auto_accept
+026_referrals
+027_rider_snapshot
+028_customer_phone
+029_cod_amount_validation
+030_driver_verified_gate
+031_place_order_idempotency
+032_driver_ping_throttle
+033_card_payment_guards
+034_expo_push_caller_secret
+035_push_secret_from_vault
+036_place_order_unique_violation_guard
+041_dropoff_preference
+126_cloud_kitchen_foundation
+127_quote_fee_vertical
+128_zone_distance_guard
+129_service_area_single_source
+130_admin_issue_credit
+131_settlement_reference_required
+132_menu_price_bounds
+133_watchdog_placed_orders
+135_commission_snapshot_at_placement
+136_merchant_staff_role_enforcement
+137_push_route_and_campaign_delivery
+138_notification_preferences
+139_favorite_menu_items
+140_saved_items_read_unavailable
+141_revoke_client_truncate
+142_in_quiet_hours_search_path
+143_transactional_pref_enforced
+144_admin_test_ops_alert
+145_prepare_cart
+146_campaign_provider_accepted
+147_notification_consent_events
+148_campaign_operator_truth
+149_driver_cod_ceiling
+150_cod_ceiling_enforcement
+151_support_cases
+167_driver_photo_merchant_logo
