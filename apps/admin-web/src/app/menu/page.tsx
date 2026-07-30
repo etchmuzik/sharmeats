@@ -94,7 +94,6 @@ export default function MenuPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <div className="mx-auto max-w-4xl space-y-3 p-6">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -140,14 +139,13 @@ export default function MenuPage() {
           )}
           <div>
             <div className="text-lg font-extrabold">
-              Sharm Eats <span className="text-accent">Menu</span>
+              Menu
             </div>
             <div className="text-xs text-ink3">
               {selected ? selected.name : 'Restaurants & menus'} · {phase.displayName}
             </div>
           </div>
         </div>
-        <SignOutButton />
       </header>
 
       {selected ? (

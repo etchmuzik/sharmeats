@@ -119,7 +119,6 @@ export default function KycReviewPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <div className="mx-auto max-w-4xl space-y-3 p-6">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -152,18 +151,9 @@ export default function KycReviewPage() {
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
         <div>
           <div className="text-lg font-extrabold">
-            Sharm Eats <span className="text-accent">KYC</span>
+            KYC
           </div>
           <div className="text-xs text-ink3">Document review · {phase.displayName}</div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Dispatch
-          </Link>
-          <SignOutButton />
         </div>
       </header>
 

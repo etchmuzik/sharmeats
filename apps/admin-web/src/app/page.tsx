@@ -87,7 +87,6 @@ export default function OpsPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <DispatchBoardSkeleton />
       </main>
@@ -113,74 +112,9 @@ export default function OpsPage() {
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
         <div>
           <div className="text-lg font-extrabold">
-            Sharm Eats <span className="text-accent">Ops</span>
+            Dispatch
           </div>
           <div className="text-xs text-ink3">Dispatch board · {phase.displayName}</div>
-        </div>
-        <div className="flex items-center gap-3">
-          <a
-            href="/menu"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Menus
-          </a>
-          <a
-            href="/finance"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Finance
-          </a>
-          <a
-            href="/driver-finance"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Driver Payouts
-          </a>
-          <a
-            href="/cash"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Cash
-          </a>
-          <a
-            href="/kyc"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            KYC
-          </a>
-          <a
-            href="/founding-rates"
-            title="Founding commission windows and expiry"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Rates
-          </a>
-          <a
-            href="/onboarding"
-            title="Approve new restaurants"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Onboarding
-          </a>
-          <a
-            href="/scorecards"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Scorecards
-          </a>
-          <a
-            href="/campaigns"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Campaigns
-          </a>
-          <a
-            href="/support"
-            className="rounded-lg border border-line px-3.5 py-2 text-sm font-semibold hover:border-accent hover:text-accent"
-          >
-            Support
-          </a>
-          <SignOutButton />
         </div>
       </header>
 

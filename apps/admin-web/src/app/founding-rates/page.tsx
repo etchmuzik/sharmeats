@@ -1,11 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { toCsv } from '@/lib/csv';
-import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
 
@@ -229,6 +228,11 @@ export default function FoundingRatesPage() {
     return (
       <main className="p-6">
         <p className="text-sm">Admin account required.</p>
+        {/* The shell renders no nav for a role it does not recognise, so
+            without this the page is a dead end with no way back. */}
+        <Link href="/" className="mt-3 inline-block text-sm font-semibold underline">
+          Back to dispatch
+        </Link>
       </main>
     );
   }
@@ -251,12 +255,6 @@ export default function FoundingRatesPage() {
     <main className="mx-auto max-w-5xl p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-extrabold">Founding rates</h1>
-        <div className="flex items-center gap-3">
-          <Link className="underline" href="/">
-            Home
-          </Link>
-          <SignOutButton />
-        </div>
       </div>
 
       <p className="mb-4 text-sm text-ink2">
