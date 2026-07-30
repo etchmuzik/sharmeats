@@ -361,6 +361,96 @@ begin
     v_fail := v_fail || 'failed batch left its first item behind'::text;
   end if;
 
+  -- Legacy rows predate this migration's name normalization and bounds. The
+  -- guard must not normalize or bound-check a name the statement does not
+  -- write: mig 136 diffs to_jsonb(NEW) against to_jsonb(OLD) and this trigger
+  -- sorts first (aaa_), so an unconditional `new.name := btrim(new.name)`
+  -- reads as a privileged name write and rejects the staff availability
+  -- toggle that is the defining kitchen action, while an unconditional length
+  -- check strands over-long legacy rows for every role including manager.
+  alter table public.menu_items disable trigger aaa_merchant_menu_mutation_guard;
+  insert into public.menu_items (
+    id, restaurant_id, section_id, name, price_egp, is_available, sort_order
+  )
+  values
+    (
+      'dddddddd-0000-0000-0000-00000000f001',
+      'bbbbbbbb-0000-0000-0000-000000000001',
+      v_section,
+      '  Legacy untrimmed  ',
+      100,
+      true,
+      901
+    ),
+    (
+      'dddddddd-0000-0000-0000-00000000f002',
+      'bbbbbbbb-0000-0000-0000-000000000001',
+      v_section,
+      repeat('x', 165),
+      100,
+      true,
+      902
+    );
+  alter table public.menu_items enable trigger aaa_merchant_menu_mutation_guard;
+
+  -- Staff tier: both toggles must succeed.
+  perform set_config(
+    'request.jwt.claim.sub',
+    'aaaaaaaa-0000-0000-0000-000000000002',
+    true
+  );
+  begin
+    update public.menu_items
+       set is_available = false
+     where id = 'dddddddd-0000-0000-0000-00000000f001';
+  exception when others then
+    v_fail := v_fail
+      || ('staff could not toggle a legacy untrimmed item: ' || sqlerrm)::text;
+  end;
+  begin
+    update public.menu_items
+       set is_available = false
+     where id = 'dddddddd-0000-0000-0000-00000000f002';
+  exception when others then
+    v_fail := v_fail
+      || ('staff could not toggle an over-length legacy item: ' || sqlerrm)::text;
+  end;
+
+  -- The untouched name must not be silently rewritten by an unrelated update.
+  select count(*) into v_n
+    from public.menu_items
+   where id = 'dddddddd-0000-0000-0000-00000000f001'
+     and name = '  Legacy untrimmed  ';
+  if v_n <> 1 then
+    v_fail := v_fail
+      || 'an unrelated update rewrote a stored menu item name'::text;
+  end if;
+
+  -- Writing the name still normalizes and still enforces the bounds.
+  perform set_config(
+    'request.jwt.claim.sub',
+    'aaaaaaaa-0000-0000-0000-000000000003',
+    true
+  );
+  update public.menu_items
+     set name = '   Renamed legacy   '
+   where id = 'dddddddd-0000-0000-0000-00000000f001';
+  select count(*) into v_n
+    from public.menu_items
+   where id = 'dddddddd-0000-0000-0000-00000000f001'
+     and name = 'Renamed legacy';
+  if v_n <> 1 then
+    v_fail := v_fail || 'an explicit name write was not trimmed'::text;
+  end if;
+  begin
+    update public.menu_items
+       set name = repeat('z', 200)
+     where id = 'dddddddd-0000-0000-0000-00000000f001';
+    v_fail := v_fail || 'an over-length name write was accepted'::text;
+  exception when invalid_parameter_value then
+    null;
+  end;
+
   if array_length(v_fail, 1) > 0 then
     raise exception E'MENU IMPORT BEHAVIOUR FAILED (%):\n  - %',
       array_length(v_fail, 1),
