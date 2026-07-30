@@ -4,11 +4,11 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'Driver Privacy Policy — Sharm Eats',
   description:
-    'How the Sharm Eats Driver app collects, uses, and protects driver and customer information, including live location shared with customers while you are on a delivery.',
+    'How the Sharm Eats Driver app collects, uses, and protects driver and customer information, including live location shared while you are on a delivery and proof-of-delivery photos.',
 };
 
 // Static "last updated" — bump by hand when the policy materially changes.
-const LAST_UPDATED = 'June 28, 2026';
+const LAST_UPDATED = 'July 30, 2026';
 
 /**
  * Privacy Policy for the Sharm Eats Driver app (eg.sharmeats.driver).
@@ -21,8 +21,23 @@ const LAST_UPDATED = 'June 28, 2026';
  * details to the driver solely so the assigned order can be completed. No ads,
  * no analytics SDKs, no payment-card data. Keep the three artifacts — this
  * policy, the in-app disclosure, and the Play Data Safety form — in sync:
- * Precise location = Collected + Shared (to the customer), purpose = App
- * functionality.
+ * Precise location = Collected + Shared (to the customer AND to anyone the
+ * customer forwards a share link to), purpose = App functionality. Photos =
+ * Collected, not shared, purpose = App functionality / fraud prevention.
+ *
+ * 2026-07-30 — two additions, both of which had shipped in the database while
+ * this document still described the world before them:
+ *
+ *  1. FORWARDABLE SHARE LINKS (migration 195). This page said the driver's live
+ *     position is shared "with the customer", which was true when it was
+ *     written and is now too narrow: the customer can mint a link that shows a
+ *     stranger the courier's position, first name, vehicle and rating, with no
+ *     account. A driver consenting to be seen by the person they are delivering
+ *     to has not thereby consented to a WhatsApp group, so it has to be said.
+ *  2. PROOF-OF-DELIVERY PHOTOS (migration 194). The driver app now captures a
+ *     handoff photo for dropoffs where nobody is at the door. That is a camera
+ *     permission and a stored image — both are Play Data Safety declarable and
+ *     neither appeared here.
  */
 export default function PrivacyDriverPage() {
   return (
@@ -89,6 +104,15 @@ export default function PrivacyDriverPage() {
                 shared.
               </li>
               <li>
+                <strong>Proof-of-delivery photos</strong> — for drop-offs where
+                nobody is at the door (&ldquo;leave at door&rdquo; and
+                &ldquo;don&rsquo;t ring the bell&rdquo;), the app asks you to
+                take a photo of the handoff before you mark the order delivered.
+                The camera is used only at that moment, only when you tap to
+                take the photo, and never in the background. See
+                &ldquo;Proof-of-delivery photos&rdquo; below.
+              </li>
+              <li>
                 <strong>Earnings information</strong> — daily earnings totals and
                 cash-on-delivery amounts you collect, so we can show your
                 earnings summary and reconcile payouts.
@@ -112,7 +136,7 @@ export default function PrivacyDriverPage() {
 
           <section>
             <h2 className="text-lg font-semibold text-ink">
-              Live location shared with the customer
+              Live location shared while you deliver
             </h2>
             <p className="mt-3">
               During an active delivery, your live location is{' '}
@@ -123,6 +147,47 @@ export default function PrivacyDriverPage() {
               We use your precise location for two purposes: assigning you nearby
               deliveries, and powering real-time delivery tracking and navigation.
               We do not use your location for advertising or cross-app tracking.
+            </p>
+            <p className="mt-3">
+              <strong>The customer can pass that view on.</strong> They can
+              create a private web link that lets someone else — a friend, a
+              colleague, whoever they send it to — follow the same delivery
+              without a Sharm Eats account. While you are on the way, that link
+              shows your position on a map, your <strong>first name only</strong>
+              , your vehicle type and your rating. It does not show your full
+              name, your phone number, your photo, your documents, your earnings,
+              or any other delivery you have made.
+            </p>
+            <p className="mt-3">
+              The same limits apply as above, and one more: your position appears
+              on a shared link only between pickup and completion. The moment the
+              order is delivered or cancelled the map stops updating, and the
+              link stops working entirely a short time after that. Your location
+              is never shown on such a link when you are offline, between orders,
+              or before you have picked an order up.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-ink">
+              Proof-of-delivery photos
+            </h2>
+            <p className="mt-3">
+              When a customer asks for the order to be left at the door or for
+              the bell not to be rung, the app asks you to photograph the handoff
+              before marking the order delivered. This exists to protect you as
+              much as the customer: with cash orders and nobody at the door, a
+              &ldquo;it never arrived&rdquo; dispute otherwise comes down to one
+              person&rsquo;s word against another&rsquo;s.
+            </p>
+            <p className="mt-3">
+              The photo is stored privately and is <strong>not</strong> shown to
+              the customer, to other drivers, or to restaurants. Only our
+              operations team can open it, and only to investigate a specific
+              order. Photos are kept with that order&rsquo;s record for as long
+              as it can still be disputed, then deleted. Photograph the parcel
+              where you left it — please do not photograph people, and please do
+              not keep a copy on your own device.
             </p>
           </section>
 
@@ -161,9 +226,10 @@ export default function PrivacyDriverPage() {
           <section>
             <h2 className="text-lg font-semibold text-ink">Who we share it with</h2>
             <p className="mt-3">
-              Only as needed to run deliveries: your live location and driver
-              profile are shared with the <strong>customer</strong> during an
-              active delivery as described above. We use{' '}
+              Only as needed to run deliveries: your live location, first name,
+              vehicle and rating are shared with the <strong>customer</strong>{' '}
+              during an active delivery — and, if the customer creates a share
+              link, with whoever holds that link — as described above. We use{' '}
               <strong>Supabase</strong> (secure backend and database) as a
               service provider that processes data on our behalf and serves all
               data over encrypted (HTTPS/TLS) connections. The driver app does
@@ -188,11 +254,13 @@ export default function PrivacyDriverPage() {
             <h2 className="text-lg font-semibold text-ink">Your choices &amp; rights</h2>
             <p className="mt-3">
               The app asks for the location permission before any location is
-              collected, and explains that your live location is shared with the
-              customer while you deliver. You can manage or revoke the location
-              permission at any time in your device settings; however, location
-              is required to receive and complete deliveries, so the driver app
-              cannot function without it.
+              collected, and explains that your live location is shared while you
+              deliver — with the customer, and with anyone they forward a share
+              link to. You can manage or revoke the location permission at any
+              time in your device settings; however, location is required to
+              receive and complete deliveries, so the driver app cannot function
+              without it. The camera permission is asked for separately, the
+              first time a drop-off needs a photo.
             </p>
             <p className="mt-3">
               You can request deletion of your driver account and personal data,

@@ -549,6 +549,6 @@
   "order.shareCta": "Share live tracking",
   "order.shareStop": "Stop sharing",
   "order.shareSubtitle": "Anyone with the link sees the delivery, never your address",
-  "order.shareMessage": "Follow my Sharm Eats delivery: {{url}}",
+  "order.shareMessage": "Follow my Sharm Eats delivery: {url}",
   "order.shareFailed": "Couldn't create the link. Try again."
 }

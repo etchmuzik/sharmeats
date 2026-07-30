@@ -11,12 +11,19 @@
 // to. It went unnoticed for the worst possible reason: the COUNT matched. The
 // headline said "Eleven zones" and eleven chips rendered, so nothing looked off.
 //
-// Two assertions, both against the migrations rather than a copy of them:
+// Three assertions, the first two against the migrations rather than a copy:
 //   1. Every zone in landing/src/data/zones.ts exists in `public.zones`
 //      (migration 002) with the SAME name_en and name_ar.
 //   2. Every zone that `delivery_fee_rules` prices (migration 010) appears on
 //      the landing page. A served zone we do not advertise is lost orders, and
 //      the cheapest three were exactly the ones missing.
+//   3. The hero ZONE TICKER in landing/src/app/page.tsx is derived from that
+//      same list rather than hand-written. Added 2026-07-30, after the fix
+//      above turned out to be half a fix: the grid was corrected and the
+//      ticker, a second hardcoded copy forty lines up, kept scrolling all
+//      three phantom zones for another two months. It is `aria-hidden`
+//      decoration, so nothing read it back — not a test, not a screen reader,
+//      not a reviewer skimming the diff.
 //
 // Run: node scripts/check-landing-zones.mjs   (wired as landing's `npm test`,
 // which CI already invokes via `npm test --if-present`).
@@ -111,17 +118,58 @@ for (const id of pricedZones) {
   }
 }
 
+// --- The ticker must be derived, not a second copy -----------------------------
+//
+// Preferred state: `const TICKER = ZONES.map(...)`, which cannot drift at all.
+// A literal array is still allowed — sometimes a literal is the honest thing —
+// but then it has to agree with ZONES name-for-name, compared case- and
+// punctuation-insensitively because the ticker is styled uppercase and the old
+// copy wrote "SHARK'S BAY" for "Sharks Bay".
+
+const page = read('landing/src/app/page.tsx');
+const tickerDecl = page.match(/const TICKER\s*(?::[^=]+)?=\s*([\s\S]*?);\s*\n/);
+
+if (!tickerDecl) {
+  console.error(
+    'Could not find `const TICKER = ...` in landing/src/app/page.tsx. If the ticker ' +
+      'moved or was renamed, update this script — do not delete the check.',
+  );
+  process.exit(2);
+} else if (!/\bZONES\b/.test(tickerDecl[1])) {
+  const literal = [...tickerDecl[1].matchAll(/'([^']*)'|"([^"]*)"/g)].map((m) => m[1] ?? m[2]);
+  if (literal.length === 0) {
+    problems.push(
+      'TICKER in landing/src/app/page.tsx neither derives from ZONES nor lists names this ' +
+        'script can read; it cannot be checked, which is how the last drift survived',
+    );
+  } else {
+    const norm = (s) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const canonical = new Map([...siteZones.values()].map(({ en }) => [norm(en), en]));
+    for (const name of literal) {
+      if (!canonical.has(norm(name))) {
+        problems.push(`the hero ticker scrolls "${name}", which is not a zone we deliver to`);
+      }
+    }
+    for (const [key, en] of canonical) {
+      if (!literal.some((name) => norm(name) === key)) {
+        problems.push(`the hero ticker omits "${en}", a zone we do deliver to`);
+      }
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error('Landing coverage disagrees with the database:\n');
   for (const p of problems) console.error(`  - ${p}`);
   console.error(
     '\nFix landing/src/data/zones.ts to match supabase/migrations/002_app_schema.sql ' +
-      'and 010_zones_config.sql. The migrations win: they decide where an order can go.',
+      'and 010_zones_config.sql, and keep the TICKER in landing/src/app/page.tsx ' +
+      'derived from ZONES. The migrations win: they decide where an order can go.',
   );
   process.exit(1);
 }
 
 console.log(
   `Landing coverage matches the database: ${siteZones.size} zones, all present in ` +
-    'public.zones and priced in delivery_fee_rules.',
+    'public.zones and priced in delivery_fee_rules; the hero ticker agrees.',
 );

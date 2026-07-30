@@ -549,6 +549,6 @@
   "order.shareCta": "Поделиться отслеживанием",
   "order.shareStop": "Прекратить делиться",
   "order.shareSubtitle": "Любой, у кого есть ссылка, видит доставку, но не ваш адрес",
-  "order.shareMessage": "Следите за моей доставкой Sharm Eats: {{url}}",
+  "order.shareMessage": "Следите за моей доставкой Sharm Eats: {url}",
   "order.shareFailed": "Не удалось создать ссылку. Попробуйте снова."
 }

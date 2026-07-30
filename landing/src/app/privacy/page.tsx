@@ -8,16 +8,31 @@ export const metadata: Metadata = {
 };
 
 // Static "last updated" — bump by hand when the policy materially changes.
-const LAST_UPDATED = 'June 5, 2026';
+const LAST_UPDATED = 'July 30, 2026';
 
 /**
  * Privacy Policy for the Sharm Eats apps + site.
  *
  * Mirrors the App Store "App Privacy" answers and the App Review notes: we
  * collect only what an order needs (contact, delivery address + optional GPS
- * pin, payment is handled by Paymob, basic identifiers), never sell data, and
- * don't use it for cross-app tracking. Keep this in sync with the
- * App Store Connect data-collection questionnaire.
+ * pin, basic identifiers), never sell data, and don't use it for cross-app
+ * tracking. Keep this in sync with the App Store Connect data-collection
+ * questionnaire.
+ *
+ * 2026-07-30 — two corrections, both of which had made this document WRONG
+ * about live behaviour, which for a privacy policy is the failure that matters:
+ *
+ *  1. PAYMOB IS NOT A PROCESSOR TODAY. Card checkout is dark in production
+ *     (`EXPO_PUBLIC_PAYMENTS_CARD_ENABLED=false`, apps/customer/eas.json), so
+ *     no card is ever entered and no data reaches Paymob — yet this page named
+ *     it as a live sub-processor and told users their card went to a third
+ *     party. Naming a processor that receives nothing is not a harmless
+ *     over-disclosure: it is an untrue statement about where data goes. When
+ *     card is switched on, restore the Paymob paragraphs AND this comment.
+ *  2. SHARE LINKS WERE UNDISCLOSED. Migration 195 lets a customer mint an
+ *     unguessable link that shows a stranger the courier's live position, name,
+ *     vehicle and rating. Whatever the customer chooses to do with that link,
+ *     the policy has to say the capability exists before they use it.
  */
 export default function PrivacyPage() {
   return (
@@ -67,11 +82,13 @@ export default function PrivacyPage() {
                 the kitchen, and your order history.
               </li>
               <li>
-                <strong>Payment information</strong> — card payments are processed
-                by <strong>Paymob</strong>, a licensed Egyptian payment provider.
-                Your full card number is entered on Paymob&rsquo;s secure checkout
-                and is <em>never stored on our servers</em>. For cash on delivery,
-                no card data is collected.
+                <strong>Payment information</strong> — Sharm Eats is{' '}
+                <strong>cash on delivery</strong>. You pay the driver when your
+                order arrives, so we never ask for and never hold card details.
+                We record the amount due and whether it was collected, so the
+                order can be reconciled. If we add card payment later, it will be
+                handled by a licensed payment provider on their own checkout and
+                this policy will be updated before that happens.
               </li>
               <li>
                 <strong>Basic identifiers &amp; device data</strong> — an account
@@ -84,10 +101,10 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold text-ink">How we use it</h2>
             <p className="mt-3">
-              To take, prepare, deliver, and support your orders; to process
-              payments through Paymob; to send you order-status updates; and to keep
-              the service secure and working. That&rsquo;s it — we don&rsquo;t use
-              your information for advertising or cross-app tracking.
+              To take, prepare, deliver, and support your orders; to send you
+              order-status updates; and to keep the service secure and working.
+              That&rsquo;s it — we don&rsquo;t use your information for
+              advertising or cross-app tracking.
             </p>
           </section>
 
@@ -96,10 +113,37 @@ export default function PrivacyPage() {
             <p className="mt-3">
               Only as needed to fulfill your order: the restaurant or shop and the
               delivery driver receive the details required to prepare and deliver
-              it. We use service providers — <strong>Supabase</strong> (secure
-              backend and database) and <strong>Paymob</strong> (payments) — that
-              process data on our behalf. We may disclose information if required by
-              law. We do not sell your data.
+              it. We use one service provider — <strong>Supabase</strong> (secure
+              backend and database) — that processes data on our behalf. We may
+              disclose information if required by law. We do not sell your data.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-ink">
+              Sharing your delivery with someone else
+            </h2>
+            <p className="mt-3">
+              If you tap <strong>Share</strong> on an order, we create a private
+              web link that lets whoever you send it to follow that delivery
+              without an account. Anyone holding the link can see it — so treat
+              it like a key and send it only to people you mean to.
+            </p>
+            <p className="mt-3">
+              The link shows the order&rsquo;s status, the estimated arrival
+              time, and — while the courier is on the way — their live position
+              on a map together with their first name, vehicle and rating. It
+              deliberately does <em>not</em> show your delivery address, your
+              hotel or room number, your name, your phone number, what you
+              ordered, or what you paid.
+            </p>
+            <p className="mt-3">
+              You can stop sharing at any time from the order screen, which kills
+              that link immediately and permanently — sharing again mints a new
+              one rather than reviving it. Links also expire on their own: the
+              courier&rsquo;s position disappears the moment the order is
+              delivered or cancelled, and the link stops answering altogether
+              about two hours later.
             </p>
           </section>
 

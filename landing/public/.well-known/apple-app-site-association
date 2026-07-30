@@ -5,9 +5,7 @@
       {
         "appID": "CHSAVJ5X6U.eg.sharmeats.customer",
         "paths": [
-          "/order/*",
-          "/restaurant/*",
-          "/item/*",
+          "/track",
           "/track/*"
         ]
       }

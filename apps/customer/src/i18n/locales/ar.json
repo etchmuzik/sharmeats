@@ -549,6 +549,6 @@
   "order.shareCta": "مشاركة التتبّع المباشر",
   "order.shareStop": "إيقاف المشاركة",
   "order.shareSubtitle": "أي شخص لديه الرابط يرى التوصيل، ولا يرى عنوانك أبداً",
-  "order.shareMessage": "تابع توصيل شارم إيتس الخاص بي: {{url}}",
+  "order.shareMessage": "تابع توصيل شارم إيتس الخاص بي: {url}",
   "order.shareFailed": "تعذّر إنشاء الرابط. حاول مرة أخرى."
 }

@@ -20,8 +20,10 @@ Decision (2026-06-06): go live **cash-on-delivery only**; add card (Paymob) late
   undeployed Paymob path. COD + local wallets remain. Re-enable: flip the flag
   to `true` in `apps/customer/eas.json` (+ `.env`) and rebuild.
 - **Customer build #11** triggered → TestFlight (auto-submit). Carries
-  cash-only + location string + GO_BACK fix + fmt fix + full design pass +
-  universal links. Real users can take COD orders via TestFlight once it lands.
+  cash-only + location string + GO_BACK fix + fmt fix + full design pass. Real
+  users can take COD orders via TestFlight once it lands. (It does **not** carry
+  universal links — `ios.associatedDomains` was never added to `app.json`, so
+  the entitlement is not in the binary. See LAUNCH-RUNBOOK §1.4.)
 - **Web surfaces are already live** (landing + both dashboards on Hostinger);
   **backend live**; **COD pipeline verified end-to-end**.
 
@@ -60,7 +62,8 @@ App Review reply in
 | Customer app code + build #10 | ✅ On TestFlight |
 | Driver app code + build #2 (.ipa) | ✅ Built |
 | iOS location purpose string, GO_BACK fix, clean screenshots | ✅ Committed |
-| Universal links (AASA + app.json), privacy page | ✅ Committed (ship on next build) |
+| Privacy pages (customer / driver / restaurant) | ✅ Live |
+| Universal links | ⚠️ **Not enabled.** The AASA file ships, but `ios.associatedDomains` is absent from `apps/customer/app.json`, so iOS never fetches it — links open Safari. See LAUNCH-RUNBOOK §1.4. |
 | Customer app impeccable design pass (icons, RTL, a11y) | ✅ Committed |
 
 **A closed pilot (cash-on-delivery, TestFlight testers) is doable today.**

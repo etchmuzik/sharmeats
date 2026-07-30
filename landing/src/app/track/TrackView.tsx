@@ -197,7 +197,14 @@ export default function TrackView() {
             title="Driver location"
             className="h-64 w-full border-0"
             loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+            /*
+             * no-referrer, NOT the browser default. This page's URL carries the
+             * share token in `?t=`, and a Referer header would hand that token
+             * to openstreetmap.org on every map load — putting a live,
+             * unguessable capability into a third party's access logs. The
+             * embed does not need a referrer to render.
+             */
+            referrerPolicy="no-referrer"
             src={osmEmbedUrl(order.driver_lat as number, order.driver_lng as number)}
           />
         </div>
