@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getMyTier, type DriverTierInfo } from '../src/loyalty';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { useThemeColors } from '../src/themeProvider';
 
 const TIER_LABEL: Record<DriverTierInfo['tier'], string> = {
   bronze: 'Bronze',
@@ -26,6 +27,7 @@ const NEXT_THRESHOLD: Record<DriverTierInfo['tier'], number | null> = {
 };
 
 export default function Tier() {
+  const colors = useThemeColors();
   const [tier, setTier] = useState<DriverTierInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,8 +103,9 @@ export default function Tier() {
 }
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  const colors = useThemeColors();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md }}>
+    <View style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.lg, padding: spacing.md }}>
       <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: warn ? colors.amber : colors.ink }}>{value}</Text>
       <Text style={{ fontSize: font.sizes.xs, color: colors.ink2 }}>{label}</Text>
     </View>

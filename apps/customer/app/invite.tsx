@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, Alert, Pressable, Share, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { BackButton } from '../src/components/BackButton';
 import { Icon } from '../src/components/Icon';
-import { colors, font, radius, shadow } from '../src/theme';
+import { font, radius, shadow } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { tap, success } from '../src/haptics';
 import { db } from '../src/data';
@@ -21,6 +21,8 @@ type ViewState =
   | { kind: 'error' };
 
 export default function Invite() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const t = useT();
   const [state, setState] = useState<ViewState>({ kind: 'loading' });
@@ -75,7 +77,7 @@ export default function Invite() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('invite.title')}</Text>
@@ -122,7 +124,7 @@ export default function Invite() {
             </Pressable>
 
             <Pressable style={styles.shareBtn} onPress={share} accessibilityRole="button">
-              <Icon name="share" size={20} color={colors.white} />
+              <Icon name="share" size={20} color={colors.onAccent} />
               <Text style={styles.shareBtnText}>{t('invite.shareCta')}</Text>
             </Pressable>
           </>
@@ -140,6 +142,7 @@ export default function Invite() {
 }
 
 function Step({ n, text }: { n: string; text: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.step}>
       <View style={styles.stepNum}>
@@ -150,7 +153,7 @@ function Step({ n, text }: { n: string; text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -189,7 +192,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   codeCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1.5,
     borderColor: colors.sea,
@@ -212,7 +215,7 @@ const styles = StyleSheet.create({
     gap: 8,
     ...shadow.card,
   },
-  shareBtnText: { color: colors.white, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
+  shareBtnText: { color: colors.onAccent, fontSize: font.sizes.xl, fontWeight: font.weights.bold },
   steps: { gap: 12, marginTop: 4 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stepNum: {
@@ -228,4 +231,4 @@ const styles = StyleSheet.create({
   fineprint: { fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center', lineHeight: 18 },
   errorText: { fontSize: font.sizes.lg, color: colors.ink2 },
   retry: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.sea },
-});
+}));

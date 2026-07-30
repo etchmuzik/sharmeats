@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
 // expo-crypto is imported lazily inside makeIdempotencyKey so a native-module
 // failure can never throw at module-eval / checkout render. See the helper below.
@@ -13,7 +12,8 @@ import { CheckoutStepper } from '../src/components/CheckoutStepper';
 import { CheckoutPromiseCard } from '../src/components/CheckoutPromiseCard';
 import { DropoffPreferenceCard } from '../src/components/DropoffPreferenceCard';
 import { Icon, type IconName } from '../src/components/Icon';
-import { colors, font, radius, shadow } from '../src/theme';
+import { font, radius, shadow } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { useDirection } from '../src/lib/direction';
 import { useCart } from '../src/store/cart';
@@ -68,6 +68,8 @@ function makeIdempotencyKey(): string {
 }
 
 export default function Checkout() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -391,7 +393,7 @@ export default function Checkout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('checkout.title')}</Text>
@@ -419,7 +421,7 @@ export default function Checkout() {
           {address ? (
             <View style={[styles.addr, dir.row]}>
               <View style={styles.pin}>
-                <Icon name="location" size={18} color={colors.white} />
+                <Icon name="location" size={18} color={colors.onAccent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.hotelName}>{addrText}</Text>
@@ -441,7 +443,7 @@ export default function Checkout() {
               accessibilityLabel={t('address.add')}
               style={[styles.addAddr, dir.row]}>
               <View style={styles.pin}>
-                <Icon name="location" size={18} color={colors.white} />
+                <Icon name="location" size={18} color={colors.onAccent} />
               </View>
               <Text style={styles.addAddrText}>{t('address.add')}</Text>
               <Icon name="chevronForward" size={20} color={colors.ink3} />
@@ -515,8 +517,10 @@ export default function Checkout() {
           </View>
         </View>
 
-        {/* Timing is hidden until operating-hours validation and delayed
-            kitchen/dispatch release make a scheduled promise truthful. */}
+        {/* canSchedule gate from main: scheduled orders stay hidden until
+            operating-hours validation and delayed kitchen/dispatch release make
+            the promise truthful. Labels use onInk, not white — the active chip
+            fills with `ink`, which inverts between themes. */}
         {canSchedule && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('checkout.timing')}</Text>
@@ -530,8 +534,8 @@ export default function Checkout() {
                 accessibilityLabel={t('checkout.timingAsap')}
                 accessibilityState={{ selected: scheduledFor === null }}
                 style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
-                <Icon name="bolt" size={14} color={scheduledFor === null ? colors.white : colors.accent} />
-                <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.white }]}>
+                <Icon name="bolt" size={14} color={scheduledFor === null ? colors.onInk : colors.accent} />
+                <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.onInk }]}>
                   {t('checkout.timingAsap')}
                 </Text>
               </Pressable>
@@ -548,7 +552,7 @@ export default function Checkout() {
                     accessibilityLabel={formatTime(new Date(slot))}
                     accessibilityState={{ selected: isSel }}
                     style={[styles.timingChip, isSel && styles.timingChipActive]}>
-                    <Text style={[styles.timingChipText, isSel && { color: colors.white }]}>
+                    <Text style={[styles.timingChipText, isSel && { color: colors.onInk }]}>
                       {formatTime(new Date(slot))}
                     </Text>
                   </Pressable>
@@ -605,7 +609,7 @@ export default function Checkout() {
                   accessibilityLabel={c}
                   accessibilityState={{ selected: currency === c }}
                   style={[styles.curBtn, currency === c && styles.curBtnActive]}>
-                  <Text style={[styles.curBtnText, currency === c && { color: colors.white }]}>{c}</Text>
+                  <Text style={[styles.curBtnText, currency === c && { color: colors.onInk }]}>{c}</Text>
                 </Pressable>
               ))}
             </View>
@@ -668,7 +672,7 @@ export default function Checkout() {
                 accessibilityLabel={amt === 0 ? t('checkout.tipNone') : formatEgp(amt)}
                 accessibilityState={{ selected: tipEgp === amt }}
                 style={[styles.tipBtn, tipEgp === amt && styles.tipBtnActive]}>
-                <Text style={[styles.tipText, tipEgp === amt && { color: colors.white }]}>
+                <Text style={[styles.tipText, tipEgp === amt && { color: colors.onInk }]}>
                   {amt === 0 ? t('checkout.tipNone') : formatEgp(amt)}
                 </Text>
               </Pressable>
@@ -849,7 +853,7 @@ export default function Checkout() {
             accessibilityLabel={t('checkout.consent')}
             style={[styles.consentRow, dir.row]}>
             <View style={[styles.consentBox, guestConsent && styles.consentBoxOn]}>
-              {guestConsent && <Icon name="check" size={14} color={colors.white} />}
+              {guestConsent && <Icon name="check" size={14} color={colors.onAccent} />}
             </View>
             <Text style={[styles.consentText, dir.text]}>
               {t('checkout.consent')}{' '}
@@ -914,7 +918,7 @@ function paymentIconName(kind?: PaymentMethod['kind']): IconName {
   }
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -927,7 +931,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: font.sizes['5xl'], fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.4 },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -1076,7 +1080,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   tipBtnActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   tipText: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
@@ -1098,7 +1102,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 16,
@@ -1173,7 +1177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  promoBtnText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  promoBtnText: { color: colors.onInk, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   promoErr: { marginTop: 8, color: colors.red, fontSize: font.sizes.md },
   promoApplied: {
     flexDirection: 'row',
@@ -1188,4 +1192,4 @@ const styles = StyleSheet.create({
   },
   promoAppliedText: { color: colors.green, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   promoRemove: { color: colors.ink2, fontSize: font.sizes.md, fontWeight: font.weights.semibold },
-});
+}));

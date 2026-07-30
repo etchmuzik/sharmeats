@@ -36,6 +36,16 @@ vi.mock('../theme', () => ({
   shadow: { card: {}, accentGlow: {} },
 }));
 
+// makeStyles is stubbed to run the factory once against the mocked palette.
+// The real provider reaches react-native's useColorScheme, which drags in
+// Flow-typed react-native source that vitest cannot parse; this test only
+// exercises shouldCelebrate, a pure function.
+vi.mock('../themeProvider', () => ({
+  makeStyles: (factory: (c: Record<string, string>) => unknown) => () =>
+    factory({ white: '#fff', ink: '#000', ink2: '#666', surface: '#fff', onAccent: '#fff' }),
+  useThemeColors: () => ({ white: '#fff', ink: '#000', ink2: '#666' }),
+}));
+
 import { shouldCelebrate } from './OrderCelebration';
 
 describe('shouldCelebrate — one-shot celebrate param gate', () => {

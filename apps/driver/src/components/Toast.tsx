@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { useI18n } from '../i18n-context';
 
 /**
@@ -24,6 +25,7 @@ export function useToast() {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { direction } = useI18n();
   const [current, setCurrent] = useState<{ msg: string; kind: ToastKind } | null>(null);
@@ -57,9 +59,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       ? colors.redSoft
       : current?.kind === 'success'
         ? colors.greenSoft
-        : colors.white;
+        : colors.surface;
+  // Text variants: `fg` is both the message color and the border, and the fill
+  // values fail the 4.5:1 small-text floor on their own soft backgrounds.
   const fg =
-    current?.kind === 'error' ? colors.red : current?.kind === 'success' ? colors.green : colors.ink;
+    current?.kind === 'error'
+      ? colors.redText
+      : current?.kind === 'success'
+        ? colors.greenText
+        : colors.ink;
 
   return (
     <ToastContext.Provider value={{ toast }}>

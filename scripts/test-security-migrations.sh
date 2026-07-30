@@ -40,15 +40,52 @@ trap cleanup EXIT
   -o "-F -p ${test_db_port} -k ${test_socket_dir}" \
   -w start >/dev/null
 
-for test_file in \
-  "supabase/tests/120_runtime_and_kyc_integrity_fixes.test.sql" \
-  "supabase/tests/121_payment_integrity.test.sql" \
-  "supabase/tests/122_referral_reward_crypto_fix.test.sql" \
-  "supabase/tests/20260724120946_kyc_upload_hardening.test.sql" \
-  "supabase/tests/124_signup_role_hint_lockdown.test.sql" \
-  "supabase/tests/126_cloud_kitchen_foundation.test.sql" \
-  "supabase/tests/127_129_service_area.test.sql" \
+test_files=(
+  "supabase/tests/120_runtime_and_kyc_integrity_fixes.test.sql"
+  "supabase/tests/121_payment_integrity.test.sql"
+  "supabase/tests/122_referral_reward_crypto_fix.test.sql"
+  "supabase/tests/20260724120946_kyc_upload_hardening.test.sql"
+  "supabase/tests/124_signup_role_hint_lockdown.test.sql"
+  "supabase/tests/126_cloud_kitchen_foundation.test.sql"
+  "supabase/tests/127_129_service_area.test.sql"
   "supabase/tests/130_133_ops_finance.test.sql"
+  "supabase/tests/144_admin_test_ops_alert.test.sql"
+  "supabase/tests/194_proof_of_delivery.test.sql"
+  "supabase/tests/195_order_share_links.test.sql"
+)
+
+# Guard against silent orphaning.
+#
+# Ten test files sat in supabase/tests/ for months without ever being listed
+# here, so their assertions had never run once. They were not forgotten work —
+# they are a DIFFERENT artifact: manual verification scripts that expect the
+# migration to be applied already (they name it only in a comment, as a
+# BEGIN/\i/ROLLBACK recipe for a human) and that assume a full production schema.
+# They cannot run against this harness's empty database.
+#
+# The distinction that matters is whether a file loads its own migration with a
+# real `\ir ../migrations/...` line. If it does, it is self-contained and there is
+# no reason for it not to run here — so refuse to pass until it is listed.
+# See supabase/tests/README.md.
+missing_from_list=()
+while IFS= read -r candidate; do
+  grep -qE '^\\ir +\.\./migrations/' "${candidate}" || continue
+  rel="supabase/tests/$(basename "${candidate}")"
+  found=0
+  for listed in "${test_files[@]}"; do
+    [[ "${listed}" == "${rel}" ]] && { found=1; break; }
+  done
+  [[ ${found} -eq 1 ]] || missing_from_list+=("${rel}")
+done < <(find "${project_root}/supabase/tests" -name '*.test.sql' | sort)
+
+if [[ ${#missing_from_list[@]} -gt 0 ]]; then
+  echo "ERROR: self-contained test file(s) are not in test_files, so they never run:" >&2
+  printf '  %s\n' "${missing_from_list[@]}" >&2
+  echo "Add them to test_files in $(basename "${BASH_SOURCE[0]}"), or explain in supabase/tests/README.md why not." >&2
+  exit 1
+fi
+
+for test_file in "${test_files[@]}"
 do
   test_database="test_$(basename "${test_file}" .test.sql | tr -c '[:alnum:]' '_')"
   "${postgres_bin_dir}/createdb" \

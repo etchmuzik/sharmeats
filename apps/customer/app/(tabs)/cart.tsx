@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { QuantityStepper } from '../../src/components/QuantityStepper';
 import { Mascot } from '../../src/components/Mascot/Mascot';
@@ -23,6 +23,8 @@ import type { CartItem, MenuItem, Restaurant } from '../../src/data/types';
 import { track } from '../../src/lib/analytics';
 
 export default function CartTab() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -244,7 +246,7 @@ export default function CartTab() {
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.bg }}
         contentContainerStyle={[styles.emptyWrap, { paddingTop: insets.top + 40 }]}>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <Mascot pose="shrug" size={120} />
         <Text style={styles.emptyTitle}>{t('empty.cart.title')}</Text>
         <Text style={styles.emptySub}>{t('empty.cart.body')}</Text>
@@ -283,7 +285,9 @@ export default function CartTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      {/* ThemedStatusBar, not <StatusBar style="dark" />: the hardcoded variant
+          is what dark mode replaced — it renders dark glyphs on a dark canvas. */}
+      <ThemedStatusBar />
       <CartConflictSheet
         visible={conflict !== null}
         savedRestaurantName={conflict?.name ?? ''}
@@ -400,6 +404,7 @@ function CartLineRow({
   allergyLabels,
   removeLabel,
 }: RowProps) {
+  const styles = useStyles();
   const swipeRef = useRef<Swipeable>(null);
 
   const renderRightActions = () => (
@@ -469,7 +474,7 @@ function CartLineRow({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   emptyWrap: { alignItems: 'center', paddingHorizontal: 24, paddingBottom: 60 },
   nearbyTitle: {
     fontSize: font.sizes.sm,
@@ -486,7 +491,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   nearbyImg: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.bgSoft },
   nearbyName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
@@ -510,7 +515,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: font.weights.extrabold, letterSpacing: -0.8, color: colors.ink },
   clear: { color: colors.ink2, fontSize: font.sizes.lg, fontWeight: font.weights.semibold },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -525,7 +530,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   lineHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   ph: { width: 54, height: 54, borderRadius: radius.md, backgroundColor: colors.bgSoft },
@@ -555,10 +560,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   swipeIcon: { fontSize: 22 },
-  swipeLabel: { color: colors.white, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
+  swipeLabel: { color: colors.onAccent, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
   suggestCard: {
     width: 132,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
@@ -603,8 +608,8 @@ const styles = StyleSheet.create({
     bottom: 88,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
-});
+}));

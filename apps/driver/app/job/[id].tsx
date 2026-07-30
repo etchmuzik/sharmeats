@@ -10,11 +10,14 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { advance, collectCod, fetchJob, type Job } from '../../src/jobs';
+import { isProofRequired, recordProof } from '../../src/proofOfDelivery';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { parseWkbPoint } from '../../src/geo';
 import { openDirections } from '../../src/navigation';
-import { colors, font, radius, spacing } from '../../src/theme';
+import { font, radius, spacing } from '../../src/theme';
+import { useThemeColors } from '../../src/themeProvider';
 import { Icon } from '../../src/components/Icon';
 import { HotelHandoffCard } from '../../src/components/HotelHandoffCard';
 import { DropoffPreferenceCard } from '../../src/components/DropoffPreferenceCard';
@@ -25,6 +28,7 @@ import type { TranslationKey } from '../../src/i18n';
 import { captureError } from '../../src/lib/crash';
 
 export default function JobScreen() {
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -34,6 +38,13 @@ export default function JobScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Handoff photo, held locally until the delivery is confirmed. Capture is
+  // instant and offline; the UPLOAD deliberately happens after the status
+  // advance, so a weak signal can never strand a completed delivery.
+  const [proof, setProof] = useState<{ uri: string; mime?: string | null; size?: number | null } | null>(
+    null,
+  );
+  const [capturing, setCapturing] = useState(false);
   const trackingErrorShown = useRef(false);
 
   const load = useCallback(async () => {
@@ -122,6 +133,52 @@ export default function JobScreen() {
     [errorMessage, id, load, t],
   );
 
+  const capturePhoto = useCallback(async () => {
+    setCapturing(true);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          t('proof.cameraNeededTitle'),
+          t('proof.cameraNeededBody'),
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        // 0.6 keeps a doorway legible while staying well inside the bucket's
+        // 5 MB ceiling on a slow connection.
+        quality: 0.6,
+      });
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+      const asset = result.assets[0];
+      setProof({ uri: asset.uri, mime: asset.mimeType, size: asset.fileSize });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : t('proof.cameraOpenFailed'), 'error');
+    } finally {
+      setCapturing(false);
+    }
+  }, [toast]);
+
+  /**
+   * Index the captured photo AFTER the delivery is already recorded.
+   *
+   * Never throws: the delivery has happened and the driver is done. A failed
+   * upload is surfaced as a warning and left for ops
+   * (ops_deliveries_missing_proof) rather than being allowed to undo or block
+   * anything the driver already completed.
+   */
+  const uploadProofBestEffort = useCallback(
+    async (orderId: string) => {
+      if (!proof) return;
+      try {
+        await recordProof(orderId, proof.uri, Date.now(), proof.mime, proof.size);
+      } catch {
+        toast(t('proof.uploadFailed'), 'error');
+      }
+    },
+    [proof, toast],
+  );
+
   const completeDelivery = useCallback(async () => {
     if (!id || !job) return;
     // COD: confirm cash collected before marking delivered.
@@ -138,6 +195,9 @@ export default function JobScreen() {
               try {
                 await collectCod(id, job.total_egp);
                 await advance(id, 'delivered');
+                // After the advance, on purpose: the photo must never gate the
+                // status change (see src/proofOfDelivery.ts).
+                await uploadProofBestEffort(id);
                 await stopStreaming();
                 router.replace('/home');
               } catch (e) {
@@ -159,6 +219,7 @@ export default function JobScreen() {
     setBusy(true);
     try {
       await advance(id, 'delivered');
+      await uploadProofBestEffort(id);
       await stopStreaming();
       router.replace('/home');
     } catch (e) {
@@ -170,7 +231,7 @@ export default function JobScreen() {
     } finally {
       setBusy(false);
     }
-  }, [errorMessage, id, job, router, t, toast]);
+  }, [errorMessage, id, job, router, t, toast, uploadProofBestEffort]);
 
   const navigateTo = useCallback(
     async (kind: 'restaurant' | 'dropoff') => {
@@ -215,7 +276,7 @@ export default function JobScreen() {
           }}
           style={{ minHeight: 48, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, paddingHorizontal: spacing.xl }}
         >
-          <Text style={{ color: colors.white, fontWeight: '700' }}>{t('common.retry')}</Text>
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -324,7 +385,7 @@ export default function JobScreen() {
             landmark={addr.landmark}
           />
         ) : (
-          <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
               {t('job.deliverTo')}
             </Text>
@@ -371,7 +432,7 @@ export default function JobScreen() {
             before. Only render when the customer actually left one. */}
         {job.kitchen_notes?.trim() ? (
           <View style={{ marginTop: spacing.md, backgroundColor: colors.amberSoft, borderRadius: radius.xl, padding: spacing.lg }}>
-            <Text style={{ fontSize: font.sizes.xs, color: colors.amber, fontWeight: '700', textTransform: 'uppercase' }}>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.amberText, fontWeight: '700', textTransform: 'uppercase' }}>
               {t('job.customerNote')}
             </Text>
             <Text style={{ fontSize: font.sizes.base, color: colors.ink, marginTop: 4 }}>
@@ -382,7 +443,7 @@ export default function JobScreen() {
 
         {/* Order items — so the driver can verify the bag before leaving the restaurant. */}
         {job.items.length > 0 && (
-          <View style={{ marginTop: spacing.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
+          <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
               {t(job.items.length === 1 ? 'job.bagOne' : 'job.bagMany', {
                 count: job.items.length,
@@ -391,7 +452,7 @@ export default function JobScreen() {
             <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
               {job.items.map((it, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-                  <Text style={{ color: colors.accent, fontWeight: '800', fontSize: font.sizes.base, minWidth: 22 }}>
+                  <Text style={{ color: colors.accentText, fontWeight: '800', fontSize: font.sizes.base, minWidth: 22 }}>
                     {it.quantity ?? 1}×
                   </Text>
                   <View style={{ flex: 1 }}>
@@ -462,7 +523,7 @@ export default function JobScreen() {
       </ScrollView>
 
       {/* Action bar */}
-      <View style={{ padding: spacing.xl, paddingBottom: insets.bottom + spacing.md, borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.white }}>
+      <View style={{ padding: spacing.xl, paddingBottom: insets.bottom + spacing.md, borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.surface }}>
         {job.status === 'ready' && (
           <Action label={t('job.pickedUpAction')} busy={busy} onPress={() => doAdvance('picked_up')} />
         )}
@@ -470,7 +531,25 @@ export default function JobScreen() {
           <Action label={t('job.startDelivery')} busy={busy} onPress={() => doAdvance('out_for_delivery')} />
         )}
         {job.status === 'out_for_delivery' && (
-          <Action label={t('job.completeDelivery')} busy={busy} onPress={completeDelivery} />
+          <View style={{ gap: spacing.md }}>
+            {/* Handoff photo. Required only where nobody is at the door to
+                receive the order — for an in-person handoff the customer is the
+                witness, and demanding a photo of them would be worse than
+                useless. isProofRequired mirrors mig 194's SQL definition. */}
+            <ProofRow
+              required={isProofRequired(job.dropoff_preference)}
+              captured={proof !== null}
+              capturing={capturing}
+              onCapture={capturePhoto}
+              onRetake={capturePhoto}
+            />
+            <Action
+              label={t('job.completeDelivery')}
+              busy={busy}
+              disabled={isProofRequired(job.dropoff_preference) && proof === null}
+              onPress={completeDelivery}
+            />
+          </View>
         )}
         {['accepted', 'preparing'].includes(job.status) && (
           <Text style={{ textAlign: 'center', color: colors.ink2 }}>
@@ -480,7 +559,7 @@ export default function JobScreen() {
         {['delivered', 'cancelled', 'rejected'].includes(job.status) && (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {job.status === 'delivered' && <Icon name="check" size={18} color={colors.green} />}
-            <Text style={{ textAlign: 'center', color: colors.green, fontWeight: '700' }}>
+            <Text style={{ textAlign: 'center', color: colors.greenText, fontWeight: '700' }}>
               {t(statusKey(job.status))}
             </Text>
           </View>
@@ -509,17 +588,131 @@ function confirmBackgroundTracking(
   });
 }
 
-function Action({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
+function Action({
+  label,
+  busy,
+  disabled = false,
+  onPress,
+}: {
+  label: string;
+  busy: boolean;
+  /** Not allowed YET (e.g. a required photo is missing) — distinct from `busy`. */
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const colors = useThemeColors();
+  const blocked = busy || disabled;
   return (
     <Pressable
       onPress={onPress}
-      disabled={busy}
+      disabled={blocked}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: busy, busy }}
-      style={{ backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center', opacity: busy ? 0.6 : 1 }}
+      accessibilityState={{ disabled: blocked, busy }}
+      style={{ backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.lg, alignItems: 'center', opacity: blocked ? 0.6 : 1 }}
     >
-      {busy ? <ActivityIndicator color={colors.white} /> : <Text style={{ color: colors.white, fontSize: font.sizes.lg, fontWeight: '700' }}>{label}</Text>}
+      {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={{ color: colors.onAccent, fontSize: font.sizes.lg, fontWeight: '700' }}>{label}</Text>}
+    </Pressable>
+  );
+}
+
+/**
+ * Handoff-photo control.
+ *
+ * When a photo is REQUIRED the copy says why, because a driver who does not know
+ * why the Complete button is dim will read it as a broken app and call dispatch.
+ * When it is optional the control is still offered — a driver who senses a
+ * dispute coming should be able to protect themselves.
+ */
+function ProofRow({
+  required,
+  captured,
+  capturing,
+  onCapture,
+  onRetake,
+}: {
+  required: boolean;
+  captured: boolean;
+  capturing: boolean;
+  onCapture: () => void;
+  onRetake: () => void;
+}) {
+  const colors = useThemeColors();
+  const { t } = useI18n();
+
+  if (captured) {
+    return (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          backgroundColor: colors.greenSoft,
+          borderRadius: radius.lg,
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.md,
+        }}
+      >
+        <Icon name="check" size={18} color={colors.greenText} />
+        <Text style={{ flex: 1, color: colors.greenText, fontWeight: '700', fontSize: font.sizes.base }}>
+          {t('proof.ready')}
+        </Text>
+        <Pressable
+          onPress={onRetake}
+          accessibilityRole="button"
+          accessibilityLabel={t('proof.retakeA11y')}
+          hitSlop={8}
+          style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm }}
+        >
+          <Text style={{ color: colors.accentText, fontWeight: '700', fontSize: font.sizes.sm }}>
+            {t('proof.retake')}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onCapture}
+      disabled={capturing}
+      accessibilityRole="button"
+      accessibilityLabel={required ? t('proof.takeRequiredA11y') : t('proof.takeOptionalA11y')}
+      accessibilityState={{ busy: capturing, disabled: capturing }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        minHeight: 52,
+        borderWidth: required ? 2 : 1,
+        borderColor: required ? colors.amber : colors.line,
+        backgroundColor: required ? colors.amberSoft : colors.surface,
+        borderRadius: radius.lg,
+        paddingHorizontal: spacing.lg,
+        opacity: capturing ? 0.6 : 1,
+      }}
+    >
+      {capturing ? (
+        <ActivityIndicator color={required ? colors.amberText : colors.accentText} />
+      ) : (
+        <Icon name="camera" size={18} color={required ? colors.amberText : colors.accentText} />
+      )}
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            color: required ? colors.amberText : colors.ink,
+            fontWeight: '700',
+            fontSize: font.sizes.base,
+          }}
+        >
+          {required ? t('proof.required') : t('proof.optional')}
+        </Text>
+        <Text style={{ color: colors.ink2, fontSize: font.sizes.xs }}>
+          {required
+            ? t('proof.requiredHint')
+            : t('proof.optionalHint')}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -533,6 +726,7 @@ function NavButton({
   label: string;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -549,8 +743,9 @@ function NavButton({
         paddingVertical: spacing.lg,
       }}
     >
-      <Icon name={icon} size={18} color={colors.white} />
-      <Text style={{ color: colors.white, fontWeight: '700', fontSize: font.sizes.base }}>{label}</Text>
+      {/* onInk: this button is filled with `ink`, which inverts to near-white. */}
+      <Icon name={icon} size={18} color={colors.onInk} />
+      <Text style={{ color: colors.onInk, fontWeight: '700', fontSize: font.sizes.base }}>{label}</Text>
     </Pressable>
   );
 }
@@ -564,6 +759,7 @@ function ContactButton({
   label: string;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}

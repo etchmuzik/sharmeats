@@ -2,8 +2,9 @@ import { Linking, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
 import { useLocale } from '../locale';
+import { useThemeColors } from '../themeProvider';
 
 /**
  * [H-REST2] Customer-contact actions for an order. The restaurant previously had
@@ -19,6 +20,7 @@ export function ContactButtons({
   orderId: string;
   customerPhone: string | null | undefined;
 }) {
+  const colors = useThemeColors();
   const router = useRouter();
   const { toast } = useToast();
   const { direction, t } = useLocale();
@@ -75,7 +77,7 @@ export function ContactButtons({
         }}
       >
         <Icon name="chat" size={16} color={colors.accent} />
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accentText }}>
           {t('contact.message')}
         </Text>
       </Pressable>

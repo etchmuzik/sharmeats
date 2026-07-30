@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { Icon } from '../../src/components/Icon';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { useT } from '../../src/i18n';
 import { useSession } from '../../src/store/session';
 import { db } from '../../src/data';
@@ -15,6 +15,8 @@ import { tap, selection } from '../../src/haptics';
 import { useGoBack } from '../../src/lib/navigation';
 
 export default function AddressPicker() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const goBack = useGoBack();
   const insets = useSafeAreaInsets();
@@ -65,7 +67,7 @@ export default function AddressPicker() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('address.title')}</Text>
@@ -84,7 +86,7 @@ export default function AddressPicker() {
             accessibilityLabel={k === 'hotel' ? t('address.hotel') : k === 'street' ? t('address.street') : t('address.beach')}
             accessibilityState={{ selected: active === k }}
             style={[styles.tab, active === k && styles.tabActive]}>
-            <Text style={[styles.tabText, active === k && { color: colors.white }]}>
+            <Text style={[styles.tabText, active === k && { color: colors.onInk }]}>
               {k === 'hotel' ? t('address.hotel') : k === 'street' ? t('address.street') : t('address.beach')}
             </Text>
           </Pressable>
@@ -159,7 +161,7 @@ export default function AddressPicker() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -174,7 +176,7 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.ink },
   tabText: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -197,9 +199,9 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.white },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.onAccent },
   deleteBtn: { padding: 6, marginRight: 4 },
   addNew: {
     borderRadius: radius.xl,
@@ -216,10 +218,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-});
+}));

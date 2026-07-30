@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { Icon, type IconName } from './Icon';
 import { useI18n } from '../i18n-context';
 import type { TranslationKey } from '../i18n';
@@ -33,6 +34,7 @@ export function DropoffPreferenceCard({
   note,
   collectibleEgp,
 }: Props) {
+  const colors = useThemeColors();
   const { t } = useI18n();
   const copy = preference ? COPY[preference] : undefined;
   const parsed = parseCashChangeNote(note, collectibleEgp);
@@ -53,8 +55,10 @@ export function DropoffPreferenceCard({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <Icon name={icon} size={20} color={colors.amber} />
-        <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: '800', color: colors.amber }}>
+        {/* amberText, not amber: this is a 16px bold LABEL on amberSoft, where
+            the fill value sits at 3.26:1 — under the 4.5:1 small-text floor. */}
+        <Icon name={icon} size={20} color={colors.amberText} />
+        <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: '800', color: colors.amberText }}>
           {t(title)}
         </Text>
       </View>

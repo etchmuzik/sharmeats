@@ -17,7 +17,8 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { Mascot } from '../src/components/Mascot/Mascot';
-import { colors, font } from '../src/theme';
+import { font } from '../src/theme';
+import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT, LOCALE_LABELS, ALL_LOCALES } from '../src/i18n';
 import { useSession, type Locale } from '../src/store/session';
 import { useDirection } from '../src/lib/direction';
@@ -61,6 +62,8 @@ const SLIDES: Slide[] = [
 ];
 
 export default function Onboarding() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -198,7 +201,7 @@ export default function Onboarding() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   imageWrap: { height: 460, position: 'relative' },
   image: { width: '100%', height: '100%' },
   mascotWrap: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
@@ -210,7 +213,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 50,
   },
-  skipText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.semibold },
+  skipText: { color: colors.onAccent, fontSize: font.sizes.lg, fontWeight: font.weights.semibold },
   langBtn: {
     position: 'absolute',
     backgroundColor: 'rgba(255,255,255,0.95)',
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
   langText: { fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.ink },
   langSheet: {
     position: 'absolute',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 6,
     minWidth: 160,
@@ -249,4 +252,4 @@ const styles = StyleSheet.create({
   dotOn: { width: 24, backgroundColor: colors.accent },
   haveAccount: { alignItems: 'center', paddingVertical: 14, marginTop: 2 },
   haveAccountText: { fontSize: font.sizes.lg, color: colors.ink2, fontWeight: font.weights.semibold },
-});
+}));

@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "node ../scripts/check-landing-zones.mjs",
     "gen:logo": "node scripts/generate-logo-assets.mjs"
   },
   "dependencies": {

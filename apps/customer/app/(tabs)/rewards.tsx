@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '../../src/components/Icon';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { tap, success } from '../../src/haptics';
@@ -38,6 +38,8 @@ const REASON_KEY: Record<RewardsHistoryEntry['reason'], string> = {
 const REDEEM_POINTS = 100;
 
 export default function RewardsTab() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const t = useT();
   const dir = useDirection();
@@ -129,7 +131,7 @@ export default function RewardsTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + 14,
@@ -141,7 +143,7 @@ export default function RewardsTab() {
         <View style={styles.walletCard}>
           <View style={styles.balanceHead}>
             <View style={styles.walletCircle}>
-              <Icon name="wallet" size={26} color={colors.white} />
+              <Icon name="wallet" size={26} color={colors.onAccent} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.walletBalance}>{t('wallet.balance', { amount: formatEgp(creditEgp) })}</Text>
@@ -165,7 +167,7 @@ export default function RewardsTab() {
               accessibilityLabel={t('wallet.redeemButton')}
               style={styles.walletBtn}>
               {redeeming ? (
-                <ActivityIndicator color={colors.white} />
+                <ActivityIndicator color={colors.onAccent} />
               ) : (
                 <Text style={styles.walletBtnText}>{t('wallet.redeemButton')}</Text>
               )}
@@ -230,7 +232,7 @@ export default function RewardsTab() {
           accessibilityLabel={t('rewards.redeemButton')}
           style={[styles.redeemBtn, { backgroundColor: canRedeem ? colors.accent : colors.line }]}>
           {redeeming ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color={colors.onAccent} />
           ) : (
             <Text style={styles.redeemBtnText}>{t('rewards.redeemButton')}</Text>
           )}
@@ -264,6 +266,8 @@ export default function RewardsTab() {
 }
 
 function PerkRow({ text, dir, last }: { text: string; dir: ReturnType<typeof useDirection>; last?: boolean }) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   return (
     <View style={[styles.perkRow, dir.row, !last && { borderBottomWidth: 1, borderBottomColor: colors.line }]}>
       <Icon name="star" size={16} color={colors.amber} />
@@ -285,11 +289,11 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: font.sizes['7xl'], fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.4 },
   balanceCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: 18,
     marginTop: 16,
@@ -323,7 +327,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  walletBalance: { fontSize: font.sizes['10xl'], fontWeight: font.weights.extrabold, color: colors.white, letterSpacing: -0.5 },
+  walletBalance: { fontSize: font.sizes['10xl'], fontWeight: font.weights.extrabold, color: colors.onAccent, letterSpacing: -0.5 },
   walletSub: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
   walletEmpty: { fontSize: font.sizes.sm, color: 'rgba(255,255,255,0.9)', marginTop: 12 },
   walletBtn: {
@@ -333,7 +337,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 14,
   },
-  walletBtnText: { color: colors.white, fontWeight: font.weights.bold, fontSize: font.sizes.lg },
+  walletBtnText: { color: colors.onAccent, fontWeight: font.weights.bold, fontSize: font.sizes.lg },
   balancePoints: { fontSize: font.sizes['8xl'], fontWeight: font.weights.extrabold, color: colors.accent },
   tierLabel: { fontSize: font.sizes.lg, color: colors.ink2, marginTop: 2, fontWeight: font.weights.semibold },
   progressText: { fontSize: font.sizes.base, color: colors.ink3, marginTop: 12 },
@@ -345,7 +349,7 @@ const styles = StyleSheet.create({
   tierBar: { height: 8, borderRadius: 4, backgroundColor: colors.bgSoft, overflow: 'hidden', marginTop: 12 },
   tierFill: { height: '100%', borderRadius: 4, backgroundColor: colors.accent },
   perksCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     marginTop: 14,
     borderWidth: 1,
@@ -356,7 +360,7 @@ const styles = StyleSheet.create({
   perkRow: { alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
   perkText: { flex: 1, fontSize: font.sizes.lg, color: colors.ink },
   redeemBtn: { borderRadius: radius.lg, paddingVertical: 15, alignItems: 'center', marginTop: 18, ...shadow.card },
-  redeemBtnText: { color: colors.white, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
+  redeemBtnText: { color: colors.onAccent, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
   historyTitle: {
     fontSize: font.sizes['5xl'],
     fontWeight: font.weights.bold,
@@ -366,7 +370,7 @@ const styles = StyleSheet.create({
   },
   historyEmpty: { color: colors.ink3, fontSize: font.sizes.lg },
   historyCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -376,4 +380,4 @@ const styles = StyleSheet.create({
   historyRow: { justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   historyReason: { color: colors.ink2, fontSize: font.sizes.lg },
   historyDelta: { fontWeight: font.weights.bold, fontSize: font.sizes.lg },
-});
+}));

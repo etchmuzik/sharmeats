@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { useI18n } from '../i18n-context';
 import type { TranslationKey } from '../i18n';
@@ -36,6 +37,7 @@ function isHandoff(v: string | undefined): v is Handoff {
  * delivered with zero phone calls — the single biggest Sharm differentiator.
  */
 export function HotelHandoffCard({ hotelName, roomNumber, handoff, landmark }: HotelHandoffCardProps) {
+  const colors = useThemeColors();
   const { direction, t } = useI18n();
   const copy = isHandoff(handoff) ? HANDOFF_COPY[handoff] : null;
 
@@ -43,7 +45,7 @@ export function HotelHandoffCard({ hotelName, roomNumber, handoff, landmark }: H
     <View
       style={{
         marginTop: spacing.md,
-        backgroundColor: colors.white,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.accentSoft,
         borderRadius: radius.xl,

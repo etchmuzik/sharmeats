@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { AdminHeader } from '../AdminHeader';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -236,7 +235,6 @@ export default function CampaignsPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <div className="mx-auto max-w-3xl space-y-3 p-6">
           <Skeleton className="h-40 w-full" />
@@ -267,7 +265,14 @@ export default function CampaignsPage() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader title="Campaigns" description="Push notifications" displayName={phase.displayName} />
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
+        <div>
+          <div className="text-lg font-extrabold">
+            Campaigns
+          </div>
+          <div className="text-xs text-ink3">Push notifications · {phase.displayName}</div>
+        </div>
+      </header>
 
       <div className="mx-auto max-w-3xl space-y-6 p-6">
         {/* Composer */}

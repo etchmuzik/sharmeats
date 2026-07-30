@@ -5,7 +5,6 @@ import {
   Image,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -18,7 +17,8 @@ import { RxBadge } from '../../src/components/RxBadge';
 import { TouristSafeBadge } from '../../src/components/TouristSafeBadge';
 import { OwnBrandBadge } from '../../src/components/OwnBrandBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { db } from '../../src/data';
 import type { MenuItem, MenuSection, Restaurant, Review } from '../../src/data/types';
 import { formatEgp } from '../../src/lib/format';
@@ -30,6 +30,8 @@ import { effectiveIsOpen, closedReasonKey } from '../../src/lib/openHours';
 import { track } from '../../src/lib/analytics';
 
 export default function RestaurantDetail() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -94,7 +96,7 @@ export default function RestaurantDetail() {
   if (loadError && !restaurant) {
     return (
       <View style={styles.loading}>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <View style={styles.loadNav}>
           <BackButton />
         </View>
@@ -117,7 +119,7 @@ export default function RestaurantDetail() {
   if (!restaurant) {
     return (
       <View style={styles.loading}>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <View style={styles.loadNav}>
           <BackButton />
         </View>
@@ -136,7 +138,7 @@ export default function RestaurantDetail() {
   const closedReason = closedReasonKey(restaurant);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.white }}>
+    <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <StatusBar style="light" />
 
       <Animated.ScrollView
@@ -349,7 +351,7 @@ export default function RestaurantDetail() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, gap: 16, paddingHorizontal: 32 },
   loadNav: { position: 'absolute', top: 56, left: 14 },
   loadErrText: { color: colors.ink2, fontSize: font.sizes.lg, textAlign: 'center', lineHeight: 24 },
@@ -359,7 +361,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.ink,
   },
-  retryText: { color: colors.white, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  retryText: { color: colors.onInk, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   // Branded teal base so an unloaded/failed cover reads as an intentional tile
   // (the white BackButton + fade stay legible) rather than a dark void.
   hero: { height: 240, backgroundColor: colors.sea, position: 'relative' },
@@ -449,7 +451,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.line,
     paddingVertical: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   navTabWrap: { paddingBottom: 6 },
   navTab: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.ink3 },
@@ -477,7 +479,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
@@ -503,11 +505,11 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: colors.onInkOverlay,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaCountText: { color: colors.white, fontWeight: font.weights.bold, fontSize: font.sizes.base },
-  ctaLabel: { color: colors.white, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
-  ctaPrice: { color: colors.white, fontWeight: font.weights.extrabold, fontSize: font.sizes['2xl'] },
-});
+  ctaCountText: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.base },
+  ctaLabel: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
+  ctaPrice: { color: colors.onInk, fontWeight: font.weights.extrabold, fontSize: font.sizes['2xl'] },
+}));

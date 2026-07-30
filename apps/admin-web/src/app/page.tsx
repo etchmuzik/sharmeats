@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { OpsDriver, OpsOrder } from '@/lib/types';
 import { DispatchBoard } from './DispatchBoard';
-import { AdminHeader } from './AdminHeader';
 import { SignOutButton } from './SignOutButton';
 import { Skeleton, DispatchBoardSkeleton } from './Skeleton';
 import { LegalLinks } from './LegalLinks';
@@ -88,7 +87,6 @@ export default function OpsPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <DispatchBoardSkeleton />
       </main>
@@ -111,11 +109,14 @@ export default function OpsPage() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader
-        title="Dispatch"
-        description="Live orders and driver assignment"
-        displayName={phase.displayName}
-      />
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
+        <div>
+          <div className="text-lg font-extrabold">
+            Dispatch
+          </div>
+          <div className="text-xs text-ink3">Dispatch board · {phase.displayName}</div>
+        </div>
+      </header>
 
       <DispatchBoard initialOrders={phase.orders} initialDrivers={phase.drivers} />
 

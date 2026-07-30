@@ -187,6 +187,21 @@ const ENGLISH = {
   'dropoff.meetOutside': 'Guest will meet you outside',
   'dropoff.noBell': "Don't ring the bell or knock",
   'dropoff.callOnArrival': 'Call the guest on arrival',
+  // Proof of delivery (migration 194). These render in the primary action bar on
+  // every out_for_delivery job, so they must localise like everything beside them.
+  'proof.cameraNeededTitle': 'Camera needed',
+  'proof.cameraNeededBody': 'Allow camera access to photograph the handoff. This is the only record that the order arrived.',
+  'proof.cameraOpenFailed': "Couldn't open the camera.",
+  'proof.uploadFailed': 'Delivered, but the photo did not upload. Ops has been flagged.',
+  'proof.ready': 'Handoff photo ready',
+  'proof.retake': 'Retake',
+  'proof.retakeA11y': 'Retake the handoff photo',
+  'proof.required': 'Photo required',
+  'proof.optional': 'Add a handoff photo',
+  'proof.requiredHint': 'Nobody is there to receive it — photograph where you left the order',
+  'proof.optionalHint': 'Optional, but it protects you if the order is disputed',
+  'proof.takeRequiredA11y': 'Take the required handoff photo',
+  'proof.takeOptionalA11y': 'Take an optional handoff photo',
 } as const;
 
 export type TranslationKey = keyof typeof ENGLISH;
@@ -374,6 +389,19 @@ const ARABIC: Record<TranslationKey, string> = {
   'dropoff.meetOutside': 'سيقابلك العميل في الخارج',
   'dropoff.noBell': 'لا تطرق الباب ولا تستخدم الجرس',
   'dropoff.callOnArrival': 'اتصل بالعميل عند الوصول',
+  'proof.cameraNeededTitle': 'الكاميرا مطلوبة',
+  'proof.cameraNeededBody': 'اسمح بالوصول إلى الكاميرا لتصوير التسليم. هذا هو السجل الوحيد الذي يثبت وصول الطلب.',
+  'proof.cameraOpenFailed': 'تعذّر فتح الكاميرا.',
+  'proof.uploadFailed': 'تم التسليم، لكن لم يتم رفع الصورة. تم إبلاغ فريق العمليات.',
+  'proof.ready': 'صورة التسليم جاهزة',
+  'proof.retake': 'إعادة التصوير',
+  'proof.retakeA11y': 'إعادة تصوير صورة التسليم',
+  'proof.required': 'الصورة مطلوبة',
+  'proof.optional': 'أضف صورة للتسليم',
+  'proof.requiredHint': 'لا يوجد أحد لاستلام الطلب — صوّر المكان الذي تركت فيه الطلب',
+  'proof.optionalHint': 'اختياري، لكنه يحميك إذا تم الاعتراض على الطلب',
+  'proof.takeRequiredA11y': 'التقط صورة التسليم المطلوبة',
+  'proof.takeOptionalA11y': 'التقط صورة تسليم اختيارية',
 };
 
 const MESSAGES: Record<Locale, Record<TranslationKey, string>> = {

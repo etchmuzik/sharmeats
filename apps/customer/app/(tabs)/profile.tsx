@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { Icon, type IconName } from '../../src/components/Icon';
 import { useT, LOCALE_LABELS } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
@@ -26,6 +26,8 @@ interface Row {
 }
 
 export default function ProfileTab() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -99,7 +101,7 @@ export default function ProfileTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}>
         <View style={[styles.head, { paddingTop: insets.top + 14 }]}>
           <View style={styles.avatar}>
@@ -155,7 +157,7 @@ export default function ProfileTab() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: { paddingHorizontal: 24, paddingBottom: 22, alignItems: 'center' },
   avatar: {
     width: 88,
@@ -174,7 +176,7 @@ const styles = StyleSheet.create({
   phone: { fontSize: font.sizes.lg, color: colors.ink2, marginTop: 4 },
   section: {
     marginHorizontal: 16,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -205,5 +207,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     marginHorizontal: 4,
   },
-  rowBadgeText: { color: colors.white, fontSize: font.sizes.xs, fontWeight: font.weights.bold },
-});
+  rowBadgeText: { color: colors.onAccent, fontSize: font.sizes.xs, fontWeight: font.weights.bold },
+}));

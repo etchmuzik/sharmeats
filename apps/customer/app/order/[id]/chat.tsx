@@ -5,16 +5,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '../../../src/components/Icon';
-import { colors, font, radius } from '../../../src/theme';
+import { font, radius } from '../../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../../src/themeProvider';
 import { useT } from '../../../src/i18n';
 import { useDirection } from '../../../src/lib/direction';
 import { tap } from '../../../src/haptics';
@@ -30,6 +29,8 @@ const roleLabelKey: Record<MessageSenderRole, string> = {
 };
 
 export default function OrderChatScreen() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderId = String(id);
   const insets = useSafeAreaInsets();
@@ -98,7 +99,7 @@ export default function OrderChatScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Icon name="chevronBack" size={26} color={colors.ink} />
@@ -132,7 +133,7 @@ export default function OrderChatScreen() {
                 <View style={[styles.bubbleRow, mine ? styles.rowMine : styles.rowTheirs]}>
                   <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
                     {!mine && <Text style={styles.senderLabel}>{t(roleLabelKey[item.senderRole])}</Text>}
-                    <Text style={[styles.bubbleText, mine && { color: colors.white }]}>{item.body}</Text>
+                    <Text style={[styles.bubbleText, mine && { color: colors.onAccent }]}>{item.body}</Text>
                   </View>
                 </View>
               );
@@ -157,7 +158,7 @@ export default function OrderChatScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('chat.send')}
             style={[styles.sendBtn, { backgroundColor: draft.trim() ? colors.accent : colors.line }]}>
-            {sending ? <ActivityIndicator color={colors.white} /> : <Icon name="send" size={20} color={colors.white} />}
+            {sending ? <ActivityIndicator color={colors.onAccent} /> : <Icon name="send" size={20} color={colors.onAccent} />}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -165,7 +166,7 @@ export default function OrderChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row',
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
@@ -185,7 +186,7 @@ const styles = StyleSheet.create({
   rowTheirs: { justifyContent: 'flex-start' },
   bubble: { maxWidth: '80%', borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleMine: { backgroundColor: colors.accent, borderBottomRightRadius: 4 },
-  bubbleTheirs: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderBottomLeftRadius: 4 },
+  bubbleTheirs: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderBottomLeftRadius: 4 },
   senderLabel: { fontSize: font.sizes.xs, fontWeight: font.weights.bold, color: colors.sea, marginBottom: 2 },
   bubbleText: { fontSize: font.sizes.lg, color: colors.ink, lineHeight: 22 },
   composer: {
@@ -194,7 +195,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingTop: 8,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
@@ -210,4 +211,4 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-});
+}));

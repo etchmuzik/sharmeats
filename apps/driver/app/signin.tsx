@@ -14,13 +14,16 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { LEGAL_URLS, openLegal } from '../src/legal';
 import { LanguageToggle } from '../src/components/LanguageToggle';
 import { useI18n } from '../src/i18n-context';
 import { captureError } from '../src/lib/crash';
 
 export default function SignIn() {
+  const colors = useThemeColors();
+  const styles = useSigninStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signInWithPassword } = useAuth();
@@ -49,6 +52,9 @@ export default function SignIn() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.accent }}
     >
+      {/* Deliberately NOT ThemedStatusBar: this gate is a full-bleed teal
+          hero in BOTH themes (`accent` does not invert), so the glyphs above it
+          must stay light either way. */}
       <StatusBar style="light" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -61,12 +67,17 @@ export default function SignIn() {
       >
         <View style={{ paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxl }}>
           <LanguageToggle inverted />
-          <Text style={{ color: colors.white, fontSize: font.sizes.huge, fontWeight: '800' }}>
+          <Text style={{ color: colors.onAccent, fontSize: font.sizes.huge, fontWeight: '800' }}>
             Sharm Eats
           </Text>
+          {/* onAccent, not accentSoft. This hero is filled with `accent`, which
+              is identical in both themes, so its label has to be too —
+              accentSoft inverts to a near-black teal and scored 3.09:1 here.
+              Hierarchy comes from 36px/800 vs 16px/regular; a muted tint has no
+              room to sit above 4.5:1 on this teal (white itself is only 4.80). */}
           <Text
             style={{
-              color: colors.accentSoft,
+              color: colors.onAccent,
               fontSize: font.sizes.lg,
               marginTop: 4,
               textAlign: direction.textAlign,
@@ -99,7 +110,7 @@ export default function SignIn() {
             {t('signin.title')}
           </Text>
           <Text style={{ color: colors.ink2, textAlign: direction.textAlign, writingDirection: direction.writingDirection }}>{t('signin.subtitle')}</Text>
-          <Text style={[fieldLabel, { textAlign: direction.textAlign, writingDirection: direction.writingDirection }]}>{t('signin.email')}</Text>
+          <Text style={[styles.fieldLabel, { textAlign: direction.textAlign, writingDirection: direction.writingDirection }]}>{t('signin.email')}</Text>
           <TextInput
             testID="driver-email-input"
             value={email}
@@ -111,9 +122,9 @@ export default function SignIn() {
             placeholder="driver@sharmeats.eg"
             placeholderTextColor={colors.ink3}
             accessibilityLabel={t('signin.email')}
-            style={[inputStyle, { textAlign: 'left', writingDirection: 'ltr' }]}
+            style={[styles.input, { textAlign: 'left', writingDirection: 'ltr' }]}
           />
-          <Text style={[fieldLabel, { textAlign: direction.textAlign, writingDirection: direction.writingDirection }]}>{t('signin.password')}</Text>
+          <Text style={[styles.fieldLabel, { textAlign: direction.textAlign, writingDirection: direction.writingDirection }]}>{t('signin.password')}</Text>
           <TextInput
             testID="driver-password-input"
             value={password}
@@ -123,7 +134,7 @@ export default function SignIn() {
             placeholder={t('signin.password')}
             placeholderTextColor={colors.ink3}
             accessibilityLabel={t('signin.password')}
-            style={[inputStyle, { textAlign: 'left', writingDirection: 'ltr' }]}
+            style={[styles.input, { textAlign: 'left', writingDirection: 'ltr' }]}
             onSubmitEditing={() => email && password && submit()}
           />
           <Pressable
@@ -133,18 +144,18 @@ export default function SignIn() {
             accessibilityRole="button"
             accessibilityLabel={t('signin.submit')}
             accessibilityState={{ disabled: busy || !email || !password, busy }}
-            style={[btnStyle, (busy || !email || !password) && { opacity: 0.5 }]}
+            style={[styles.btn, (busy || !email || !password) && { opacity: 0.5 }]}
           >
             {busy ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={colors.onAccent} />
             ) : (
-              <Text style={btnText}>{t('signin.submit')}</Text>
+              <Text style={styles.btnText}>{t('signin.submit')}</Text>
             )}
           </Pressable>
 
           {error && (
             <View accessibilityRole="alert" style={{ backgroundColor: colors.redSoft, borderRadius: radius.md, padding: spacing.md }}>
-              <Text style={{ color: colors.red, fontSize: font.sizes.sm }}>{error}</Text>
+              <Text style={{ color: colors.redText, fontSize: font.sizes.sm }}>{error}</Text>
             </View>
           )}
 
@@ -158,13 +169,13 @@ export default function SignIn() {
             accessibilityLabel={t('signin.helpA11y')}
             style={helpLink}
           >
-            <Text style={[helpLinkText, { writingDirection: direction.writingDirection }]}>{t('signin.help')}</Text>
+            <Text style={[styles.helpLinkText, { writingDirection: direction.writingDirection }]}>{t('signin.help')}</Text>
           </Pressable>
 
           <Text style={{ marginTop: spacing.sm, fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center', writingDirection: direction.writingDirection }}>
             {t('signin.agreementPrefix')}{' '}
             <Text
-              style={{ color: colors.accent, fontWeight: '600' }}
+              style={{ color: colors.accentText, fontWeight: '600' }}
               onPress={() => openLegal(LEGAL_URLS.terms)}
               accessibilityRole="link"
               accessibilityLabel={t('signin.terms')}
@@ -173,7 +184,7 @@ export default function SignIn() {
             </Text>
             {' · '}
             <Text
-              style={{ color: colors.accent, fontWeight: '600' }}
+              style={{ color: colors.accentText, fontWeight: '600' }}
               onPress={() => openLegal(LEGAL_URLS.privacy)}
               accessibilityRole="link"
               accessibilityLabel={t('signin.privacy')}
@@ -187,45 +198,47 @@ export default function SignIn() {
   );
 }
 
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: colors.line,
-  borderRadius: radius.lg,
-  paddingHorizontal: spacing.lg,
-  paddingVertical: spacing.md,
-  fontSize: font.sizes.lg,
-  color: colors.ink,
-  backgroundColor: colors.white,
-} as const;
-
-const fieldLabel = {
-  color: colors.ink,
-  fontSize: font.sizes.sm,
-  fontWeight: '700',
-  marginBottom: -spacing.sm,
-} as const;
-
 const helpLink = {
   minHeight: 44,
   alignItems: 'center',
   justifyContent: 'center',
 } as const;
 
-const helpLinkText = {
-  color: colors.accentDark,
-  fontSize: font.sizes.sm,
-  fontWeight: '700',
-} as const;
-
-const btnStyle = {
-  backgroundColor: colors.accent,
-  borderRadius: radius.lg,
-  paddingVertical: spacing.lg,
-  alignItems: 'center',
-} as const;
-
-const btnText = {
-  color: colors.white,
-  fontSize: font.sizes.lg,
-  fontWeight: '700',
-} as const;
+/**
+ * These were module-scope constants, which is exactly the pattern that cannot
+ * survive a theme switch: the palette values were copied in at import time.
+ */
+const useSigninStyles = makeStyles((colors) => ({
+  input: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    fontSize: font.sizes.lg,
+    color: colors.ink,
+    backgroundColor: colors.surface,
+  },
+  fieldLabel: {
+    color: colors.ink,
+    fontSize: font.sizes.sm,
+    fontWeight: '700',
+    marginBottom: -spacing.sm,
+  },
+  helpLinkText: {
+    color: colors.accentDark,
+    fontSize: font.sizes.sm,
+    fontWeight: '700',
+  },
+  btn: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  btnText: {
+    color: colors.onAccent,
+    fontSize: font.sizes.lg,
+    fontWeight: '700',
+  },
+}));

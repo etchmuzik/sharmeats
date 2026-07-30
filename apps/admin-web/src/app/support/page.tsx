@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { AdminHeader } from '../AdminHeader';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -149,7 +148,6 @@ export default function SupportInboxPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <div className="mx-auto max-w-4xl space-y-3 p-6">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -179,7 +177,14 @@ export default function SupportInboxPage() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader title="Support inbox" description="Customer messages" displayName={phase.displayName} />
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
+        <div>
+          <div className="text-lg font-extrabold">
+            Support
+          </div>
+          <div className="text-xs text-ink3">Customer messages · {phase.displayName}</div>
+        </div>
+      </header>
 
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-6 md:grid-cols-[300px_1fr]">
         {/* Thread list */}

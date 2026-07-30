@@ -3,19 +3,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as StoreReview from 'expo-store-review';
 import { recordReviewPrompt, reviewPromptEligibility } from '../../../src/lib/reviewPrompt';
 import { BackButton } from '../../../src/components/BackButton';
 import { PrimaryButton } from '../../../src/components/PrimaryButton';
-import { colors, font, radius } from '../../../src/theme';
+import { font, radius } from '../../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../../src/themeProvider';
 import { useT } from '../../../src/i18n';
 import { db } from '../../../src/data';
 import { success } from '../../../src/haptics';
@@ -28,6 +27,8 @@ function Stars({
   value: number;
   onChange: (n: number) => void;
 }) {
+  const colors = useThemeColors();
+  const stylesStar = useStylesStar();
   return (
     <View style={{ flexDirection: 'row', gap: 6 }}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -39,11 +40,13 @@ function Stars({
   );
 }
 
-const stylesStar = StyleSheet.create({
+const useStylesStar = makeStyles((colors) => ({
   star: { fontSize: 36, color: colors.line2 },
-});
+}));
 
 export default function Review() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -96,7 +99,7 @@ export default function Review() {
   if (submitted) {
     return (
       <View style={[styles.wrap, { paddingTop: insets.top + 40 }]}>
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
         <Text style={{ fontSize: 64 }}>✨</Text>
         <Text style={styles.thanks}>{t('review.thanks')}</Text>
       </View>
@@ -107,7 +110,7 @@ export default function Review() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('review.title')}</Text>
@@ -141,7 +144,7 @@ export default function Review() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center' },
   thanks: { marginTop: 14, fontSize: font.sizes['7xl'], fontWeight: font.weights.extrabold, color: colors.ink },
   head: {
@@ -153,10 +156,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   title: { fontSize: font.sizes['5xl'], fontWeight: font.weights.extrabold, letterSpacing: -0.4, color: colors.ink },
-  block: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: 16, gap: 12 },
+  block: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: 16, gap: 12 },
   label: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
   input: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -167,10 +170,10 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   bottom: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-});
+}));

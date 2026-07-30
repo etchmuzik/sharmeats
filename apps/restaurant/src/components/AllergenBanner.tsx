@@ -1,8 +1,9 @@
 import { Text, View } from 'react-native';
 import { Icon } from './Icon';
 import type { AllergenKey } from '../orders';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
 import { useLocale } from '../locale';
+import { useThemeColors } from '../themeProvider';
 
 /**
  * [H-REST2] Prominent kitchen allergy briefing. `orders.aggregate_allergens` is
@@ -11,6 +12,7 @@ import { useLocale } from '../locale';
  * be missed at a glance on a busy tablet. Renders nothing when there are none.
  */
 export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null | undefined }) {
+  const colors = useThemeColors();
   const { direction, isRtl, t } = useLocale();
   if (!allergens || allergens.length === 0) return null;
   const labels = allergens.map((allergen) => t(`allergen.${allergen}`));
@@ -30,14 +32,14 @@ export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null 
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Icon name="alert" size={16} color={colors.red} />
+        <Icon name="alert" size={16} color={colors.redText} />
         <Text
           style={{
             fontSize: font.sizes.xs,
             fontWeight: '800',
             letterSpacing: isRtl ? 0 : 0.5,
             textTransform: isRtl ? 'none' : 'uppercase',
-            color: colors.red,
+            color: colors.redText,
           }}
         >
           {t('allergen.alert')}
@@ -54,7 +56,7 @@ export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null 
               paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.white }}>
+            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.onInk }}>
               {labels[index]}
             </Text>
           </View>

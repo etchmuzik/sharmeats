@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, font } from '../theme';
+import { Text, View } from 'react-native';
+import { font } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 
 /**
@@ -8,6 +9,7 @@ import { useT } from '../i18n';
  * carries no navigation or state of its own.
  */
 export function CheckoutStepper() {
+  const styles = useStyles();
   const t = useT();
   return (
     <View style={styles.row}>
@@ -21,6 +23,7 @@ export function CheckoutStepper() {
 }
 
 function Step({ label, state }: { label: string; state: 'done' | 'active' | 'pending' }) {
+  const styles = useStyles();
   const filled = state !== 'pending';
   return (
     <View style={styles.step}>
@@ -30,7 +33,7 @@ function Step({ label, state }: { label: string; state: 'done' | 'active' | 'pen
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -49,4 +52,4 @@ const styles = StyleSheet.create({
   labelFilled: { color: colors.ink2, fontWeight: font.weights.bold },
   labelEmpty: { color: colors.ink3 },
   line: { width: 16, height: 1, backgroundColor: colors.line, marginHorizontal: 6 },
-});
+}));

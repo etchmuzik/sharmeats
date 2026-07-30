@@ -8,16 +8,18 @@
  */
 import { Text, View } from 'react-native';
 import type { EarningsSummary } from '../jobs';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { useI18n } from '../i18n-context';
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
+  const colors = useThemeColors();
   return (
     <View
       style={{
         flexGrow: 1,
         flexBasis: '46%',
-        backgroundColor: colors.white,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: warn ? colors.amber : colors.line,
         borderRadius: radius.lg,

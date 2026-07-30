@@ -2,17 +2,16 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { StatusBarSpacer } from '../src/components/StatusBarSpacer';
-import { colors, font, radius } from '../src/theme';
+import { font, radius } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { db } from '../src/data';
 import { captureError } from '../src/lib/analytics';
@@ -25,6 +24,8 @@ function toE164(input: string): string {
 }
 
 export default function SignIn() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const t = useT();
   const [phone, setPhone] = useState('+20 100 ');
@@ -52,7 +53,7 @@ export default function SignIn() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <StatusBarSpacer />
       <View style={{ paddingHorizontal: 20, paddingTop: 6 }}>
         <BackButton onPress={() => router.replace('/onboarding')} />
@@ -117,7 +118,7 @@ export default function SignIn() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   top: { paddingHorizontal: 24, paddingTop: 14 },
   title: {
     fontSize: font.sizes['10xl'],
@@ -136,8 +137,8 @@ const styles = StyleSheet.create({
     fontSize: font.sizes['4xl'],
     color: colors.ink,
     fontWeight: font.weights.semibold,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   terms: { paddingHorizontal: 24, marginTop: 20, fontSize: font.sizes.md, color: colors.ink3 },
   termsLink: { color: colors.sea, fontWeight: font.weights.semibold },
-});
+}));

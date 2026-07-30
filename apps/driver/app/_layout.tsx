@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/auth';
 import { ToastProvider } from '../src/components/Toast';
-import { colors } from '../src/theme';
+import { ThemeProvider, ThemedStatusBar, useThemeColors } from '../src/themeProvider';
 import { initCrashReporting } from '../src/lib/crash';
 import { getSupabase, isSupabaseConfigured } from '../src/supabase';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
@@ -38,66 +37,74 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <LanguageProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <DriverStack />
-            </ToastProvider>
-          </AuthProvider>
-        </LanguageProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <ThemedStatusBar />
+                <DriverStack />
+              </ToastProvider>
+            </AuthProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
+/**
+ * The navigator, split out so it can read the active palette and locale — the
+ * native header is chrome the OS draws for us, so its colors and titles have to
+ * be passed in rather than styled by a child. Left in light, it would sit as a
+ * bright slab above every dark screen.
+ *
+ * Native headers (large titles + native back) rather than hand-rolled ones:
+ * they give correct safe-area handling for free via
+ * `contentInsetAdjustmentBehavior="automatic"` on each screen's scroller, and a
+ * back gesture drivers already know.
+ *
+ * `index` and `signin` stay chrome-less — they are full-bleed gates, not
+ * destinations you navigate back from.
+ */
 function DriverStack() {
+  const colors = useThemeColors();
   const { locale, t } = useI18n();
 
   return (
-    <>
-      <StatusBar style="dark" />
-      {/*
-        Native headers (large titles + native back) rather than hand-rolled
-        ones: they give correct safe-area handling for free via
-        `contentInsetAdjustmentBehavior="automatic"` on each screen's scroller,
-        and a back gesture drivers already know.
-
-        `index` and `signin` stay chrome-less — they are full-bleed gates, not
-        destinations you navigate back from.
-      */}
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: colors.bg },
-          headerStyle: { backgroundColor: colors.bg },
-          headerTintColor: colors.accent,
-          headerTitleStyle: { color: colors.ink },
-          // Native-stack does not expose a safe right-aligned title on iOS.
-          // Centering Arabic keeps the title visually balanced on Android and
-          // preserves native title/back gestures without forceRTL or a restart.
-          headerTitleAlign: locale === 'ar' ? 'center' : undefined,
-          headerShadowVisible: false,
-          headerBackButtonDisplayMode: 'minimal',
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: colors.bg },
+        headerStyle: { backgroundColor: colors.bg },
+        // accentText, not accent: the back button is a tinted LABEL, and the
+        // fill-tuned teal fails AA as small text on the dark canvas.
+        headerTintColor: colors.accentText,
+        headerTitleStyle: { color: colors.ink },
+        // Native-stack does not expose a safe right-aligned title on iOS.
+        // Centering Arabic keeps the title visually balanced on Android and
+        // preserves native title/back gestures without forceRTL or a restart.
+        headerTitleAlign: locale === 'ar' ? 'center' : undefined,
+        headerShadowVisible: false,
+        headerBackButtonDisplayMode: 'minimal',
+      }}
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="signin" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="home"
+        options={{
+          title: t('nav.deliveries'),
+          headerLargeTitle: true,
+          headerBackVisible: false,
         }}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="signin" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="home"
-          options={{
-            title: t('nav.deliveries'),
-            headerLargeTitle: true,
-            headerBackVisible: false,
-          }}
-        />
-        <Stack.Screen name="job/[id]" options={{ title: t('nav.delivery') }} />
-        <Stack.Screen name="job/[id]/chat" options={{ title: t('nav.chat') }} />
-        <Stack.Screen
-          name="history"
-          options={{ title: t('nav.history'), headerLargeTitle: true }}
-        />
-        <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
-        <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
-      </Stack>
-    </>
+      />
+      <Stack.Screen name="job/[id]" options={{ title: t('nav.delivery') }} />
+      <Stack.Screen name="job/[id]/chat" options={{ title: t('nav.chat') }} />
+      <Stack.Screen
+        name="history"
+        options={{ title: t('nav.history'), headerLargeTitle: true }}
+      />
+      <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
+      <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
+    </Stack>
   );
 }

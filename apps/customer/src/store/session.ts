@@ -3,6 +3,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { detectDeviceLanguage } from '../lib/deviceLocale';
 import { asSupportedCurrency, type Currency } from '../currency/fx';
 import { mergeFavorites } from './favoritesMerge';
+import {
+  addRecentSearch,
+  removeRecentSearch,
+  sanitizeRecentSearches,
+} from '../lib/recentSearches';
+import type { ThemeMode } from '../theme';
 
 const STORAGE_KEY = '@sharmeats:session:v1';
 
@@ -11,6 +17,7 @@ export type Locale = 'en' | 'ar' | 'ru' | 'it' | 'de';
 // copies of this union had already drifted into existence, and a currency added
 // to one but not the other would type-check in isolation and break at runtime.
 export type { Currency } from '../currency/fx';
+export type { ThemeMode };
 
 const SUPPORTED_LOCALES: readonly string[] = ['en', 'ar', 'ru', 'it', 'de'];
 
@@ -23,6 +30,11 @@ interface SessionState {
   phone: string | null;
   locale: Locale;
   currency: Currency;
+  /**
+   * Light/dark preference. Defaults to `system` so the app matches the phone
+   * without anyone having to find the setting.
+   */
+  themeMode: ThemeMode;
   selectedAddressId: string | null;
   allergyNudgeDismissed: boolean;
   /** Saved restaurant ids. Local-first; synced with the backend in live mode. */
@@ -65,6 +77,17 @@ interface SessionState {
    * came from. Kept as a plain map so it survives AsyncStorage round-tripping.
    */
   favoriteItemRestaurantIds: Record<string, string>;
+  /**
+   * Queries the user has actually committed to — submitted, or followed
+   * through to a result. Never a keystroke prefix (see browse.tsx).
+   *
+   * Lives HERE, in the identity-scoped blob, rather than under a key of its
+   * own, so `transitionIdentity()` already erases it when the device changes
+   * hands. Search history is among the most revealing data this app holds: the
+   * catalogue includes a pharmacy vertical, so a query can be health
+   * information about whoever typed it.
+   */
+  recentSearches: string[];
   hydrated: boolean;
 
   hydrate: () => Promise<void>;
@@ -72,6 +95,7 @@ interface SessionState {
   signOut: () => void;
   setLocale: (l: Locale) => void;
   setCurrency: (c: Currency) => void;
+  setThemeMode: (m: ThemeMode) => void;
   setSelectedAddressId: (id: string | null) => void;
   dismissAllergyNudge: () => void;
   toggleFavorite: (restaurantId: string) => void;
@@ -83,6 +107,9 @@ interface SessionState {
   toggleFavoriteItem: (menuItemId: string, restaurantId: string) => void;
   markFavoriteItemSynced: (menuItemId: string) => void;
   mergeFavoriteItemsFromServer: (serverIds: string[]) => string[];
+  rememberSearch: (query: string) => void;
+  forgetSearch: (query: string) => void;
+  clearRecentSearches: () => void;
 }
 
 type PersistedSession = Pick<
@@ -91,6 +118,7 @@ type PersistedSession = Pick<
   | 'phone'
   | 'locale'
   | 'currency'
+  | 'themeMode'
   | 'selectedAddressId'
   | 'allergyNudgeDismissed'
   | 'favoriteIds'
@@ -100,6 +128,7 @@ type PersistedSession = Pick<
   | 'favoriteItemIds'
   | 'syncedFavoriteItemIds'
   | 'favoriteItemRestaurantIds'
+  | 'recentSearches'
 >;
 
 function snapshot(s: SessionState): PersistedSession {
@@ -108,6 +137,7 @@ function snapshot(s: SessionState): PersistedSession {
     phone: s.phone,
     locale: s.locale,
     currency: s.currency,
+    themeMode: s.themeMode,
     selectedAddressId: s.selectedAddressId,
     allergyNudgeDismissed: s.allergyNudgeDismissed,
     favoriteIds: s.favoriteIds,
@@ -117,6 +147,7 @@ function snapshot(s: SessionState): PersistedSession {
     favoriteItemIds: s.favoriteItemIds,
     syncedFavoriteItemIds: s.syncedFavoriteItemIds,
     favoriteItemRestaurantIds: s.favoriteItemRestaurantIds,
+    recentSearches: s.recentSearches,
   };
 }
 
@@ -131,6 +162,7 @@ export const useSession = create<SessionState>((set, get) => ({
   // launch (see hydrate) and by the user's explicit choice thereafter.
   locale: 'en',
   currency: 'EGP',
+  themeMode: 'system',
   // No fake default: a real (esp. anonymous) user has no saved address until
   // they add one. The old mock id 'a-hotel-hilton' never matches a live row, so
   // it made checkout silently unresolvable. null is the honest empty state and
@@ -144,6 +176,7 @@ export const useSession = create<SessionState>((set, get) => ({
   favoriteItemIds: [],
   syncedFavoriteItemIds: [],
   favoriteItemRestaurantIds: {},
+  recentSearches: [],
   hydrated: false,
 
   hydrate: async () => {
@@ -159,6 +192,10 @@ export const useSession = create<SessionState>((set, get) => ({
           // (see asSupportedCurrency); an unknown locale rendered raw i18n keys.
           locale: asSupportedLocale(parsed.locale) ?? detectDeviceLanguage(),
           currency: asSupportedCurrency(parsed.currency),
+          // A session persisted before dark mode existed has no themeMode.
+          // 'system' is the right upgrade: it matches the phone rather than
+          // pinning existing users to light forever.
+          themeMode: (parsed.themeMode as ThemeMode) ?? 'system',
           selectedAddressId: parsed.selectedAddressId ?? null,
           allergyNudgeDismissed: parsed.allergyNudgeDismissed ?? false,
           favoriteIds: Array.isArray(parsed.favoriteIds) ? parsed.favoriteIds : [],
@@ -191,6 +228,10 @@ export const useSession = create<SessionState>((set, get) => ({
             parsed.favoriteItemRestaurantIds && typeof parsed.favoriteItemRestaurantIds === 'object'
               ? parsed.favoriteItemRestaurantIds
               : {},
+          // Sanitised rather than trusted: these strings are rendered into
+          // tappable rows, and the blob may come from an older build, a
+          // half-written file, or a restored backup.
+          recentSearches: sanitizeRecentSearches(parsed.recentSearches),
           hydrated: true,
         });
         return;
@@ -220,6 +261,10 @@ export const useSession = create<SessionState>((set, get) => ({
       favoriteItemIds: [],
       syncedFavoriteItemIds: [],
       favoriteItemRestaurantIds: {},
+      // In-memory clearing matters as much as the key removal below: a browse
+      // screen mounted at sign-out would keep rendering the previous person's
+      // search history, and the next write would persist it straight back.
+      recentSearches: [],
     });
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
   },
@@ -231,6 +276,11 @@ export const useSession = create<SessionState>((set, get) => ({
 
   setCurrency: (currency) => {
     set({ currency });
+    persist(snapshot(get()));
+  },
+
+  setThemeMode: (themeMode) => {
+    set({ themeMode });
     persist(snapshot(get()));
   },
 
@@ -358,5 +408,33 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ favoriteItemIds: merged, syncedFavoriteItemIds: synced });
     persist(snapshot(get()));
     return needsUpload;
+  },
+
+  /**
+   * Called only for a query the user COMMITTED to — submitted from the
+   * keyboard, or followed through to a result. Never on a keystroke: recording
+   * every debounced prefix would fill the list with "piz" and "pizz" and evict
+   * the searches worth keeping.
+   */
+  rememberSearch: (query) => {
+    const recentSearches = addRecentSearch(get().recentSearches, query);
+    // addRecentSearch returns a copy even when nothing changed (too short, or
+    // already newest), so compare before writing to avoid a pointless render
+    // and AsyncStorage write on every submit of the same term.
+    const current = get().recentSearches;
+    if (recentSearches.length === current.length && recentSearches.every((q, i) => q === current[i]))
+      return;
+    set({ recentSearches });
+    persist(snapshot(get()));
+  },
+
+  forgetSearch: (query) => {
+    set({ recentSearches: removeRecentSearch(get().recentSearches, query) });
+    persist(snapshot(get()));
+  },
+
+  clearRecentSearches: () => {
+    set({ recentSearches: [] });
+    persist(snapshot(get()));
   },
 }));

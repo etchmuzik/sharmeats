@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme';
+import { useThemeColors } from '../themeProvider';
 
 /**
  * Semantic icon wrapper over @expo/vector-icons (Ionicons), replacing the
@@ -14,6 +14,7 @@ import { colors } from '../theme';
 export type IconName =
   | 'location'
   | 'search'
+  | 'history' // a previous search, replayed
   | 'cart'
   | 'card'
   | 'cash'
@@ -58,6 +59,7 @@ export type IconName =
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   location: 'location-outline',
   search: 'search-outline',
+  history: 'time-outline',
   cart: 'bag-handle-outline',
   card: 'card-outline',
   cash: 'cash-outline',
@@ -129,12 +131,16 @@ type Props = {
   accessibilityLabel?: string;
 };
 
-export function Icon({ name, size = 18, color = colors.ink, active = false, accessibilityLabel }: Props) {
+export function Icon({ name, size, color, active = false, accessibilityLabel }: Props) {
+  // The default ink color has to be resolved from the ACTIVE palette, so it
+  // cannot be a default parameter value the way it was — a default parameter is
+  // evaluated against whatever `colors` was imported at module load.
+  const colors = useThemeColors();
   return (
     <Ionicons
       name={resolveGlyph(name, active)}
-      size={size}
-      color={color}
+      size={size ?? 18}
+      color={color ?? colors.ink}
       accessibilityElementsHidden={!accessibilityLabel}
       importantForAccessibility={accessibilityLabel ? 'yes' : 'no-hide-descendants'}
       accessibilityLabel={accessibilityLabel}

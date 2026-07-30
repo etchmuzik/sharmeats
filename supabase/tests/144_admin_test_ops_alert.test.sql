@@ -1,15 +1,45 @@
 -- Assertions for migration 144 (admin_test_ops_alert).
 --
--- Run INSIDE a transaction that is rolled back:
---   BEGIN; \i supabase/migrations/144_admin_test_ops_alert.sql
---          \i supabase/tests/144_admin_test_ops_alert.test.sql
---   ROLLBACK;
+-- SELF-CONTAINED: loads its own migration and rolls back, so
+-- scripts/test-security-migrations.sh runs it in CI. It previously documented a
+-- manual BEGIN/\i/ROLLBACK recipe and was never wired in, so these assertions
+-- had never actually executed.
 --
 -- The negative cases matter more than the positive one here: this function's
 -- whole purpose is to be a doorway into an otherwise client-inaccessible alert
 -- channel, so the value is in proving the door is narrow.
 
 \set ON_ERROR_STOP on
+
+-- Transaction-wrapped so nothing persists (migration house rule 6).
+begin;
+
+-- The migration's REVOKE/GRANT statements name these roles, which exist in a
+-- real Supabase project but not in the harness's bare database.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon nologin;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then
+    create role service_role nologin;
+  end if;
+end;
+$$;
+
+create schema if not exists auth;
+create or replace function auth.uid()
+returns uuid
+language sql
+stable
+as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+$$;
+
+\ir ../migrations/144_admin_test_ops_alert.sql
 
 do $$
 declare
@@ -33,29 +63,29 @@ begin
      and p.proconfig is not null
      and array_to_string(p.proconfig, ',') like '%search_path%';
   if v_n <> 1 then
-    v_fail := v_fail || 'admin_test_ops_alert must be SECURITY DEFINER with a pinned search_path';
+    v_fail := v_fail || 'admin_test_ops_alert must be SECURITY DEFINER with a pinned search_path'::text;
   end if;
 
   -- 3. PUBLIC and anon must NOT hold EXECUTE. Granting to `authenticated` does
   --    not revoke the default PUBLIC/anon grant on this database -- the exact
   --    trap behind the 2026-07-03 anon exploit.
   if has_function_privilege('anon', 'public.admin_test_ops_alert()', 'EXECUTE') then
-    v_fail := v_fail || 'anon can EXECUTE admin_test_ops_alert';
+    v_fail := v_fail || 'anon can EXECUTE admin_test_ops_alert'::text;
   end if;
   if has_function_privilege('public', 'public.admin_test_ops_alert()', 'EXECUTE') then
-    v_fail := v_fail || 'PUBLIC can EXECUTE admin_test_ops_alert';
+    v_fail := v_fail || 'PUBLIC can EXECUTE admin_test_ops_alert'::text;
   end if;
 
   -- 4. authenticated SHOULD hold it (the in-body role check is the real gate).
   if not has_function_privilege('authenticated', 'public.admin_test_ops_alert()', 'EXECUTE') then
-    v_fail := v_fail || 'authenticated cannot EXECUTE admin_test_ops_alert';
+    v_fail := v_fail || 'authenticated cannot EXECUTE admin_test_ops_alert'::text;
   end if;
 
   -- 5. It must not be callable with an unauthenticated session. auth.uid() is
   --    NULL here (no request JWT), which is exactly the anon-key case.
   begin
     perform public.admin_test_ops_alert();
-    v_fail := v_fail || 'admin_test_ops_alert did NOT refuse an unauthenticated caller';
+    v_fail := v_fail || 'admin_test_ops_alert did NOT refuse an unauthenticated caller'::text;
   exception
     when sqlstate '23514' then
       null; -- check_violation: AUTH_REQUIRED or NOT_AUTHORIZED. Correct.
@@ -79,3 +109,7 @@ begin
 
   raise notice 'MIG 144 ASSERTIONS PASSED';
 end $$;
+
+rollback;
+
+\echo '144_admin_test_ops_alert.test.sql: PASS'

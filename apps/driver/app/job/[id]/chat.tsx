@@ -13,7 +13,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../src/auth';
 import { list, markRead, send, subscribe, type OrderMessage } from '../../../src/messages';
-import { colors, font, radius, spacing } from '../../../src/theme';
+import { font, radius, spacing } from '../../../src/theme';
+import { useThemeColors } from '../../../src/themeProvider';
 import { Icon } from '../../../src/components/Icon';
 import { useToast } from '../../../src/components/Toast';
 
@@ -23,6 +24,7 @@ import { useToast } from '../../../src/components/Toast';
  * messages render as the accent "mine" bubbles on the right.
  */
 export default function ChatScreen() {
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
@@ -133,7 +135,7 @@ export default function ChatScreen() {
           paddingBottom: insets.bottom + spacing.sm,
           borderTopWidth: 1,
           borderColor: colors.line,
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
         }}
       >
         <TextInput
@@ -171,9 +173,9 @@ export default function ChatScreen() {
           }}
         >
           {sending ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color={colors.onAccent} />
           ) : (
-            <Icon name="navigate" size={18} color={colors.white} />
+            <Icon name="navigate" size={18} color={colors.onAccent} />
           )}
         </Pressable>
       </View>
@@ -188,6 +190,7 @@ function isMine(m: OrderMessage, myId: string | null): boolean {
 }
 
 function Bubble({ message, mine }: { message: OrderMessage; mine: boolean }) {
+  const colors = useThemeColors();
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
       {!mine && (
@@ -198,7 +201,7 @@ function Bubble({ message, mine }: { message: OrderMessage; mine: boolean }) {
       <View
         style={{
           maxWidth: '80%',
-          backgroundColor: mine ? colors.accent : colors.white,
+          backgroundColor: mine ? colors.accent : colors.surface,
           borderWidth: mine ? 0 : 1,
           borderColor: colors.line,
           borderRadius: radius.xl,
@@ -208,7 +211,7 @@ function Bubble({ message, mine }: { message: OrderMessage; mine: boolean }) {
           paddingHorizontal: spacing.md,
         }}
       >
-        <Text style={{ color: mine ? colors.white : colors.ink, fontSize: font.sizes.base }}>
+        <Text style={{ color: mine ? colors.onAccent : colors.ink, fontSize: font.sizes.base }}>
           {message.body}
         </Text>
       </View>

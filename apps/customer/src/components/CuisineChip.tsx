@@ -1,5 +1,6 @@
-import { Text, View, StyleSheet } from 'react-native';
-import { colors, font, shadow } from '../theme';
+import { Text, View } from 'react-native';
+import { font, shadow } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { PressableScale } from './PressableScale';
 
 /**
@@ -16,6 +17,7 @@ type Props = { label: string; emoji?: string; active?: boolean; onPress: () => v
 const SIZE = 56;
 
 export function CuisineChip({ label, emoji, active, onPress }: Props) {
+  const styles = useStyles();
   return (
     <PressableScale
       haptic="selection"
@@ -34,13 +36,13 @@ export function CuisineChip({ label, emoji, active, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { alignItems: 'center', width: 68, gap: 6 },
   circle: {
     width: SIZE,
     height: SIZE,
     borderRadius: SIZE / 2,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
@@ -51,4 +53,4 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 24 },
   label: { fontSize: font.sizes.sm, fontWeight: font.weights.bold, color: colors.ink2, textAlign: 'center' },
   labelActive: { color: colors.accent },
-});
+}));

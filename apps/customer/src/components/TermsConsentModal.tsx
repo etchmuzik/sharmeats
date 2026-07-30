@@ -1,6 +1,7 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius, shadow } from '../theme';
+import { font, radius, shadow } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { PrimaryButton } from './PrimaryButton';
 import { Icon } from './Icon';
 import { useT } from '../i18n';
@@ -23,6 +24,8 @@ interface Props {
  * recorded version), so it stays minimal and non-annoying.
  */
 export function TermsConsentModal({ visible, busy, onAgree }: Props) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const t = useT();
   const dir = useDirection();
   const insets = useSafeAreaInsets();
@@ -73,14 +76,14 @@ export function TermsConsentModal({ visible, busy, onAgree }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xxxl,
     borderTopRightRadius: radius.xxxl,
     paddingHorizontal: 24,
@@ -101,4 +104,4 @@ const styles = StyleSheet.create({
   links: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
   link: { fontSize: font.sizes.xl, color: colors.sea, fontWeight: font.weights.semibold },
   linkDot: { fontSize: font.sizes.xl, color: colors.ink3 },
-});
+}));

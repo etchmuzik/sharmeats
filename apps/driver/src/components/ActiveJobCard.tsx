@@ -10,7 +10,8 @@
 import { Pressable, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { Job } from '../jobs';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { cardEnter, listReflow } from './motion';
 import { tapLight } from '../lib/haptics';
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
+  const colors = useThemeColors();
   const { direction, t } = useI18n();
 
   return (
@@ -77,14 +79,34 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
         >
           {t('job.active')}
         </Text>
-        <Text selectable style={{ color: colors.white, fontSize: font.sizes.xl, fontWeight: '700', textAlign: direction.textAlign }}>
+        {/* onInk*, not white/hardcoded greys: this slab is filled with `ink`,
+            which is near-white on the dark theme — a fixed light label would
+            vanish on it. The two greys below were literal hexes for the same
+            reason and are now tokens that invert with the slab. */}
+        <Text
+          style={{
+            color: colors.onInk,
+            fontSize: font.sizes.xl,
+            fontWeight: '700',
+            textAlign: direction.textAlign,
+          }}
+          selectable
+        >
           <Text style={{ writingDirection: 'ltr' }}>{job.short_code}</Text> ·{' '}
           {job.restaurant_name}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ color: '#cfd6da', fontSize: font.sizes.sm }}>{t(statusKey(job.status))}</Text>
-          <Text style={{ color: '#8d979c', fontSize: font.sizes.sm }}>· {t('job.continue')}</Text>
-          <Icon name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'} size={13} color="#8d979c" />
+          <Text style={{ color: colors.onInkMuted, fontSize: font.sizes.sm }}>
+            {t(statusKey(job.status))}
+          </Text>
+          <Text style={{ color: colors.onInkFaint, fontSize: font.sizes.sm }}>
+            · {t('job.continue')}
+          </Text>
+          <Icon
+            name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'}
+            size={13}
+            color={colors.onInkFaint}
+          />
         </View>
 
         {unreadMsgs > 0 && (
@@ -112,8 +134,8 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            <Icon name="chat" size={14} color={colors.white} />
-            <Text style={{ color: colors.white, fontWeight: '700', fontSize: font.sizes.sm }}>
+            <Icon name="chat" size={14} color={colors.onAccent} />
+            <Text style={{ color: colors.onAccent, fontWeight: '700', fontSize: font.sizes.sm }}>
               {t(unreadMsgs === 1 ? 'job.unreadOne' : 'job.unreadMany', {
                 count: unreadMsgs,
               })}

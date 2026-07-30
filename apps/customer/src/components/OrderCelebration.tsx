@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View, Pressable, AccessibilityInfo } from 'react-native';
+import { Text, View, Pressable, AccessibilityInfo } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withSpring } from 'react-native-reanimated';
 import { Mascot } from './Mascot/Mascot';
 import { Confetti } from './Confetti';
-import { colors, font, radius, spacing, shadow } from '../theme';
+import { font, radius, spacing, shadow } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 
 export function shouldCelebrate(param: string | string[] | undefined): boolean {
@@ -14,6 +15,7 @@ export function shouldCelebrate(param: string | string[] | undefined): boolean {
 export function OrderCelebration({ visible, etaText, onDone }: {
   visible: boolean; etaText?: string; onDone: () => void;
 }) {
+  const styles = useStyles();
   const t = useT();
   const enter = useSharedValue(0);
 
@@ -48,10 +50,10 @@ export function OrderCelebration({ visible, etaText, onDone }: {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(19,19,19,0.55)', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  card: { alignItems: 'center', backgroundColor: colors.white, borderRadius: radius.xxxl, paddingVertical: spacing.xxxl, paddingHorizontal: spacing.xxl, gap: spacing.sm, ...shadow.card },
+  card: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.xxxl, paddingVertical: spacing.xxxl, paddingHorizontal: spacing.xxl, gap: spacing.sm, ...shadow.card },
   glow: { ...shadow.accentGlow, borderRadius: radius.pill },
   title: { fontSize: font.sizes['7xl'], fontWeight: font.weights.black, color: colors.ink, marginTop: spacing.md },
   sub: { fontSize: font.sizes.xl, color: colors.ink2, textAlign: 'center', maxWidth: 240, lineHeight: 20 },
-});
+}));

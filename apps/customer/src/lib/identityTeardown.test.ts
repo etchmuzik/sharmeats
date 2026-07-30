@@ -130,7 +130,14 @@ beforeEach(() => {
     restaurantId: 'r-1',
     restaurantName: 'Fish Market',
   });
-  useSession.setState({ isSignedIn: true, phone: '+201000000000' });
+  useSession.setState({
+    isSignedIn: true,
+    phone: '+201000000000',
+    // Search history is personal in its own right: this catalogue has a
+    // pharmacy vertical, so a query can be health information about whoever
+    // typed it.
+    recentSearches: ['pregnancy test', 'insulin'],
+  });
 });
 
 describe('transitionIdentity', () => {
@@ -170,8 +177,11 @@ describe('transitionIdentity', () => {
     expect(order.indexOf('unregisterPush')).toBeLessThan(order.indexOf('auth.signOut'));
   });
 
-  it('leaves no trace of notes, allergens or phone anywhere in storage', async () => {
-    store['@sharmeats:session:v1'] = JSON.stringify({ phone: '+201000000000' });
+  it('leaves no trace of notes, allergens, phone or search history anywhere in storage', async () => {
+    store['@sharmeats:session:v1'] = JSON.stringify({
+      phone: '+201000000000',
+      recentSearches: ['pregnancy test', 'insulin'],
+    });
 
     await transitionIdentity();
 
@@ -183,9 +193,24 @@ describe('transitionIdentity', () => {
       'shellfish',
       'Grilled Sea Bass',
       '+201000000000',
+      'pregnancy test',
+      'insulin',
     ]) {
       expect(residue).not.toContain(secret);
     }
+  });
+
+  /**
+   * Storage removal alone is not enough. A browse screen mounted at sign-out
+   * reads the store, so it would keep rendering the previous person's search
+   * history — and the next persist would write it straight back to disk.
+   */
+  it('resets the IN-MEMORY search history, not just the stored bytes', async () => {
+    expect(useSession.getState().recentSearches).toHaveLength(2);
+
+    await transitionIdentity();
+
+    expect(useSession.getState().recentSearches).toEqual([]);
   });
 
   it('removes the key rather than leaving an empty record behind', async () => {

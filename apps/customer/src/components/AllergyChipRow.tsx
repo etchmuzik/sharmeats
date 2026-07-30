@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius } from '../theme';
+import { Text, View } from 'react-native';
+import { font, radius } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 import { PressableScale } from './PressableScale';
 import { ALLERGY_KEYS, type AllergyKey } from '../data/types';
@@ -13,6 +14,7 @@ interface Props {
 const ALL: readonly AllergyKey[] = ALLERGY_KEYS;
 
 export function AllergyChipRow({ selected, onChange, conflictWith }: Props) {
+  const styles = useStyles();
   const t = useT();
   const conflicts = new Set(conflictWith ?? []);
   const sel = new Set(selected);
@@ -55,7 +57,7 @@ export function AllergyChipRow({ selected, onChange, conflictWith }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingHorizontal: 12,
@@ -78,6 +80,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: font.weights.bold,
   },
-  labelSel: { color: colors.white },
+  labelSel: { color: colors.onInk },
   labelConflict: { color: colors.red },
-});
+}));

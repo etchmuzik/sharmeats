@@ -37,7 +37,8 @@ import {
   canToggleOpenAll,
   permissionDeniedMessage,
 } from '../src/capabilities';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing } from '../src/theme';
+import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { OrderRow } from '../src/components/OrderRow';
 import { KitchenHeader } from '../src/components/KitchenHeader';
 import { QueueSectionHeader } from '../src/components/QueueSectionHeader';
@@ -54,6 +55,8 @@ const CHIME_REPEAT_MS = 25_000;
 const MUTE_KEY = 'chime:muted';
 
 export default function Home() {
+  const colors = useThemeColors();
+  const homeStyles = useHomeStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -425,7 +428,7 @@ export default function Home() {
             paddingHorizontal: spacing.xl,
           }}
         >
-          <Text style={{ color: colors.white, fontWeight: '700' }}>{t('home.retry')}</Text>
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>{t('home.retry')}</Text>
         </Pressable>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
           <Text style={{ color: colors.ink3, fontWeight: '700' }}>{t('home.signOut')}</Text>
@@ -444,7 +447,7 @@ export default function Home() {
           {t('home.noRestaurantBody')}
         </Text>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>{t('home.signOut')}</Text>
+          <Text style={{ color: colors.accentText, fontWeight: '700' }}>{t('home.signOut')}</Text>
         </Pressable>
       </View>
     );
@@ -599,7 +602,7 @@ export default function Home() {
   );
 }
 
-const homeStyles = StyleSheet.create({
+const useHomeStyles = makeStyles((colors) => ({
   centeredState: {
     flex: 1,
     alignItems: 'center',
@@ -641,4 +644,4 @@ const homeStyles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 48,
   },
-});
+}));

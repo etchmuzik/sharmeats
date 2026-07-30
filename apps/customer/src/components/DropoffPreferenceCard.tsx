@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius, shadow } from '../theme';
+import { Pressable, Text, View } from 'react-native';
+import { font, radius, shadow } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 import { selection } from '../haptics';
@@ -45,6 +46,8 @@ export function isQuietPreference(value: DropoffPreference | null): boolean {
 }
 
 export function DropoffPreferenceCard({ addressKind, value, onChange }: Props) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const t = useT();
   const dir = useDirection();
   const visibleChips = getVisibleChips(addressKind);
@@ -67,7 +70,7 @@ export function DropoffPreferenceCard({ addressKind, value, onChange }: Props) {
               accessibilityState={{ selected: active }}
               accessibilityLabel={t(chip.labelKey)}
               style={[styles.chip, active && styles.chipActive]}>
-              <Icon name={chip.icon} size={17} color={active ? colors.white : colors.ink2} />
+              <Icon name={chip.icon} size={17} color={active ? colors.onInk : colors.ink2} />
               <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(chip.labelKey)}</Text>
             </Pressable>
           );
@@ -83,9 +86,9 @@ export function DropoffPreferenceCard({ addressKind, value, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -105,11 +108,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold },
-  chipTextActive: { color: colors.white },
+  chipTextActive: { color: colors.onInk },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -122,4 +125,4 @@ const styles = StyleSheet.create({
     borderColor: colors.amber,
   },
   bannerText: { flex: 1, fontSize: font.sizes.sm, color: colors.amber, lineHeight: 20 },
-});
+}));

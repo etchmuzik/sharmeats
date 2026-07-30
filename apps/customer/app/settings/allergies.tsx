@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { AllergyChipRow } from '../../src/components/AllergyChipRow';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
 import type { AllergyKey, User } from '../../src/data/types';
@@ -13,6 +13,8 @@ import { success } from '../../src/haptics';
 import { useGoBack } from '../../src/lib/navigation';
 
 export default function AllergiesSettings() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const goBack = useGoBack();
   const t = useT();
@@ -35,7 +37,7 @@ export default function AllergiesSettings() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
         <Text style={styles.title}>{t('allergy.title')}</Text>
@@ -67,7 +69,7 @@ export default function AllergiesSettings() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   head: {
     paddingHorizontal: 16,
     paddingBottom: 12,
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
@@ -112,10 +114,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-});
+}));

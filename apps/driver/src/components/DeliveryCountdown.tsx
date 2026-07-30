@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../theme';
+import { font, radius, spacing } from '../theme';
+import { useThemeColors } from '../themeProvider';
 import { useI18n } from '../i18n-context';
 
 /**
@@ -42,6 +43,7 @@ function formatDelta(ms: number): string {
 }
 
 export function DeliveryCountdown({ etaAt, beforePickup, dropoffBufferMin = 20 }: Props) {
+  const colors = useThemeColors();
   const { t } = useI18n();
   // Re-render every second. Seeded once; the interval drives the tick. We also
   // resync on app-foreground because JS timers are throttled/paused in the
@@ -71,7 +73,12 @@ export function DeliveryCountdown({ etaAt, beforePickup, dropoffBufferMin = 20 }
   const overdue = remaining < 0;
   const urgent = !overdue && remaining <= 5 * 60_000;
   const bg = overdue ? colors.redSoft : urgent ? colors.amberSoft : colors.accentSoft;
-  const fg = overdue ? colors.red : urgent ? colors.amber : colors.accentDark;
+  // The *Text variants, not the fills. theme.ts introduced this trio FOR this
+  // chip ("matters most on the offer countdown chip ... read one-handed in
+  // direct sun") but it was still reading the fill values, which sit at
+  // 4.04:1 (red) and 3.26:1 (amber) on their own soft backgrounds — below the
+  // 4.5:1 small-text floor. Dark mode needs the split regardless.
+  const fg = overdue ? colors.redText : urgent ? colors.amberText : colors.accentDark;
 
   const label = beforePickup ? t('countdown.pickupBy') : t('countdown.deliverBy');
   const clockLabel = overdue

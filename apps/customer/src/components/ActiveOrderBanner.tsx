@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { AppState, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../data';
@@ -7,7 +7,8 @@ import type { Order } from '../data/types';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 import { formatTime } from '../lib/format';
-import { colors, font, radius, shadow } from '../theme';
+import { font, radius, shadow } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { PressableScale } from './PressableScale';
 
 // TabBar floats at `bottom: max(insets.bottom, 14)` with a 52px pill height —
@@ -23,6 +24,7 @@ const TERMINAL: Order['status'][] = ['delivered', 'cancelled', 'rejected'];
  * shows a duplicate. Best-effort: any load error simply hides the banner.
  */
 export function ActiveOrderBanner() {
+  const styles = useStyles();
   const router = useRouter();
   const pathname = usePathname();
   const t = useT();
@@ -112,7 +114,7 @@ export function ActiveOrderBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: {
     position: 'absolute',
     left: 14,
@@ -131,13 +133,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.green,
   },
-  status: { color: colors.white, fontSize: font.sizes.md, fontWeight: font.weights.bold },
-  restaurant: { color: 'rgba(255,255,255,0.75)', fontSize: font.sizes.sm, marginTop: 1 },
+  status: { color: colors.onInk, fontSize: font.sizes.md, fontWeight: font.weights.bold },
+  restaurant: { color: colors.onInkMuted, fontSize: font.sizes.sm, marginTop: 1 },
   trackBtn: {
     backgroundColor: colors.accent,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: radius.pill,
   },
-  trackText: { color: colors.white, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
-});
+  trackText: { color: colors.onAccent, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
+}));

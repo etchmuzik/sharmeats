@@ -305,6 +305,40 @@ export const ordersRepoSupabase = {
    * method to satisfy the shared repo interface, but it just re-reads the order
    * unchanged so the debug button is a harmless no-op against live data.
    */
+  /**
+   * Mint (or return) a follow-my-order link for an order the caller placed.
+   *
+   * Idempotent server-side while unrevoked, so tapping Share twice cannot kill a
+   * link already sitting in somebody's chat. See mig 195 for what the recipient
+   * is and is not allowed to see.
+   */
+  async createShare(orderId: string): Promise<string> {
+    const { data, error } = await getSupabase().rpc('create_order_share', {
+      p_order_id: orderId,
+    });
+    if (error) throw error;
+    return data as string;
+  },
+
+  async revokeShare(orderId: string): Promise<void> {
+    const { error } = await getSupabase().rpc('revoke_order_share', {
+      p_order_id: orderId,
+    });
+    if (error) throw error;
+  },
+
+  /** The live token for this order, or null when it is not being shared. */
+  async getShareToken(orderId: string): Promise<string | null> {
+    const { data, error } = await getSupabase()
+      .from('order_shares')
+      .select('token')
+      .eq('order_id', orderId)
+      .is('revoked_at', null)
+      .maybeSingle();
+    if (error) throw error;
+    return (data?.token as string | undefined) ?? null;
+  },
+
   async forceDelivered(orderId: string): Promise<Order | null> {
     return this.get(orderId);
   },

@@ -12,7 +12,8 @@ import {
   subscribeOrders,
   type RestaurantOrder,
 } from '../../src/orders';
-import { colors, font, radius, spacing } from '../../src/theme';
+import { font, radius, spacing } from '../../src/theme';
+import { useThemeColors } from '../../src/themeProvider';
 import { useLocale } from '../../src/locale';
 import type { TranslationKey, TranslationParams } from '../../src/i18n';
 import { captureError } from '../../src/lib/crash';
@@ -42,6 +43,7 @@ function addressLine(order: RestaurantOrder, t: Translate): string {
  * note, delivery address, and contact entry points (call + in-app chat).
  */
 export default function OrderDetail() {
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -120,7 +122,7 @@ export default function OrderDetail() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md, direction }}>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>{t('detail.notFound')}</Text>
         <Pressable onPress={() => router.back()} style={{ padding: spacing.md }}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>{t('detail.goBack')}</Text>
+          <Text style={{ color: colors.accentText, fontWeight: '700' }}>{t('detail.goBack')}</Text>
         </Pressable>
       </View>
     );
@@ -134,7 +136,7 @@ export default function OrderDetail() {
           paddingTop: spacing.md,
           paddingHorizontal: spacing.lg,
           paddingBottom: spacing.md,
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
           borderBottomColor: colors.line,
           flexDirection: 'row',
@@ -181,7 +183,7 @@ export default function OrderDetail() {
         <AllergenBanner allergens={order.aggregate_allergens} />
 
         {/* Items */}
-        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.white, padding: spacing.lg, gap: spacing.md }}>
+        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, gap: spacing.md }}>
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: isRtl ? 0 : 1, textTransform: isRtl ? 'none' : 'uppercase', color: colors.ink2 }}>
             {t('detail.items')}
           </Text>
@@ -197,7 +199,7 @@ export default function OrderDetail() {
                 </Text>
               ) : null}
               {it.allergens && it.allergens.length > 0 ? (
-                <Text style={{ fontSize: font.sizes.sm, color: colors.red, marginStart: spacing.md, fontWeight: '700' }}>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.redText, marginStart: spacing.md, fontWeight: '700' }}>
                   {t('detail.contains', {
                     allergens: it.allergens.map((allergen) => t(`allergen.${allergen}`)).join(', '),
                   })}
@@ -209,13 +211,13 @@ export default function OrderDetail() {
                   the bag needs to know to verify, not merely that it is Rx. */}
               {it.requiresPrescription ? (
                 <Text
-                  style={{ fontSize: font.sizes.sm, color: colors.red, marginStart: spacing.md, fontWeight: '800' }}
+                  style={{ fontSize: font.sizes.sm, color: colors.redText, marginStart: spacing.md, fontWeight: '800' }}
                   accessibilityRole="text">
                   {t('detail.rx')}
                 </Text>
               ) : null}
               {it.notes ? (
-                <Text style={{ fontSize: font.sizes.sm, color: colors.amber, marginStart: spacing.md }}>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.amberText, marginStart: spacing.md }}>
                   “{it.notes}”
                 </Text>
               ) : null}
@@ -226,13 +228,13 @@ export default function OrderDetail() {
         {/* Kitchen note */}
         {order.kitchen_notes ? (
           <View style={{ backgroundColor: colors.amberSoft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.amber }}>{t('detail.kitchenNote')}</Text>
-            <Text style={{ fontSize: font.sizes.base, color: colors.amber }}>{order.kitchen_notes}</Text>
+            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.amberText }}>{t('detail.kitchenNote')}</Text>
+            <Text style={{ fontSize: font.sizes.base, color: colors.amberText }}>{order.kitchen_notes}</Text>
           </View>
         ) : null}
 
         {/* Delivery */}
-        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.white, padding: spacing.lg, gap: spacing.sm }}>
+        <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, gap: spacing.sm }}>
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: isRtl ? 0 : 1, textTransform: isRtl ? 'none' : 'uppercase', color: colors.ink2 }}>
             {t('detail.delivery')}
           </Text>

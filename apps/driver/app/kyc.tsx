@@ -3,13 +3,21 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { DRIVER_DOC_TYPES, listMyKycDocuments, uploadKycDocument, type KycDocument } from '../src/kyc';
-import { colors, font, radius, spacing } from '../src/theme';
+import { font, radius, spacing, type Palette } from '../src/theme';
+import { useThemeColors } from '../src/themeProvider';
 
-const STATUS_COLOR: Record<KycDocument['status'], string> = {
-  approved: colors.green,
-  rejected: colors.red,
-  pending: colors.amber,
-};
+/**
+ * Takes the palette rather than baking it in at import time. These are TEXT
+ * colors on a card, so they use the *Text variants — the fill values sit under
+ * the 4.5:1 small-text floor (see theme.ts).
+ */
+function statusColor(status: KycDocument['status'], colors: Palette): string {
+  return {
+    approved: colors.greenText,
+    rejected: colors.redText,
+    pending: colors.amberText,
+  }[status];
+}
 const STATUS_LABEL: Record<KycDocument['status'], string> = {
   approved: 'Approved',
   rejected: 'Rejected — re-upload',
@@ -23,6 +31,7 @@ const STATUS_LABEL: Record<KycDocument['status'], string> = {
  * the driver's verified flag until re-uploaded and re-approved.
  */
 export default function DriverKyc() {
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const [docs, setDocs] = useState<KycDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +109,7 @@ export default function DriverKyc() {
               <View
                 key={key}
                 style={{
-                  backgroundColor: colors.white,
+                  backgroundColor: colors.surface,
                   borderRadius: radius.xl,
                   borderWidth: 1,
                   borderColor: colors.line,
@@ -110,13 +119,13 @@ export default function DriverKyc() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.ink }}>{label}</Text>
                   {doc && (
-                    <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: STATUS_COLOR[doc.status] }}>
+                    <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: statusColor(doc.status, colors) }}>
                       {STATUS_LABEL[doc.status]}
                     </Text>
                   )}
                 </View>
                 {doc?.review_note && doc.status === 'rejected' && (
-                  <Text style={{ marginTop: 4, fontSize: font.sizes.sm, color: colors.red }}>{doc.review_note}</Text>
+                  <Text style={{ marginTop: 4, fontSize: font.sizes.sm, color: colors.redText }}>{doc.review_note}</Text>
                 )}
                 <Pressable
                   onPress={() => pickAndUpload(key)}
@@ -131,11 +140,11 @@ export default function DriverKyc() {
                   }}
                 >
                   {isUploading ? (
-                    <ActivityIndicator color={colors.white} />
+                    <ActivityIndicator color={colors.onAccent} />
                   ) : (
                     <Text
                       style={{
-                        color: doc?.status === 'approved' ? colors.ink2 : colors.white,
+                        color: doc?.status === 'approved' ? colors.ink2 : colors.onAccent,
                         fontWeight: '700',
                         fontSize: font.sizes.base,
                       }}

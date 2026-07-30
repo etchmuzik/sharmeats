@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius } from '../theme';
+import { Text, View } from 'react-native';
+import { font, radius } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { formatEgp } from '../lib/format';
 import type { Modifier } from '../data/types';
 import { PressableScale } from './PressableScale';
@@ -18,6 +19,7 @@ interface Props {
  *  - 'list'/'builder'  classic radio/checkbox rows
  */
 export function ModifierGroup({ modifier: m, selected, onToggle }: Props) {
+  const s = useSStyles();
   const style = m.style ?? 'list';
   return (
     <View style={s.group}>
@@ -41,6 +43,7 @@ export function ModifierGroup({ modifier: m, selected, onToggle }: Props) {
 }
 
 function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
+  const s = useSStyles();
   return (
     <View style={s.sizeRow}>
       {m.options.map((o) => {
@@ -63,6 +66,7 @@ function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>
 }
 
 function IngredientChips({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
+  const s = useSStyles();
   return (
     <View style={s.chipWrap}>
       {m.options.map((o) => {
@@ -82,6 +86,7 @@ function IngredientChips({ m, selected, onToggle }: { m: Modifier; selected: Set
 }
 
 function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
+  const s = useSStyles();
   return (
     <View style={s.cardWrap}>
       {m.options.map((o) => {
@@ -121,6 +126,8 @@ function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<stri
 }
 
 function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
+  const colors = useThemeColors();
+  const s = useSStyles();
   const single = m.maxSelect === 1;
   return (
     <View>
@@ -145,7 +152,7 @@ function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string
   );
 }
 
-const s = StyleSheet.create({
+const useSStyles = makeStyles((colors) => ({
   group: { marginTop: 24 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   title: { fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink },
@@ -160,7 +167,7 @@ const s = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1.5,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     alignItems: 'center',
   },
   sizePillOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
@@ -197,7 +204,7 @@ const s = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1.5,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   cardOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
   cardIcon: { fontSize: 26 },
@@ -207,7 +214,7 @@ const s = StyleSheet.create({
   cardPrice: { fontSize: font.sizes.md, color: colors.ink2, fontWeight: font.weights.bold, marginTop: 2 },
   cardFree: { fontSize: font.sizes.md, color: colors.ink3, marginTop: 2 },
   popular: { backgroundColor: colors.star, borderRadius: radius.sm, paddingHorizontal: 5, paddingVertical: 1 },
-  popularText: { fontSize: font.sizes.xs, color: colors.white, fontWeight: font.weights.bold },
+  popularText: { fontSize: font.sizes.xs, color: colors.onAccent, fontWeight: font.weights.bold },
   cardCheck: {
     width: 24,
     height: 24,
@@ -218,13 +225,13 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   cardCheckOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  cardCheckMark: { color: colors.white, fontSize: 13, fontWeight: '900' },
+  cardCheckMark: { color: colors.onAccent, fontSize: 13, fontWeight: '900' },
 
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.white },
-  check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
-  checkMark: { color: colors.white, fontSize: 14, fontWeight: '900' },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.onAccent },
+  check: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  checkMark: { color: colors.onAccent, fontSize: 14, fontWeight: '900' },
   rowLabel: { flex: 1, fontSize: font.sizes.xl, color: colors.ink },
   rowPrice: { fontSize: font.sizes.lg, color: colors.ink2, fontWeight: font.weights.bold },
-});
+}));

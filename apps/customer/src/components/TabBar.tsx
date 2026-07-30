@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Animated, View, Text, StyleSheet } from 'react-native';
+import { Animated, View, Text } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius, shadow } from '../theme';
+import { font, radius, shadow } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { selection } from '../haptics';
 import { useCart } from '../store/cart';
 import { useUnreadBadges } from '../hooks/useUnreadBadges';
@@ -18,6 +19,8 @@ import { PressableScale } from './PressableScale';
  * unread badges are unchanged.
  */
 export function TabBar() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -56,7 +59,7 @@ export function TabBar() {
             style={active ? styles.tabOn : styles.tab}>
             <View>
               <View style={active ? undefined : styles.iconDim}>
-                <Icon name={tab.icon} active={active} size={22} color={active ? colors.inkDeep : colors.white} />
+                <Icon name={tab.icon} active={active} size={22} color={active ? colors.inkDeep : colors.onAccent} />
               </View>
               {tab.key === 'cart' && cartCount > 0 && (
                 <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
@@ -82,7 +85,7 @@ export function TabBar() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: {
     position: 'absolute',
     left: 14,
@@ -127,5 +130,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 5,
   },
-  badgeText: { color: colors.white, fontSize: font.sizes.xs, fontWeight: font.weights.bold },
-});
+  badgeText: { color: colors.onAccent, fontSize: font.sizes.xs, fontWeight: font.weights.bold },
+}));

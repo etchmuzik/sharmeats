@@ -5,15 +5,14 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius } from '../../src/theme';
+import { font, radius } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { CuisinePill } from '../../src/components/CuisinePill';
 import { CuisineChip } from '../../src/components/CuisineChip';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
@@ -26,6 +25,7 @@ import { formatEgp } from '../../src/lib/format';
 import { effectiveIsOpen } from '../../src/lib/openHours';
 import { tap } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
+import { useSession } from '../../src/store/session';
 
 /**
  * Debounce a changing value so effects fire after typing settles, not on every
@@ -58,6 +58,11 @@ const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
   { key: 'pizza', tKey: 'cuisine.pizza', emoji: '🍕' },
 ];
 
+/**
+ * A dish result plus the merchant it belongs to. `search_catalog` (Package 07,
+ * migration 188) returns ids and ranking; the rows are hydrated here against the
+ * restaurant list already in memory, so no extra round trip per result.
+ */
 interface MenuMatch {
   item: MenuItem;
   restaurant: Restaurant;
@@ -80,6 +85,8 @@ const SORTS: { key: SortKey; tKey: string; emoji: string }[] = [
 ];
 
 export default function BrowseTab() {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useT();
@@ -92,14 +99,27 @@ export default function BrowseTab() {
   const [activeFlags, setActiveFlags] = useState<Set<'vegetarian' | 'glutenfree'>>(new Set());
   const [sort, setSort] = useState<SortKey>('recommended');
   const [openNow, setOpenNow] = useState(false);
+  // Restaurant ids satisfying EVERY active dietary filter, resolved server-side.
+  // Keyed by the filter set that produced them, so a stale response for a filter
+  // the user has already changed cannot be mistaken for the current answer.
   const [flagResult, setFlagResult] = useState<{
     key: string;
     restaurantIds: Set<string>;
   } | null>(null);
   const [dietaryFilterFailed, setDietaryFilterFailed] = useState(false);
   const [menuSearchFailed, setMenuSearchFailed] = useState(false);
+  // Bumped by pull-to-refresh and by the retry buttons, so a failed catalog call
+  // can be re-run without remounting the screen.
   const [catalogRefreshGeneration, setCatalogRefreshGeneration] = useState(0);
-  const debouncedQuery = useDebounce(query, 600);
+
+  const recentSearches = useSession((s) => s.recentSearches);
+  const rememberSearch = useSession((s) => s.rememberSearch);
+  const forgetSearch = useSession((s) => s.forgetSearch);
+  const clearRecentSearches = useSession((s) => s.clearRecentSearches);
+
+  // Sorted+joined so the effect re-runs when the flag SET CHANGES, not merely
+  // when its size does: swapping vegetarian for gluten-free keeps size at 1, and
+  // keying on `.size` left the previous filter's ids in place.
   const activeFlagKey = [...activeFlags].sort().join('|');
 
   useEffect(() => {
@@ -118,6 +138,8 @@ export default function BrowseTab() {
         const ids = await db.menus.restaurantIdsForFlags(selectedFlags);
         if (!cancelled) setFlagResult({ key: activeFlagKey, restaurantIds: ids });
       } catch {
+        // A failed index must not strand the list: match nothing and say so,
+        // rather than silently showing restaurants that may not qualify.
         if (!cancelled) {
           setFlagResult({ key: activeFlagKey, restaurantIds: new Set() });
           setDietaryFilterFailed(true);
@@ -129,9 +151,21 @@ export default function BrowseTab() {
     };
   }, [activeFlagKey, catalogRefreshGeneration]);
 
+  // Distinguishes "the catalogue is empty" from "the catalogue has not arrived
+  // yet". Without it the list is empty on the very first render, so an empty
+  // state flashes — now telling the user their search matched nothing before a
+  // search has even run.
+  const [loaded, setLoaded] = useState(false);
+
   const load = useCallback(async () => {
-    const r = await db.restaurants.list();
-    setAll(r);
+    try {
+      const r = await db.restaurants.list();
+      setAll(r);
+    } finally {
+      // Set even on failure: a fetch that errored has still finished, and
+      // leaving the screen blank forever is worse than showing the empty state.
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -148,8 +182,19 @@ export default function BrowseTab() {
     }
   }, [load]);
 
-  // Cross-restaurant menu-item search uses Package 07's visibility-scoped,
-  // bounded RPC, then hydrates only the returned rows.
+  // One debounced value drives BOTH the query and the analytics event.
+  //
+  // The search effect used to key on the raw `query`, so it fired on every
+  // keystroke while only the analytics call was debounced. Combined with a
+  // per-restaurant fetch loop that cost four round trips each, a single typed
+  // word issued hundreds of requests, most of them for prefixes the user had
+  // already moved past.
+  const debouncedQuery = useDebounce(query, 600);
+
+  // Cross-restaurant dish search goes through Package 07's visibility-scoped,
+  // bounded RPC, then hydrates only the returned rows against the restaurant
+  // list already loaded — so a result set costs one round trip, not one per
+  // merchant.
   useEffect(() => {
     const q = debouncedQuery.trim();
     if (q.length < 2 || all.length === 0) {
@@ -161,14 +206,13 @@ export default function BrowseTab() {
     setMenuSearchFailed(false);
     (async () => {
       try {
-        const restaurantsById = new Map(
-          all.map((restaurant) => [restaurant.id, restaurant]),
-        );
+        const restaurantsById = new Map(all.map((restaurant) => [restaurant.id, restaurant]));
         const items = await db.menus.search(q, 12);
         const matches = items.flatMap((item): MenuMatch[] => {
           const restaurant = restaurantsById.get(item.restaurantId);
           return restaurant ? [{ item, restaurant }] : [];
         });
+        // A slower earlier request must not overwrite a newer result.
         if (!cancelled) setMenuMatches(matches);
       } catch {
         if (!cancelled) {
@@ -182,9 +226,8 @@ export default function BrowseTab() {
     };
   }, [all, debouncedQuery, catalogRefreshGeneration]);
 
-  // Analytics: fire search_performed once typing settles (debounced ~600ms) so
-  // PostHog sees one event per search, not one per keystroke. We log only the
-  // query length — never the raw text — to avoid capturing PII.
+  // Analytics: one event per settled search rather than one per keystroke. We log
+  // only the query length — never the raw text — to avoid capturing PII.
   useEffect(() => {
     const q = debouncedQuery.trim();
     if (q.length < 2) return;
@@ -196,6 +239,10 @@ export default function BrowseTab() {
     const result = all.filter((r) => {
       if (openNow && !effectiveIsOpen(r)) return false;
       if (cuisine !== 'all' && !r.cuisines.includes(cuisine as Cuisine)) return false;
+      // flagResult is null until the index resolves, and is keyed by the filter
+      // set that produced it — so a result for a filter the user has already
+      // changed never leaks through. Both cases correctly show "no results" for
+      // a moment rather than briefly showing restaurants that may not qualify.
       if (activeFlags.size > 0) {
         if (flagResult?.key !== activeFlagKey || !flagResult.restaurantIds.has(r.id)) {
           return false;
@@ -211,14 +258,64 @@ export default function BrowseTab() {
     else if (sort === 'fastest') result.sort((a, b) => a.prepTimeLow - b.prepTimeLow);
     return result;
   }, [all, cuisine, query, activeFlags, activeFlagKey, flagResult, openNow, sort]);
-  const displayedMenuMatches =
-    query.trim() === debouncedQuery.trim() ? menuMatches : [];
-  const visibleMenuSearchFailed =
-    query.trim() === debouncedQuery.trim() && menuSearchFailed;
+
+  const trimmedQuery = query.trim();
+
+  // While the debounce is still catching up, the results on screen belong to a
+  // query the user has already changed. Showing them would caption the new query
+  // with the old query's dishes.
+  const displayedMenuMatches = trimmedQuery === debouncedQuery.trim() ? menuMatches : [];
+  const visibleMenuSearchFailed = trimmedQuery === debouncedQuery.trim() && menuSearchFailed;
+
+  // How many filters are narrowing the list. This drives the empty state:
+  // "nothing matches what you typed" and "your filters excluded everything" are
+  // different problems, and only the second one has a fix the user can act on.
+  // Sort is excluded — it reorders, it never removes.
+  const activeFilterCount = (openNow ? 1 : 0) + activeFlags.size + (cuisine !== 'all' ? 1 : 0);
+
+  const clearFilters = useCallback(() => {
+    tap();
+    setOpenNow(false);
+    setActiveFlags(new Set());
+    setCuisine('all');
+  }, []);
+
+  /**
+   * Record a query the user COMMITTED to — submitted from the keyboard, or
+   * followed through to a dish or a restaurant.
+   *
+   * Deliberately NOT the debounced query. Recording what people type would fill
+   * an eight-slot list with "piz" and "pizz" and evict the searches actually
+   * worth keeping; committing is the only signal that a query meant something.
+   */
+  const commitSearch = useCallback(
+    (q: string) => {
+      rememberSearch(q);
+    },
+    [rememberSearch],
+  );
+
+  /** Replay a saved search. Re-recording it promotes it back to the top. */
+  const runRecentSearch = useCallback(
+    (q: string) => {
+      tap();
+      setQuery(q);
+      rememberSearch(q);
+      // Length only, never the text — see the analytics deny-list.
+      track('search_recent_used', { queryLength: q.length });
+    },
+    [rememberSearch],
+  );
+
+  // Shown whenever the box is empty rather than while it is focused. Gating on
+  // focus would race the blur that fires when a row is tapped: the panel would
+  // unmount before the press landed.
+  const showRecents = trimmedQuery.length === 0 && recentSearches.length > 0;
+  const isSearching = trimmedQuery.length > 0 || activeFilterCount > 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.top, { paddingTop: insets.top + 14 }]}>
         <Text style={styles.title}>{t('browse.title')}</Text>
         <View style={styles.searchBox}>
@@ -230,7 +327,21 @@ export default function BrowseTab() {
             placeholderTextColor={colors.ink3}
             style={styles.input}
             accessibilityLabel={t('home.searchHint')}
+            returnKeyType="search"
+            onSubmitEditing={() => commitSearch(query)}
           />
+          {trimmedQuery.length > 0 && (
+            <Pressable
+              onPress={() => {
+                tap();
+                setQuery('');
+              }}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('browse.clearSearch')}>
+              <Icon name="close" size={16} color={colors.ink3} />
+            </Pressable>
+          )}
         </View>
         {/* [App v2] circular category chips — the arc picker's lighter, all-13
             interpretation. RTL is mirrored explicitly because this app never
@@ -297,82 +408,176 @@ export default function BrowseTab() {
         contentContainerStyle={{ padding: 16, paddingBottom: 120 + insets.bottom, gap: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListHeaderComponent={
-          displayedMenuMatches.length > 0 || visibleMenuSearchFailed ? (
-            <View style={styles.menuMatchWrap}>
-              {visibleMenuSearchFailed && (
-                <View accessibilityRole="alert" style={styles.catalogError}>
-                  <Text style={styles.catalogErrorText}>{t('common.error')}</Text>
+          <View>
+            {showRecents && (
+              <View style={styles.recentWrap}>
+                <View style={styles.recentHead}>
+                  <Text style={styles.sectionTitle}>{t('browse.recent')}</Text>
                   <Pressable
-                    accessibilityRole="button"
-                    onPress={() =>
-                      setCatalogRefreshGeneration((generation) => generation + 1)
-                    }
-                    style={styles.retryButton}
-                  >
-                    <Text style={styles.retryText}>{t('common.retry')}</Text>
+                    onPress={() => {
+                      tap();
+                      clearRecentSearches();
+                      track('search_recents_cleared', { count: recentSearches.length });
+                    }}
+                    hitSlop={8}
+                    accessibilityRole="button">
+                    <Text style={styles.recentClear}>{t('browse.clearAll')}</Text>
                   </Pressable>
                 </View>
-              )}
-              {displayedMenuMatches.length > 0 && (
-                <>
-                  <Text style={styles.menuMatchTitle}>{t('browse.dishes')}</Text>
-                  {displayedMenuMatches.map((m) => (
+                {recentSearches.map((q) => (
+                  <Pressable
+                    key={q.toLowerCase()}
+                    onPress={() => runRecentSearch(q)}
+                    style={({ pressed }) => [
+                      styles.recentRow,
+                      { flexDirection: dir.isRtl ? 'row-reverse' : 'row' },
+                      pressed && { opacity: 0.85 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('browse.searchAgain', { query: q })}>
+                    <Icon name="history" size={16} color={colors.ink3} />
+                    <Text style={styles.recentText} numberOfLines={1}>
+                      {q}
+                    </Text>
                     <Pressable
-                      key={m.item.id}
                       onPress={() => {
                         tap();
-                        router.push(`/item/${m.item.id}` as never);
+                        forgetSearch(q);
                       }}
-                      style={({ pressed }) => [
-                        styles.menuRow,
-                        pressed && { opacity: 0.85 },
-                      ]}
-                    >
-                      <Image source={{ uri: m.item.image }} style={styles.menuImg} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.menuName} numberOfLines={1}>
-                          {m.item.name}
-                        </Text>
-                        <Text style={styles.menuSub} numberOfLines={1}>
-                          {m.restaurant.name}
-                        </Text>
-                      </View>
-                      <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp)}</Text>
+                      hitSlop={12}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('browse.forgetSearch', { query: q })}>
+                      <Icon name="close" size={15} color={colors.ink3} />
                     </Pressable>
-                  ))}
-                  <Text style={styles.menuMatchTitle}>{t('browse.restaurants')}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* A failed dish search is stated rather than rendered as "no
+                dishes match" — the difference matters, and only one of them has
+                a retry. */}
+            {visibleMenuSearchFailed && (
+              <View accessibilityRole="alert" style={styles.catalogError}>
+                <Text style={styles.catalogErrorText}>{t('common.error')}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setCatalogRefreshGeneration((generation) => generation + 1)}
+                  style={styles.retryButton}>
+                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {displayedMenuMatches.length > 0 && (
+              <View style={styles.menuMatchWrap}>
+                <Text style={styles.sectionTitle}>
+                  {t('browse.dishesCount', { count: displayedMenuMatches.length })}
+                </Text>
+                {displayedMenuMatches.map((m) => (
+                  <Pressable
+                    key={m.item.id}
+                    onPress={() => {
+                      tap();
+                      // Following a dish through is a completed search, even
+                      // though the user never pressed the keyboard's search key.
+                      commitSearch(query);
+                      router.push(`/item/${m.item.id}` as never);
+                    }}
+                    style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.85 }]}>
+                    <Image source={{ uri: m.item.image }} style={styles.menuImg} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuName} numberOfLines={1}>
+                        {m.item.name}
+                      </Text>
+                      <Text style={styles.menuSub} numberOfLines={1}>
+                        {m.restaurant.name}
+                      </Text>
+                    </View>
+                    <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* A count, and the heading that separates dishes from places. Both
+                only once something is actually narrowing the list — an
+                unfiltered browse does not need to be told how many merchants
+                exist. */}
+            {isSearching && filtered.length > 0 && (
+              <Text style={styles.sectionTitle}>
+                {t('browse.restaurantsCount', { count: filtered.length })}
+              </Text>
+            )}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <RestaurantCard
+            restaurant={item}
+            // Opening a restaurant off the back of a query is the strongest
+            // signal the search was worth remembering. Gated on the QUERY, not
+            // on isSearching — arriving via a filter alone is not a search.
+            onOpen={trimmedQuery.length > 0 ? () => commitSearch(query) : undefined}
+          />
+        )}
+        ListEmptyComponent={
+          // Nothing at all until the first load resolves: an empty state that
+          // appears before the catalogue arrives says the search matched
+          // nothing when no search has run.
+          !loaded ? null : (
+            <View style={styles.emptyWrap}>
+              {dietaryFilterFailed ? (
+                // The filter did not exclude everything — it failed. Saying
+                // "nothing matches these filters" would send the user to clear
+                // filters that were never applied.
+                <>
+                  <Text style={styles.emptyTitle}>{t('common.error')}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setCatalogRefreshGeneration((generation) => generation + 1)}
+                    style={styles.retryButton}>
+                    <Text style={styles.retryText}>{t('common.retry')}</Text>
+                  </Pressable>
+                </>
+              ) : displayedMenuMatches.length > 0 ? (
+                // Dishes DID match, so this is not a dead end and does not
+                // deserve the full treatment — just an explanation of why the
+                // places list under the dishes is empty.
+                <Text style={styles.emptyBody}>{t('browse.emptyDishesOnly')}</Text>
+              ) : (
+                <>
+                  <Text style={styles.emptyTitle}>
+                    {activeFilterCount > 0
+                      ? t('browse.emptyFiltered')
+                      : trimmedQuery.length > 0
+                        ? t('browse.emptyQuery', { query: trimmedQuery })
+                        : t('browse.empty')}
+                  </Text>
+                  {/* Filters are the only empty state with a fix the user can
+                      act on, so it gets a button rather than a suggestion. */}
+                  {activeFilterCount > 0 ? (
+                    <Pressable
+                      onPress={clearFilters}
+                      style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.9 }]}
+                      accessibilityRole="button">
+                      <Text style={styles.emptyBtnText}>{t('browse.clearFilters')}</Text>
+                    </Pressable>
+                  ) : (
+                    trimmedQuery.length > 0 && (
+                      <Text style={styles.emptyBody}>{t('browse.emptyQueryHint')}</Text>
+                    )
+                  )}
                 </>
               )}
             </View>
-          ) : null
-        }
-        renderItem={({ item }) => <RestaurantCard restaurant={item} />}
-        ListEmptyComponent={
-          displayedMenuMatches.length === 0 ? (
-            <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <Text style={{ color: colors.ink3, textAlign: 'center' }}>
-                {dietaryFilterFailed ? t('common.error') : t('browse.empty')}
-              </Text>
-              {dietaryFilterFailed && (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() =>
-                    setCatalogRefreshGeneration((generation) => generation + 1)
-                  }
-                  style={styles.retryButton}
-                >
-                  <Text style={styles.retryText}>{t('common.retry')}</Text>
-                </Pressable>
-              )}
-            </View>
-          ) : null
+          )
         }
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   top: {
     paddingHorizontal: 20,
     paddingBottom: 6,
@@ -390,7 +595,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
@@ -403,7 +608,7 @@ const styles = StyleSheet.create({
   flagRow: { gap: 8, paddingTop: 4, paddingBottom: 14, alignItems: 'center' },
   sortDivider: { width: 1, height: 22, backgroundColor: colors.line2, marginHorizontal: 4 },
   menuMatchWrap: { gap: 6, marginBottom: 14 },
-  menuMatchTitle: {
+  sectionTitle: {
     fontSize: font.sizes.sm,
     color: colors.ink3,
     fontWeight: font.weights.bold,
@@ -412,21 +617,38 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 4,
   },
-  menuRow: {
+  recentWrap: { gap: 2, marginBottom: 10 },
+  recentHead: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  // ink2, not ink3: this is the only way to remove history, so it has to be
+  // legible rather than decorative. ink3 is a 5.2:1 hint colour; a control that
+  // destroys data should not read as a hint.
+  recentClear: {
+    fontSize: font.sizes.sm,
+    color: colors.ink2,
+    fontWeight: font.weights.bold,
+  },
+  recentRow: {
+    alignItems: 'center',
     gap: 12,
-    paddingVertical: 8,
+    paddingVertical: 11,
     paddingHorizontal: 8,
     borderRadius: radius.md,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
   },
-  menuImg: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bgSoft },
-  menuName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
-  menuSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
-  menuPrice: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold },
+  recentText: { flex: 1, fontSize: font.sizes.lg, color: colors.ink },
+  emptyWrap: { paddingTop: 48, alignItems: 'center', gap: 10, paddingHorizontal: 24 },
+  emptyTitle: {
+    fontSize: font.sizes.lg,
+    color: colors.ink,
+    fontWeight: font.weights.bold,
+    textAlign: 'center',
+  },
+  emptyBody: { fontSize: font.sizes.md, color: colors.ink2, textAlign: 'center', lineHeight: 20 },
+  // From main's catalog-error work, converted into the makeStyles factory:
+  // left at module scope it would have closed over a frozen light palette.
   catalogError: {
     alignItems: 'center',
     gap: 8,
@@ -443,13 +665,41 @@ const styles = StyleSheet.create({
     minHeight: 44,
     marginTop: 12,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 18,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     backgroundColor: colors.accent,
   },
+  // onAccent, not white: the label sits on a filled accent control, which is the
+  // token split dark mode introduced for exactly this case.
   retryText: {
-    color: colors.white,
+    color: colors.onAccent,
     fontSize: font.sizes.md,
     fontWeight: font.weights.bold,
   },
-});
+  emptyBtn: {
+    marginTop: 4,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: radius.lg,
+  },
+  // onInk, not white: `ink` inverts between themes, so a label pinned to
+  // near-white disappears on the light fill the dark theme uses.
+  emptyBtnText: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.md },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  menuImg: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.bgSoft },
+  menuName: { fontSize: font.sizes.lg, color: colors.ink, fontWeight: font.weights.bold },
+  menuSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
+  menuPrice: { fontSize: font.sizes.md, color: colors.ink, fontWeight: font.weights.bold },
+}));

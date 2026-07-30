@@ -16,8 +16,9 @@
  * "Not now" is a real answer: we record it and stop asking. The OS would still
  * show its dialog, but nagging is how an app trains people to refuse.
  */
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius, shadow } from '../theme';
+import { Modal, Pressable, Text, View } from 'react-native';
+import { font, radius, shadow } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 
@@ -30,6 +31,7 @@ export interface PushPrimerProps {
 }
 
 export function PushPrimer({ visible, context, onAllow, onDismiss }: PushPrimerProps) {
+  const styles = useStyles();
   const t = useT();
   const dir = useDirection();
 
@@ -64,7 +66,7 @@ export function PushPrimer({ visible, context, onAllow, onDismiss }: PushPrimerP
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -72,7 +74,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: 24,
     alignItems: 'center',
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  allowText: { color: '#fff', fontWeight: font.weights.bold, fontSize: font.sizes.xl },
+  allowText: { color: colors.onAccent, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
   later: { marginTop: 6, paddingVertical: 12, alignItems: 'center', alignSelf: 'stretch' },
   laterText: { color: colors.ink3, fontSize: font.sizes.lg },
-});
+}));

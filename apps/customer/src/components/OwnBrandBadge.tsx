@@ -1,5 +1,6 @@
-import { Text, View, StyleSheet } from 'react-native';
-import { colors, font } from '../theme';
+import { Text, View } from 'react-native';
+import { font } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 
 /**
@@ -12,6 +13,7 @@ import { useT } from '../i18n';
  * migration 126, and CPL 181/2018 on truthful presentation).
  */
 export function OwnBrandBadge() {
+  const styles = useStyles();
   const t = useT();
   return (
     <View style={styles.b}>
@@ -20,7 +22,7 @@ export function OwnBrandBadge() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   b: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -38,4 +40,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-});
+}));

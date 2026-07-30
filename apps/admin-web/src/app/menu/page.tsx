@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { Restaurant } from '@/lib/types';
-import { AdminHeader } from '../AdminHeader';
 import { SignOutButton } from '../SignOutButton';
 import { Icon } from '../Icon';
 import { useToast } from '../Toast';
@@ -95,7 +94,6 @@ export default function MenuPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <div className="mx-auto max-w-4xl space-y-3 p-6">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -125,21 +123,30 @@ export default function MenuPage() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader
-        title="Menus"
-        description={selected ? selected.name : 'Restaurants and menus'}
-        displayName={phase.displayName}
-        contextAction={
-          selected ? (
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
+        <div className="flex items-center gap-4">
+          {selected ? (
             <button
               onClick={() => setSelectedId(null)}
               className="flex items-center gap-1 text-sm font-semibold text-ink2 hover:text-ink"
             >
               <Icon name="back" size={16} /> All restaurants
             </button>
-          ) : undefined
-        }
-      />
+          ) : (
+            <Link href="/" className="flex items-center gap-1 text-sm font-semibold text-ink2 hover:text-ink">
+              <Icon name="back" size={16} /> Dispatch
+            </Link>
+          )}
+          <div>
+            <div className="text-lg font-extrabold">
+              Menu
+            </div>
+            <div className="text-xs text-ink3">
+              {selected ? selected.name : 'Restaurants & menus'} · {phase.displayName}
+            </div>
+          </div>
+        </div>
+      </header>
 
       {selected ? (
         <RestaurantEditor

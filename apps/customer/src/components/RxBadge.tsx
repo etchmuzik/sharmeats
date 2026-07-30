@@ -17,12 +17,15 @@
  * of delivery, not a garnish like "spicy" or "vegan". It reuses the app's red
  * accent so it reads with the same weight as an allergen conflict.
  */
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius } from '../theme';
+import { Text, View } from 'react-native';
+import { font, radius } from '../theme';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { useT } from '../i18n';
 
 export function RxBadge({ compact = false }: { compact?: boolean }) {
+  const colors = useThemeColors();
+  const styles = useStyles();
   const t = useT();
   return (
     <View
@@ -40,7 +43,7 @@ export function RxBadge({ compact = false }: { compact?: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -55,4 +58,4 @@ const styles = StyleSheet.create({
   compact: { paddingHorizontal: 6, paddingVertical: 2, gap: 3 },
   text: { fontSize: font.sizes.sm, fontWeight: font.weights.bold, color: colors.red },
   textCompact: { fontSize: font.sizes.xs },
-});
+}));

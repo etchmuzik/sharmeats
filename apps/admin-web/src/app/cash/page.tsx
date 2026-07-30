@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { toCsv } from '@/lib/csv';
 import type { DriverCashBalance } from '@/lib/types';
-import { AdminHeader } from '../AdminHeader';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -149,7 +148,6 @@ export default function CashPage() {
       <main className="min-h-screen bg-bg">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-4">
           <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-8 w-20" />
         </header>
         <div className="mx-auto max-w-5xl space-y-3 p-6">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -182,11 +180,14 @@ export default function CashPage() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader
-        title="Cash reconciliation"
-        description="Cash held by drivers"
-        displayName={phase.displayName}
-      />
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
+        <div>
+          <div className="text-lg font-extrabold">
+            Cash
+          </div>
+          <div className="text-xs text-ink3">Driver cash reconciliation · {phase.displayName}</div>
+        </div>
+      </header>
 
       <div className="mx-auto max-w-5xl space-y-6 p-6">
         {/* Controls */}

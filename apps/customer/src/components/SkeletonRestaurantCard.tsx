@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
-import { colors, radius, shadow } from '../theme';
+import { Animated, Easing, View } from 'react-native';
+import { radius, shadow } from '../theme';
+import { makeStyles } from '../themeProvider';
 
 /**
  * Pulsing placeholder shown while the restaurant list loads. Mirrors
@@ -8,6 +9,7 @@ import { colors, radius, shadow } from '../theme';
  * jump when real cards arrive. Pure presentation: no data, no navigation.
  */
 export function SkeletonRestaurantCard() {
+  const styles = useStyles();
   const opacity = useRef(new Animated.Value(0.55)).current;
 
   useEffect(() => {
@@ -48,10 +50,10 @@ export function SkeletonRestaurantCard() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   // Match RestaurantCard's card + cover dimensions exactly.
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -65,4 +67,4 @@ const styles = StyleSheet.create({
   barName: { width: '65%', height: 16 },
   barCuisine: { width: '40%' },
   barMetrics: { width: '85%', marginTop: 'auto', marginBottom: 4 },
-});
+}));

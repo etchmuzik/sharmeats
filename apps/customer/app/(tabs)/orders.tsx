@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, radius, shadow } from '../../src/theme';
+import { font, radius, shadow, type Palette } from '../../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { EmptyState } from '../../src/components/EmptyState';
 import { db } from '../../src/data';
 import type { Order, OrderStatus } from '../../src/data/types';
@@ -27,19 +27,25 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   rejected: 'status.cancelled',
 };
 
-const STATUS_COLOR: Record<OrderStatus, string> = {
-  placed: colors.ink2,
-  accepted: colors.sea,
-  preparing: colors.sea,
-  ready: colors.sea,
-  picked_up: colors.accent,
-  out_for_delivery: colors.accent,
-  delivered: colors.green,
-  cancelled: colors.red,
-  rejected: colors.red,
-};
+/** Status pill colors, as a function of the active palette. */
+function statusColors(colors: Palette): Record<OrderStatus, string> {
+  return {
+    placed: colors.ink2,
+    accepted: colors.sea,
+    preparing: colors.sea,
+    ready: colors.sea,
+    picked_up: colors.accent,
+    out_for_delivery: colors.accent,
+    delivered: colors.green,
+    cancelled: colors.red,
+    rejected: colors.red,
+  };
+}
 
 export default function OrdersTab() {
+  const colors = useThemeColors();
+  const styles = useStyles();
+  const STATUS_COLOR = useMemo(() => statusColors(colors), [colors]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
@@ -206,7 +212,7 @@ export default function OrdersTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.top, { paddingTop: insets.top + 14 }]}>
         <Text style={styles.title}>{t('tabs.orders')}</Text>
       </View>
@@ -276,7 +282,7 @@ export default function OrdersTab() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   top: {
     paddingHorizontal: 20,
     paddingBottom: 14,
@@ -294,7 +300,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
@@ -316,4 +322,4 @@ const styles = StyleSheet.create({
   reorderText: { color: colors.accentDark, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
   statusText: { fontSize: font.sizes.xs, fontWeight: font.weights.bold, letterSpacing: 0.4, textTransform: 'uppercase' },
-});
+}));

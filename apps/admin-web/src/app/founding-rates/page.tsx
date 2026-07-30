@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { toCsv } from '@/lib/csv';
-import { AdminHeader } from '../AdminHeader';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
 
@@ -228,6 +228,11 @@ export default function FoundingRatesPage() {
     return (
       <main className="p-6">
         <p className="text-sm">Admin account required.</p>
+        {/* The shell renders no nav for a role it does not recognise, so
+            without this the page is a dead end with no way back. */}
+        <Link href="/" className="mt-3 inline-block text-sm font-semibold underline">
+          Back to dispatch
+        </Link>
       </main>
     );
   }
@@ -247,101 +252,97 @@ export default function FoundingRatesPage() {
   const belowStandard = rows.filter((r) => r.commission_pct < STANDARD_PCT).length;
 
   return (
-    <main className="min-h-screen bg-bg">
-      <AdminHeader
-        title="Founding rates"
-        description="Commission windows and expiry"
-        displayName={phase.displayName}
-      />
-
-      <div className="mx-auto max-w-5xl p-6">
-        <p className="mb-4 text-sm text-ink2">
-          Restaurants paying below the standard {STANDARD_PCT}%. The founding rate runs for a fixed
-          window from go-live (LOI: 3 months); this page shows when each window ends. Rates never
-          change on their own — you move a restaurant to standard yourself.
-        </p>
-
-        <div className="mb-4 flex flex-wrap gap-3">
-          <div className="rounded-xl border px-4 py-3 text-sm">
-            <div className="font-extrabold">{belowStandard}</div>
-            <div className="text-ink2">below {STANDARD_PCT}%</div>
-          </div>
-          <div className="rounded-xl border px-4 py-3 text-sm">
-            <div className="font-extrabold">{needsAction.length}</div>
-            <div className="text-ink2">expired or expiring</div>
-          </div>
-          <div className="rounded-xl border px-4 py-3 text-sm">
-            <div className="font-extrabold">{money(forgoneTotal)}</div>
-            <div className="text-ink2">discount cost / 30d</div>
-          </div>
-          {rows.length > 0 && (
-            <button className="rounded-xl border px-4 py-3 text-sm font-bold" onClick={exportCsv}>
-              Export CSV
-            </button>
-          )}
-        </div>
-
-        {rows.length === 0 && (
-          <p className="text-sm text-ink2">Every restaurant is on the standard rate.</p>
-        )}
-
-        <ul className="flex flex-col gap-3">
-          {rows.map((row) => (
-            <li key={row.restaurant_id} className="rounded-xl border p-4 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-extrabold">
-                  {row.name}
-                  {!row.is_active && <span className="ml-2 font-normal text-ink2">(inactive)</span>}
-                </p>
-                <span className={`rounded-full border px-2 py-0.5 text-xs ${STATUS_CLASS[row.status]}`}>
-                  {STATUS_LABEL[row.status]}
-                </span>
-              </div>
-              <p className="text-ink2">
-                {row.zone} · <span className="font-bold">{row.commission_pct}%</span> commission ·{' '}
-                {row.delivered_orders} delivered
-              </p>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full border px-2 py-0.5">
-                  ends: {row.founding_rate_until ?? 'not set'}
-                  {row.founding_rate_until && ` (${daysLabel(row)})`}
-                </span>
-                <span className="rounded-full border px-2 py-0.5">
-                  30d food: {money(row.food_egp_30d)}
-                </span>
-                <span className="rounded-full border px-2 py-0.5">
-                  discount cost: {money(row.forgone_egp_30d)}/30d
-                </span>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  className="rounded-lg border px-3 py-1 font-bold disabled:opacity-40"
-                  disabled={busyId === row.restaurant_id}
-                  onClick={() => setExpiry(row)}
-                >
-                  {row.founding_rate_until ? 'Change end date' : 'Set end date'}
-                </button>
-                {row.commission_pct < STANDARD_PCT && (
-                  <button
-                    className="rounded-lg bg-ink px-3 py-1 font-bold text-white disabled:opacity-40"
-                    disabled={busyId === row.restaurant_id}
-                    title={
-                      row.status === 'expired'
-                        ? 'This restaurant’s founding window has ended'
-                        : 'Ends their founding rate early — tell them first'
-                    }
-                    onClick={() => moveToStandard(row)}
-                  >
-                    {busyId === row.restaurant_id ? '…' : `Move to ${STANDARD_PCT}%`}
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+    <main className="mx-auto max-w-5xl p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-extrabold">Founding rates</h1>
       </div>
+
+      <p className="mb-4 text-sm text-ink2">
+        Restaurants paying below the standard {STANDARD_PCT}%. The founding rate runs for a fixed
+        window from go-live (LOI: 3 months); this page shows when each window ends. Rates never
+        change on their own — you move a restaurant to standard yourself.
+      </p>
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <div className="rounded-xl border px-4 py-3 text-sm">
+          <div className="font-extrabold">{belowStandard}</div>
+          <div className="text-ink2">below {STANDARD_PCT}%</div>
+        </div>
+        <div className="rounded-xl border px-4 py-3 text-sm">
+          <div className="font-extrabold">{needsAction.length}</div>
+          <div className="text-ink2">expired or expiring</div>
+        </div>
+        <div className="rounded-xl border px-4 py-3 text-sm">
+          <div className="font-extrabold">{money(forgoneTotal)}</div>
+          <div className="text-ink2">discount cost / 30d</div>
+        </div>
+        {rows.length > 0 && (
+          <button className="rounded-xl border px-4 py-3 text-sm font-bold" onClick={exportCsv}>
+            Export CSV
+          </button>
+        )}
+      </div>
+
+      {rows.length === 0 && (
+        <p className="text-sm text-ink2">Every restaurant is on the standard rate. 🌴</p>
+      )}
+
+      <ul className="flex flex-col gap-3">
+        {rows.map((row) => (
+          <li key={row.restaurant_id} className="rounded-xl border p-4 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-extrabold">
+                {row.name}
+                {!row.is_active && <span className="ml-2 font-normal text-ink2">(inactive)</span>}
+              </p>
+              <span className={`rounded-full border px-2 py-0.5 text-xs ${STATUS_CLASS[row.status]}`}>
+                {STATUS_LABEL[row.status]}
+              </span>
+            </div>
+            <p className="text-ink2">
+              {row.zone} · <span className="font-bold">{row.commission_pct}%</span> commission ·{' '}
+              {row.delivered_orders} delivered
+            </p>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="rounded-full border px-2 py-0.5">
+                ends: {row.founding_rate_until ?? 'not set'}
+                {row.founding_rate_until && ` (${daysLabel(row)})`}
+              </span>
+              <span className="rounded-full border px-2 py-0.5">
+                30d food: {money(row.food_egp_30d)}
+              </span>
+              <span className="rounded-full border px-2 py-0.5">
+                discount cost: {money(row.forgone_egp_30d)}/30d
+              </span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                className="rounded-lg border px-3 py-1 font-bold disabled:opacity-40"
+                disabled={busyId === row.restaurant_id}
+                onClick={() => setExpiry(row)}
+              >
+                {row.founding_rate_until ? 'Change end date' : 'Set end date'}
+              </button>
+              {row.commission_pct < STANDARD_PCT && (
+                <button
+                  className="rounded-lg bg-ink px-3 py-1 font-bold text-white disabled:opacity-40"
+                  disabled={busyId === row.restaurant_id}
+                  title={
+                    row.status === 'expired'
+                      ? 'This restaurant’s founding window has ended'
+                      : 'Ends their founding rate early — tell them first'
+                  }
+                  onClick={() => moveToStandard(row)}
+                >
+                  {busyId === row.restaurant_id ? '…' : `Move to ${STANDARD_PCT}%`}
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }
