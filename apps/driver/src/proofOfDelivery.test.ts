@@ -9,7 +9,7 @@ import {
 const UID = '50000000-0000-0000-0000-000000000001';
 const ORDER = '52000000-0000-0000-0000-000000000001';
 
-describe('isProofRequired mirrors delivery_proof_required in mig 180', () => {
+describe('isProofRequired mirrors delivery_proof_required in mig 182', () => {
   it('requires a photo when nobody is at the door', () => {
     expect(isProofRequired('leave_at_door')).toBe(true);
     expect(isProofRequired('no_bell')).toBe(true);
@@ -72,9 +72,9 @@ describe('validateProofUpload', () => {
 /**
  * The path shape is matched by a regex in the storage INSERT policy and
  * reconstructed by record_delivery_proof. These assertions are the app-side half
- * of that contract — if they change, mig 180 has to change with them.
+ * of that contract — if they change, mig 182 has to change with them.
  */
-describe('buildProofPath matches what mig 180 will accept', () => {
+describe('buildProofPath matches what mig 182 will accept', () => {
   it('builds <uid>/<order>-<ts>.<ext>', () => {
     expect(buildProofPath(UID, ORDER, 1721800000000, 'jpg')).toBe(
       `${UID}/${ORDER}-1721800000000.jpg`,

@@ -15,9 +15,16 @@ ledger systems.
 - `place_order` has an idempotency key and server-authoritative repricing.
 - Card orders use `paymob-create-intention`, signed `paymob-webhook`,
   `settle_paymob_payment`, and card-state guards.
-- `order_refunds`, `paymob-refund` and `finalize_full_card_refund` exist **in the
-  repository**. Only the table is in production; the RPC and the Edge Function
-  are not deployed (see the Slice B status note below).
+- `order_refunds`, `settle_paymob_payment` and `finalize_full_card_refund` are
+  **in production since 2026-07-30** (mig 180). The root cause of their earlier
+  absence was a migration-ledger gap: migration 121 was authored but **never
+  executed** — the ledger ran 110..119 then jumped to 122 — while two edge
+  functions called its RPCs by name. Mig 180 re-delivered it after a line-by-line
+  audit (logic unchanged, grant hygiene corrected), and the ledger now carries
+  explicit reconciliation rows for 120 (applied by hand, unstamped) and 121
+  (never run, superseded). `scripts/check-db-drift.sh` exists so this class of
+  gap fails loudly in the future. `paymob-refund` and `paymob-create-intention`
+  are still **not deployed** as Edge Functions (only `paymob-webhook`).
 - COD collection, driver earnings, driver cash custody, hand-ins, driver
   settlements, merchant settlements and customer credit already exist.
 - Support is one message thread per customer. It has messages and realtime, but
@@ -41,6 +48,21 @@ ledger systems.
 - reconciliation scripts/reports, scheduled checks and operating runbooks.
 
 ## Slice A — executable money-path proof
+
+> **Status 2026-07-30 — BUILT.** Three artifacts, all with negative controls:
+> `supabase/tests/money_path_assertions.sql` (all eight scenario families through
+> public RPCs only, four identities asserted, 9/9 green on a prod-schema scratch
+> DB, 5/5 sabotage controls bite); mig 181's `payment_reconciliation_report`
+> (admin export) + `payment_reconciliation_sweep` (daily cron
+> `sharmeats-daily-payment-reconciliation`, one aggregated alert per class) over
+> the seven classes below **plus an eighth** — `card_captured_but_cancelled`,
+> the delayed-webhook-after-local-cancel case the scenario work surfaced; and
+> `scripts/check-db-drift.sh` (repo-vs-database drift: unledgered migration
+> files, edge-function RPC references that don't exist). The sweep's first
+> production run found 11 findings, all `cod_delivered_uncollected` — 8
+> pre-launch owner-test orders and 3 App-Review DEMO fixtures — **awaiting owner
+> triage** (mark collected or annotate as test data; the daily alert repeats
+> until resolved, by design).
 
 Build a deterministic test pack and a production-safe reconciliation report.
 Fixtures must be created through public RPCs/functions, never direct
@@ -92,12 +114,16 @@ Alerts aggregate by incident class; they do not send one noisy alert per row.
 
 ## Slice B — controlled card rollout
 
-> **Status 2026-07-28 — the card rail is NOT deployed.** Verified against
-> production: `settle_paymob_payment` and `finalize_full_card_refund` do not
-> exist (migration 121 was never applied), and neither `paymob-create-intention`
-> nor `paymob-refund` is a deployed Edge Function — only `paymob-webhook` (v5).
-> No Paymob secret exists in the vault. Zero card orders and zero refunds have
-> ever been created. The "current evidence" above overstates what is live.
+> **Status 2026-07-30 — database rail LIVE, delivery rail still not deployed.**
+> Mig 180 landed `payment_attempts`, `settle_paymob_payment`,
+> `finalize_full_card_refund` and both refund guards in production (the 121
+> ledger gap in the 2026-07-28 note is resolved and stamped). The card DB path
+> is now proven end-to-end by the Slice A pack: settle, duplicate webhook,
+> second-txn rejection, amount/integration mismatch, decline, abandonment,
+> timeout, delayed webhook, full refund + provider retry. Still true: neither
+> `paymob-create-intention` nor `paymob-refund` is a deployed Edge Function
+> (only `paymob-webhook`), no Paymob secret exists in the vault, zero real card
+> orders exist, and every owner prerequisite below remains open.
 >
 > Prerequisites, verification commands and the full acceptance gate are in
 > [`../CARD-PAYMENT-GATE.md`](../CARD-PAYMENT-GATE.md). Cards remain dark.
@@ -203,6 +229,12 @@ repeated refunds can require owner approval.
 
 ## Slice D — support cases and SLA
 
+> **Status 2026-07-30 — BUILT, contrary to this slice's original "planned"
+> framing.** Mig 151 delivered `support_cases` (status, priority, reason,
+> assignment, SLA due-at columns, resolution code/note) and its events table in
+> production. The model below is retained as the reference the implementation
+> follows.
+
 Keep `support_messages` compatible, but place conversations inside an explicit
 case lifecycle.
 
@@ -255,6 +287,16 @@ retention policy and are covered by account deletion/anonymization.
 
 ## Slice E — driver COD exposure ceiling
 
+> **Status 2026-07-30 — BUILT and in `observe` mode, contrary to the original
+> "planned" framing.** Migs 149/150 delivered exactly this design: the three
+> settings below (soft 3000 / hard 5000 / mode `observe`),
+> `driver_cod_capacity` computing custody from the immutable ledger inside the
+> assignment transaction, both `assign_driver` and `auto_assign_order` sharing
+> the same check, `driver_cod_limit_events` telemetry, `my_cod_capacity` for
+> the driver UI and `admin_grant_cod_override` (reason + expiry + audit). The
+> remaining work is the operating decision this section already prescribes:
+> observe a full cycle, choose limits from evidence, flip the mode setting.
+
 Add settings for:
 
 ```text
@@ -282,6 +324,19 @@ Driver UI shows cash held, limit, required hand-in and who to contact. Admin cas
 UI shows limit utilization and blocked assignment attempts.
 
 ## Slice F — settlement and finance exception operations
+
+> **Status 2026-07-30 — settlement lifecycle and exception DETECTION built;
+> the owned exception-queue workflow remains open.** Idempotent
+> generate/finalize/mark-paid settlement RPCs with weekly crons have existed
+> since migs 074/083/084/105 (payment reference required since 131), and mig
+> 135's `order_financials_failures` is the failed-snapshot repair queue. Mig
+> 181's eight-class reconciliation detector + daily sweep now surfaces
+> unmatched card payments, open snapshot repairs, settlement overlap, refund
+> SLA breaches and uncollected COD as aggregated alerts with an admin export.
+> What this section specifies beyond that — a generic exception table with
+> severity/owner/state and narrow resolution RPCs recording before/after facts
+> — is still unbuilt; today resolution is manual admin SQL guided by the
+> report.
 
 Add an explicit exception queue, not automatic mutation of settled history:
 

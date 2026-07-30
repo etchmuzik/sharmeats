@@ -309,7 +309,7 @@ export const ordersRepoSupabase = {
    * Mint (or return) a follow-my-order link for an order the caller placed.
    *
    * Idempotent server-side while unrevoked, so tapping Share twice cannot kill a
-   * link already sitting in somebody's chat. See mig 182 for what the recipient
+   * link already sitting in somebody's chat. See mig 184 for what the recipient
    * is and is not allowed to see.
    */
   async createShare(orderId: string): Promise<string> {

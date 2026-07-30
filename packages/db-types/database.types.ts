@@ -1129,6 +1129,60 @@ export type Database = {
           },
         ]
       }
+      lifecycle_sends: {
+        Row: {
+          decided_at: string
+          holdout_group: string
+          id: string
+          lifecycle_event: string
+          message_id: string | null
+          mode: string
+          subject_id: string | null
+          suppression_reason: string | null
+          user_id: string
+          would_send: boolean
+        }
+        Insert: {
+          decided_at?: string
+          holdout_group: string
+          id?: string
+          lifecycle_event: string
+          message_id?: string | null
+          mode: string
+          subject_id?: string | null
+          suppression_reason?: string | null
+          user_id: string
+          would_send: boolean
+        }
+        Update: {
+          decided_at?: string
+          holdout_group?: string
+          id?: string
+          lifecycle_event?: string
+          message_id?: string | null
+          mode?: string
+          subject_id?: string | null
+          suppression_reason?: string | null
+          user_id?: string
+          would_send?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lifecycle_sends_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "push_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifecycle_sends_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_points_ledger: {
         Row: {
           created_at: string
@@ -1541,6 +1595,39 @@ export type Database = {
           },
         ]
       }
+      notification_reads: {
+        Row: {
+          message_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          message_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          message_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "push_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_assignments: {
         Row: {
           assigned_at: string
@@ -1831,6 +1918,7 @@ export type Database = {
           provider_ref: string | null
           reason: string | null
           status: string
+          updated_at: string
         }
         Insert: {
           actor_id?: string | null
@@ -1842,6 +1930,7 @@ export type Database = {
           provider_ref?: string | null
           reason?: string | null
           status?: string
+          updated_at?: string
         }
         Update: {
           actor_id?: string | null
@@ -1853,6 +1942,7 @@ export type Database = {
           provider_ref?: string | null
           reason?: string | null
           status?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2152,6 +2242,75 @@ export type Database = {
           },
         ]
       }
+      payment_attempts: {
+        Row: {
+          amount_egp: number
+          checkout_url: string | null
+          client_secret: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          integration_id: string
+          last_error: string | null
+          order_id: string
+          provider_intention_id: string | null
+          provider_order_id: string | null
+          provider_txn_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_egp: number
+          checkout_url?: string | null
+          client_secret?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          integration_id: string
+          last_error?: string | null
+          order_id: string
+          provider_intention_id?: string | null
+          provider_order_id?: string | null
+          provider_txn_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_egp?: number
+          checkout_url?: string | null
+          client_secret?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          integration_id?: string
+          last_error?: string | null
+          order_id?: string
+          provider_intention_id?: string | null
+          provider_order_id?: string | null
+          provider_txn_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_methods: {
         Row: {
           card_brand: string | null
@@ -2331,6 +2490,85 @@ export type Database = {
           },
         ]
       }
+      push_attempts: {
+        Row: {
+          attempt_no: number
+          claimed_at: string | null
+          created_at: string
+          error_code: string | null
+          error_detail: string | null
+          expo_ticket_id: string | null
+          id: string
+          message_id: string
+          next_attempt_at: string | null
+          push_token_id: string | null
+          receipt_checked_at: string | null
+          recipient_user_id: string | null
+          sent_at: string | null
+          settled_at: string | null
+          status: string
+          token_snapshot: string
+        }
+        Insert: {
+          attempt_no?: number
+          claimed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_detail?: string | null
+          expo_ticket_id?: string | null
+          id?: string
+          message_id: string
+          next_attempt_at?: string | null
+          push_token_id?: string | null
+          receipt_checked_at?: string | null
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          settled_at?: string | null
+          status?: string
+          token_snapshot: string
+        }
+        Update: {
+          attempt_no?: number
+          claimed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_detail?: string | null
+          expo_ticket_id?: string | null
+          id?: string
+          message_id?: string
+          next_attempt_at?: string | null
+          push_token_id?: string | null
+          receipt_checked_at?: string | null
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          settled_at?: string | null
+          status?: string
+          token_snapshot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_attempts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "push_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_attempts_push_token_id_fkey"
+            columns: ["push_token_id"]
+            isOneToOne: false
+            referencedRelation: "push_tokens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_attempts_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_campaigns: {
         Row: {
           body: string
@@ -2401,6 +2639,80 @@ export type Database = {
             columns: ["sent_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_messages: {
+        Row: {
+          campaign_id: string | null
+          category: string
+          custom_body: string | null
+          custom_title: string | null
+          event: string
+          expires_at: string
+          id: string
+          idempotency_key: string
+          open_count: number
+          opened_at: string | null
+          order_id: string | null
+          queued_at: string
+          recipient_user_ids: string[] | null
+          retain_until: string
+          route: string | null
+          settled_at: string | null
+          status: string
+          suppression_reason: string | null
+          vertical: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          category?: string
+          custom_body?: string | null
+          custom_title?: string | null
+          event: string
+          expires_at?: string
+          id?: string
+          idempotency_key: string
+          open_count?: number
+          opened_at?: string | null
+          order_id?: string | null
+          queued_at?: string
+          recipient_user_ids?: string[] | null
+          retain_until?: string
+          route?: string | null
+          settled_at?: string | null
+          status?: string
+          suppression_reason?: string | null
+          vertical?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          category?: string
+          custom_body?: string | null
+          custom_title?: string | null
+          event?: string
+          expires_at?: string
+          id?: string
+          idempotency_key?: string
+          open_count?: number
+          opened_at?: string | null
+          order_id?: string | null
+          queued_at?: string
+          recipient_user_ids?: string[] | null
+          retain_until?: string
+          route?: string | null
+          settled_at?: string | null
+          status?: string
+          suppression_reason?: string | null
+          vertical?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -3614,6 +3926,7 @@ export type Database = {
         Returns: unknown
       }
       _st_within: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      abandoned_cart_sweep: { Args: never; Returns: number }
       addauth: { Args: { "": string }; Returns: boolean }
       addgeometrycolumn:
         | {
@@ -3834,6 +4147,22 @@ export type Database = {
         Returns: boolean
       }
       can_view_vertical: { Args: { p_vertical_id: string }; Returns: boolean }
+      claim_push_retries: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempt_id: string
+          attempt_no: number
+          custom_body: string
+          custom_title: string
+          event: string
+          message_id: string
+          order_id: string
+          recipient_user_id: string
+          route: string
+          token: string
+          vertical: string
+        }[]
+      }
       claim_support_case: { Args: { p_case_id: string }; Returns: undefined }
       clear_my_cart: { Args: never; Returns: undefined }
       delivery_feasibility: {
@@ -3898,6 +4227,22 @@ export type Database = {
         | { Args: { schema_name: string; table_name: string }; Returns: string }
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
+      enqueue_push: {
+        Args: {
+          p_campaign_id?: string
+          p_category?: string
+          p_custom_body?: string
+          p_custom_title?: string
+          p_event: string
+          p_expires_in?: string
+          p_idempotency_key?: string
+          p_order_id?: string
+          p_recipient_user_ids?: string[]
+          p_route?: string
+          p_vertical?: string
+        }
+        Returns: string
+      }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
       expire_platform_capabilities: {
         Args: { p_limit?: number }
@@ -3907,9 +4252,18 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: number
       }
+      expired_cart_sweep: { Args: never; Returns: number }
       finalize_driver_settlement: {
         Args: { p_settlement_id: string }
         Returns: undefined
+      }
+      finalize_full_card_refund: {
+        Args: {
+          p_provider_detail?: Json
+          p_provider_ref: string
+          p_refund_id: string
+        }
+        Returns: string
       }
       finalize_settlement: {
         Args: { p_settlement_id: string }
@@ -4107,6 +4461,10 @@ export type Database = {
         Returns: boolean
       }
       is_merchant_staff: { Args: { p_restaurant_id: string }; Returns: boolean }
+      is_notification_recipient: {
+        Args: { p_message_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_platform_owner: { Args: { p_user_id: string }; Returns: boolean }
       is_within_service_area: {
         Args: { p_lat: number; p_lng: number }
@@ -4123,6 +4481,31 @@ export type Database = {
         Returns: undefined
       }
       kyc_storage_path_indexed: { Args: { p_name: string }; Returns: boolean }
+      lifecycle_eligible: {
+        Args: { p_event: string; p_subject_id?: string; p_user_id: string }
+        Returns: {
+          allowed: boolean
+          holdout_group: string
+          reason: string
+        }[]
+      }
+      lifecycle_holdout_group: {
+        Args: { p_event: string; p_user_id: string }
+        Returns: string
+      }
+      lifecycle_is_live: { Args: never; Returns: boolean }
+      lifecycle_record: {
+        Args: {
+          p_event: string
+          p_group: string
+          p_message_id?: string
+          p_reason: string
+          p_subject_id: string
+          p_user_id: string
+          p_would_send: boolean
+        }
+        Returns: undefined
+      }
       log_cod_limit_event: {
         Args: {
           p_driver_id: string
@@ -4144,6 +4527,10 @@ export type Database = {
       }
       mark_driver_settlement_paid: {
         Args: { p_reference: string; p_settlement_id: string }
+        Returns: undefined
+      }
+      mark_notification_read: {
+        Args: { p_message_id: string }
         Returns: undefined
       }
       mark_order_thread_read: {
@@ -4279,6 +4666,26 @@ export type Database = {
         }[]
       }
       my_merchant_ids: { Args: never; Returns: string[] }
+      my_notification_inbox: {
+        Args: {
+          p_before_id?: string
+          p_before_queued?: string
+          p_limit?: number
+        }
+        Returns: {
+          category: string
+          custom_body: string
+          custom_title: string
+          event: string
+          id: string
+          opened_at: string
+          order_id: string
+          queued_at: string
+          read_at: string
+          route: string
+          vertical: string
+        }[]
+      }
       my_referral_code: { Args: never; Returns: string }
       my_restaurant_settlements: {
         Args: { p_limit?: number }
@@ -4317,6 +4724,7 @@ export type Database = {
       }
       my_support_unread_count: { Args: never; Returns: number }
       my_unread_message_count: { Args: never; Returns: number }
+      my_unread_notification_count: { Args: never; Returns: number }
       nearest_drivers: {
         Args: { p_geo: unknown; p_limit?: number; p_radius_m?: number }
         Returns: {
@@ -4338,6 +4746,37 @@ export type Database = {
       ops_alert: { Args: { p_text: string }; Returns: undefined }
       ops_daily_digest: { Args: never; Returns: undefined }
       ops_stats_text: { Args: { p_scope: string }; Returns: string }
+      payment_reconciliation_findings: {
+        Args: { p_days?: number }
+        Returns: {
+          age_days: number
+          amount_egp: number
+          detail: string
+          ledger_id: string
+          mismatch_class: string
+          order_id: string
+          payment_method: string
+          provider_ref: string
+          settlement_id: string
+          short_code: string
+        }[]
+      }
+      payment_reconciliation_report: {
+        Args: { p_days?: number }
+        Returns: {
+          age_days: number
+          amount_egp: number
+          detail: string
+          ledger_id: string
+          mismatch_class: string
+          order_id: string
+          payment_method: string
+          provider_ref: string
+          settlement_id: string
+          short_code: string
+        }[]
+      }
+      payment_reconciliation_sweep: { Args: never; Returns: number }
       place_order: {
         Args: {
           p_address_id: string
@@ -4436,6 +4875,7 @@ export type Database = {
         Returns: string
       }
       push_headers: { Args: never; Returns: Json }
+      push_receipt_sweep: { Args: never; Returns: number }
       quote_delivery_fee: {
         Args: {
           p_dropoff: unknown
@@ -4494,12 +4934,17 @@ export type Database = {
         }
         Returns: string
       }
+      record_notification_open: {
+        Args: { p_message_id: string }
+        Returns: undefined
+      }
       record_terms_acceptance: {
         Args: { p_version: string }
         Returns: undefined
       }
       redeem_credit: { Args: { p_amount_egp: number }; Returns: string }
       redeem_points: { Args: { p_points: number }; Returns: string }
+      reorder_cadence_sweep: { Args: never; Returns: number }
       reply_support_message: {
         Args: { p_body: string; p_user_id: string }
         Returns: {
@@ -4653,6 +5098,25 @@ export type Database = {
           p_reason: string
           p_stage: string
           p_vertical_id: string
+        }
+        Returns: undefined
+      }
+      settle_paymob_payment: {
+        Args: {
+          p_amount_cents: number
+          p_integration_id: string
+          p_provider_order_id: string
+          p_provider_txn_id: string
+        }
+        Returns: Json
+      }
+      settle_push_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_error_code?: string
+          p_error_detail?: string
+          p_status: string
+          p_ticket_id?: string
         }
         Returns: undefined
       }
