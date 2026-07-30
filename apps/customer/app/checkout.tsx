@@ -29,6 +29,11 @@ import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
 import { LEGAL_URLS, openLegal } from '../src/legal';
 import { scheduledOrdersEnabled } from '../src/lib/scheduledOrders';
+import {
+  cashTenderForTotal,
+  composeDriverDropoffNote,
+  type CashTender,
+} from '../src/lib/cashChange';
 
 // A session phone is only worth prefilling when it looks like a real number:
 // starts with + or a digit and carries at least 8 digits (same bar as the
@@ -108,6 +113,7 @@ export default function Checkout() {
   const [dropoffPreference, setDropoffPreference] = useState<DropoffPreference | null>(null);
   // Free-text driver note (gate code, "ring twice"), threaded to db.orders.create().
   const [dropoffNote, setDropoffNote] = useState('');
+  const [cashTenderInput, setCashTenderInput] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
   // Guest consent gate. A guest reaches checkout via startAsGuest() without ever
@@ -230,6 +236,12 @@ export default function Checkout() {
   const serviceFee = serviceFeeEgp(subtotal);
   const discount = promoApplied?.discount ?? 0;
   const total = Math.max(0, subtotal + deliveryFee + tax + serviceFee + tipEgp - discount);
+  const cashTender: CashTender =
+    payment?.kind === 'cash'
+      ? cashTenderForTotal(cashTenderInput, total)
+      : { kind: 'none' };
+  const cashTenderInvalid = cashTender.kind === 'invalid';
+  const effectiveDropoffNote = composeDriverDropoffNote(dropoffNote, cashTender);
 
   // Honest client-side "promised by" estimate for the v2 promise card. Server
   // authority still sets the real eta_at inside place_order (prep + travel +
@@ -270,7 +282,16 @@ export default function Checkout() {
   const isCard = payment?.kind === 'card' || payment?.kind === 'apple_pay';
 
   const place = async () => {
-    if (!restaurant || !address || !payment || lines.length === 0 || !phoneValid) return;
+    if (
+      !restaurant ||
+      !address ||
+      !payment ||
+      lines.length === 0 ||
+      !phoneValid ||
+      cashTenderInvalid
+    ) {
+      return;
+    }
     // A guest must explicitly accept the Terms/Privacy before ordering.
     if (isGuest && !guestConsent) return;
     setPlacing(true);
@@ -287,7 +308,7 @@ export default function Checkout() {
         taxRate: 0,
         kitchenNotes: kitchenNotes.trim() || undefined,
         dropoffPreference: dropoffPreference ?? undefined,
-        dropoffNote: dropoffNote.trim() || undefined,
+        dropoffNote: effectiveDropoffNote || undefined,
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
         scheduledFor: effectiveScheduledFor ?? undefined,
         promoCode: promoApplied?.code,
@@ -300,6 +321,7 @@ export default function Checkout() {
         payment: payment.kind,
         scheduled: !!effectiveScheduledFor,
         promo: promoApplied?.code ?? null,
+        cashChangeRequested: cashTender.kind === 'valid' && cashTender.changeEgp > 0,
       });
 
       // [P05-E] Retention marker: this order follows at least one DELIVERED
@@ -604,6 +626,31 @@ export default function Checkout() {
             </View>
             <Icon name="chevronForward" size={20} color={colors.ink3} />
           </Pressable>
+          {payment?.kind === 'cash' && (
+            <View style={styles.cashChange}>
+              <Text style={[styles.cashChangeTitle, dir.text]}>
+                {t('checkout.cashChangeTitle')}
+              </Text>
+              <TextInput
+                value={cashTenderInput}
+                onChangeText={setCashTenderInput}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={12}
+                placeholder={t('checkout.cashChangePlaceholder')}
+                placeholderTextColor={colors.ink3}
+                accessibilityLabel={t('checkout.cashChangeTitle')}
+                style={[styles.cashChangeInput, dir.text]}
+              />
+              <Text
+                accessibilityLiveRegion="polite"
+                style={[styles.cashChangeHint, cashTenderInvalid && styles.cashChangeError, dir.text]}>
+                {cashTenderInvalid
+                  ? t('checkout.cashChangeInvalid', { amount: formatEgp(total) })
+                  : t('checkout.cashChangeHint')}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Tip card */}
@@ -839,6 +886,7 @@ export default function Checkout() {
             !payment ||
             lines.length === 0 ||
             !phoneValid ||
+            cashTenderInvalid ||
             quoteState !== 'ok' ||
             (isGuest && !guestConsent)
           }
@@ -959,6 +1007,34 @@ const styles = StyleSheet.create({
   payIcon: { width: 28, alignItems: 'center' },
   payLabel: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
   paySub: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },
+  cashChange: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  cashChangeTitle: {
+    color: colors.ink,
+    fontSize: font.sizes.lg,
+    fontWeight: font.weights.bold,
+    marginBottom: 8,
+  },
+  cashChangeInput: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+    color: colors.ink,
+    fontSize: font.sizes.lg,
+    paddingHorizontal: 14,
+  },
+  cashChangeHint: {
+    color: colors.ink3,
+    fontSize: font.sizes.sm,
+    marginTop: 6,
+  },
+  cashChangeError: { color: colors.red },
   chev: { fontSize: 22, color: colors.ink3 },
   timingRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 10 },
   timingChip: {
