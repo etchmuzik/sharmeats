@@ -1,0 +1,118 @@
+# Auto-deploy the landing site to Hostinger on every merge to main that
+# touches it.
+#
+# WHY THIS EXISTS: production drifted ~8 WEEKS behind main (June 5 → July 30,
+# 2026) and nobody noticed, because scripts/build-hostinger.sh ends with an
+# instruction — "upload out/ to public_html/" — not an upload. The build kept
+# succeeding locally, the stale site kept serving 200s, and the Play Data
+# Safety pages it was missing 404'd quietly the whole time. This workflow makes
+# that failure mode structurally impossible: merging IS deploying.
+#
+# SETUP (one-time, in GitHub → Settings → Secrets and variables → Actions):
+#   secrets.HOSTINGER_FTP_HOST      e.g. ftp.sharmeats.online or an IP from hPanel
+#   secrets.HOSTINGER_FTP_USERNAME  the FTP account (hPanel → Files → FTP Accounts)
+#   secrets.HOSTINGER_FTP_PASSWORD  its password
+#   vars.HOSTINGER_FTP_SERVER_DIR   optional; where out/ lands, RELATIVE TO THE
+#                                   FTP ACCOUNT'S ROOT. A Hostinger FTP account
+#                                   scoped to the domain usually lands in (or
+#                                   directly above) public_html — check with an
+#                                   FTP client once. Defaults to "public_html".
+#
+# Until the secrets exist this workflow still runs the BUILD on every relevant
+# merge (a free deploy dry-run) and skips the upload with a visible notice —
+# so merging this file before configuring secrets breaks nothing.
+#
+# Transfer notes:
+#   * plain lftp over FTPS (ssl-force) — no third-party deploy action, nothing
+#     to supply-chain-audit beyond Ubuntu's lftp package.
+#   * NO --delete: files the build no longer produces are left in place on the
+#     server rather than removed. That is deliberate caution while the server
+#     dir setting is young — a wrong HOSTINGER_FTP_SERVER_DIR with --delete
+#     would erase whatever it pointed at. Once a few deploys have proven the
+#     path, add --delete to the mirror command to also clean orphans (the June
+#     build's leftovers are exactly that class).
+
+name: Deploy landing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - 'scripts/check-landing-zones.mjs'
+      - 'scripts/write-version-manifest.mjs'
+      - '.github/workflows/deploy-landing.yml'
+  # Manual runs for out-of-band deploys (e.g. after a zones/migration change
+  # that the paths filter cannot see).
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-landing
+  cancel-in-progress: false # never kill a half-finished upload for a newer one
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Install
+        working-directory: landing
+        run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
+
+      # The zone check is landing's `npm test` and CI runs it on the PR, but a
+      # deploy is the moment it must be true — cheap to re-assert here.
+      - name: Zone coverage must match the database
+        working-directory: landing
+        run: npm test
+
+      - name: Build static export
+        working-directory: landing
+        run: bash scripts/build-hostinger.sh
+
+      - name: Check deploy credentials
+        id: creds
+        env:
+          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
+          FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+        run: |
+          if [ -z "$FTP_HOST" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::Build succeeded but HOSTINGER_FTP_* secrets are not set, so nothing was uploaded. Add them in Settings → Secrets → Actions to enable auto-deploy."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload out/ to Hostinger
+        if: steps.creds.outputs.configured == 'true'
+        env:
+          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
+          FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ vars.HOSTINGER_FTP_SERVER_DIR || 'public_html' }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          # FTPS enforced: credentials must never travel plaintext. verify-certificate
+          # stays on — if Hostinger's cert does not match the host you configured,
+          # that is worth a failed deploy, not a silent downgrade.
+          lftp -u "$FTP_USERNAME","$FTP_PASSWORD" \
+               -e "set ftp:ssl-force true; set ssl:verify-certificate true; \
+                   mirror -R --verbose --parallel=4 landing/out/ $FTP_SERVER_DIR; quit" \
+               "$FTP_HOST"
+
+      - name: Verify the live site took the deploy
+        if: steps.creds.outputs.configured == 'true'
+        run: |
+          # The build stamps a version manifest (landing prebuild). Fetching the
+          # homepage proves the server answers; a hard fail here means the
+          # upload landed somewhere wrong — better a red deploy than a silent one.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 https://sharmeats.online/)
+          echo "sharmeats.online → $code"
+          [ "$code" = "200" ] || exit 1

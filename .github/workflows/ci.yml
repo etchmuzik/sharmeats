@@ -70,6 +70,20 @@ jobs:
         working-directory: ${{ matrix.surface }}
         run: npm run lint --if-present
 
+      # Web surfaces only: prove `next build` actually succeeds. Typecheck and
+      # lint cannot see prerender failures — admin-web's /login could not
+      # prerender without NEXT_PUBLIC_SUPABASE_URL set and CI stayed green
+      # (found 2026-07-30). Placeholder values are enough: prerendering only
+      # needs the Supabase client to CONSTRUCT, never to connect. The mobile
+      # apps are excluded because their build is an EAS concern, not a CI one.
+      - name: Build (web surfaces)
+        if: contains(fromJSON('["apps/admin-web", "apps/merchant-web", "landing"]'), matrix.surface)
+        working-directory: ${{ matrix.surface }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+        run: npm run build
+
       # ADVISORY, not a gate. expo-doctor's dependency-validation check compares
       # installed versions against the latest recommendations WITHIN the SDK
       # rather than against a fixed floor, so it starts failing the moment Expo
