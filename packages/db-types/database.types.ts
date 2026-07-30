@@ -3067,6 +3067,8 @@ export type Database = {
           accepts_card: boolean
           accepts_cash: boolean
           address: string | null
+          busy_extra_minutes: number
+          busy_until: string | null
           commission_pct: number
           cover_image: string
           created_at: string
@@ -3115,6 +3117,8 @@ export type Database = {
           accepts_card?: boolean
           accepts_cash?: boolean
           address?: string | null
+          busy_extra_minutes?: number
+          busy_until?: string | null
           commission_pct?: number
           cover_image: string
           created_at?: string
@@ -3163,6 +3167,8 @@ export type Database = {
           accepts_card?: boolean
           accepts_cash?: boolean
           address?: string | null
+          busy_extra_minutes?: number
+          busy_until?: string | null
           commission_pct?: number
           cover_image?: string
           created_at?: string
@@ -5302,6 +5308,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_busy_mode: {
+        Args: {
+          p_duration_minutes?: number
+          p_extra_minutes: number
+          p_restaurant_id: string
+        }
+        Returns: string
       }
       set_notification_prefs: {
         Args: {
