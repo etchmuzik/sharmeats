@@ -361,7 +361,8 @@ export const RESTAURANTS: Restaurant[] = [
     slug: 'carrefour-express-naama',
     verticalId: 'grocery',
     name: 'كارفور إكسبرس نعمة',
-    cuisines: ['grocery'],
+    // vertical identity lives in verticalId; 'grocery' is no longer a Cuisine
+    cuisines: [],
     cuisineLabel: 'بقالة · توصيل ٤٥ دقيقة',
     coverImage:
       'https://images.unsplash.com/photo-1542838132-92c53300491e?w=900&q=70&auto=format&fit=crop',
@@ -383,7 +384,8 @@ export const RESTAURANTS: Restaurant[] = [
     slug: 'ezaby-pharmacy',
     verticalId: 'pharmacy',
     name: 'صيدلية العزبي',
-    cuisines: ['pharmacy'],
+    // vertical identity lives in verticalId; 'pharmacy' is no longer a Cuisine
+    cuisines: [],
     cuisineLabel: 'صيدلية · مفتوحة ٢٤ ساعة',
     coverImage:
       'https://images.unsplash.com/photo-1576602975754-7a1cb12e6892?w=900&q=70&auto=format&fit=crop',

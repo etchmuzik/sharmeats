@@ -12,8 +12,9 @@ export type Cuisine =
   | 'late_night'
   | 'street_food'
   | 'sweets'
-  | 'grocery'
-  | 'pharmacy';
+;
+// 'grocery' | 'pharmacy' removed from the Cuisine union (Package 07 Program A):
+// verticals, not cuisines. VerticalId is their home.
 
 export type ItemFlag =
   | 'halal'
