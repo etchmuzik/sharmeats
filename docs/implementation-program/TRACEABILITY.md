@@ -23,8 +23,8 @@ Status meanings:
 | Roadmap commitment | Status | Specification / acceptance |
 |---|---|---|
 | Off-machine backup and isolated restore | **Restore PROVEN** 2026-07-27 (first drill passed); off-machine copy still owner | [01 § 1](01-pilot-safety-release.md#1-rehearsable-database-restore) |
-| COD happy-path lifecycle through settlement/cash | Assertion pack built + prod-validated both directions; 10 runs owner | [01 § 2](01-pilot-safety-release.md#2-pilot-lifecycle-test-pack), [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
-| Reject/cancel/credit/refund/no-show/dispatch unhappy paths | Built/partial; prove | [01 § 2](01-pilot-safety-release.md#2-pilot-lifecycle-test-pack), [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
+| COD happy-path lifecycle through settlement/cash | **Proven executable** — `supabase/tests/money_path_assertions.sql` drives place→deliver→collect→settle→hand-in through RPCs only, four identities asserted (2026-07-30); 10 live runs still owner | [01 § 2](01-pilot-safety-release.md#2-pilot-lifecycle-test-pack), [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
+| Reject/cancel/credit/refund/no-show/dispatch unhappy paths | **Cancel/credit/refund proven** in the money pack (both cancel paths, credit alone+with COD, full refund family); no-show/dispatch remain in the 01 pilot pack | [01 § 2](01-pilot-safety-release.md#2-pilot-lifecycle-test-pack), [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
 | Deliberately fire and acknowledge monitoring | Built (mig 144 prod-applied); firing + ack is owner | [01 § 5](01-pilot-safety-release.md#5-deliberate-monitoring-exercise) |
 | Fresh customer build and complete PostHog funnel | Events + dictionary built; ingestion unproven (needs a build + device) | [01 § 4](01-pilot-safety-release.md#4-posthog-funnel-proof), [05 § E](05-tourist-trust-growth.md#slice-e--conversion-and-retention-measurement) |
 | Web/mobile release SHA and drift | Built; **not deployed** — no surface serves /version.json yet. Mobile diagnostics shipped, SHA injection owner-gated | [01 § 3](01-pilot-safety-release.md#3-release-provenance) |
@@ -43,7 +43,7 @@ Status meanings:
 | Rider cohort for one zone/window | Owner/ops | [01 pilot operating gate](01-pilot-safety-release.md#pilot-operating-gate) |
 | Shift checklist and named support owner | Owner/ops | [01 pilot operating gate](01-pilot-safety-release.md#pilot-operating-gate) |
 | Weekly merchant statements and cash hand-ins | Built/prove | [04 § A/F](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
-| Hard driver COD debt ceiling | Planned | [04 § E](04-payments-support-cash.md#slice-e--driver-cod-exposure-ceiling) |
+| Hard driver COD debt ceiling | **Built, observe mode** (migs 149/150: shared `driver_cod_capacity` check in both assignment paths, telemetry, audited override); enforcement is a settings flip after an observed cycle | [04 § E](04-payments-support-cash.md#slice-e--driver-cod-exposure-ceiling) |
 | Hotel/restaurant/referral/founder acquisition | Planned + owner | [05 § D/G](05-tourist-trust-growth.md#slice-d--acquisition-attribution) |
 | Paid acquisition held until evidence | Deferred by gate | [05 § E/G](05-tourist-trust-growth.md#slice-e--conversion-and-retention-measurement) |
 | Post-delivery app-store review | Planned | [05 § F](05-tourist-trust-growth.md#slice-f--app-store-review-prompt) |
@@ -94,20 +94,20 @@ Status meanings:
 | Entity/bank/tax, Paymob KYC, accounting | Owner gate | [04 § B](04-payments-support-cash.md#slice-b--controlled-card-rollout) |
 | Deployed intention/webhook HMAC | Built/partial; prove | [04 § B](04-payments-support-cash.md#slice-b--controlled-card-rollout) |
 | Idempotency and replay | Built/partial; prove | [04 § A/B](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
-| Success/failure/abandon/timeout/delayed callback | Planned proof | [04 § A/B](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
-| Full refund | Built/prove | [04 current evidence](04-payments-support-cash.md#current-evidence) |
+| Success/failure/abandon/timeout/delayed callback | **Proof built** — money-pack scenario 4 covers all six card rails against the mig-180 functions (DB layer; live Paymob run still gated on Slice B owner prerequisites) | [04 § A/B](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
+| Full refund | **Proven** — mig 180 landed `finalize_full_card_refund` (was authored in 121 but never applied); pack scenario 5 proves finalize, duplicate request and provider retry | [04 current evidence](04-payments-support-cash.md#current-evidence) |
 | Partial refund | Planned | [04 § C](04-payments-support-cash.md#slice-c--partial-refunds-and-order-adjustments) |
-| Gateway/order/refund/settlement reconciliation | Planned | [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
+| Gateway/order/refund/settlement reconciliation | **Built** — mig 181: eight-class detector, admin `payment_reconciliation_report`, daily aggregated-alert cron; first prod run surfaced 11 pre-launch test findings awaiting owner triage | [04 § A](04-payments-support-cash.md#slice-a--executable-money-path-proof) |
 | Flag remains off until 20 controlled transactions | Planned gate | [04 § B](04-payments-support-cash.md#slice-b--controlled-card-rollout) |
 
 ## Phase 5 — operating scale
 
 | Roadmap commitment | Status | Specification / acceptance |
 |---|---|---|
-| Support cases with status/owner/SLA/outcome | Planned | [04 § D](04-payments-support-cash.md#slice-d--support-cases-and-sla) |
+| Support cases with status/owner/SLA/outcome | **Built** (mig 151: `support_cases` + events with status/priority/assignment/SLA/resolution) | [04 § D](04-payments-support-cash.md#slice-d--support-cases-and-sla) |
 | Restaurant/rider incident playbooks and on-call | Owner/ops + alert framework | [01 § 5](01-pilot-safety-release.md#5-deliberate-monitoring-exercise), [04 § F](04-payments-support-cash.md#slice-f--settlement-and-finance-exception-operations) |
-| COD threshold enforcement | Planned | [04 § E](04-payments-support-cash.md#slice-e--driver-cod-exposure-ceiling) |
-| Weekly settlement automation/exception/sign-off | Planned | [04 § F](04-payments-support-cash.md#slice-f--settlement-and-finance-exception-operations) |
+| COD threshold enforcement | **Built, observe mode** (migs 149/150); flip `driver_cod_limit_mode` to `enforce` after an observed cycle | [04 § E](04-payments-support-cash.md#slice-e--driver-cod-exposure-ceiling) |
+| Weekly settlement automation/exception/sign-off | **Automation + detection built** (crons since 084/105, reference required since 131, mig-181 exception detector); the owned exception-queue workflow is the remaining gap | [04 § F](04-payments-support-cash.md#slice-f--settlement-and-finance-exception-operations) |
 | Unit economics by order/zone/merchant/source/ownership | Partial/planned | [04 § F](04-payments-support-cash.md#slice-f--settlement-and-finance-exception-operations), [05 § D](05-tourist-trust-growth.md#slice-d--acquisition-attribution), [06 scorecard](06-cloud-kitchen.md#analytics-and-operating-scorecard) |
 | Merchant scorecard coaching | Score built; operating process owner | [01 pilot operating gate](01-pilot-safety-release.md#pilot-operating-gate) |
 | Rider demand planning | Owner/ops using measured dashboards | [01 pilot operating gate](01-pilot-safety-release.md#pilot-operating-gate) |
