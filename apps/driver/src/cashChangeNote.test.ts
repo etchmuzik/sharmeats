@@ -9,6 +9,7 @@ describe('cash-change dropoff-note v1 contract', () => {
     expect(
       parseCashChangeNote(
         'Meet at reception\n[[sharmeats:cash-change:v1:tender=600;change=28]]',
+        572,
       ),
     ).toEqual({
       customerNote: 'Meet at reception',
@@ -22,6 +23,7 @@ describe('cash-change dropoff-note v1 contract', () => {
     expect(
       parseCashChangeNote(
         `${customerNote}\n[[sharmeats:cash-change:v1:tender=600;change=28]]`,
+        572,
       ),
     ).toEqual({
       customerNote,
@@ -31,10 +33,22 @@ describe('cash-change dropoff-note v1 contract', () => {
 
   it('supports a marker-only note when no handoff preference or free text exists', () => {
     expect(
-      parseCashChangeNote('[[sharmeats:cash-change:v1:tender=1000;change=428]]'),
+      parseCashChangeNote(
+        '[[sharmeats:cash-change:v1:tender=1000;change=428]]',
+        572,
+      ),
     ).toEqual({
       customerNote: '',
       cashChange: { tenderEgp: 1000, changeEgp: 428 },
+    });
+  });
+
+  it('rejects a marker when no collectible total is available', () => {
+    const note = '[[sharmeats:cash-change:v1:tender=600;change=28]]';
+
+    expect(parseCashChangeNote(note, null)).toEqual({
+      customerNote: note,
+      cashChange: null,
     });
   });
 
@@ -45,23 +59,63 @@ describe('cash-change dropoff-note v1 contract', () => {
       '[[sharmeats:cash-change:v1:tender=28;change=600]]',
       '[[sharmeats:cash-change:v1:tender=unsafe;change=28]]',
     ]) {
-      expect(parseCashChangeNote(note)).toEqual({
+      expect(parseCashChangeNote(note, 572)).toEqual({
         customerNote: note,
         cashChange: null,
       });
     }
   });
 
+  it('rejects a marker whose change does not reconcile with the collectible total', () => {
+    // A genuine writer always emits change = tender - total. A marker that
+    // disagrees was injected into customer prose, so it must never render as
+    // an authoritative cash instruction.
+    expect(
+      parseCashChangeNote(
+        '[[sharmeats:cash-change:v1:tender=600;change=550]]',
+        572,
+      ),
+    ).toEqual({
+      customerNote: '[[sharmeats:cash-change:v1:tender=600;change=550]]',
+      cashChange: null,
+    });
+  });
+
+  it('accepts a reconciling marker when the total is known', () => {
+    expect(
+      parseCashChangeNote(
+        'Meet at reception\n[[sharmeats:cash-change:v1:tender=600;change=28]]',
+        572,
+      ),
+    ).toEqual({
+      customerNote: 'Meet at reception',
+      cashChange: { tenderEgp: 600, changeEgp: 28 },
+    });
+  });
+
+  it('reconciles against a fractional total the same way the writer rounds it', () => {
+    expect(
+      parseCashChangeNote(
+        '[[sharmeats:cash-change:v1:tender=600;change=28]]',
+        571.5,
+      ),
+    ).toEqual({
+      customerNote: '',
+      cashChange: { tenderEgp: 600, changeEgp: 28 },
+    });
+  });
+
   it('renders a note-only card when preference is null', () => {
     const markerOnly = parseCashChangeNote(
       '[[sharmeats:cash-change:v1:tender=600;change=28]]',
+      572,
     );
-    const customerNoteOnly = parseCashChangeNote('Gate code 1234');
+    const customerNoteOnly = parseCashChangeNote('Gate code 1234', 572);
 
     expect(shouldRenderDropoffCard(false, markerOnly)).toBe(true);
     expect(shouldRenderDropoffCard(false, customerNoteOnly)).toBe(true);
     expect(
-      shouldRenderDropoffCard(false, parseCashChangeNote(null)),
+      shouldRenderDropoffCard(false, parseCashChangeNote(null, 572)),
     ).toBe(false);
   });
 });

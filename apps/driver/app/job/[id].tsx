@@ -335,7 +335,11 @@ export default function JobScreen() {
           </View>
         )}
 
-        <DropoffPreferenceCard preference={job.dropoff_preference} note={job.dropoff_note} />
+        <DropoffPreferenceCard
+          preference={job.dropoff_preference}
+          note={job.dropoff_note}
+          collectibleEgp={job.total_egp}
+        />
 
         {/* Contact the customer. In-app chat is always available once assigned;
             the phone call is offered from pickup onward (picked_up +
