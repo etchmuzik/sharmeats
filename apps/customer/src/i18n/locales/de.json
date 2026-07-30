@@ -497,5 +497,11 @@
   "push.openSettings": "Geräteeinstellungen öffnen",
   "orders.reorderUnavailableNow": "Dieser Shop ist derzeit nicht verfügbar.",
   "item.rxRequired": "Rezept erforderlich",
-  "item.rxNote": "Du musst dem Fahrer bei der Lieferung ein gültiges Rezept vorzeigen. Ohne dieses kann der Artikel nicht übergeben werden."
+  "item.rxNote": "Du musst dem Fahrer bei der Lieferung ein gültiges Rezept vorzeigen. Ohne dieses kann der Artikel nicht übergeben werden.",
+  "order.shareTitle": "Meine Lieferung verfolgen",
+  "order.shareCta": "Live-Tracking teilen",
+  "order.shareStop": "Teilen beenden",
+  "order.shareSubtitle": "Wer den Link hat, sieht die Lieferung – nie deine Adresse",
+  "order.shareMessage": "Verfolge meine Sharm-Eats-Lieferung: {{url}}",
+  "order.shareFailed": "Link konnte nicht erstellt werden. Bitte erneut versuchen."
 }

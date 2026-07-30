@@ -497,5 +497,11 @@
   "push.openSettings": "Apri le impostazioni",
   "orders.reorderUnavailableNow": "Quel negozio non è disponibile in questo momento.",
   "item.rxRequired": "Ricetta necessaria",
-  "item.rxNote": "Devi mostrare una ricetta valida al corriere alla consegna. Senza, questo articolo non può essere consegnato."
+  "item.rxNote": "Devi mostrare una ricetta valida al corriere alla consegna. Senza, questo articolo non può essere consegnato.",
+  "order.shareTitle": "Segui il mio ordine",
+  "order.shareCta": "Condividi il tracciamento",
+  "order.shareStop": "Interrompi condivisione",
+  "order.shareSubtitle": "Chi ha il link vede la consegna, mai il tuo indirizzo",
+  "order.shareMessage": "Segui la mia consegna Sharm Eats: {{url}}",
+  "order.shareFailed": "Impossibile creare il link. Riprova."
 }

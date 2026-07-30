@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import MapView, { Marker } from 'react-native-maps';
 import { BackButton } from '../../src/components/BackButton';
 import { Icon } from '../../src/components/Icon';
+import { shareUrlFor } from '../../src/lib/shareLink';
 import { OrderCelebration, shouldCelebrate } from '../../src/components/OrderCelebration';
 import { font, radius, shadow } from '../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
@@ -64,6 +65,11 @@ export default function OrderTracking() {
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [driverLoc, setDriverLoc] = useState<{ lat: number; lng: number; at: number } | null>(null);
+  // Follow-my-order link. `null` = not shared; a token = live. The token is the
+  // only secret involved, so it is never logged or shown in full to the user —
+  // it goes straight into the share sheet.
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveDone, setSaveDone] = useState(false);
   const [saveDismissed, setSaveDismissed] = useState(false);
@@ -218,6 +224,54 @@ export default function OrderTracking() {
   // whole progress bar resets to pending mid-delivery.
   const displayStatus = order.status === 'picked_up' ? 'out_for_delivery' : order.status;
   const stepIndex = STEPS.findIndex((s) => s.key === displayStatus);
+  // Reflect an existing share so the card renders "Stop sharing" rather than
+  // offering to create a second link.
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    db.orders
+      .getShareToken(id)
+      .then((tok) => {
+        if (!cancelled) setShareToken(tok);
+      })
+      .catch(() => {
+        // Not knowing is the same as not sharing for rendering purposes; the
+        // mint call below is idempotent, so an optimistic "Share" is harmless.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const openShareSheet = useCallback(async () => {
+    if (!id || sharing) return;
+    setSharing(true);
+    try {
+      const token = await db.orders.createShare(id);
+      setShareToken(token);
+      await Share.share({ message: t('order.shareMessage', { url: shareUrlFor(token) }) });
+      track('order_share_created', {});
+    } catch {
+      Alert.alert(t('order.shareTitle'), t('order.shareFailed'));
+    } finally {
+      setSharing(false);
+    }
+  }, [id, sharing, t]);
+
+  const stopSharing = useCallback(async () => {
+    if (!id || sharing) return;
+    setSharing(true);
+    try {
+      await db.orders.revokeShare(id);
+      setShareToken(null);
+      track('order_share_revoked', {});
+    } catch {
+      Alert.alert(t('order.shareTitle'), t('order.shareFailed'));
+    } finally {
+      setSharing(false);
+    }
+  }, [id, sharing, t]);
+
   const remainingMs = order.etaAt - now;
   const remainingMin = Math.max(0, Math.ceil(remainingMs / 60_000));
   // What the engine actually credits (mig 062): 10% of SUBTOTAL, floored, 100 cap.
@@ -504,6 +558,38 @@ export default function OrderTracking() {
             <View style={styles.handoffBadge}>
               <Text style={styles.handoffBadgeText}>{t('order.noCallNeeded')}</Text>
             </View>
+          </View>
+        )}
+
+        {/* Follow-my-order. Offered only while the delivery is actually live —
+            there is nothing to follow before it moves or after it lands, and
+            mig 170 refuses to mint a link for a terminal order anyway. */}
+        {!isCancelled && order.status !== 'delivered' && (
+          <View style={styles.shareCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shareTitle}>{t('order.shareTitle')}</Text>
+              <Text style={styles.shareSub}>{t('order.shareSubtitle')}</Text>
+            </View>
+            <Pressable
+              onPress={shareToken ? stopSharing : openShareSheet}
+              disabled={sharing}
+              accessibilityRole="button"
+              accessibilityLabel={shareToken ? t('order.shareStop') : t('order.shareCta')}
+              accessibilityState={{ busy: sharing, disabled: sharing }}
+              style={({ pressed }) => [
+                styles.shareBtn,
+                shareToken && styles.shareBtnOn,
+                (pressed || sharing) && { opacity: 0.7 },
+              ]}>
+              <Icon
+                name={shareToken ? 'close' : 'share'}
+                size={16}
+                color={shareToken ? colors.ink : colors.onAccent}
+              />
+              <Text style={[styles.shareBtnText, shareToken && { color: colors.ink }]}>
+                {shareToken ? t('order.shareStop') : t('order.shareCta')}
+              </Text>
+            </Pressable>
           </View>
         )}
 
@@ -877,6 +963,32 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.pill,
   },
   handoffBadgeText: { color: colors.sea, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
+  shareCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  shareTitle: { fontSize: font.sizes.base, fontWeight: '800', color: colors.ink },
+  shareSub: { marginTop: 2, fontSize: font.sizes.xs, color: colors.ink2 },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: colors.accent,
+  },
+  shareBtnOn: { backgroundColor: colors.sand, borderWidth: 1, borderColor: colors.line },
+  shareBtnText: { fontSize: font.sizes.sm, fontWeight: '700', color: colors.onAccent },
   riderCard: {
     marginTop: 18,
     padding: 14,

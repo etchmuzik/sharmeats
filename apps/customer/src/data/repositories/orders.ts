@@ -27,6 +27,9 @@ function mockPromoDiscount(code: string | undefined, subtotal: number): number {
   return Math.min(Math.round(subtotal * 0.1), 50);
 }
 
+/** Follow-my-order tokens, per order. Mock-only, lost on reload. */
+const MOCK_SHARES = new Map<string, string>();
+
 const delay = <T>(value: T, ms = 80): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
@@ -326,6 +329,26 @@ export const ordersRepo = {
   },
 
   /** Debug: jump an order to delivered immediately. */
+  // In-memory share tokens. The mock backend has no server to enforce ownership;
+  // the real rules (owner-only, live orders only, revocation) are asserted in
+  // supabase/tests/170_order_share_links.test.sql.
+  async createShare(orderId: string): Promise<string> {
+    const existing = MOCK_SHARES.get(orderId);
+    if (existing) return delay(existing);
+    const token = Array.from({ length: 32 }, (_, i) => ((orderId.charCodeAt(i % orderId.length) + i * 7) % 16).toString(16)).join('');
+    MOCK_SHARES.set(orderId, token);
+    return delay(token);
+  },
+
+  async revokeShare(orderId: string): Promise<void> {
+    MOCK_SHARES.delete(orderId);
+    return delay(undefined);
+  },
+
+  async getShareToken(orderId: string): Promise<string | null> {
+    return delay(MOCK_SHARES.get(orderId) ?? null);
+  },
+
   async forceDelivered(orderId: string): Promise<Order | null> {
     const o = orders.get(orderId);
     if (!o) return null;

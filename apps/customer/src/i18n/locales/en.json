@@ -497,5 +497,11 @@
   "push.openSettings": "Open device settings",
   "orders.reorderUnavailableNow": "That store isn't available right now.",
   "item.rxRequired": "Prescription required",
-  "item.rxNote": "You must show a valid prescription to the driver on delivery. Without it this item cannot be handed over."
+  "item.rxNote": "You must show a valid prescription to the driver on delivery. Without it this item cannot be handed over.",
+  "order.shareTitle": "Follow my order",
+  "order.shareCta": "Share live tracking",
+  "order.shareStop": "Stop sharing",
+  "order.shareSubtitle": "Anyone with the link sees the delivery, never your address",
+  "order.shareMessage": "Follow my Sharm Eats delivery: {{url}}",
+  "order.shareFailed": "Couldn't create the link. Try again."
 }

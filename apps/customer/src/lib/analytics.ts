@@ -75,6 +75,10 @@ export type AnalyticsEvent =
   | 'cross_sell_added'
   | 'push_permission'
   | 'search_performed'
+  // Follow-my-order. No token, no order id, no URL — the token IS the secret
+  // and an analytics pipeline is the last place it belongs.
+  | 'order_share_created'
+  | 'order_share_revoked'
   | 'referral_shared'
   | 'saved_order_created'
   // --- Package 01 §4 canonical funnel ------------------------------------
