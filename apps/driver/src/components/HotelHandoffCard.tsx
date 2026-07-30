@@ -2,6 +2,8 @@ import { Text, View } from 'react-native';
 import { font, radius, spacing } from '../theme';
 import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
+import { useI18n } from '../i18n-context';
+import type { TranslationKey } from '../i18n';
 
 /** The handoff styles a hotel address can carry (mirrors the DB handoff enum). */
 type Handoff = 'lobby' | 'reception' | 'poolside';
@@ -19,10 +21,10 @@ interface HotelHandoffCardProps {
 // Driver-facing instruction for each handoff style. This is the whole point of
 // the "no phone needed" promise: the driver must know exactly where to hand the
 // order over without calling the guest.
-const HANDOFF_COPY: Record<Handoff, { title: string; hint: string }> = {
-  reception: { title: 'Hand to reception', hint: 'Leave with the front desk under the guest name.' },
-  lobby: { title: 'Meet in the lobby', hint: 'The guest will meet you in the hotel lobby.' },
-  poolside: { title: 'Deliver poolside', hint: 'Take the order to the pool area and ask staff for the guest.' },
+const HANDOFF_COPY: Record<Handoff, { title: TranslationKey; hint: TranslationKey }> = {
+  reception: { title: 'hotel.receptionTitle', hint: 'hotel.receptionHint' },
+  lobby: { title: 'hotel.lobbyTitle', hint: 'hotel.lobbyHint' },
+  poolside: { title: 'hotel.poolsideTitle', hint: 'hotel.poolsideHint' },
 };
 
 function isHandoff(v: string | undefined): v is Handoff {
@@ -36,6 +38,7 @@ function isHandoff(v: string | undefined): v is Handoff {
  */
 export function HotelHandoffCard({ hotelName, roomNumber, handoff, landmark }: HotelHandoffCardProps) {
   const colors = useThemeColors();
+  const { direction, t } = useI18n();
   const copy = isHandoff(handoff) ? HANDOFF_COPY[handoff] : null;
 
   return (
@@ -63,10 +66,10 @@ export function HotelHandoffCard({ hotelName, roomNumber, handoff, landmark }: H
         <Icon name="hotel" size={18} color={colors.accentDark} />
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: font.sizes.base, fontWeight: '800', color: colors.ink }} numberOfLines={1}>
-            {hotelName ?? 'Hotel delivery'}
+            {hotelName ?? t('hotel.delivery')}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.accentDark }}>
-            No phone call needed
+            {t('hotel.noCall')}
           </Text>
         </View>
       </View>
@@ -84,7 +87,7 @@ export function HotelHandoffCard({ hotelName, roomNumber, handoff, landmark }: H
           }}
         >
           <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
-            Room
+            {t('hotel.room')}
           </Text>
           <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink, letterSpacing: 0.5 }}>
             {roomNumber ?? '—'}
@@ -94,14 +97,14 @@ export function HotelHandoffCard({ hotelName, roomNumber, handoff, landmark }: H
         <View style={{ flex: 1 }}>
           {copy ? (
             <>
-              <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>{copy.title}</Text>
+              <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink, textAlign: direction.textAlign }}>{t(copy.title)}</Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2, lineHeight: 18 }}>
-                {copy.hint}
+                {t(copy.hint)}
               </Text>
             </>
           ) : (
             <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>
-              Deliver to the room
+              {t('hotel.toRoom')}
             </Text>
           )}
         </View>
@@ -109,7 +112,7 @@ export function HotelHandoffCard({ hotelName, roomNumber, handoff, landmark }: H
 
       {landmark ? (
         <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}>
-          <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>Landmark: {landmark}</Text>
+          <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, textAlign: direction.textAlign }}>{t('job.landmark', { landmark })}</Text>
         </View>
       ) : null}
     </View>

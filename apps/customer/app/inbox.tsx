@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { EmptyState } from '../src/components/EmptyState';
-import { colors, font, radius } from '../src/theme';
+import { font, radius } from '../src/theme';
+import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT } from '../src/i18n';
 import { useDirection } from '../src/lib/direction';
 import { db } from '../src/data';
@@ -31,6 +31,8 @@ import type { InboxMessage } from '../src/data/types';
 export default function Inbox() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useStyles();
   const t = useT();
   const dir = useDirection();
 
@@ -94,7 +96,7 @@ export default function Inbox() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar style="dark" />
+      <ThemedStatusBar />
       <View style={[styles.header, { paddingTop: insets.top + 12 }, dir.row]}>
         <BackButton />
         <Text style={[styles.title, dir.text]}>{t('inbox.title')}</Text>
@@ -171,18 +173,18 @@ function relativeDay(iso: string): string {
   return `${Math.max(0, days)}d`;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   header: {
     paddingHorizontal: 16,
     paddingBottom: 12,
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   title: { fontSize: font.sizes['3xl'], fontWeight: font.weights.bold, color: colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   row: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: 14,
     marginBottom: 10,
@@ -197,4 +199,4 @@ const styles = StyleSheet.create({
   body: { marginTop: 6, fontSize: font.sizes.md, color: colors.ink2, lineHeight: 19 },
   more: { paddingVertical: 14, alignItems: 'center' },
   moreText: { color: colors.ink3, fontSize: font.sizes.lg },
-});
+}));

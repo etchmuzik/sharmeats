@@ -15,21 +15,21 @@ import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
 import { cardEnter, listReflow } from './motion';
 import { tapLight } from '../lib/haptics';
+import { useI18n } from '../i18n-context';
+import type { TranslationKey } from '../i18n';
 
-export function statusLabel(s: Job['status']): string {
-  return (
-    {
-      placed: 'Placed',
-      accepted: 'Accepted',
-      preparing: 'Preparing',
-      ready: 'Ready for pickup',
-      picked_up: 'Picked up',
-      out_for_delivery: 'Out for delivery',
-      delivered: 'Delivered',
-      cancelled: 'Cancelled',
-      rejected: 'Rejected',
-    } as const
-  )[s];
+function statusKey(s: Job['status']): TranslationKey {
+  return {
+    placed: 'job.status.placed',
+    accepted: 'job.status.accepted',
+    preparing: 'job.status.preparing',
+    ready: 'job.status.ready',
+    picked_up: 'job.status.pickedUp',
+    out_for_delivery: 'job.status.outForDelivery',
+    delivered: 'job.status.delivered',
+    cancelled: 'job.status.cancelled',
+    rejected: 'job.status.rejected',
+  }[s] as TranslationKey;
 }
 
 type Props = {
@@ -41,6 +41,8 @@ type Props = {
 
 export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
   const colors = useThemeColors();
+  const { direction, t } = useI18n();
+
   return (
     <Animated.View entering={cardEnter} layout={listReflow}>
       <Pressable
@@ -49,7 +51,10 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
           onOpen();
         }}
         accessibilityRole="button"
-        accessibilityLabel={`Continue delivery ${job.short_code} from ${job.restaurant_name}`}
+        accessibilityLabel={t('job.continueA11y', {
+          code: job.short_code,
+          restaurant: job.restaurant_name,
+        })}
         style={({ pressed }) => ({
           marginHorizontal: spacing.xl,
           marginBottom: spacing.lg,
@@ -58,6 +63,7 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
           borderCurve: 'continuous',
           padding: spacing.xl,
           gap: 4,
+          direction: direction.direction,
           opacity: pressed ? 0.9 : 1,
           boxShadow: '0 4px 16px rgba(10, 10, 12, 0.22)',
         })}
@@ -71,23 +77,36 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
             letterSpacing: 0.6,
           }}
         >
-          Active delivery
+          {t('job.active')}
         </Text>
         {/* onInk*, not white/hardcoded greys: this slab is filled with `ink`,
             which is near-white on the dark theme — a fixed light label would
             vanish on it. The two greys below were literal hexes for the same
             reason and are now tokens that invert with the slab. */}
-        <Text selectable style={{ color: colors.onInk, fontSize: font.sizes.xl, fontWeight: '700' }}>
-          {job.short_code} · {job.restaurant_name}
+        <Text
+          style={{
+            color: colors.onInk,
+            fontSize: font.sizes.xl,
+            fontWeight: '700',
+            textAlign: direction.textAlign,
+          }}
+          selectable
+        >
+          <Text style={{ writingDirection: 'ltr' }}>{job.short_code}</Text> ·{' '}
+          {job.restaurant_name}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={{ color: colors.onInkMuted, fontSize: font.sizes.sm }}>
-            {statusLabel(job.status)}
+            {t(statusKey(job.status))}
           </Text>
           <Text style={{ color: colors.onInkFaint, fontSize: font.sizes.sm }}>
-            · tap to continue
+            · {t('job.continue')}
           </Text>
-          <Icon name="chevronForward" size={13} color={colors.onInkFaint} />
+          <Icon
+            name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'}
+            size={13}
+            color={colors.onInkFaint}
+          />
         </View>
 
         {unreadMsgs > 0 && (
@@ -97,7 +116,10 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
               onOpenChat();
             }}
             accessibilityRole="button"
-            accessibilityLabel={`${unreadMsgs} unread message${unreadMsgs === 1 ? '' : 's'} — open chat`}
+            accessibilityLabel={t(
+              unreadMsgs === 1 ? 'job.unreadA11yOne' : 'job.unreadA11yMany',
+              { count: unreadMsgs },
+            )}
             style={({ pressed }) => ({
               marginTop: spacing.md,
               alignSelf: 'flex-start',
@@ -114,7 +136,9 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
           >
             <Icon name="chat" size={14} color={colors.onAccent} />
             <Text style={{ color: colors.onAccent, fontWeight: '700', fontSize: font.sizes.sm }}>
-              {unreadMsgs} new message{unreadMsgs === 1 ? '' : 's'}
+              {t(unreadMsgs === 1 ? 'job.unreadOne' : 'job.unreadMany', {
+                count: unreadMsgs,
+              })}
             </Text>
           </Pressable>
         )}

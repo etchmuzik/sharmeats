@@ -4,6 +4,7 @@
  */
 import { Text, View } from 'react-native';
 import { font, radius, spacing } from '../theme';
+import { useLocale } from '../locale';
 import { useThemeColors } from '../themeProvider';
 
 type Props = {
@@ -14,6 +15,7 @@ type Props = {
 
 export function QueueSectionHeader({ title, count, accent }: Props) {
   const colors = useThemeColors();
+  const { direction, isRtl } = useLocale();
   return (
     <View
       style={{
@@ -26,6 +28,7 @@ export function QueueSectionHeader({ title, count, accent }: Props) {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.sm,
+        direction,
       }}
     >
       {/* TalkBack's "navigate by heading" gesture is the only fast way through
@@ -36,8 +39,8 @@ export function QueueSectionHeader({ title, count, accent }: Props) {
         style={{
           fontSize: font.sizes.sm,
           fontWeight: '800',
-          letterSpacing: 1,
-          textTransform: 'uppercase',
+          letterSpacing: isRtl ? 0 : 1,
+          textTransform: isRtl ? 'none' : 'uppercase',
           color: accent ? colors.accent : colors.ink2,
         }}
       >

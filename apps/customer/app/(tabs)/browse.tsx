@@ -18,7 +18,7 @@ import { CuisineChip } from '../../src/components/CuisineChip';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
 import { Icon } from '../../src/components/Icon';
 import { db } from '../../src/data';
-import type { Cuisine, MenuSearchHit, Restaurant } from '../../src/data/types';
+import type { Cuisine, ItemFlag, MenuItem, Restaurant } from '../../src/data/types';
 import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { formatEgp } from '../../src/lib/format';
@@ -58,9 +58,15 @@ const CUISINES: { key: Cuisine | 'all'; tKey: string; emoji: string }[] = [
   { key: 'pizza', tKey: 'cuisine.pizza', emoji: '🍕' },
 ];
 
-// Search results come back as MenuSearchHit — six fields, one round trip. The
-// old shape held a whole MenuItem plus its Restaurant, which is what forced the
-// per-restaurant fetch loop in the first place.
+/**
+ * A dish result plus the merchant it belongs to. `search_catalog` (Package 07,
+ * migration 188) returns ids and ranking; the rows are hydrated here against the
+ * restaurant list already in memory, so no extra round trip per result.
+ */
+interface MenuMatch {
+  item: MenuItem;
+  restaurant: Restaurant;
+}
 
 // Halal is the default in Egypt — no filter needed. Keep vegetarian + GF only.
 const FLAG_FILTERS: { key: 'vegetarian' | 'glutenfree'; tKey: string; emoji: string }[] = [
@@ -88,15 +94,23 @@ export default function BrowseTab() {
   const [cuisine, setCuisine] = useState<Cuisine | 'all'>('all');
   const [query, setQuery] = useState('');
   const [all, setAll] = useState<Restaurant[]>([]);
-  const [menuMatches, setMenuMatches] = useState<MenuSearchHit[]>([]);
+  const [menuMatches, setMenuMatches] = useState<MenuMatch[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFlags, setActiveFlags] = useState<Set<'vegetarian' | 'glutenfree'>>(new Set());
   const [sort, setSort] = useState<SortKey>('recommended');
   const [openNow, setOpenNow] = useState(false);
-  // Restaurant ids that satisfy EVERY active dietary filter, resolved server-side
-  // in one query. This replaced a per-restaurant loop that fetched whole menus
-  // (with modifier trees it never read) just to union their flags.
-  const [flagMatchIds, setFlagMatchIds] = useState<Set<string>>(new Set());
+  // Restaurant ids satisfying EVERY active dietary filter, resolved server-side.
+  // Keyed by the filter set that produced them, so a stale response for a filter
+  // the user has already changed cannot be mistaken for the current answer.
+  const [flagResult, setFlagResult] = useState<{
+    key: string;
+    restaurantIds: Set<string>;
+  } | null>(null);
+  const [dietaryFilterFailed, setDietaryFilterFailed] = useState(false);
+  const [menuSearchFailed, setMenuSearchFailed] = useState(false);
+  // Bumped by pull-to-refresh and by the retry buttons, so a failed catalog call
+  // can be re-run without remounting the screen.
+  const [catalogRefreshGeneration, setCatalogRefreshGeneration] = useState(0);
 
   const recentSearches = useSession((s) => s.recentSearches);
   const rememberSearch = useSession((s) => s.rememberSearch);
@@ -106,30 +120,36 @@ export default function BrowseTab() {
   // Sorted+joined so the effect re-runs when the flag SET CHANGES, not merely
   // when its size does: swapping vegetarian for gluten-free keeps size at 1, and
   // keying on `.size` left the previous filter's ids in place.
-  const activeFlagKey = [...activeFlags].sort().join(',');
+  const activeFlagKey = [...activeFlags].sort().join('|');
 
   useEffect(() => {
-    const flags = activeFlagKey ? activeFlagKey.split(',') : [];
-    if (flags.length === 0) {
-      setFlagMatchIds(new Set());
+    if (activeFlagKey === '') {
+      setFlagResult(null);
+      setDietaryFilterFailed(false);
       return;
     }
+
     let cancelled = false;
-    db.menus
-      .restaurantsWithFlags(flags)
-      .then((ids) => {
-        if (!cancelled) setFlagMatchIds(ids);
-      })
-      // A failed index must not strand the list: fall back to matching nothing,
-      // which is visibly "no results for this filter" rather than silently
-      // showing restaurants that may not qualify.
-      .catch(() => {
-        if (!cancelled) setFlagMatchIds(new Set());
-      });
+    setFlagResult(null);
+    setDietaryFilterFailed(false);
+    (async () => {
+      try {
+        const selectedFlags = activeFlagKey.split('|') as ItemFlag[];
+        const ids = await db.menus.restaurantIdsForFlags(selectedFlags);
+        if (!cancelled) setFlagResult({ key: activeFlagKey, restaurantIds: ids });
+      } catch {
+        // A failed index must not strand the list: match nothing and say so,
+        // rather than silently showing restaurants that may not qualify.
+        if (!cancelled) {
+          setFlagResult({ key: activeFlagKey, restaurantIds: new Set() });
+          setDietaryFilterFailed(true);
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [activeFlagKey]);
+  }, [activeFlagKey, catalogRefreshGeneration]);
 
   // Distinguishes "the catalogue is empty" from "the catalogue has not arrived
   // yet". Without it the list is empty on the very first render, so an empty
@@ -154,8 +174,12 @@ export default function BrowseTab() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    setCatalogRefreshGeneration((generation) => generation + 1);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
   // One debounced value drives BOTH the query and the analytics event.
@@ -165,29 +189,42 @@ export default function BrowseTab() {
   // per-restaurant fetch loop that cost four round trips each, a single typed
   // word issued hundreds of requests, most of them for prefixes the user had
   // already moved past.
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebounce(query, 600);
 
-  // Cross-restaurant dish search — one round trip via db.menus.search.
+  // Cross-restaurant dish search goes through Package 07's visibility-scoped,
+  // bounded RPC, then hydrates only the returned rows against the restaurant
+  // list already loaded — so a result set costs one round trip, not one per
+  // merchant.
   useEffect(() => {
     const q = debouncedQuery.trim();
-    if (q.length < 2) {
+    if (q.length < 2 || all.length === 0) {
       setMenuMatches([]);
+      setMenuSearchFailed(false);
       return;
     }
     let cancelled = false;
-    db.menus
-      .search(q, 12)
-      .then((hits) => {
+    setMenuSearchFailed(false);
+    (async () => {
+      try {
+        const restaurantsById = new Map(all.map((restaurant) => [restaurant.id, restaurant]));
+        const items = await db.menus.search(q, 12);
+        const matches = items.flatMap((item): MenuMatch[] => {
+          const restaurant = restaurantsById.get(item.restaurantId);
+          return restaurant ? [{ item, restaurant }] : [];
+        });
         // A slower earlier request must not overwrite a newer result.
-        if (!cancelled) setMenuMatches(hits);
-      })
-      .catch(() => {
-        if (!cancelled) setMenuMatches([]);
-      });
+        if (!cancelled) setMenuMatches(matches);
+      } catch {
+        if (!cancelled) {
+          setMenuMatches([]);
+          setMenuSearchFailed(true);
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery]);
+  }, [all, debouncedQuery, catalogRefreshGeneration]);
 
   // Analytics: one event per settled search rather than one per keystroke. We log
   // only the query length — never the raw text — to avoid capturing PII.
@@ -202,10 +239,15 @@ export default function BrowseTab() {
     const result = all.filter((r) => {
       if (openNow && !effectiveIsOpen(r)) return false;
       if (cuisine !== 'all' && !r.cuisines.includes(cuisine as Cuisine)) return false;
-      // flagMatchIds is empty until the index resolves, which correctly shows
-      // "no results" for a moment rather than briefly showing restaurants that
-      // may not qualify.
-      if (activeFlags.size > 0 && !flagMatchIds.has(r.id)) return false;
+      // flagResult is null until the index resolves, and is keyed by the filter
+      // set that produced it — so a result for a filter the user has already
+      // changed never leaks through. Both cases correctly show "no results" for
+      // a moment rather than briefly showing restaurants that may not qualify.
+      if (activeFlags.size > 0) {
+        if (flagResult?.key !== activeFlagKey || !flagResult.restaurantIds.has(r.id)) {
+          return false;
+        }
+      }
       if (!q) return true;
       return r.name.toLowerCase().includes(q) || r.cuisineLabel.toLowerCase().includes(q);
     });
@@ -215,9 +257,15 @@ export default function BrowseTab() {
     else if (sort === 'fee') result.sort((a, b) => a.deliveryFeeEgp - b.deliveryFeeEgp);
     else if (sort === 'fastest') result.sort((a, b) => a.prepTimeLow - b.prepTimeLow);
     return result;
-  }, [all, cuisine, query, activeFlags, flagMatchIds, openNow, sort]);
+  }, [all, cuisine, query, activeFlags, activeFlagKey, flagResult, openNow, sort]);
 
   const trimmedQuery = query.trim();
+
+  // While the debounce is still catching up, the results on screen belong to a
+  // query the user has already changed. Showing them would caption the new query
+  // with the old query's dishes.
+  const displayedMenuMatches = trimmedQuery === debouncedQuery.trim() ? menuMatches : [];
+  const visibleMenuSearchFailed = trimmedQuery === debouncedQuery.trim() && menuSearchFailed;
 
   // How many filters are narrowing the list. This drives the empty state:
   // "nothing matches what you typed" and "your filters excluded everything" are
@@ -406,32 +454,47 @@ export default function BrowseTab() {
               </View>
             )}
 
-            {menuMatches.length > 0 && (
+            {/* A failed dish search is stated rather than rendered as "no
+                dishes match" — the difference matters, and only one of them has
+                a retry. */}
+            {visibleMenuSearchFailed && (
+              <View accessibilityRole="alert" style={styles.catalogError}>
+                <Text style={styles.catalogErrorText}>{t('common.error')}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setCatalogRefreshGeneration((generation) => generation + 1)}
+                  style={styles.retryButton}>
+                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {displayedMenuMatches.length > 0 && (
               <View style={styles.menuMatchWrap}>
                 <Text style={styles.sectionTitle}>
-                  {t('browse.dishesCount', { count: menuMatches.length })}
+                  {t('browse.dishesCount', { count: displayedMenuMatches.length })}
                 </Text>
-                {menuMatches.map((m) => (
+                {displayedMenuMatches.map((m) => (
                   <Pressable
-                    key={m.itemId}
+                    key={m.item.id}
                     onPress={() => {
                       tap();
                       // Following a dish through is a completed search, even
                       // though the user never pressed the keyboard's search key.
                       commitSearch(query);
-                      router.push(`/item/${m.itemId}` as never);
+                      router.push(`/item/${m.item.id}` as never);
                     }}
                     style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.85 }]}>
-                    <Image source={{ uri: m.itemImage }} style={styles.menuImg} />
+                    <Image source={{ uri: m.item.image }} style={styles.menuImg} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.menuName} numberOfLines={1}>
-                        {m.itemName}
+                        {m.item.name}
                       </Text>
                       <Text style={styles.menuSub} numberOfLines={1}>
-                        {m.restaurantName}
+                        {m.restaurant.name}
                       </Text>
                     </View>
-                    <Text style={styles.menuPrice}>{formatEgp(m.priceEgp)}</Text>
+                    <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp)}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -463,7 +526,20 @@ export default function BrowseTab() {
           // nothing when no search has run.
           !loaded ? null : (
             <View style={styles.emptyWrap}>
-              {menuMatches.length > 0 ? (
+              {dietaryFilterFailed ? (
+                // The filter did not exclude everything — it failed. Saying
+                // "nothing matches these filters" would send the user to clear
+                // filters that were never applied.
+                <>
+                  <Text style={styles.emptyTitle}>{t('common.error')}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setCatalogRefreshGeneration((generation) => generation + 1)}
+                    style={styles.retryButton}>
+                    <Text style={styles.retryText}>{t('common.retry')}</Text>
+                  </Pressable>
+                </>
+              ) : displayedMenuMatches.length > 0 ? (
                 // Dishes DID match, so this is not a dead end and does not
                 // deserve the full treatment — just an explanation of why the
                 // places list under the dishes is empty.
@@ -571,6 +647,36 @@ const useStyles = makeStyles((colors) => ({
     textAlign: 'center',
   },
   emptyBody: { fontSize: font.sizes.md, color: colors.ink2, textAlign: 'center', lineHeight: 20 },
+  // From main's catalog-error work, converted into the makeStyles factory:
+  // left at module scope it would have closed over a frozen light palette.
+  catalogError: {
+    alignItems: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+  },
+  catalogErrorText: {
+    color: colors.ink2,
+    fontSize: font.sizes.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    minHeight: 44,
+    marginTop: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accent,
+  },
+  // onAccent, not white: the label sits on a filled accent control, which is the
+  // token split dark mode introduced for exactly this case.
+  retryText: {
+    color: colors.onAccent,
+    fontSize: font.sizes.md,
+    fontWeight: font.weights.bold,
+  },
   emptyBtn: {
     marginTop: 4,
     backgroundColor: colors.ink,

@@ -99,7 +99,7 @@ create table public.orders (
 );
 grant select on public.orders to authenticated;
 
-\ir ../migrations/193_proof_of_delivery.sql
+\ir ../migrations/194_proof_of_delivery.sql
 
 -- ---------------------------------------------------------------------------
 -- Fixtures. driver 1 is assigned to both orders; driver 2 is assigned nothing.
@@ -477,4 +477,4 @@ $$;
 
 rollback;
 
-\echo '193_proof_of_delivery.test.sql: PASS'
+\echo '194_proof_of_delivery.test.sql: PASS'

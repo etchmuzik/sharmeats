@@ -1,5 +1,45 @@
 import { describe, it, expect } from 'vitest';
-import { rowToOrder, rowToRewardsHistoryEntry, rowToRewardsStatus, rowToRider } from './mappers';
+import {
+  rowToOrder,
+  rowToRestaurant,
+  rowToRewardsHistoryEntry,
+  rowToRewardsStatus,
+  rowToRider,
+} from './mappers';
+
+describe('rowToRestaurant', () => {
+  it('keeps food cuisines while dropping legacy vertical labels', () => {
+    const restaurant = rowToRestaurant({
+      id: 'restaurant-1',
+      slug: 'restaurant-1',
+      name: 'Restaurant 1',
+      cuisines: ['egyptian', 'grocery', 'pizza', 'pharmacy', 'unknown'],
+      cuisine_label: 'Egyptian · Pizza',
+      cover_image: '',
+      logo: null,
+      zone: 'naama',
+      rating: 4.5,
+      rating_count: 10,
+      prep_time_low: 10,
+      prep_time_high: 20,
+      delivery_fee_egp: 20,
+      min_order_egp: 50,
+      distance_meters: 1000,
+      tourist_safe: true,
+      is_open: true,
+      is_open_24h: null,
+      promo: null,
+      featured: null,
+      description: '',
+      phone: null,
+      address: null,
+      website: null,
+      merchant_type: 'third_party',
+    });
+
+    expect(restaurant.cuisines).toEqual(['egyptian', 'pizza']);
+  });
+});
 
 // These tests pin down the exact crash/render bugs fixed this session so they
 // can't regress. rowToOrder exercises the module-private tsToMs +

@@ -1,80 +1,61 @@
 import { MENUS } from '../mock/menus';
-import { RESTAURANTS } from '../mock/restaurants';
-import { restaurantsWithAllFlags, type FlaggedItemRow } from '../menuFlags';
-import type { MenuItem, MenuSearchHit, MenuSection } from '../types';
+import { PUBLIC_RESTAURANTS } from '../mock/restaurants';
+import type { ItemFlag, MenuItem, MenuSection } from '../types';
+import { itemMatchesEveryFlag } from '../../lib/catalogSearch';
 
 const delay = <T>(value: T, ms = 60): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
-
-/** Mirrors the RPC's ordering so switching adapters does not reshuffle results. */
-function rankOf(item: MenuItem, needle: string): number {
-  return item.name.toLowerCase().includes(needle) ? 0 : 1;
-}
+const publicRestaurantIds = new Set(PUBLIC_RESTAURANTS.map((restaurant) => restaurant.id));
 
 export const menusRepo = {
+  async restaurantIdsForFlags(flags: ItemFlag[]): Promise<Set<string>> {
+    if (flags.length === 0) return delay(new Set());
+
+    const restaurantIds = new Set(
+      Object.values(MENUS)
+        .flatMap((menu) => menu.items)
+        .filter(
+          (item) =>
+            publicRestaurantIds.has(item.restaurantId) &&
+            itemMatchesEveryFlag(item, flags),
+        )
+        .map((item) => item.restaurantId),
+    );
+    return delay(restaurantIds);
+  },
+
+  async search(query: string, limit = 12): Promise<MenuItem[]> {
+    const normalized = query.trim().toLowerCase();
+    if (normalized.length < 2 || limit <= 0) return delay([]);
+
+    const matches = Object.values(MENUS)
+      .flatMap((menu) => menu.items)
+      .filter(
+        (item) =>
+          publicRestaurantIds.has(item.restaurantId) &&
+          item.isAvailable &&
+          item.name.toLowerCase().includes(normalized),
+      )
+      .slice(0, limit);
+    return delay(matches);
+  },
+
   async forRestaurant(restaurantId: string): Promise<{ sections: MenuSection[]; items: MenuItem[] }> {
+    if (!publicRestaurantIds.has(restaurantId)) {
+      return delay({ sections: [], items: [] });
+    }
+
     const m = MENUS[restaurantId];
     if (!m) return delay({ sections: [], items: [] });
     return delay(m);
   },
 
   async getItem(itemId: string): Promise<MenuItem | null> {
-    for (const m of Object.values(MENUS)) {
+    for (const [restaurantId, m] of Object.entries(MENUS)) {
+      if (!publicRestaurantIds.has(restaurantId)) continue;
       const found = m.items.find((i) => i.id === itemId);
       if (found) return delay(found);
     }
     return delay(null);
-  },
-
-  /**
-   * Same contract as the Supabase adapter's `search`: name matches before
-   * description-only matches, then alphabetical, capped at `limit`.
-   *
-   * Iterating the whole fixture is fine here — it is an in-memory object with no
-   * round trips, which is precisely why the N+1 was invisible in mock mode and
-   * only expensive against the real backend.
-   */
-  async search(query: string, limit = 12): Promise<MenuSearchHit[]> {
-    const needle = query.trim().toLowerCase();
-    if (needle.length < 2) return delay([]);
-
-    const nameById = new Map(RESTAURANTS.map((r) => [r.id, r.name]));
-    const hits: { hit: MenuSearchHit; rank: number }[] = [];
-
-    for (const [restaurantId, menu] of Object.entries(MENUS)) {
-      for (const item of menu.items) {
-        if (item.isAvailable === false) continue;
-        const matches =
-          item.name.toLowerCase().includes(needle) ||
-          item.description.toLowerCase().includes(needle);
-        if (!matches) continue;
-        hits.push({
-          rank: rankOf(item, needle),
-          hit: {
-            itemId: item.id,
-            itemName: item.name,
-            itemImage: item.image,
-            priceEgp: item.priceEgp,
-            restaurantId,
-            restaurantName: nameById.get(restaurantId) ?? '',
-          },
-        });
-      }
-    }
-
-    hits.sort((a, b) => a.rank - b.rank || a.hit.itemName.localeCompare(b.hit.itemName));
-    return delay(hits.slice(0, Math.max(1, Math.min(limit, 50))).map((h) => h.hit));
-  },
-
-  async restaurantsWithFlags(flags: readonly string[]): Promise<Set<string>> {
-    if (flags.length === 0) return delay(new Set<string>());
-    const rows: FlaggedItemRow[] = [];
-    for (const [restaurantId, menu] of Object.entries(MENUS)) {
-      for (const item of menu.items) {
-        if (item.isAvailable === false) continue;
-        rows.push({ restaurantId, flags: item.flags });
-      }
-    }
-    return delay(restaurantsWithAllFlags(rows, flags));
   },
 };

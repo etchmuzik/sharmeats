@@ -18,8 +18,9 @@
  * between two versions of the same order, whereas across restaurants keeping the
  * saved cart replaces the whole basket.
  */
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius, shadow } from '../theme';
+import { Modal, Pressable, Text, View } from 'react-native';
+import { font, radius, shadow } from '../theme';
+import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 
@@ -52,6 +53,7 @@ export function CartConflictSheet({
 }: CartConflictSheetProps) {
   const t = useT();
   const dir = useDirection();
+  const styles = useStyles();
 
   return (
     <Modal
@@ -100,7 +102,7 @@ export function CartConflictSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -108,7 +110,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: 24,
     alignItems: 'center',
@@ -148,8 +150,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  primaryText: { color: '#fff', fontWeight: font.weights.bold, fontSize: font.sizes.xl },
+  primaryText: { color: colors.onAccent, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
   secondary: { marginTop: 6, paddingVertical: 12, alignItems: 'center', alignSelf: 'stretch' },
   secondaryText: { color: colors.ink3, fontSize: font.sizes.lg },
   disabled: { opacity: 0.5 },
-});
+}));

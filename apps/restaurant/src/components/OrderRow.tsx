@@ -30,7 +30,7 @@
  * Everything below the header (allergens, items, per-item notes, address,
  * contact) is unchanged in behaviour from the original inline implementation.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import type { OrderStatus, RestaurantOrder } from '../orders';
@@ -41,6 +41,8 @@ import { AllergenBanner } from './AllergenBanner';
 import { ContactButtons } from './ContactButtons';
 import { cardEnter, cardExit, listReflow, usePulse } from './motion';
 import { notifyWarning, tapHeavy, tapLight } from '../lib/haptics';
+import { useLocale } from '../locale';
+import type { TranslationKey, TranslationParams } from '../i18n';
 
 /** Seconds an unaccepted ticket may wait before it reads as a warning. */
 const WARN_AFTER_S = 60;
@@ -91,18 +93,22 @@ function formatWait(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function addressLine(order: RestaurantOrder): string {
+type Translate = (key: TranslationKey, params?: TranslationParams) => string;
+
+function addressLine(order: RestaurantOrder, t: Translate): string {
   const addr = order.address_snapshot;
   if (addr?.kind === 'hotel') {
-    return `${addr.hotelName ?? 'Hotel'} · Room ${addr.roomNumber ?? 'not provided'}`;
+    return `${addr.hotelName ?? t('order.hotel')} · ${t('order.room')} ${
+      addr.roomNumber ?? t('order.roomNotProvided')
+    }`;
   }
   if (addr?.kind === 'street') {
-    return `${addr.streetText ?? ''} ${addr.building ?? ''}`.trim() || 'Address';
+    return `${addr.streetText ?? ''} ${addr.building ?? ''}`.trim() || t('order.address');
   }
   if (addr?.kind === 'beach_pin') {
-    return `Beach · ${addr.beachName ?? ''}`;
+    return `${t('order.beach')} · ${addr.beachName ?? ''}`;
   }
-  return addr?.label ?? 'Address';
+  return addr?.label ?? t('order.address');
 }
 
 type Props = {
@@ -139,8 +145,14 @@ export function OrderRow({
   warnedIds,
 }: Props) {
   const colors = useThemeColors();
+  const { direction, isRtl, t } = useLocale();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
+  const paymentStatus = t(`payment.status.${order.payment_status}`);
+  const paymentA11y =
+    order.payment_method === 'cash_on_delivery'
+      ? t('payment.cash')
+      : t('payment.card', { status: paymentStatus });
 
   // Only unaccepted tickets escalate.
   const unacked = order.status === 'placed';
@@ -185,6 +197,7 @@ export function OrderRow({
           backgroundColor: colors.surface,
           padding: spacing.lg,
           gap: spacing.sm,
+          direction,
           boxShadow:
             waiting === 'critical'
               ? '0 4px 16px rgba(200, 65, 42, 0.18)'
@@ -207,11 +220,11 @@ export function OrderRow({
         // changes how the handover is run. Fold them into the label.
         accessibilityLabel={
           onOpenDetail
-            ? `Open order ${order.short_code}, ${order.total_egp} EGP, ${
-                order.payment_method === 'cash_on_delivery'
-                  ? 'cash on delivery'
-                  : `card ${order.payment_status}`
-              }`
+            ? t('order.openA11y', {
+                code: order.short_code,
+                amount: order.total_egp,
+                payment: paymentA11y,
+              })
             : undefined
         }
         style={{
@@ -226,7 +239,7 @@ export function OrderRow({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
           {brandTag ? (
             <View
-              accessibilityLabel={`Brand ${brandTag}`}
+              accessibilityLabel={t('order.brandA11y', { brand: brandTag })}
               style={{
                 backgroundColor: colors.accentSoft,
                 borderRadius: radius.sm,
@@ -241,13 +254,32 @@ export function OrderRow({
             </View>
           ) : null}
           <View style={{ flexShrink: 1 }}>
-            <Text selectable style={{ fontWeight: '800', fontSize: font.sizes.lg, color: colors.ink }}>
+            <Text
+              selectable
+              style={{
+                fontWeight: '800',
+                fontSize: font.sizes.lg,
+                color: colors.ink,
+                writingDirection: 'ltr',
+              }}
+            >
               {order.short_code}
             </Text>
-            <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
+            <Text
+              style={{
+                fontSize: font.sizes.xs,
+                color: colors.ink3,
+                writingDirection: isRtl ? 'rtl' : 'ltr',
+              }}
+            >
               {new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               {order.scheduled_for
-                ? ` · scheduled ${new Date(order.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                ? ` · ${t('order.scheduled', {
+                    time: new Date(order.scheduled_for).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }),
+                  })}`
                 : ''}
             </Text>
           </View>
@@ -261,6 +293,7 @@ export function OrderRow({
               fontSize: font.sizes.lg,
               color: colors.ink,
               fontVariant: ['tabular-nums'],
+              writingDirection: 'ltr',
             }}
           >
             {order.total_egp} EGP
@@ -278,8 +311,8 @@ export function OrderRow({
             }}
           >
             {order.payment_method === 'cash_on_delivery'
-              ? 'Cash on delivery'
-              : `Card · ${order.payment_status}`}
+              ? t('payment.cashLabel')
+              : t('payment.cardLabel', { status: paymentStatus })}
           </Text>
         </View>
       </Pressable>
@@ -288,7 +321,7 @@ export function OrderRow({
       {unacked && waiting !== 'calm' && (
         <View
           accessibilityRole="text"
-          accessibilityLabel={`This order has been waiting ${formatWait(waitSeconds)} and needs accepting`}
+          accessibilityLabel={t('order.waitingA11y', { time: formatWait(waitSeconds) })}
           style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -309,7 +342,7 @@ export function OrderRow({
               fontVariant: ['tabular-nums'],
             }}
           >
-            Waiting {formatWait(waitSeconds)}
+            {t('order.waiting', { time: formatWait(waitSeconds) })}
           </Text>
         </View>
       )}
@@ -334,7 +367,7 @@ export function OrderRow({
             {/* [H-REST1] Per-item note (e.g. "no onions") — the kitchen must see
                 this. Previously only merchant-web rendered it. */}
             {it.notes ? (
-              <Text selectable style={{ fontSize: font.sizes.sm, color: colors.amberText, marginLeft: spacing.md }}>
+              <Text selectable style={{ fontSize: font.sizes.sm, color: colors.amberText, marginStart: spacing.md }}>
                 “{it.notes}”
               </Text>
             ) : null}
@@ -353,7 +386,7 @@ export function OrderRow({
           }}
         >
           <Text selectable style={{ fontSize: font.sizes.xs, color: colors.amberText }}>
-            Kitchen note: {order.kitchen_notes}
+            {t('order.kitchenNoteInline', { note: order.kitchen_notes })}
           </Text>
         </View>
       ) : null}
@@ -370,11 +403,13 @@ export function OrderRow({
       >
         <Icon name="location" size={13} color={colors.ink3} />
         <Text selectable style={{ flex: 1, flexShrink: 1, fontSize: font.sizes.xs, color: colors.ink2 }}>
-          {addressLine(order)}
+          {addressLine(order, t)}
         </Text>
         <View style={{ borderRadius: radius.sm, backgroundColor: colors.sand, paddingHorizontal: 6, paddingVertical: 2 }}>
-          <Text style={{ fontSize: font.sizes.xs, textTransform: 'uppercase', color: colors.ink2 }}>
-            {order.fulfillment_type === 'self_delivery' ? 'self-delivery' : 'platform fleet'}
+          <Text style={{ fontSize: font.sizes.xs, textTransform: isRtl ? 'none' : 'uppercase', color: colors.ink2 }}>
+            {order.fulfillment_type === 'self_delivery'
+              ? t('fulfillment.self')
+              : t('fulfillment.platform')}
           </Text>
         </View>
       </View>
@@ -396,15 +431,15 @@ export function OrderRow({
           }}
         >
           <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.redText }}>
-            Reason for rejecting (optional)
+            {t('order.rejectReason')}
           </Text>
           <TextInput
             autoFocus
             value={reason}
             onChangeText={setReason}
-            placeholder="e.g. out of stock, kitchen closing"
+            placeholder={t('order.rejectPlaceholder')}
             placeholderTextColor={colors.ink3}
-            accessibilityLabel="Reason for rejecting"
+            accessibilityLabel={t('order.rejectReasonA11y')}
             style={{
               borderWidth: 1,
               borderColor: colors.line,
@@ -413,6 +448,8 @@ export function OrderRow({
               paddingVertical: spacing.sm,
               backgroundColor: colors.surface,
               color: colors.ink,
+              textAlign: isRtl ? 'right' : 'left',
+              writingDirection: direction,
             }}
           />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -423,7 +460,7 @@ export function OrderRow({
                 setReason('');
               }}
               accessibilityRole="button"
-              accessibilityLabel="Cancel rejection"
+              accessibilityLabel={t('order.cancelRejectionA11y')}
               style={{
                 flex: 1,
                 minHeight: 48,
@@ -435,7 +472,9 @@ export function OrderRow({
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2 }}>Cancel</Text>
+              <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2 }}>
+                {t('order.cancel')}
+              </Text>
             </Pressable>
             <Pressable
               onPress={() => {
@@ -443,7 +482,7 @@ export function OrderRow({
                 onReject(reason.trim() || undefined);
               }}
               accessibilityRole="button"
-              accessibilityLabel="Confirm rejection"
+              accessibilityLabel={t('order.confirmRejectionA11y')}
               style={{
                 flex: 1,
                 minHeight: 48,
@@ -456,7 +495,7 @@ export function OrderRow({
             >
               {/* onInk: the fill is `red`, which inverts to a light coral. */}
               <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.onInk }}>
-                Confirm reject
+                {t('order.confirmReject')}
               </Text>
             </Pressable>
           </View>
@@ -471,7 +510,7 @@ export function OrderRow({
               }}
               disabled={busy}
               accessibilityRole="button"
-              accessibilityLabel={`Reject order ${order.short_code}`}
+              accessibilityLabel={t('order.rejectA11y', { code: order.short_code })}
               accessibilityState={{ disabled: busy, busy }}
               style={{
                 flex: 1,
@@ -485,7 +524,9 @@ export function OrderRow({
                 opacity: busy ? 0.5 : 1,
               }}
             >
-              <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.redText }}>Reject</Text>
+              <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.redText }}>
+                {t('order.reject')}
+              </Text>
             </Pressable>
           )}
           {onAccept && (
@@ -499,7 +540,7 @@ export function OrderRow({
               }}
               disabled={busy}
               accessibilityRole="button"
-              accessibilityLabel={`Accept order ${order.short_code}`}
+              accessibilityLabel={t('order.acceptA11y', { code: order.short_code })}
               accessibilityState={{ disabled: busy, busy }}
               style={{
                 flex: 2,
@@ -516,7 +557,7 @@ export function OrderRow({
                 <ActivityIndicator color={colors.onInk} />
               ) : (
                 <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.onInk }}>
-                  {waiting === 'critical' ? 'Accept now' : 'Accept'}
+                  {waiting === 'critical' ? t('order.acceptNow') : t('order.accept')}
                 </Text>
               )}
             </Pressable>
@@ -529,7 +570,10 @@ export function OrderRow({
               }}
               disabled={busy}
               accessibilityRole="button"
-              accessibilityLabel={`${primary.label} for order ${order.short_code}`}
+              accessibilityLabel={t('order.actionA11y', {
+                action: primary.label,
+                code: order.short_code,
+              })}
               accessibilityState={{ disabled: busy, busy }}
               style={{
                 flex: 1,

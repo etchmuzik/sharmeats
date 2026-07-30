@@ -9,6 +9,7 @@ import { ThemeProvider, ThemedStatusBar, useThemeColors } from '../src/themeProv
 import { initCrashReporting } from '../src/lib/crash';
 import { getSupabase, isSupabaseConfigured } from '../src/supabase';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
+import { LanguageProvider, useI18n } from '../src/i18n-context';
 import '../src/backgroundLocationTask';
 
 export { ScreenErrorBoundary as ErrorBoundary };
@@ -37,12 +38,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <ThemedStatusBar />
-              <ThemedStack />
-            </ToastProvider>
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <ThemedStatusBar />
+                <DriverStack />
+              </ToastProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -50,10 +53,10 @@ export default function RootLayout() {
 }
 
 /**
- * The navigator, split out so it can read the active palette — the native
- * header is chrome the OS draws for us, so its colors have to be passed in
- * rather than styled by a child. Left in light, it would sit as a bright slab
- * above every dark screen.
+ * The navigator, split out so it can read the active palette and locale — the
+ * native header is chrome the OS draws for us, so its colors and titles have to
+ * be passed in rather than styled by a child. Left in light, it would sit as a
+ * bright slab above every dark screen.
  *
  * Native headers (large titles + native back) rather than hand-rolled ones:
  * they give correct safe-area handling for free via
@@ -63,8 +66,10 @@ export default function RootLayout() {
  * `index` and `signin` stay chrome-less — they are full-bleed gates, not
  * destinations you navigate back from.
  */
-function ThemedStack() {
+function DriverStack() {
   const colors = useThemeColors();
+  const { locale, t } = useI18n();
+
   return (
     <Stack
       screenOptions={{
@@ -74,6 +79,10 @@ function ThemedStack() {
         // fill-tuned teal fails AA as small text on the dark canvas.
         headerTintColor: colors.accentText,
         headerTitleStyle: { color: colors.ink },
+        // Native-stack does not expose a safe right-aligned title on iOS.
+        // Centering Arabic keeps the title visually balanced on Android and
+        // preserves native title/back gestures without forceRTL or a restart.
+        headerTitleAlign: locale === 'ar' ? 'center' : undefined,
         headerShadowVisible: false,
         headerBackButtonDisplayMode: 'minimal',
       }}
@@ -82,13 +91,20 @@ function ThemedStack() {
       <Stack.Screen name="signin" options={{ headerShown: false }} />
       <Stack.Screen
         name="home"
-        options={{ title: 'Deliveries', headerLargeTitle: true, headerBackVisible: false }}
+        options={{
+          title: t('nav.deliveries'),
+          headerLargeTitle: true,
+          headerBackVisible: false,
+        }}
       />
-      <Stack.Screen name="job/[id]" options={{ title: 'Delivery' }} />
-      <Stack.Screen name="job/[id]/chat" options={{ title: 'Chat' }} />
-      <Stack.Screen name="history" options={{ title: 'History', headerLargeTitle: true }} />
-      <Stack.Screen name="tier" options={{ title: 'My tier' }} />
-      <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
+      <Stack.Screen name="job/[id]" options={{ title: t('nav.delivery') }} />
+      <Stack.Screen name="job/[id]/chat" options={{ title: t('nav.chat') }} />
+      <Stack.Screen
+        name="history"
+        options={{ title: t('nav.history'), headerLargeTitle: true }}
+      />
+      <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
+      <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
     </Stack>
   );
 }

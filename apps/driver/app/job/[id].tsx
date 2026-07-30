@@ -23,6 +23,9 @@ import { HotelHandoffCard } from '../../src/components/HotelHandoffCard';
 import { DropoffPreferenceCard } from '../../src/components/DropoffPreferenceCard';
 import { DeliveryCountdown } from '../../src/components/DeliveryCountdown';
 import { useToast } from '../../src/components/Toast';
+import { useI18n } from '../../src/i18n-context';
+import type { TranslationKey } from '../../src/i18n';
+import { captureError } from '../../src/lib/crash';
 
 export default function JobScreen() {
   const colors = useThemeColors();
@@ -30,8 +33,10 @@ export default function JobScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
+  const { direction, errorMessage, t } = useI18n();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Handoff photo, held locally until the delivery is confirmed. Capture is
   // instant and offline; the UPLOAD deliberately happens after the status
@@ -44,10 +49,22 @@ export default function JobScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const j = await fetchJob(id);
-    setJob(j);
-    setLoading(false);
-  }, [id]);
+    try {
+      const j = await fetchJob(id);
+      setJob(j);
+      setLoadError(null);
+    } catch (error) {
+      captureError(error, {
+        where: 'driver.job.load',
+        orderId: id,
+      });
+      const message = errorMessage('jobUpdate', error);
+      setLoadError(message);
+      toast(message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [errorMessage, id, toast]);
 
   useEffect(() => {
     load();
@@ -62,17 +79,16 @@ export default function JobScreen() {
       startStreaming(id).catch((error) => {
         if (trackingErrorShown.current) return;
         trackingErrorShown.current = true;
-        toast(
-          error instanceof Error
-            ? error.message
-            : 'Live location could not start. Check location permissions.',
-          'error',
-        );
+        captureError(error, {
+          where: 'driver.job.resumeLocation',
+          orderId: id,
+        });
+        toast(errorMessage('location', error), 'error');
       });
     } else {
       stopStreaming().catch(() => {});
     }
-  }, [job?.status, id, toast]);
+  }, [errorMessage, job?.status, id, toast]);
 
   const doAdvance = useCallback(
     async (next: Job['status']) => {
@@ -83,19 +99,38 @@ export default function JobScreen() {
         // asks for background access. Do not advance to picked_up if tracking
         // cannot start: the customer and dispatch would otherwise see stale GPS.
         if (next === 'picked_up') {
-          const accepted = await confirmBackgroundTracking();
+          const accepted = await confirmBackgroundTracking(
+            t('tracking.title'),
+            t('tracking.body'),
+            t('tracking.notNow'),
+            t('common.continue'),
+          );
           if (!accepted) return;
-          await startStreaming(id);
+          try {
+            await startStreaming(id);
+          } catch (error) {
+            captureError(error, {
+              where: 'driver.job.startLocation',
+              orderId: id,
+            });
+            toast(errorMessage('location', error), 'error');
+            return;
+          }
         }
         await advance(id, next);
         await load();
       } catch (e) {
-        toast(e instanceof Error ? e.message : 'Could not update. Try again.', 'error');
+        captureError(e, {
+          where: 'driver.job.advance',
+          orderId: id,
+          nextStatus: next,
+        });
+        toast(errorMessage('jobUpdate', e), 'error');
       } finally {
         setBusy(false);
       }
     },
-    [id, load],
+    [errorMessage, id, load, t],
   );
 
   const capturePhoto = useCallback(async () => {
@@ -149,12 +184,12 @@ export default function JobScreen() {
     // COD: confirm cash collected before marking delivered.
     if (job.payment_method === 'cash_on_delivery' && job.payment_status !== 'paid') {
       Alert.alert(
-        'Collect cash',
-        `Collect ${job.total_egp} EGP from the customer?`,
+        t('job.collectCashTitle'),
+        t('job.collectCashBody', { amount: job.total_egp }),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: `Collected ${job.total_egp} EGP`,
+            text: t('job.cashCollected', { amount: job.total_egp }),
             onPress: async () => {
               setBusy(true);
               try {
@@ -166,7 +201,11 @@ export default function JobScreen() {
                 await stopStreaming();
                 router.replace('/home');
               } catch (e) {
-                toast(e instanceof Error ? e.message : 'Something went wrong. Try again.', 'error');
+                captureError(e, {
+                  where: 'driver.job.completeCod',
+                  orderId: id,
+                });
+                toast(errorMessage('jobComplete', e), 'error');
               } finally {
                 setBusy(false);
               }
@@ -184,11 +223,15 @@ export default function JobScreen() {
       await stopStreaming();
       router.replace('/home');
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Something went wrong. Try again.', 'error');
+      captureError(e, {
+        where: 'driver.job.completeCard',
+        orderId: id,
+      });
+      toast(errorMessage('jobComplete', e), 'error');
     } finally {
       setBusy(false);
     }
-  }, [id, job, router, toast, uploadProofBestEffort]);
+  }, [errorMessage, id, job, router, t, toast, uploadProofBestEffort]);
 
   const navigateTo = useCallback(
     async (kind: 'restaurant' | 'dropoff') => {
@@ -197,11 +240,18 @@ export default function JobScreen() {
         kind === 'restaurant'
           ? parseWkbPoint(job.restaurant_geo)
           : parseWkbPoint(job.dropoff_geo);
-      const label = kind === 'restaurant' ? job.restaurant_name : addrLineForNav(job);
+      const label =
+        kind === 'restaurant'
+          ? job.restaurant_name
+          : addrLineForNav(job, {
+              room: t('job.room'),
+              building: t('job.building'),
+              beach: t('job.beach'),
+            });
       const ok = await openDirections({ point, label });
-      if (!ok) toast('Could not open maps. Is a maps app installed?', 'error');
+      if (!ok) toast(t('job.mapsError'), 'error');
     },
-    [job, toast],
+    [job, t, toast],
   );
 
   if (loading) {
@@ -211,10 +261,30 @@ export default function JobScreen() {
       </View>
     );
   }
+  if (loadError && !job) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xxl, backgroundColor: colors.bg }}>
+        <Text style={{ color: colors.ink2, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {loadError}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('common.retry')}
+          onPress={() => {
+            setLoading(true);
+            load();
+          }}
+          style={{ minHeight: 48, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, paddingHorizontal: spacing.xl }}
+        >
+          <Text style={{ color: colors.white, fontWeight: '700' }}>{t('common.retry')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
   if (!job) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
-        <Text style={{ color: colors.ink2 }}>Job not found.</Text>
+        <Text style={{ color: colors.ink2 }}>{t('job.notFound')}</Text>
       </View>
     );
   }
@@ -222,23 +292,32 @@ export default function JobScreen() {
   const addr = job.address_snapshot;
   const addrLine =
     addr?.kind === 'hotel'
-      ? `${addr.hotelName ?? 'Hotel'} · Room ${addr.roomNumber ?? '—'}${addr.handoff ? ` · ${addr.handoff}` : ''}`
+      ? `${addr.hotelName ?? t('job.hotel')} · ${t('job.room')} ${addr.roomNumber ?? '—'}${addr.handoff ? ` · ${addr.handoff}` : ''}`
       : addr?.kind === 'street'
-        ? `${addr.streetText ?? ''}${addr.building ? `, Bldg ${addr.building}` : ''}${addr.apartment ? `, Apt ${addr.apartment}` : ''}`
+        ? `${addr.streetText ?? ''}${addr.building ? `, ${t('job.building')} ${addr.building}` : ''}${addr.apartment ? `, ${t('job.apartment')} ${addr.apartment}` : ''}`
         : addr?.kind === 'beach_pin'
-          ? `Beach pin · ${addr.beachName ?? ''}`
-          : (addr?.label ?? 'Address');
+          ? `${t('job.beachPin')} · ${addr.beachName ?? ''}`
+          : (addr?.label ?? t('job.address'));
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, direction: direction.direction }}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingTop: spacing.lg, paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl }}
       >
-        <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
+        <Text
+          accessibilityLabel={t('job.codeA11y', { code: job.short_code })}
+          style={{
+            fontSize: font.sizes.xxl,
+            fontWeight: '800',
+            color: colors.ink,
+            textAlign: direction.textAlign,
+            writingDirection: 'ltr',
+          }}
+        >
           {job.short_code}
         </Text>
-        <Text style={{ color: colors.ink2, fontSize: font.sizes.base }}>{job.restaurant_name}</Text>
+        <Text style={{ color: colors.ink2, fontSize: font.sizes.base, textAlign: direction.textAlign }}>{job.restaurant_name}</Text>
 
         {/* Phase-aware countdown: "pick up by" before pickup, "deliver by" after.
             Only while the job is active (a terminal status has no clock). */}
@@ -251,11 +330,15 @@ export default function JobScreen() {
           {(['ready', 'picked_up', 'out_for_delivery', 'delivered'] as const).map((s) => {
             const order = ['ready', 'picked_up', 'out_for_delivery', 'delivered'];
             const done = order.indexOf(job.status) >= order.indexOf(s);
+            const label = t(stepKey(s));
             return (
               <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                 <View
                   accessible
-                  accessibilityLabel={`${stepLabel(s)}: ${done ? 'complete' : 'not complete'}`}
+                  accessibilityLabel={t('job.stepA11y', {
+                    step: label,
+                    state: done ? t('common.complete') : t('common.notComplete'),
+                  })}
                   style={{
                     width: 18,
                     height: 18,
@@ -264,7 +347,7 @@ export default function JobScreen() {
                   }}
                 />
                 <Text style={{ color: done ? colors.ink : colors.ink3, fontWeight: done ? '600' : '400' }}>
-                  {stepLabel(s)}
+                  {label}
                 </Text>
               </View>
             );
@@ -278,13 +361,13 @@ export default function JobScreen() {
             {beforePickup(job.status) ? (
               <NavButton
                 icon="restaurant"
-                label="Navigate to restaurant"
+                label={t('job.navigateRestaurant')}
                 onPress={() => navigateTo('restaurant')}
               />
             ) : (
               <NavButton
                 icon="navigate"
-                label="Navigate to customer"
+                label={t('job.navigateCustomer')}
                 onPress={() => navigateTo('dropoff')}
               />
             )}
@@ -304,11 +387,11 @@ export default function JobScreen() {
         ) : (
           <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
-              Deliver to
+              {t('job.deliverTo')}
             </Text>
-            <Text style={{ fontSize: font.sizes.lg, color: colors.ink, marginTop: 4 }}>{addrLine}</Text>
+            <Text style={{ fontSize: font.sizes.lg, color: colors.ink, marginTop: 4, textAlign: direction.textAlign }}>{addrLine}</Text>
             {addr?.landmark ? (
-              <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, marginTop: 2 }}>Landmark: {addr.landmark}</Text>
+              <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, marginTop: 2, textAlign: direction.textAlign }}>{t('job.landmark', { landmark: addr.landmark })}</Text>
             ) : null}
           </View>
         )}
@@ -329,13 +412,13 @@ export default function JobScreen() {
             {job.customer_phone && !beforePickup(job.status) && (
               <ContactButton
                 icon="phone"
-                label="Call customer"
+                label={t('job.callCustomer')}
                 onPress={() => Linking.openURL(`tel:${job.customer_phone}`)}
               />
             )}
             <ContactButton
               icon="chat"
-              label="Message"
+              label={t('job.message')}
               onPress={() => router.push(`/job/${id}/chat`)}
             />
           </View>
@@ -346,7 +429,7 @@ export default function JobScreen() {
         {job.kitchen_notes?.trim() ? (
           <View style={{ marginTop: spacing.md, backgroundColor: colors.amberSoft, borderRadius: radius.xl, padding: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.amberText, fontWeight: '700', textTransform: 'uppercase' }}>
-              Note from the customer
+              {t('job.customerNote')}
             </Text>
             <Text style={{ fontSize: font.sizes.base, color: colors.ink, marginTop: 4 }}>
               {job.kitchen_notes.trim()}
@@ -358,7 +441,9 @@ export default function JobScreen() {
         {job.items.length > 0 && (
           <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, padding: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, fontWeight: '700', textTransform: 'uppercase' }}>
-              {job.items.length} {job.items.length === 1 ? 'item' : 'items'} in the bag
+              {t(job.items.length === 1 ? 'job.bagOne' : 'job.bagMany', {
+                count: job.items.length,
+              })}
             </Text>
             <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
               {job.items.map((it, i) => (
@@ -392,7 +477,7 @@ export default function JobScreen() {
                           borderColor: colors.red,
                         }}
                         accessibilityRole="text"
-                        accessibilityLabel="Prescription required — check before handover">
+                        accessibilityLabel={t('job.prescriptionA11y')}>
                         <Text
                           style={{
                             // redText, not red: the theme documents redText as
@@ -402,7 +487,7 @@ export default function JobScreen() {
                             fontSize: font.sizes.sm,
                             fontWeight: '800',
                           }}>
-                          Rx — check prescription before handover
+                          {t('job.prescription')}
                         </Text>
                       </View>
                     ) : null}
@@ -417,8 +502,8 @@ export default function JobScreen() {
         <View style={{ marginTop: spacing.md, backgroundColor: job.payment_method === 'cash_on_delivery' ? colors.amberSoft : colors.greenSoft, borderRadius: radius.xl, padding: spacing.lg }}>
           <Text style={{ fontWeight: '700', color: job.payment_method === 'cash_on_delivery' ? colors.amber : colors.green }}>
             {job.payment_method === 'cash_on_delivery'
-              ? `Collect ${job.total_egp} EGP cash`
-              : `Paid by card · ${job.total_egp} EGP`}
+              ? t('job.collectCash', { amount: job.total_egp })
+              : t('job.paidCard', { amount: job.total_egp })}
           </Text>
           {/* Tip (tip_egp) — fetched but never displayed, so the driver couldn't
               see the tip they earned on this delivery. */}
@@ -426,7 +511,7 @@ export default function JobScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
               <Icon name="star" size={13} color={colors.star} />
               <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, fontWeight: '600' }}>
-                Includes {job.tip_egp} EGP tip for you
+                {t('job.tipIncluded', { amount: job.tip_egp })}
               </Text>
             </View>
           )}
@@ -436,17 +521,17 @@ export default function JobScreen() {
       {/* Action bar */}
       <View style={{ padding: spacing.xl, paddingBottom: insets.bottom + spacing.md, borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.surface }}>
         {job.status === 'ready' && (
-          <Action label="Picked up from restaurant" busy={busy} onPress={() => doAdvance('picked_up')} />
+          <Action label={t('job.pickedUpAction')} busy={busy} onPress={() => doAdvance('picked_up')} />
         )}
         {job.status === 'picked_up' && (
-          <Action label="Start delivery" busy={busy} onPress={() => doAdvance('out_for_delivery')} />
+          <Action label={t('job.startDelivery')} busy={busy} onPress={() => doAdvance('out_for_delivery')} />
         )}
         {job.status === 'out_for_delivery' && (
           <View style={{ gap: spacing.md }}>
             {/* Handoff photo. Required only where nobody is at the door to
                 receive the order — for an in-person handoff the customer is the
                 witness, and demanding a photo of them would be worse than
-                useless. isProofRequired mirrors mig 193's SQL definition. */}
+                useless. isProofRequired mirrors mig 194's SQL definition. */}
             <ProofRow
               required={isProofRequired(job.dropoff_preference)}
               captured={proof !== null}
@@ -455,7 +540,7 @@ export default function JobScreen() {
               onRetake={capturePhoto}
             />
             <Action
-              label="Complete delivery"
+              label={t('job.completeDelivery')}
               busy={busy}
               disabled={isProofRequired(job.dropoff_preference) && proof === null}
               onPress={completeDelivery}
@@ -464,14 +549,14 @@ export default function JobScreen() {
         )}
         {['accepted', 'preparing'].includes(job.status) && (
           <Text style={{ textAlign: 'center', color: colors.ink2 }}>
-            Waiting for the restaurant to finish preparing…
+            {t('job.waitingRestaurant')}
           </Text>
         )}
         {['delivered', 'cancelled', 'rejected'].includes(job.status) && (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {job.status === 'delivered' && <Icon name="check" size={18} color={colors.green} />}
             <Text style={{ textAlign: 'center', color: colors.greenText, fontWeight: '700' }}>
-              {job.status === 'delivered' ? 'Delivered' : job.status}
+              {t(statusKey(job.status))}
             </Text>
           </View>
         )}
@@ -480,14 +565,19 @@ export default function JobScreen() {
   );
 }
 
-function confirmBackgroundTracking(): Promise<boolean> {
+function confirmBackgroundTracking(
+  title: string,
+  body: string,
+  cancel: string,
+  proceed: string,
+): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
-      'Live delivery location',
-      'While this delivery is active, Sharm Eats uses your location in the background so the customer can follow the driver and dispatch can keep the delivery safe. Android shows a persistent notification. Tracking stops when the delivery ends or you go offline.',
+      title,
+      body,
       [
-        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Continue', onPress: () => resolve(true) },
+        { text: cancel, style: 'cancel', onPress: () => resolve(false) },
+        { text: proceed, onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) },
     );
@@ -696,14 +786,38 @@ function beforePickup(status: Job['status']): boolean {
 }
 
 /** Compact one-line address for a maps free-text fallback (no exact pin). */
-function addrLineForNav(job: Job): string {
+function addrLineForNav(
+  job: Job,
+  copy: { room: string; building: string; beach: string },
+): string {
   const a = job.address_snapshot;
-  if (a?.kind === 'hotel') return [a.hotelName, a.roomNumber && `Room ${a.roomNumber}`].filter(Boolean).join(' ');
-  if (a?.kind === 'street') return [a.streetText, a.building && `Bldg ${a.building}`].filter(Boolean).join(', ');
-  if (a?.kind === 'beach_pin') return a.beachName ?? 'Beach';
+  if (a?.kind === 'hotel') return [a.hotelName, a.roomNumber && `${copy.room} ${a.roomNumber}`].filter(Boolean).join(' ');
+  if (a?.kind === 'street') return [a.streetText, a.building && `${copy.building} ${a.building}`].filter(Boolean).join(', ');
+  if (a?.kind === 'beach_pin') return a.beachName ?? copy.beach;
   return a?.label ?? job.restaurant_name;
 }
 
-function stepLabel(s: 'ready' | 'picked_up' | 'out_for_delivery' | 'delivered'): string {
-  return { ready: 'Ready for pickup', picked_up: 'Picked up', out_for_delivery: 'Out for delivery', delivered: 'Delivered' }[s];
+function stepKey(
+  s: 'ready' | 'picked_up' | 'out_for_delivery' | 'delivered',
+): TranslationKey {
+  return {
+    ready: 'job.status.ready',
+    picked_up: 'job.status.pickedUp',
+    out_for_delivery: 'job.status.outForDelivery',
+    delivered: 'job.status.delivered',
+  }[s] as TranslationKey;
+}
+
+function statusKey(status: Job['status']): TranslationKey {
+  return {
+    placed: 'job.status.placed',
+    accepted: 'job.status.accepted',
+    preparing: 'job.status.preparing',
+    ready: 'job.status.ready',
+    picked_up: 'job.status.pickedUp',
+    out_for_delivery: 'job.status.outForDelivery',
+    delivered: 'job.status.delivered',
+    cancelled: 'job.status.cancelled',
+    rejected: 'job.status.rejected',
+  }[status] as TranslationKey;
 }

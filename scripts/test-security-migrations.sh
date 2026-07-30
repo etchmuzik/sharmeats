@@ -50,8 +50,7 @@ test_files=(
   "supabase/tests/127_129_service_area.test.sql"
   "supabase/tests/130_133_ops_finance.test.sql"
   "supabase/tests/144_admin_test_ops_alert.test.sql"
-  "supabase/tests/193_proof_of_delivery.test.sql"
-  "supabase/tests/194_menu_search.test.sql"
+  "supabase/tests/194_proof_of_delivery.test.sql"
   "supabase/tests/195_order_share_links.test.sql"
 )
 
@@ -150,5 +149,59 @@ if [[ "${staff_role_passes}" -ne 40 ]]; then
   echo "Expected 40 migration 136 PASS lines, got ${staff_role_passes}." >&2
   exit 1
 fi
+
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${staff_role_database}" \
+  -f "${project_root}/supabase/migrations/20260730162500_atomic_merchant_menu_import.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${staff_role_database}" \
+  -f "${project_root}/supabase/tests/20260730162500_merchant_menu_import.test.sql"
+
+p07_database="test_20260730162600_p07_governance"
+"${postgres_bin_dir}/createdb" \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  "${p07_database}"
+
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/tests/20260730162600_p07_governance_fixture.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/migrations/20260730162600_p07_governance_hardening.sql"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/tests/20260730162600_p07_governance_hardening.test.sql"
+
+p07_test_user="$(id -un)"
+p07_dblink_dsn="dbname=${p07_database} user=${p07_test_user} host=${test_socket_dir} port=${test_db_port}"
+"${postgres_bin_dir}/psql" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  -v "dblink_dsn=${p07_dblink_dsn}" \
+  -h "${test_socket_dir}" \
+  -p "${test_db_port}" \
+  -d "${p07_database}" \
+  -f "${project_root}/supabase/tests/20260730162600_p07_governance_concurrency.test.sql"
 
 echo "Security migration tests passed."

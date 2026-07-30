@@ -28,6 +28,12 @@ import { success, selection } from '../src/haptics';
 import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
 import { LEGAL_URLS, openLegal } from '../src/legal';
+import { scheduledOrdersEnabled } from '../src/lib/scheduledOrders';
+import {
+  cashTenderForTotal,
+  composeDriverDropoffNote,
+  type CashTender,
+} from '../src/lib/cashChange';
 
 // A session phone is only worth prefilling when it looks like a real number:
 // starts with + or a digit and carries at least 8 digits (same bar as the
@@ -97,6 +103,7 @@ export default function Checkout() {
   const locale = useSession((s) => s.locale);
   // Hide the FX/currency picker for locals on the default rail (AR + EGP).
   const showCurrencyPicker = !(locale === 'ar' && currency === 'EGP');
+  const canSchedule = scheduledOrdersEnabled();
 
   const [address, setAddress] = useState<Address | null>(null);
   const [payment, setPayment] = useState<PaymentMethod | null>(null);
@@ -108,6 +115,7 @@ export default function Checkout() {
   const [dropoffPreference, setDropoffPreference] = useState<DropoffPreference | null>(null);
   // Free-text driver note (gate code, "ring twice"), threaded to db.orders.create().
   const [dropoffNote, setDropoffNote] = useState('');
+  const [cashTenderInput, setCashTenderInput] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [scheduledFor, setScheduledFor] = useState<number | null>(null);
   // Guest consent gate. A guest reaches checkout via startAsGuest() without ever
@@ -127,6 +135,10 @@ export default function Checkout() {
   const [promoApplied, setPromoApplied] = useState<{ code: string; discount: number } | null>(null);
   const [promoError, setPromoError] = useState(false);
   const [promoChecking, setPromoChecking] = useState(false);
+  // The backend input and analytics use this fail-closed value, not only the
+  // visibility of the timing controls. A hidden control must never leave a
+  // stale scheduled timestamp capable of reaching place_order.
+  const effectiveScheduledFor = canSchedule ? scheduledFor : null;
 
   useEffect(() => {
     track('checkout_opened', { subtotal, itemCount: lines.length });
@@ -142,6 +154,7 @@ export default function Checkout() {
 
   // Generate 8 half-hour slots starting at the next half hour, capped at ~4h.
   const scheduleSlots = useMemo<number[]>(() => {
+    if (!canSchedule) return [];
     const now = Date.now();
     const firstSlot = new Date(now);
     firstSlot.setSeconds(0, 0);
@@ -151,7 +164,7 @@ export default function Checkout() {
       slots.push(firstSlot.getTime() + i * 30 * 60_000);
     }
     return slots;
-  }, []);
+  }, [canSchedule]);
 
   // Aggregate distinct allergens across all cart lines.
   const aggregateAllergens = useMemo<AllergyKey[]>(() => {
@@ -225,6 +238,12 @@ export default function Checkout() {
   const serviceFee = serviceFeeEgp(subtotal);
   const discount = promoApplied?.discount ?? 0;
   const total = Math.max(0, subtotal + deliveryFee + tax + serviceFee + tipEgp - discount);
+  const cashTender: CashTender =
+    payment?.kind === 'cash'
+      ? cashTenderForTotal(cashTenderInput, total)
+      : { kind: 'none' };
+  const cashTenderInvalid = cashTender.kind === 'invalid';
+  const effectiveDropoffNote = composeDriverDropoffNote(dropoffNote, cashTender);
 
   // Honest client-side "promised by" estimate for the v2 promise card. Server
   // authority still sets the real eta_at inside place_order (prep + travel +
@@ -232,11 +251,11 @@ export default function Checkout() {
   // user picked one, else now + the restaurant's high prep estimate + a 5-min
   // dispatch buffer (mirrors dispatch_buffer_minutes default in mig 079).
   const promisedTime = useMemo<string | null>(() => {
-    if (scheduledFor) return formatTime(new Date(scheduledFor));
+    if (effectiveScheduledFor) return formatTime(new Date(effectiveScheduledFor));
     if (!restaurant) return null;
     const mins = (restaurant.prepTimeHigh || 30) + 5;
     return formatTime(new Date(Date.now() + mins * 60_000));
-  }, [scheduledFor, restaurant]);
+  }, [effectiveScheduledFor, restaurant]);
 
   const applyPromo = async () => {
     const code = promoInput.trim();
@@ -265,7 +284,16 @@ export default function Checkout() {
   const isCard = payment?.kind === 'card' || payment?.kind === 'apple_pay';
 
   const place = async () => {
-    if (!restaurant || !address || !payment || lines.length === 0 || !phoneValid) return;
+    if (
+      !restaurant ||
+      !address ||
+      !payment ||
+      lines.length === 0 ||
+      !phoneValid ||
+      cashTenderInvalid
+    ) {
+      return;
+    }
     // A guest must explicitly accept the Terms/Privacy before ordering.
     if (isGuest && !guestConsent) return;
     setPlacing(true);
@@ -282,9 +310,9 @@ export default function Checkout() {
         taxRate: 0,
         kitchenNotes: kitchenNotes.trim() || undefined,
         dropoffPreference: dropoffPreference ?? undefined,
-        dropoffNote: dropoffNote.trim() || undefined,
+        dropoffNote: effectiveDropoffNote || undefined,
         aggregateAllergens: aggregateAllergens.length > 0 ? aggregateAllergens : undefined,
-        scheduledFor: scheduledFor ?? undefined,
+        scheduledFor: effectiveScheduledFor ?? undefined,
         promoCode: promoApplied?.code,
         customerPhone: contactPhone.trim(),
         idempotencyKey: idempotencyKey.current,
@@ -293,8 +321,9 @@ export default function Checkout() {
         orderId: order.id,
         total: order.totalEgp,
         payment: payment.kind,
-        scheduled: !!scheduledFor,
+        scheduled: !!effectiveScheduledFor,
         promo: promoApplied?.code ?? null,
+        cashChangeRequested: cashTender.kind === 'valid' && cashTender.changeEgp > 0,
       });
 
       // [P05-E] Retention marker: this order follows at least one DELIVERED
@@ -488,53 +517,58 @@ export default function Checkout() {
           </View>
         </View>
 
-        {/* Timing */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('checkout.timing')}</Text>
-          <View style={styles.timingRow}>
-            <Pressable
-              onPress={() => {
-                selection();
-                setScheduledFor(null);
-              }}
-              accessibilityRole="radio"
-              accessibilityLabel={t('checkout.timingAsap')}
-              accessibilityState={{ selected: scheduledFor === null }}
-              style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
-              <Icon name="bolt" size={14} color={scheduledFor === null ? colors.onInk : colors.accent} />
-              <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.onInk }]}>
-                {t('checkout.timingAsap')}
-              </Text>
-            </Pressable>
-            {scheduleSlots.map((slot) => {
-              const isSel = scheduledFor === slot;
-              return (
-                <Pressable
-                  key={slot}
-                  onPress={() => {
-                    selection();
-                    setScheduledFor(slot);
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityLabel={formatTime(new Date(slot))}
-                  accessibilityState={{ selected: isSel }}
-                  style={[styles.timingChip, isSel && styles.timingChipActive]}>
-                  <Text style={[styles.timingChipText, isSel && { color: colors.onInk }]}>
-                    {formatTime(new Date(slot))}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {scheduledFor !== null && (
-            <View style={styles.scheduledLineRow}>
-              <Icon name="calendar" size={15} color={colors.sea} />
-              <Text style={styles.scheduledLine}>
-                {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor)) })}
-              </Text>
+        {/* canSchedule gate from main: scheduled orders stay hidden until
+            operating-hours validation and delayed kitchen/dispatch release make
+            the promise truthful. Labels use onInk, not white — the active chip
+            fills with `ink`, which inverts between themes. */}
+        {canSchedule && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t('checkout.timing')}</Text>
+            <View style={styles.timingRow}>
+              <Pressable
+                onPress={() => {
+                  selection();
+                  setScheduledFor(null);
+                }}
+                accessibilityRole="radio"
+                accessibilityLabel={t('checkout.timingAsap')}
+                accessibilityState={{ selected: scheduledFor === null }}
+                style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
+                <Icon name="bolt" size={14} color={scheduledFor === null ? colors.onInk : colors.accent} />
+                <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.onInk }]}>
+                  {t('checkout.timingAsap')}
+                </Text>
+              </Pressable>
+              {scheduleSlots.map((slot) => {
+                const isSel = scheduledFor === slot;
+                return (
+                  <Pressable
+                    key={slot}
+                    onPress={() => {
+                      selection();
+                      setScheduledFor(slot);
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityLabel={formatTime(new Date(slot))}
+                    accessibilityState={{ selected: isSel }}
+                    style={[styles.timingChip, isSel && styles.timingChipActive]}>
+                    <Text style={[styles.timingChipText, isSel && { color: colors.onInk }]}>
+                      {formatTime(new Date(slot))}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          )}
-        </View>
+            {scheduledFor !== null && (
+              <View style={styles.scheduledLineRow}>
+                <Icon name="calendar" size={15} color={colors.sea} />
+                <Text style={styles.scheduledLine}>
+                  {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor)) })}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Kitchen briefing */}
         <KitchenBriefing
@@ -596,6 +630,31 @@ export default function Checkout() {
             </View>
             <Icon name="chevronForward" size={20} color={colors.ink3} />
           </Pressable>
+          {payment?.kind === 'cash' && (
+            <View style={styles.cashChange}>
+              <Text style={[styles.cashChangeTitle, dir.text]}>
+                {t('checkout.cashChangeTitle')}
+              </Text>
+              <TextInput
+                value={cashTenderInput}
+                onChangeText={setCashTenderInput}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={12}
+                placeholder={t('checkout.cashChangePlaceholder')}
+                placeholderTextColor={colors.ink3}
+                accessibilityLabel={t('checkout.cashChangeTitle')}
+                style={[styles.cashChangeInput, dir.text]}
+              />
+              <Text
+                accessibilityLiveRegion="polite"
+                style={[styles.cashChangeHint, cashTenderInvalid && styles.cashChangeError, dir.text]}>
+                {cashTenderInvalid
+                  ? t('checkout.cashChangeInvalid', { amount: formatEgp(total) })
+                  : t('checkout.cashChangeHint')}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Tip card */}
@@ -831,6 +890,7 @@ export default function Checkout() {
             !payment ||
             lines.length === 0 ||
             !phoneValid ||
+            cashTenderInvalid ||
             quoteState !== 'ok' ||
             (isGuest && !guestConsent)
           }
@@ -951,6 +1011,34 @@ const useStyles = makeStyles((colors) => ({
   payIcon: { width: 28, alignItems: 'center' },
   payLabel: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
   paySub: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },
+  cashChange: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  cashChangeTitle: {
+    color: colors.ink,
+    fontSize: font.sizes.lg,
+    fontWeight: font.weights.bold,
+    marginBottom: 8,
+  },
+  cashChangeInput: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bgSoft,
+    color: colors.ink,
+    fontSize: font.sizes.lg,
+    paddingHorizontal: 14,
+  },
+  cashChangeHint: {
+    color: colors.ink3,
+    fontSize: font.sizes.sm,
+    marginTop: 6,
+  },
+  cashChangeError: { color: colors.red },
   chev: { fontSize: 22, color: colors.ink3 },
   timingRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 10 },
   timingChip: {

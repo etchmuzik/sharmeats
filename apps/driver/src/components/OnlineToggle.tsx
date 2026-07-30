@@ -9,6 +9,7 @@
 import { Switch, Text, View } from 'react-native';
 import { font, radius, spacing } from '../theme';
 import { useThemeColors } from '../themeProvider';
+import { useI18n } from '../i18n-context';
 
 type Props = {
   online: boolean;
@@ -18,6 +19,8 @@ type Props = {
 
 export function OnlineToggle({ online, verified, onToggle }: Props) {
   const colors = useThemeColors();
+  const { t } = useI18n();
+
   return (
     <View
       style={{
@@ -51,14 +54,14 @@ export function OnlineToggle({ online, verified, onToggle }: Props) {
             color: online ? colors.accentDark : colors.ink,
           }}
         >
-          {online ? "You're online" : "You're offline"}
+          {online ? t('home.online') : t('home.offline')}
         </Text>
         <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
           {!verified
-            ? 'Complete verification to start receiving offers'
+            ? t('home.verifyToReceive')
             : online
-              ? 'Receiving delivery offers'
-              : 'Go online to receive offers'}
+              ? t('home.receivingOffers')
+              : t('home.goOnlineToReceive')}
         </Text>
       </View>
       <Switch
@@ -66,11 +69,11 @@ export function OnlineToggle({ online, verified, onToggle }: Props) {
         onValueChange={onToggle}
         trackColor={{ true: colors.accent, false: colors.line }}
         disabled={!verified}
-        accessibilityLabel="Receive delivery offers"
+        accessibilityLabel={t('home.receiveOffersA11y')}
         accessibilityHint={
           verified
-            ? 'Turns new delivery offers on or off'
-            : 'Complete verification before going online'
+            ? t('home.toggleHint')
+            : t('home.toggleVerifyHint')
         }
         accessibilityState={{ checked: online, disabled: !verified }}
       />

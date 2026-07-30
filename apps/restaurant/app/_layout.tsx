@@ -9,6 +9,7 @@ import { ThemeProvider, ThemedStatusBar, useThemeColors } from '../src/themeProv
 import { initCrashReporting } from '../src/lib/crash';
 import { getSupabase, isSupabaseConfigured } from '../src/supabase';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
+import { LocaleProvider, useLocale } from '../src/locale';
 
 export { ScreenErrorBoundary as ErrorBoundary };
 
@@ -36,12 +37,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <ThemedStatusBar />
-              <ThemedStack />
-            </ToastProvider>
-          </AuthProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <ThemedStatusBar />
+                <RestaurantStack />
+              </ToastProvider>
+            </AuthProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -52,7 +55,8 @@ export default function RootLayout() {
  * The navigator, split out so it can read the active palette — the native
  * header is chrome the OS draws for us, so its colors have to be passed in
  * rather than styled by a child. Left in light, it would sit as a bright slab
- * above every dark screen.
+ * above every dark screen. Titles come from the locale provider for the same
+ * reason: the OS draws them, so they cannot be translated by a child.
  *
  * Native headers (native back + correct safe-area handling via
  * `contentInsetAdjustmentBehavior="automatic"`) on every screen a user
@@ -63,8 +67,10 @@ export default function RootLayout() {
  * and which must stay pinned above the queue. It keeps its own chrome.
  * `index`/`signin` are full-bleed gates.
  */
-function ThemedStack() {
+function RestaurantStack() {
   const colors = useThemeColors();
+  const { t } = useLocale();
+
   return (
     <Stack
       screenOptions={{
@@ -81,11 +87,11 @@ function ThemedStack() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="signin" options={{ headerShown: false }} />
       <Stack.Screen name="home" options={{ headerShown: false }} />
-      <Stack.Screen name="tier" options={{ title: 'Tier' }} />
-      <Stack.Screen name="menu" options={{ title: 'Menu', headerLargeTitle: true }} />
-      <Stack.Screen name="kyc" options={{ title: 'Verification' }} />
-      <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
-      <Stack.Screen name="order/[id]/chat" options={{ title: 'Chat' }} />
+      <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
+      <Stack.Screen name="menu" options={{ title: t('nav.menu'), headerLargeTitle: true }} />
+      <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
+      <Stack.Screen name="order/[id]" options={{ title: t('nav.order') }} />
+      <Stack.Screen name="order/[id]/chat" options={{ title: t('nav.chat') }} />
     </Stack>
   );
 }

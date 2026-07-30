@@ -2,13 +2,19 @@ import { Text, View } from 'react-native';
 import { font, radius, spacing } from '../theme';
 import { useThemeColors } from '../themeProvider';
 import { Icon, type IconName } from './Icon';
+import { useI18n } from '../i18n-context';
+import type { TranslationKey } from '../i18n';
+import {
+  parseCashChangeNote,
+  shouldRenderDropoffCard,
+} from '../cashChangeNote';
 
-const COPY: Record<string, { icon: IconName; title: string }> = {
-  hand_to_me: { icon: 'handoff', title: 'Hand to the guest' },
-  leave_at_door: { icon: 'door', title: "Leave at the door, don't wait" },
-  meet_outside: { icon: 'walk', title: 'Guest will meet you outside' },
-  no_bell: { icon: 'quiet', title: "Don't ring the bell or knock" },
-  call_on_arrival: { icon: 'phone', title: 'Call the guest on arrival' },
+const COPY: Record<string, { icon: IconName; title: TranslationKey }> = {
+  hand_to_me: { icon: 'handoff', title: 'dropoff.handToGuest' },
+  leave_at_door: { icon: 'door', title: 'dropoff.leaveAtDoor' },
+  meet_outside: { icon: 'walk', title: 'dropoff.meetOutside' },
+  no_bell: { icon: 'quiet', title: 'dropoff.noBell' },
+  call_on_arrival: { icon: 'phone', title: 'dropoff.callOnArrival' },
 };
 
 interface Props {
@@ -23,9 +29,13 @@ interface Props {
  */
 export function DropoffPreferenceCard({ preference, note }: Props) {
   const colors = useThemeColors();
-  if (!preference) return null;
-  const copy = COPY[preference];
-  if (!copy) return null;
+  const { t } = useI18n();
+  const copy = preference ? COPY[preference] : undefined;
+  const parsed = parseCashChangeNote(note);
+  const { customerNote, cashChange } = parsed;
+  if (!shouldRenderDropoffCard(Boolean(copy), parsed)) return null;
+  const title = copy?.title ?? (cashChange ? 'cashChange.title' : 'dropoff.noteTitle');
+  const icon = copy?.icon ?? (cashChange ? 'cash' : 'handoff');
 
   return (
     <View
@@ -41,13 +51,31 @@ export function DropoffPreferenceCard({ preference, note }: Props) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         {/* amberText, not amber: this is a 16px bold LABEL on amberSoft, where
             the fill value sits at 3.26:1 — under the 4.5:1 small-text floor. */}
-        <Icon name={copy.icon} size={20} color={colors.amberText} />
+        <Icon name={icon} size={20} color={colors.amberText} />
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: '800', color: colors.amberText }}>
-          {copy.title}
+          {t(title)}
         </Text>
       </View>
-      {note ? (
-        <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, marginTop: 4 }}>{note}</Text>
+      {customerNote ? (
+        <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, marginTop: 4 }}>
+          {customerNote}
+        </Text>
+      ) : null}
+      {cashChange ? (
+        <Text
+          accessibilityRole="text"
+          style={{
+            fontSize: font.sizes.base,
+            color: colors.ink,
+            fontWeight: '800',
+            marginTop: customerNote ? spacing.sm : 4,
+          }}
+        >
+          {t('cashChange.instruction', {
+            tender: cashChange.tenderEgp,
+            change: cashChange.changeEgp,
+          })}
+        </Text>
       ) : null}
     </View>
   );

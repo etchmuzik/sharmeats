@@ -180,24 +180,6 @@ export interface MenuSection {
   name: string;
 }
 
-/**
- * One row of cross-restaurant dish search.
- *
- * Deliberately NOT `{ item: MenuItem; restaurant: Restaurant }`. A result row
- * renders exactly these six fields and the search RPC returns exactly these six
- * columns; assembling full MenuItem/Restaurant objects would mean either extra
- * round trips (the N+1 this replaced) or padding required fields with
- * placeholders that later code could mistake for real data.
- */
-export interface MenuSearchHit {
-  itemId: string;
-  itemName: string;
-  itemImage: string;
-  priceEgp: number;
-  restaurantId: string;
-  restaurantName: string;
-}
-
 export interface MenuItem {
   id: string;
   restaurantId: string;

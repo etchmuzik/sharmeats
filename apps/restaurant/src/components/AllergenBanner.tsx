@@ -1,7 +1,8 @@
 import { Text, View } from 'react-native';
 import { Icon } from './Icon';
-import { allergenLabel, type AllergenKey } from '../orders';
+import type { AllergenKey } from '../orders';
 import { font, radius, spacing } from '../theme';
+import { useLocale } from '../locale';
 import { useThemeColors } from '../themeProvider';
 
 /**
@@ -12,11 +13,13 @@ import { useThemeColors } from '../themeProvider';
  */
 export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null | undefined }) {
   const colors = useThemeColors();
+  const { direction, isRtl, t } = useLocale();
   if (!allergens || allergens.length === 0) return null;
+  const labels = allergens.map((allergen) => t(`allergen.${allergen}`));
   return (
     <View
       accessibilityRole="alert"
-      accessibilityLabel={`Allergy alert: ${allergens.map(allergenLabel).join(', ')}`}
+      accessibilityLabel={t('allergen.alertA11y', { allergens: labels.join(', ') })}
       style={{
         borderWidth: 1.5,
         borderColor: colors.red,
@@ -25,6 +28,7 @@ export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null 
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         gap: spacing.xs,
+        direction,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -33,16 +37,16 @@ export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null 
           style={{
             fontSize: font.sizes.xs,
             fontWeight: '800',
-            letterSpacing: 0.5,
-            textTransform: 'uppercase',
+            letterSpacing: isRtl ? 0 : 0.5,
+            textTransform: isRtl ? 'none' : 'uppercase',
             color: colors.redText,
           }}
         >
-          Allergy alert
+          {t('allergen.alert')}
         </Text>
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
-        {allergens.map((a) => (
+        {allergens.map((a, index) => (
           <View
             key={a}
             style={{
@@ -53,7 +57,7 @@ export function AllergenBanner({ allergens }: { allergens: AllergenKey[] | null 
             }}
           >
             <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.onInk }}>
-              {allergenLabel(a)}
+              {labels[index]}
             </Text>
           </View>
         ))}

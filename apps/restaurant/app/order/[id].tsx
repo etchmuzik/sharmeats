@@ -7,7 +7,6 @@ import { Icon } from '../../src/components/Icon';
 import { AllergenBanner } from '../../src/components/AllergenBanner';
 import { ContactButtons } from '../../src/components/ContactButtons';
 import {
-  allergenLabel,
   getMyKitchen,
   getOrder,
   subscribeOrders,
@@ -15,15 +14,27 @@ import {
 } from '../../src/orders';
 import { font, radius, spacing } from '../../src/theme';
 import { useThemeColors } from '../../src/themeProvider';
+import { useLocale } from '../../src/locale';
+import type { TranslationKey, TranslationParams } from '../../src/i18n';
+import { captureError } from '../../src/lib/crash';
+import { operationalErrorKey } from '../../src/operationalErrors';
 
 /** Format the delivery address for the kitchen from its snapshot. */
-function addressLine(order: RestaurantOrder): string {
+type Translate = (key: TranslationKey, params?: TranslationParams) => string;
+
+function addressLine(order: RestaurantOrder, t: Translate): string {
   const addr = order.address_snapshot;
-  if (!addr) return 'Address';
-  if (addr.kind === 'hotel') return `${addr.hotelName ?? 'Hotel'} · Room ${addr.roomNumber ?? '—'}`;
-  if (addr.kind === 'street') return `${addr.streetText ?? ''} ${addr.building ?? ''}`.trim() || 'Address';
-  if (addr.kind === 'beach_pin') return `Beach · ${addr.beachName ?? ''}`;
-  return addr.label ?? 'Address';
+  if (!addr) return t('order.address');
+  if (addr.kind === 'hotel') {
+    return `${addr.hotelName ?? t('order.hotel')} · ${t('order.room')} ${
+      addr.roomNumber ?? '—'
+    }`;
+  }
+  if (addr.kind === 'street') {
+    return `${addr.streetText ?? ''} ${addr.building ?? ''}`.trim() || t('order.address');
+  }
+  if (addr.kind === 'beach_pin') return `${t('order.beach')} · ${addr.beachName ?? ''}`;
+  return addr.label ?? t('order.address');
 }
 
 /**
@@ -37,6 +48,7 @@ export default function OrderDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
+  const { direction, isRtl, t } = useLocale();
 
   const [order, setOrder] = useState<RestaurantOrder | null>(null);
   const [brandTag, setBrandTag] = useState<string | undefined>(undefined);
@@ -66,11 +78,12 @@ export default function OrderDetail() {
         setOrder(row);
       }
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not load order', 'error');
+      captureError(e, { where: 'restaurant.order.load', orderId: id });
+      toast(t(operationalErrorKey('orderLoad')), 'error');
     } finally {
       setLoading(false);
     }
-  }, [id, toast]);
+  }, [id, toast, t]);
 
   useEffect(() => {
     load();
@@ -106,17 +119,17 @@ export default function OrderDetail() {
 
   if (notFound || !order) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md }}>
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>Order not found</Text>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, backgroundColor: colors.bg, gap: spacing.md, direction }}>
+        <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>{t('detail.notFound')}</Text>
         <Pressable onPress={() => router.back()} style={{ padding: spacing.md }}>
-          <Text style={{ color: colors.accentText, fontWeight: '700' }}>Go back</Text>
+          <Text style={{ color: colors.accentText, fontWeight: '700' }}>{t('detail.goBack')}</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, direction }}>
       {/* Live order summary */}
       <View
         style={{
@@ -133,14 +146,14 @@ export default function OrderDetail() {
       >
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>{order.short_code}</Text>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink, writingDirection: 'ltr' }}>{order.short_code}</Text>
             {brandTag ? (
               // [P06 Stage 3] Brand identity rides on the ticket DETAIL too —
               // the queue already tags tickets, but the cook works from this
               // screen, and in a multi-brand kitchen "which brand's packaging
               // and station" is part of the order, not decoration.
               <View
-                accessibilityLabel={`Brand ${brandTag}`}
+                accessibilityLabel={t('order.brandA11y', { brand: brandTag })}
                 style={{
                   backgroundColor: colors.ink,
                   borderRadius: radius.sm,
@@ -155,10 +168,11 @@ export default function OrderDetail() {
             ) : null}
           </View>
           <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
-            {new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {order.status}
+            {new Date(order.placed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ·{' '}
+            {t(`status.${order.status}`)}
           </Text>
         </View>
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink }}>{order.total_egp} EGP</Text>
+        <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.ink, writingDirection: 'ltr' }}>{order.total_egp} EGP</Text>
       </View>
 
       <ScrollView
@@ -170,8 +184,8 @@ export default function OrderDetail() {
 
         {/* Items */}
         <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, gap: spacing.md }}>
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: colors.ink2 }}>
-            Items
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: isRtl ? 0 : 1, textTransform: isRtl ? 'none' : 'uppercase', color: colors.ink2 }}>
+            {t('detail.items')}
           </Text>
           {order.items?.map((it, i) => (
             <View key={i} style={{ gap: 2 }}>
@@ -180,13 +194,15 @@ export default function OrderDetail() {
                 {it.name}
               </Text>
               {it.modifierChoices && it.modifierChoices.length > 0 ? (
-                <Text style={{ fontSize: font.sizes.sm, color: colors.ink3, marginLeft: spacing.md }}>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.ink3, marginStart: spacing.md }}>
                   {it.modifierChoices.map((m) => m.optionName).filter(Boolean).join(', ')}
                 </Text>
               ) : null}
               {it.allergens && it.allergens.length > 0 ? (
-                <Text style={{ fontSize: font.sizes.sm, color: colors.redText, marginLeft: spacing.md, fontWeight: '700' }}>
-                  Contains: {it.allergens.map(allergenLabel).join(', ')}
+                <Text style={{ fontSize: font.sizes.sm, color: colors.redText, marginStart: spacing.md, fontWeight: '700' }}>
+                  {t('detail.contains', {
+                    allergens: it.allergens.map((allergen) => t(`allergen.${allergen}`)).join(', '),
+                  })}
                 </Text>
               ) : null}
               {/* Matches the allergen warning's shape deliberately: staff already
@@ -195,13 +211,13 @@ export default function OrderDetail() {
                   the bag needs to know to verify, not merely that it is Rx. */}
               {it.requiresPrescription ? (
                 <Text
-                  style={{ fontSize: font.sizes.sm, color: colors.redText, marginLeft: spacing.md, fontWeight: '800' }}
+                  style={{ fontSize: font.sizes.sm, color: colors.redText, marginStart: spacing.md, fontWeight: '800' }}
                   accessibilityRole="text">
-                  Rx — prescription required, verify before handover
+                  {t('detail.rx')}
                 </Text>
               ) : null}
               {it.notes ? (
-                <Text style={{ fontSize: font.sizes.sm, color: colors.amberText, marginLeft: spacing.md }}>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.amberText, marginStart: spacing.md }}>
                   “{it.notes}”
                 </Text>
               ) : null}
@@ -212,30 +228,37 @@ export default function OrderDetail() {
         {/* Kitchen note */}
         {order.kitchen_notes ? (
           <View style={{ backgroundColor: colors.amberSoft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.amberText }}>Kitchen note</Text>
+            <Text style={{ fontSize: font.sizes.xs, fontWeight: '700', color: colors.amberText }}>{t('detail.kitchenNote')}</Text>
             <Text style={{ fontSize: font.sizes.base, color: colors.amberText }}>{order.kitchen_notes}</Text>
           </View>
         ) : null}
 
         {/* Delivery */}
         <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: radius.xl, backgroundColor: colors.surface, padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: colors.ink2 }}>
-            Delivery
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: isRtl ? 0 : 1, textTransform: isRtl ? 'none' : 'uppercase', color: colors.ink2 }}>
+            {t('detail.delivery')}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="location" size={14} color={colors.ink3} />
-            <Text style={{ flex: 1, fontSize: font.sizes.base, color: colors.ink }}>{addressLine(order)}</Text>
+            <Text style={{ flex: 1, fontSize: font.sizes.base, color: colors.ink }}>{addressLine(order, t)}</Text>
           </View>
           <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
-            {order.fulfillment_type === 'self_delivery' ? 'Self-delivery' : 'Platform fleet'} ·{' '}
-            {order.payment_method === 'cash_on_delivery' ? 'Cash on delivery' : `Card · ${order.payment_status}`}
+            {order.fulfillment_type === 'self_delivery'
+              ? t('fulfillment.selfLabel')
+              : t('fulfillment.platformLabel')}{' '}
+            ·{' '}
+            {order.payment_method === 'cash_on_delivery'
+              ? t('payment.cashLabel')
+              : t('payment.cardLabel', {
+                  status: t(`payment.status.${order.payment_status}`),
+                })}
           </Text>
         </View>
 
         {/* Contact */}
         <View style={{ gap: spacing.sm }}>
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: colors.ink2 }}>
-            Contact
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: '800', letterSpacing: isRtl ? 0 : 1, textTransform: isRtl ? 'none' : 'uppercase', color: colors.ink2 }}>
+            {t('detail.contact')}
           </Text>
           <ContactButtons orderId={order.id} customerPhone={order.customer_phone} />
         </View>

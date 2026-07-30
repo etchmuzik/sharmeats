@@ -15,6 +15,9 @@ import { font } from '../theme';
 import { useThemeColors } from '../themeProvider';
 import { useToast } from './Toast';
 import { notifySuccess, tapLight } from '../lib/haptics';
+import { useLocale } from '../locale';
+import { captureError } from '../lib/crash';
+import { operationalErrorKey } from '../operationalErrors';
 
 const SIZE = 48;
 
@@ -27,14 +30,22 @@ type Props = {
 export function LogoButton({ restaurantId, name }: Props) {
   const colors = useThemeColors();
   const { toast } = useToast();
+  const { t } = useLocale();
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    getRestaurantLogoUrl(restaurantId).then((u) => {
-      if (mounted) setUrl(u);
-    });
+    getRestaurantLogoUrl(restaurantId)
+      .then((u) => {
+        if (mounted) setUrl(u);
+      })
+      .catch((error) => {
+        captureError(error, {
+          where: 'restaurant.logo.load',
+          restaurantId,
+        });
+      });
     return () => {
       mounted = false;
     };
@@ -44,7 +55,7 @@ export function LogoButton({ restaurantId, name }: Props) {
     tapLight();
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      toast('Allow photo access in Settings to set a logo.', 'error');
+      toast(t('header.logoPermission'), 'error');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -65,13 +76,17 @@ export function LogoButton({ restaurantId, name }: Props) {
       );
       setUrl(newUrl);
       notifySuccess();
-      toast('Logo updated.', 'success');
+      toast(t('header.logoUpdated'), 'success');
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Couldn't upload the logo. Try again.", 'error');
+      captureError(e, {
+        where: 'restaurant.logo.upload',
+        restaurantId,
+      });
+      toast(t(operationalErrorKey('logoUpload')), 'error');
     } finally {
       setBusy(false);
     }
-  }, [restaurantId, toast]);
+  }, [restaurantId, t, toast]);
 
   const initial = (name ?? 'R').trim().charAt(0).toUpperCase() || 'R';
 
@@ -80,7 +95,7 @@ export function LogoButton({ restaurantId, name }: Props) {
       onPress={pick}
       disabled={busy}
       accessibilityRole="button"
-      accessibilityLabel={url ? 'Change the restaurant logo' : 'Add a restaurant logo'}
+      accessibilityLabel={url ? t('header.logoChangeA11y') : t('header.logoAddA11y')}
       accessibilityState={{ busy, disabled: busy }}
       hitSlop={8}
       style={({ pressed }) => ({

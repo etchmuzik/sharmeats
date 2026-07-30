@@ -403,3 +403,12 @@ export const RESTAURANTS: Restaurant[] = [
     description: 'مفتوحة ٢٤ ساعة. أدوية، فيتامينات، مستحضرات. توصيل سريع للوصفات.',
   },
 ];
+
+/**
+ * Mock mode represents an ordinary public customer. Grocery and pharmacy are
+ * private pilots in Package 07, so exposing their fixtures here would make
+ * local Browse behavior less restrictive than live RLS.
+ */
+export const PUBLIC_RESTAURANTS = RESTAURANTS.filter(
+  (restaurant) => restaurant.verticalId === 'food',
+);

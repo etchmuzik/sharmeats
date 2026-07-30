@@ -7,6 +7,7 @@ import { permissionDeniedCopy } from '@/lib/capabilities';
 import { Icon } from '../Icon';
 import { useToast } from '../Toast';
 import { Field, NumberField, TextArea } from './fields';
+import { MenuCsvImporter } from './MenuCsvImporter';
 
 /**
  * Menu manager for one restaurant: sections, each holding items. Every change
@@ -37,24 +38,31 @@ export function MenuManager({
 
   const load = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    const [{ data: secs }, { data: its }] = await Promise.all([
-      supabase
-        .from('menu_sections')
-        .select('id, restaurant_id, name, sort_order')
-        .eq('restaurant_id', restaurantId)
-        .order('sort_order', { ascending: true }),
-      supabase
-        .from('menu_items')
-        .select(
-          'id, restaurant_id, section_id, name, description, price_egp, image, flags, is_available, sort_order',
-        )
-        .eq('restaurant_id', restaurantId)
-        .order('sort_order', { ascending: true }),
-    ]);
+    const [{ data: secs, error: sectionsError }, { data: its, error: itemsError }] =
+      await Promise.all([
+        supabase
+          .from('menu_sections')
+          .select('id, restaurant_id, name, sort_order')
+          .eq('restaurant_id', restaurantId)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('menu_items')
+          .select(
+            'id, restaurant_id, section_id, name, description, price_egp, image, flags, is_available, sort_order',
+          )
+          .eq('restaurant_id', restaurantId)
+          .order('sort_order', { ascending: true }),
+      ]);
+    if (sectionsError || itemsError) {
+      setLoading(false);
+      toast('Could not refresh the menu. Check your connection and try again.', 'error');
+      return false;
+    }
     setSections((secs as MenuSection[]) ?? []);
     setItems((its as MenuItem[]) ?? []);
     setLoading(false);
-  }, [restaurantId]);
+    return true;
+  }, [restaurantId, toast]);
 
   useEffect(() => {
     setLoading(true);
@@ -63,10 +71,9 @@ export function MenuManager({
 
   const addSection = async () => {
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.from('menu_sections').insert({
-      restaurant_id: restaurantId,
-      name: 'New section',
-      sort_order: sections.length,
+    const { error } = await supabase.rpc('append_merchant_menu_section', {
+      p_restaurant_id: restaurantId,
+      p_name: 'New section',
     });
     if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     await load();
@@ -86,6 +93,17 @@ export function MenuManager({
         )}
       </div>
 
+      {editable && !loading && (
+        <MenuCsvImporter
+          restaurantId={restaurantId}
+          existingItems={items.flatMap((item) => {
+            const section = sections.find((candidate) => candidate.id === item.section_id);
+            return section ? [{ sectionName: section.name, itemName: item.name }] : [];
+          })}
+          onImported={load}
+        />
+      )}
+
       {loading ? (
         <div className="py-6 text-center text-sm text-ink3">Loading menu…</div>
       ) : sections.length === 0 ? (
@@ -100,7 +118,9 @@ export function MenuManager({
             key={section.id}
             section={section}
             items={items.filter((it) => it.section_id === section.id)}
-            onChanged={load}
+            onChanged={async () => {
+              await load();
+            }}
             editable={editable}
           />
         ))
@@ -197,7 +217,6 @@ function SectionBlock({
           restaurantId={section.restaurant_id}
           sectionId={section.id}
           item={editing === 'new' ? null : editing}
-          sortOrder={items.length}
           onClose={() => setEditing(null)}
           onSaved={async () => {
             setEditing(null);
@@ -278,14 +297,12 @@ function ItemEditor({
   restaurantId,
   sectionId,
   item,
-  sortOrder,
   onClose,
   onSaved,
 }: {
   restaurantId: string;
   sectionId: string;
   item: MenuItem | null;
-  sortOrder: number;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
@@ -318,7 +335,16 @@ function ItemEditor({
     };
     const { error } = item
       ? await supabase.from('menu_items').update(payload).eq('id', item.id)
-      : await supabase.from('menu_items').insert({ ...payload, sort_order: sortOrder });
+      : await supabase.rpc('append_merchant_menu_item', {
+          p_restaurant_id: restaurantId,
+          p_section_id: sectionId,
+          p_name: payload.name,
+          p_description: payload.description,
+          p_price_egp: payload.price_egp,
+          p_image: payload.image,
+          p_flags: payload.flags,
+          p_is_available: payload.is_available,
+        });
     setSaving(false);
     if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
     toast(item ? 'Item updated' : 'Item added', 'success');

@@ -1,5 +1,6 @@
 import type {
   Address,
+  Cuisine,
   Hotel,
   MenuItem,
   MenuSection,
@@ -11,6 +12,32 @@ import type {
   Rider,
   User,
 } from '../types';
+
+const FOOD_CUISINES: ReadonlySet<string> = new Set<Cuisine>([
+  'italian',
+  'seafood',
+  'egyptian',
+  'sushi',
+  'healthy',
+  'burgers',
+  'cafe',
+  'asian',
+  'pizza',
+  'breakfast',
+  'late_night',
+  'street_food',
+  'sweets',
+]);
+
+/**
+ * Compatibility decoder for rows cached before the Package 07 database guard.
+ * The server now refuses vertical ids in restaurants.cuisines, but a rolling
+ * deployment or offline cache can briefly contain an older row. Fail closed:
+ * only the known food vocabulary reaches customer filters and labels.
+ */
+function foodCuisines(values: readonly string[]): Cuisine[] {
+  return values.filter((value): value is Cuisine => FOOD_CUISINES.has(value));
+}
 
 /**
  * Parse a Postgres timestamp to epoch ms, safely on Hermes (the on-device JS
@@ -101,7 +128,7 @@ export function rowToRestaurant(r: RestaurantRow): Restaurant {
     // Vertical identity (Package 07 A). Defaults to 'food' so an older backend
     // row without the column maps to today's behaviour rather than undefined.
     verticalId: ((r as { vertical_id?: string }).vertical_id ?? 'food') as Restaurant['verticalId'],
-    cuisines: r.cuisines as Restaurant['cuisines'],
+    cuisines: foodCuisines(r.cuisines),
     cuisineLabel: r.cuisine_label,
     coverImage: r.cover_image,
     logo: r.logo ?? undefined,

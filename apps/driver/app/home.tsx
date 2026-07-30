@@ -40,12 +40,16 @@ import { EarningsGrid } from '../src/components/EarningsGrid';
 import { AvatarButton } from '../src/components/AvatarButton';
 import { ThemeToggle } from '../src/components/ThemeToggle';
 import { notifyError, notifySuccess, tapLight, tapMedium } from '../src/lib/haptics';
+import { LanguageToggle } from '../src/components/LanguageToggle';
+import { useI18n } from '../src/i18n-context';
+import { captureError } from '../src/lib/crash';
 
 export default function Home() {
   const colors = useThemeColors();
   const router = useRouter();
   const { signOut } = useAuth();
   const { toast } = useToast();
+  const { direction, errorMessage, t } = useI18n();
 
   const [driver, setDriver] = useState<Awaited<ReturnType<typeof getMyDriver>>>(null);
   const [online, setOnlineState] = useState(false);
@@ -84,6 +88,7 @@ export default function Home() {
     } catch (e) {
       // [H-BIZ1] A transient fetch failure must NOT masquerade as "not a
       // registered driver". Flag an error state (retry) and keep prior data.
+      captureError(e, { where: 'driver.home.load' });
       if (e instanceof DriverFetchError || e instanceof Error) setLoadError(true);
     } finally {
       setLoading(false);
@@ -156,11 +161,12 @@ export default function Home() {
         await stopStreaming();
         await pingOnce('offline');
       }
-    } catch {
+    } catch (e) {
       setOnlineState(!next); // revert on failure
       onlineRef.current = !next;
+      captureError(e, { where: 'driver.home.toggleOnline', next });
       notifyError();
-      toast("Couldn't update your status. Check your connection.", 'error');
+      toast(errorMessage('online', e), 'error');
     }
   }
 
@@ -182,8 +188,14 @@ export default function Home() {
       router.push(`/job/${a.order_id}`);
     } catch (e) {
       // A silently-failed accept could cost the driver a job — always surface it.
+      captureError(e, {
+        where: 'driver.home.acceptOffer',
+        assignmentId: a.id,
+        orderId: a.order_id,
+      });
       notifyError();
-      toast(e instanceof Error ? e.message : "Couldn't accept the offer. Try again.", 'error');
+      toast(errorMessage('offerAccept', e), 'error');
+      await load();
     }
   }
 
@@ -192,8 +204,14 @@ export default function Home() {
       await respondToOffer(a.id, false);
       setOffers((prev) => prev.filter((o) => o.id !== a.id));
     } catch (e) {
+      captureError(e, {
+        where: 'driver.home.declineOffer',
+        assignmentId: a.id,
+        orderId: a.order_id,
+      });
       notifyError();
-      toast(e instanceof Error ? e.message : "Couldn't decline the offer.", 'error');
+      toast(errorMessage('offerDecline', e), 'error');
+      await load();
     }
   }
 
@@ -223,11 +241,11 @@ export default function Home() {
         contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: spacing.sm }}
         style={{ flex: 1, backgroundColor: colors.bg }}
       >
-        <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
-          Couldn't load your profile
+        <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {t('home.profileLoadTitle')}
         </Text>
-        <Text style={{ color: colors.ink2, textAlign: 'center' }}>
-          Check your connection and try again.
+        <Text style={{ color: colors.ink2, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {t('home.profileLoadBody')}
         </Text>
         <Pressable
           onPress={() => {
@@ -235,13 +253,13 @@ export default function Home() {
             load();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Retry loading your profile"
+          accessibilityLabel={t('home.retryA11y')}
           style={{ marginTop: spacing.lg, minHeight: 48, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, borderCurve: 'continuous', paddingHorizontal: spacing.xl }}
         >
-          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>Retry</Text>
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>{t('common.retry')}</Text>
         </Pressable>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md }}>
-          <Text style={{ color: colors.ink3, fontWeight: '600' }}>Sign out</Text>
+          <Text style={{ color: colors.ink3, fontWeight: '600' }}>{t('common.signOut')}</Text>
         </Pressable>
       </ScrollView>
     );
@@ -254,14 +272,14 @@ export default function Home() {
         contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: spacing.sm }}
         style={{ flex: 1, backgroundColor: colors.bg }}
       >
-        <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
-          Not a registered driver
+        <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {t('home.notRegisteredTitle')}
         </Text>
-        <Text style={{ color: colors.ink2, textAlign: 'center' }}>
-          Your account isn't linked to a driver profile yet. Contact Sharm Eats ops to get set up.
+        <Text style={{ color: colors.ink2, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {t('home.notRegisteredBody')}
         </Text>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={{ marginTop: spacing.lg, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md }}>
-          <Text style={{ color: colors.accentText, fontWeight: '600' }}>Sign out</Text>
+          <Text style={{ color: colors.accentText, fontWeight: '600' }}>{t('common.signOut')}</Text>
         </Pressable>
       </ScrollView>
     );
@@ -271,7 +289,10 @@ export default function Home() {
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingBottom: spacing.xxxl }}
+      contentContainerStyle={{
+        paddingBottom: spacing.xxxl,
+        direction: direction.direction,
+      }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -291,18 +312,19 @@ export default function Home() {
       <View style={{ paddingHorizontal: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <AvatarButton name={driver.name} />
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text selectable style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
-            {driver.name?.split(' ')[0] ?? 'Driver'}
+          <Text selectable style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink, textAlign: direction.textAlign, writingDirection: direction.writingDirection }}>
+            {driver.name?.split(' ')[0] ?? t('common.driver')}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>{driver.vehicle} ·</Text>
             <Icon name="star" size={12} color={colors.star} />
             <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
               {driver.rating}
-              {!driver.is_verified && '  · pending verification'}
+              {!driver.is_verified && `  · ${t('home.pendingVerification')}`}
             </Text>
           </View>
         </View>
+        <LanguageToggle />
         {/* Appearance override lives here rather than behind a menu: a shift
             spans full sun to full dark, and neither theme is readable in both. */}
         <ThemeToggle />
@@ -314,9 +336,9 @@ export default function Home() {
         <>
           <EarningsGrid earnings={earnings} />
           <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.md, marginBottom: spacing.lg, gap: spacing.xs }}>
-            <QuickLink icon="receipt" label="Delivery history" onPress={() => router.push('/history')} />
-            <QuickLink icon="trophy" label="My tier" onPress={() => router.push('/tier')} />
-            <QuickLink icon="person" label="Verification documents" onPress={() => router.push('/kyc')} />
+            <QuickLink icon="receipt" label={t('home.deliveryHistory')} onPress={() => router.push('/history')} />
+            <QuickLink icon="trophy" label={t('home.myTier')} onPress={() => router.push('/tier')} />
+            <QuickLink icon="person" label={t('home.verificationDocuments')} onPress={() => router.push('/kyc')} />
           </View>
         </>
       )}
@@ -333,7 +355,11 @@ export default function Home() {
       {/* Offers */}
       <View style={{ paddingHorizontal: spacing.xl }}>
         <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: spacing.md }}>
-          {offers.length > 0 ? `New offers · ${offers.length}` : online ? 'Waiting for offers' : 'Offers paused'}
+          {offers.length > 0
+            ? t('home.newOffers', { count: offers.length })
+            : online
+              ? t('home.waitingOffers')
+              : t('home.offersPaused')}
         </Text>
         {/* A plain View, not Animated. Twice now an entering/layout animation
             has left content INVISIBLE on iOS rather than fading it in — this
@@ -346,8 +372,8 @@ export default function Home() {
           <View
             accessibilityLabel={
               online
-                ? 'No offers right now. You are online and ready for nearby deliveries.'
-                : 'Offers are paused. Go online to receive deliveries.'
+                ? t('home.onlineEmptyA11y')
+                : t('home.offlineEmptyA11y')
             }
             style={{
               minHeight: 128,
@@ -364,10 +390,10 @@ export default function Home() {
           >
             <Icon name={online ? 'bell' : 'quiet'} size={28} color={online ? colors.accent : colors.ink3} />
             <Text style={{ marginTop: spacing.xs, color: colors.ink, fontSize: font.sizes.base, fontWeight: '700', textAlign: 'center' }}>
-              {online ? 'You’re ready for nearby deliveries' : 'Go online when you’re ready'}
+              {online ? t('home.onlineEmptyTitle') : t('home.offlineEmptyTitle')}
             </Text>
             <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, textAlign: 'center' }}>
-              {online ? 'New offers will appear here with a notification.' : 'Use the switch above to start receiving offers.'}
+              {online ? t('home.onlineEmptyBody') : t('home.offlineEmptyBody')}
             </Text>
           </View>
         )}
@@ -385,36 +411,36 @@ export default function Home() {
       {/* Legal */}
       <View style={{ marginTop: spacing.xxl, paddingHorizontal: spacing.xl }}>
         <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: spacing.xs }}>
-          Legal
+          {t('common.legal')}
         </Text>
         <Pressable
           onPress={() => openLegal(LEGAL_URLS.terms)}
           accessibilityRole="link"
-          accessibilityLabel="Terms of Service"
+          accessibilityLabel={t('common.terms')}
           style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}
         >
-          <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Terms of Service</Text>
-          <Icon name="chevronForward" size={16} color={colors.ink3} />
+          <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600', textAlign: direction.textAlign }}>{t('common.terms')}</Text>
+          <Icon name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'} size={16} color={colors.ink3} />
         </Pressable>
         <View style={{ height: 1, backgroundColor: colors.line }} />
         <Pressable
           onPress={() => openLegal(LEGAL_URLS.privacy)}
           accessibilityRole="link"
-          accessibilityLabel="Privacy Policy"
+          accessibilityLabel={t('common.privacy')}
           style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}
         >
-          <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>Privacy Policy</Text>
-          <Icon name="chevronForward" size={16} color={colors.ink3} />
+          <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600', textAlign: direction.textAlign }}>{t('common.privacy')}</Text>
+          <Icon name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'} size={16} color={colors.ink3} />
         </Pressable>
       </View>
 
       <Pressable
         onPress={handleSignOut}
         accessibilityRole="button"
-        accessibilityLabel="Sign out"
+        accessibilityLabel={t('common.signOut')}
         style={{ marginTop: spacing.xl, marginHorizontal: spacing.xl, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Text style={{ color: colors.ink3, fontSize: font.sizes.base, fontWeight: '600' }}>Sign out</Text>
+        <Text style={{ color: colors.ink3, fontSize: font.sizes.base, fontWeight: '600' }}>{t('common.signOut')}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -431,6 +457,8 @@ function QuickLink({
   onPress: () => void;
 }) {
   const colors = useThemeColors();
+  const { direction } = useI18n();
+
   return (
     <Pressable
       onPress={() => {
@@ -448,10 +476,10 @@ function QuickLink({
       })}
     >
       <Icon name={icon} size={16} color={colors.accentText} />
-      <Text style={{ flex: 1, color: colors.accentText, fontWeight: '600', fontSize: font.sizes.base }}>
+      <Text style={{ flex: 1, color: colors.accentText, fontWeight: '600', fontSize: font.sizes.base, textAlign: direction.textAlign }}>
         {label}
       </Text>
-      <Icon name="chevronForward" size={14} color={colors.accentText} />
+      <Icon name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'} size={14} color={colors.accentText} />
     </Pressable>
   );
 }

@@ -10,6 +10,7 @@ import { Text, View } from 'react-native';
 import type { EarningsSummary } from '../jobs';
 import { font, radius, spacing } from '../theme';
 import { useThemeColors } from '../themeProvider';
+import { useI18n } from '../i18n-context';
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   const colors = useThemeColors();
@@ -44,6 +45,8 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
 }
 
 export function EarningsGrid({ earnings }: { earnings: EarningsSummary }) {
+  const { t } = useI18n();
+
   return (
     <View
       style={{
@@ -53,17 +56,17 @@ export function EarningsGrid({ earnings }: { earnings: EarningsSummary }) {
         paddingHorizontal: spacing.xl,
       }}
     >
-      <Stat label="Earned today" value={`${earnings.todayTotal} EGP`} />
-      <Stat label="Deliveries" value={`${earnings.todayCount}`} />
-      <Stat label="Tips today" value={`${earnings.todayTips} EGP`} />
+      <Stat label={t('earnings.today')} value={`${earnings.todayTotal} ${t('common.egp')}`} />
+      <Stat label={t('earnings.deliveries')} value={`${earnings.todayCount}`} />
+      <Stat label={t('earnings.tips')} value={`${earnings.todayTips} ${t('common.egp')}`} />
       {/* Any NON-ZERO balance is an outstanding cash position and gets the amber
           treatment. Testing `> 0` alone was wrong: a negative figure (seen on a
           real account as "-810 EGP") is still money to reconcile, and it
           rendered in plain ink — the one number on this screen that can be bad
           news, styled as though it were routine. */}
       <Stat
-        label={earnings.codOwed !== 0 ? 'Cash to settle' : 'COD owed'}
-        value={`${earnings.codOwed} EGP`}
+        label={earnings.codOwed !== 0 ? t('earnings.cashToSettle') : t('earnings.codOwed')}
+        value={`${earnings.codOwed} ${t('common.egp')}`}
         warn={earnings.codOwed !== 0}
       />
     </View>
