@@ -580,3 +580,28 @@ export interface NotificationPrefsPatch {
   timezone?: string;
   clearQuietHours?: boolean;
 }
+
+/**
+ * One row in the notification inbox (Package 03 Slice H).
+ *
+ * `event` rather than body text is deliberate: ordinary events store no copy
+ * server-side (mig 171 keeps custom_* for campaigns only) and localize at dispatch,
+ * so the client localizes with the SAME table the push used. That is what stops the
+ * inbox drifting from the words the notification actually showed.
+ */
+export interface InboxMessage {
+  id: string;
+  event: string;
+  category: 'operational' | 'marketing';
+  orderId?: string;
+  route?: string;
+  vertical?: string;
+  /** Campaign copy overrides the event's localized copy, when present. */
+  customTitle?: string;
+  customBody?: string;
+  queuedAt: string;
+  /** When the PUSH was tapped (attribution). Distinct from readAt. */
+  openedAt?: string;
+  /** When the customer read it IN THE INBOX. Undefined = unread. */
+  readAt?: string;
+}

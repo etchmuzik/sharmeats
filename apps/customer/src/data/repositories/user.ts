@@ -185,6 +185,25 @@ export const userRepo = {
     return delay({ ...notificationPrefs });
   },
 
+  /** Inbox page (Package 03 Slice H). Mock returns a small fixed history. */
+  async notificationInbox(): Promise<import('../types').InboxMessage[]> {
+    return delay([...mockInbox]);
+  },
+
+  /** Unread count for the badge. */
+  async unreadNotificationCount(): Promise<number> {
+    return delay(mockInbox.filter((m) => !m.readAt).length);
+  },
+
+  /** Mark one message read. First read wins, matching the server. */
+  async markNotificationRead(messageId: string): Promise<void> {
+    const i = mockInbox.findIndex((m) => m.id === messageId);
+    if (i >= 0 && !mockInbox[i].readAt) {
+      mockInbox[i] = { ...mockInbox[i], readAt: new Date().toISOString() };
+    }
+    return delay(undefined);
+  },
+
   /**
    * Record that a notification was opened (Package 03 Slice F).
    *
@@ -200,3 +219,38 @@ export const userRepo = {
 
 /** Test seam: which message ids the mock was asked to record. */
 export const openedMessageIds: string[] = [];
+
+/**
+ * Mock inbox history.
+ *
+ * Deliberately mixed: one read, one unread, one campaign with custom copy, so the
+ * screen's states are all exercisable offline. Note there is NO suppressed or
+ * failed message here — the server never returns those (mig 179), so a mock that
+ * included them would let the screen render something production cannot produce.
+ */
+const mockInbox: import('../types').InboxMessage[] = [
+  {
+    id: '11111111-1111-4111-8111-111111111111',
+    event: 'order_delivered',
+    category: 'operational',
+    orderId: '22222222-2222-4222-8222-222222222222',
+    queuedAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
+  },
+  {
+    id: '33333333-3333-4333-8333-333333333333',
+    event: 'campaign',
+    category: 'marketing',
+    customTitle: 'Two for one this weekend',
+    customBody: 'Selected restaurants in Naama Bay.',
+    route: '/(tabs)/browse',
+    queuedAt: new Date(Date.now() - 26 * 3600_000).toISOString(),
+    readAt: new Date(Date.now() - 20 * 3600_000).toISOString(),
+  },
+  {
+    id: '44444444-4444-4444-8444-444444444444',
+    event: 'credit_issued',
+    category: 'operational',
+    route: '/(tabs)/rewards',
+    queuedAt: new Date(Date.now() - 3 * 86400_000).toISOString(),
+  },
+];

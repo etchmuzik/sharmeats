@@ -7,6 +7,7 @@ import type {
   PaymentMethod,
   SavedItem,
   User,
+  InboxMessage,
 } from '../types';
 import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
 
@@ -373,6 +374,45 @@ export const userRepoSupabase = {
       // See above: attribution never blocks a tap.
     }
   },
+
+  /**
+   * Inbox page (Package 03 Slice H).
+   *
+   * Keyset cursor, not offset: an inbox grows at the head, so an offset page 2
+   * would repeat rows that page 1 already showed once a new message arrives.
+   */
+  async notificationInbox(
+    cursor?: { queuedAt: string; id: string },
+  ): Promise<InboxMessage[]> {
+    const { data, error } = await getSupabase().rpc('my_notification_inbox', {
+      p_limit: 20,
+      p_before_queued: cursor?.queuedAt ?? null,
+      p_before_id: cursor?.id ?? null,
+    });
+    if (error) throw error;
+    return ((data ?? []) as InboxRow[]).map(rowToInboxMessage);
+  },
+
+  async unreadNotificationCount(): Promise<number> {
+    const { data, error } = await getSupabase().rpc('my_unread_notification_count');
+    if (error) throw error;
+    return typeof data === 'number' ? data : 0;
+  },
+
+  /**
+   * Mark one message read.
+   *
+   * Swallows failures: read-state is convenience, and a customer who taps a
+   * message should never see an error because a badge count could not update.
+   * The server refuses a non-recipient silently anyway (mig 179).
+   */
+  async markNotificationRead(messageId: string): Promise<void> {
+    try {
+      await getSupabase().rpc('mark_notification_read', { p_message_id: messageId });
+    } catch {
+      // See above.
+    }
+  },
 };
 
 interface FavoriteItemRow {
@@ -395,4 +435,40 @@ interface NotificationPrefsRow {
   quiet_hours_start: number | null;
   quiet_hours_end: number | null;
   timezone: string;
+}
+
+/** Raw row from my_notification_inbox. */
+interface InboxRow {
+  id: string;
+  event: string;
+  category: string;
+  order_id: string | null;
+  route: string | null;
+  vertical: string | null;
+  custom_title: string | null;
+  custom_body: string | null;
+  queued_at: string;
+  opened_at: string | null;
+  read_at: string | null;
+}
+
+/**
+ * `?? undefined` throughout rather than keeping nulls: a literal `null` reaching a
+ * template renders as the string "null", which is the class of bug the catalog
+ * mapper already had (see mappers.ts).
+ */
+function rowToInboxMessage(r: InboxRow): InboxMessage {
+  return {
+    id: r.id,
+    event: r.event,
+    category: r.category === 'marketing' ? 'marketing' : 'operational',
+    orderId: r.order_id ?? undefined,
+    route: r.route ?? undefined,
+    vertical: r.vertical ?? undefined,
+    customTitle: r.custom_title ?? undefined,
+    customBody: r.custom_body ?? undefined,
+    queuedAt: r.queued_at,
+    openedAt: r.opened_at ?? undefined,
+    readAt: r.read_at ?? undefined,
+  };
 }
