@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { dictionaries, locales, localeShort, type Locale, rtlLocales } from '@/i18n/dictionaries';
+import { ZONES } from '../data/zones';
 
 /**
  * Sharm Eats marketing home — Landing v2 (Claude Design handoff, 2026-07).
@@ -22,11 +23,6 @@ const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=eg.sharmea
 // visitors. Flip to true when the Play listing goes public to restore the link.
 const PLAY_LIVE = false;
 
-/** Delivery zones (order matches the design's Z table). */
-const ZONES = [
-  'Naama Bay', 'Hay El Salam', 'Hadaba', 'Old Market', 'Rowaysat', 'Sunny Lakes',
-  'Ras Um Sid', 'El Montazah', 'Soho Square', "Shark's Bay", 'Nabq Bay',
-] as const;
 
 /** Uppercase ticker run (duplicated in JSX for the seamless loop). */
 const TICKER = [
@@ -204,8 +200,14 @@ export default function HomePage() {
           <div className="kick"><span className="kdot" /><span>{t.zones_k}</span></div>
           <h2 className="big">{t.zones_t}</h2>
           <div className="zgrid">
+            {/* Names come from public.zones via ../data/zones, so an Arabic
+                visitor reads Arabic zone names rather than transliterations —
+                and the list cannot drift from what the app can deliver to. */}
             {ZONES.map((z) => (
-              <div className="zone" key={z}><span>{z}</span><span className="tdot">◆</span></div>
+              <div className="zone" key={z.id}>
+                <span>{locale === 'ar' ? z.ar : z.en}</span>
+                <span className="tdot">◆</span>
+              </div>
             ))}
           </div>
           <p className="znote">{t.zones_n}</p>
