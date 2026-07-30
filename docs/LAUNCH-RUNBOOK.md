@@ -55,15 +55,30 @@ was never pointed at the domain. If you ever want to move off Hostinger:
    `CNAME <sub> cname.vercel-dns.com`.
 </details>
 
-### 1.4 iOS universal links — **DONE in repo** (needs the domain live + a rebuild)
-- `apps/customer/app.json` → `ios.associatedDomains: ["applinks:sharmeats.online"]` ✅
-- `landing/public/.well-known/apple-app-site-association` (appID
-  `CHSAVJ5X6U.eg.sharmeats.customer`, paths `/order/*`, `/restaurant/*`,
-  `/item/*`, `/track/*`) ✅
-- `landing/next.config.mjs` serves it as `application/json` ✅
-Once `sharmeats.online` is live, verify:
+### 1.4 iOS universal links — **NOT enabled** (server half only)
+Corrected 2026-07-30: this section previously claimed universal links were done.
+They are not, and never were — the app half is missing, so tapping a
+`sharmeats.online` link on iOS opens Safari, not the app.
+
+- `apps/customer/app.json` → `ios.associatedDomains` — **absent.** Without it the
+  entitlement is not in the built app and iOS never fetches the AASA, so the
+  server side below has no effect. (Android `intentFilters` is absent too.)
+- `landing/public/.well-known/apple-app-site-association` — present, appID
+  `CHSAVJ5X6U.eg.sharmeats.customer`, paths `/track`, `/track/*` ✅
+  It used to declare `/order/*`, `/restaurant/*` and `/item/*`, which are not
+  web routes at all, and only `/track/*`, which does *not* match the
+  `https://sharmeats.online/track?t=…` links the customer app actually mints
+  (`apps/customer/src/lib/shareLink.ts`) — no trailing slash, so the pattern
+  missed. Both are fixed; `/track` is the only real deep-linkable route.
+- `landing/next.config.mjs` + `landing/public/.htaccess` serve it as
+  `application/json` ✅
+
+To actually turn this on: enable the Associated Domains capability on the
+customer App ID in the Apple Developer portal, add
+`"associatedDomains": ["applinks:sharmeats.online"]` under `expo.ios` in
+`apps/customer/app.json`, and ship a **new native build** (it is an entitlement
+change — OTA will not do it). Then verify the server half with
 `curl -s https://sharmeats.online/.well-known/apple-app-site-association | jq .`
-(Universal links take effect in the NEXT app build, i.e. #11+.)
 
 ### 1.5 Privacy policy page — **DONE in repo**
 `landing/src/app/privacy/page.tsx` → live at `https://sharmeats.online/privacy`.
@@ -233,7 +248,7 @@ accounts via the admin flow.
 |---|---|---|
 | Domain registered | — | ☐ YOU |
 | Landing + subdomains on Vercel | ✅ | ☐ YOU (DNS) |
-| Universal links (AASA + app.json) | ✅ DONE | ☐ needs domain + rebuild |
+| Universal links | ⚠️ AASA only — `associatedDomains` missing (see 1.4) | ☐ needs App ID capability + native rebuild |
 | Privacy page | ✅ DONE | ☐ needs domain |
 | Paymob functions written | ✅ DONE | — |
 | Paymob account + keys | — | ☐ YOU |

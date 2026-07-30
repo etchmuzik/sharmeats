@@ -160,8 +160,8 @@ const en = {
   'theme.auto': 'Auto',
   'theme.light': 'Light',
   'theme.dark': 'Dark',
-  'theme.a11y': 'Appearance: {mode}',
-  'theme.hint': 'Switches to {next}',
+  'theme.a11y': 'Appearance: {{mode}}',
+  'theme.hint': 'Switches to {{next}}',
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -317,8 +317,8 @@ const ar: Record<TranslationKey, string> = {
   'theme.auto': 'تلقائي',
   'theme.light': 'فاتح',
   'theme.dark': 'داكن',
-  'theme.a11y': 'المظهر: {mode}',
-  'theme.hint': 'التبديل إلى {next}',
+  'theme.a11y': 'المظهر: {{mode}}',
+  'theme.hint': 'التبديل إلى {{next}}',
 };
 
 export const dictionaries = { en, ar } as const;

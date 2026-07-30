@@ -24,11 +24,19 @@ const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=eg.sharmea
 const PLAY_LIVE = false;
 
 
-/** Uppercase ticker run (duplicated in JSX for the seamless loop). */
-const TICKER = [
-  'NAAMA BAY', 'HADABA', 'OLD MARKET', 'NABQ BAY', "SHARK'S BAY", 'SOHO SQUARE',
-  'RAS UM SID', 'EL MONTAZAH', 'SUNNY LAKES', 'HAY EL SALAM', 'ROWAYSAT',
-] as const;
+/**
+ * Uppercase ticker run (duplicated in JSX for the seamless loop).
+ *
+ * DERIVED, never hand-written. This list was hardcoded and had drifted into
+ * advertising Ras Um Sid, El Montazah and Sunny Lakes — the same three phantom
+ * zones the grid below once claimed, none of which is a `zones.id`, so no
+ * address there resolves and no `delivery_fee_rules` row prices it. Scrolling
+ * text is exactly where a stale promise hides: it is `aria-hidden` decoration,
+ * so no test and no screen reader ever read it back. `ZONES` is checked against
+ * the migrations by scripts/check-landing-zones.mjs, which also asserts this
+ * stays derived.
+ */
+const TICKER = ZONES.map((z) => z.en.toUpperCase());
 
 export default function HomePage() {
   const [locale, setLocale] = useState<Locale>('en');

@@ -95,13 +95,14 @@ export default function TermsPage() {
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>
                 <strong>Cash on delivery</strong> — you pay the courier the exact
-                order total in cash when your order arrives.
+                order total in cash when your order arrives. This is currently
+                the only way to pay.
               </li>
               <li>
-                <strong>Card</strong> — where enabled, card payments are processed
-                by <strong>Paymob</strong>, a licensed Egyptian payment provider.
-                Your full card details are entered on Paymob&rsquo;s secure
-                checkout and are never stored on our servers.
+                <strong>Card</strong> — not offered at the moment. If we add card
+                payment, it will be handled by a licensed payment provider on
+                their own checkout, your full card details will never reach our
+                servers, and these terms will say so before it goes live.
               </li>
             </ul>
             <p className="mt-3">
@@ -132,8 +133,9 @@ export default function TermsPage() {
               longer be cancellable because food is made to order. If an item is
               missing, incorrect, or there is a problem with your order, contact us
               and we will work with the Merchant to make it right, which may include
-              a partial or full refund. Card refunds are returned through Paymob to
-              your original payment method.
+              a partial or full refund. Because orders are paid in cash on
+              delivery, a refund is settled directly with you rather than
+              reversed through a card network.
             </p>
           </section>
 
