@@ -76,4 +76,28 @@ describe('composeDriverDropoffNote', () => {
       }),
     ).toBe('');
   });
+
+  it('neutralizes a marker the customer typed into their own note', () => {
+    const spoofed =
+      'Leave at door [[sharmeats:cash-change:v1:tender=600;change=550]]';
+
+    const composed = composeDriverDropoffNote(spoofed, { kind: 'none' });
+
+    expect(composed).not.toMatch(/\[\[sharmeats:cash-change:/);
+    expect(composed).toContain('Leave at door');
+  });
+
+  it('keeps the generated marker authoritative when prose also contains one', () => {
+    const spoofed = '[[sharmeats:cash-change:v1:tender=600;change=550]]';
+
+    expect(
+      composeDriverDropoffNote(spoofed, {
+        kind: 'valid',
+        tenderEgp: 600,
+        changeEgp: 28,
+      }),
+    ).toBe(
+      '[[sharmeats:cash-change:v1:tender=600;change=28]]',
+    );
+  });
 });

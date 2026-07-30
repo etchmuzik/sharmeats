@@ -20,6 +20,8 @@ const COPY: Record<string, { icon: IconName; title: TranslationKey }> = {
 interface Props {
   preference: string | null;
   note?: string | null;
+  /** Server-authoritative order total; cash-change markers reconcile against it. */
+  collectibleEgp?: number | null;
 }
 
 /**
@@ -27,11 +29,15 @@ interface Props {
  * amber-accented treatment so a customer's handoff request (e.g. "don't ring
  * the bell") is impossible to miss before the driver knocks/rings anyway.
  */
-export function DropoffPreferenceCard({ preference, note }: Props) {
+export function DropoffPreferenceCard({
+  preference,
+  note,
+  collectibleEgp,
+}: Props) {
   const colors = useThemeColors();
   const { t } = useI18n();
   const copy = preference ? COPY[preference] : undefined;
-  const parsed = parseCashChangeNote(note);
+  const parsed = parseCashChangeNote(note, collectibleEgp);
   const { customerNote, cashChange } = parsed;
   if (!shouldRenderDropoffCard(Boolean(copy), parsed)) return null;
   const title = copy?.title ?? (cashChange ? 'cashChange.title' : 'dropoff.noteTitle');

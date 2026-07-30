@@ -93,21 +93,36 @@ begin
   perform private.acquire_merchant_menu_locks(v_restaurant_ids);
 
   if tg_table_name = 'menu_sections' and tg_op <> 'DELETE' then
-    new.name := btrim(new.name);
-    if new.name = '' or length(new.name) > 120 then
-      raise exception 'CSV_IMPORT_INVALID: section name must contain 1 to 120 characters'
-        using errcode = 'invalid_parameter_value';
+    -- Normalize and bound-check the name ONLY when this statement actually
+    -- writes it. Two reasons, both load-bearing:
+    --   1. Unconditionally assigning NEW.name makes mig 136's to_jsonb(NEW) vs
+    --      to_jsonb(OLD) diff see `name` as changed on an unrelated UPDATE
+    --      (this trigger is named aaa_ so it runs first), so a staff-tier
+    --      availability toggle on a legacy untrimmed row is rejected with
+    --      MANAGER_REQUIRED mid-shift.
+    --   2. Rows predating this migration have no length/trim guarantee, so an
+    --      unconditional bound check makes an over-long legacy name
+    --      permanently un-updatable through every path, manager included.
+    -- Names that are being written are still fully normalized and validated.
+    if tg_op = 'INSERT' or old.name is distinct from new.name then
+      new.name := btrim(new.name);
+      if new.name = '' or length(new.name) > 120 then
+        raise exception 'CSV_IMPORT_INVALID: section name must contain 1 to 120 characters'
+          using errcode = 'invalid_parameter_value';
+      end if;
     end if;
 
+    -- btrim both sides: NEW.name is only normalized above when it is written,
+    -- so an untouched legacy name can still carry whitespace here.
     if (
       tg_op = 'INSERT'
       or old.restaurant_id is distinct from new.restaurant_id
-      or lower(btrim(old.name)) is distinct from lower(new.name)
+      or lower(btrim(old.name)) is distinct from lower(btrim(new.name))
     ) and exists (
       select 1
         from public.menu_sections ms
        where ms.restaurant_id = new.restaurant_id
-         and lower(btrim(ms.name)) = lower(new.name)
+         and lower(btrim(ms.name)) = lower(btrim(new.name))
          and ms.id is distinct from new.id
     ) then
       raise exception 'CSV_IMPORT_INVALID: section name "%" already exists', new.name
@@ -126,10 +141,16 @@ begin
        where ms.restaurant_id = new.restaurant_id;
     end if;
   elsif tg_table_name = 'menu_items' and tg_op <> 'DELETE' then
-    new.name := btrim(new.name);
-    if new.name = '' or length(new.name) > 160 then
-      raise exception 'CSV_IMPORT_INVALID: item name must contain 1 to 160 characters'
-        using errcode = 'invalid_parameter_value';
+    -- Conditional for the same two reasons as menu_sections above: an
+    -- unconditional NEW.name assignment breaks the staff availability toggle
+    -- via mig 136's column diff, and an unconditional bound check strands
+    -- legacy rows whose names predate these limits.
+    if tg_op = 'INSERT' or old.name is distinct from new.name then
+      new.name := btrim(new.name);
+      if new.name = '' or length(new.name) > 160 then
+        raise exception 'CSV_IMPORT_INVALID: item name must contain 1 to 160 characters'
+          using errcode = 'invalid_parameter_value';
+      end if;
     end if;
 
     if not exists (
@@ -142,17 +163,18 @@ begin
         using errcode = 'invalid_parameter_value';
     end if;
 
+    -- btrim both sides for the same reason as the section branch.
     if (
       tg_op = 'INSERT'
       or old.restaurant_id is distinct from new.restaurant_id
       or old.section_id is distinct from new.section_id
-      or lower(btrim(old.name)) is distinct from lower(new.name)
+      or lower(btrim(old.name)) is distinct from lower(btrim(new.name))
     ) and exists (
       select 1
         from public.menu_items mi
        where mi.restaurant_id = new.restaurant_id
          and mi.section_id = new.section_id
-         and lower(btrim(mi.name)) = lower(new.name)
+         and lower(btrim(mi.name)) = lower(btrim(new.name))
          and mi.id is distinct from new.id
     ) then
       raise exception 'CSV_IMPORT_INVALID: item name "%" already exists in this section', new.name

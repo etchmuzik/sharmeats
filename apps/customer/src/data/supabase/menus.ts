@@ -134,7 +134,14 @@ export const menusRepoSupabase = {
       .in('id', ids);
     if (hydrateError) throw hydrateError;
 
-    return orderCatalogItems(ids, (items ?? []).map(rowToMenuItem));
+    // search_catalog returns is_available rather than filtering on it, so the
+    // RPC stays reusable for merchant tooling that must find sold-out items.
+    // Customer Browse must not offer an unorderable dish, and a sold-out match
+    // would otherwise consume one of the capped result slots.
+    return orderCatalogItems(
+      ids,
+      (items ?? []).map(rowToMenuItem).filter((item) => item.isAvailable),
+    );
   },
 
   async forRestaurant(
