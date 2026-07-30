@@ -6,6 +6,45 @@ Make the tourist promise truthful in every language, clearly separate display
 currency from the EGP charge, collect reliable acquisition/conversion evidence
 and ask for store reviews only after real delivered value.
 
+> **Status 2026-07-30 — recon + build session.** Every claim below was verified
+> against the live repo/database before building; corrections and deliveries:
+>
+> * **Slice A**: the five locale files were ALREADY honest ("indicative rate",
+>   "approximate prices", 5-way key parity). The surviving lie was hardcoded
+>   English in `app/help.tsx` ("We accept Visa and Mastercard from any country
+>   … at the daily FX rate" while prod ships cash-only with a static table) —
+>   replaced with locale-keyed honest copy in all five languages, including the
+>   EGP 100 SLA-credit cap and the allergy-communication disclaimer. The
+>   placeholder support phone remains an owner action.
+> * **Slice B**: BUILT (mig 182) — `fx_rates` observations, anon-readable
+>   `current_fx_rates` with a stale flag, audited `admin_set_fx_rate` (reason,
+>   expiry, actor, >10% jump guard), daily `sharmeats-fx-health` cron, client
+>   resolver with cache + always-stale static fallback and a dated
+>   "approximate" checkout label. The FEED edge function is deferred until the
+>   owner approves a rate source/licence (step 1); `record_fx_observation` is
+>   its ready contract. Seed rates are the Phase-0 numbers on a 7-day shelf
+>   life — the health sweep nags until real rates are set.
+> * **Slice D**: BUILT (mig 183) — `acquisition_touches` (one first touch per
+>   install, organic upgradeable within 72h, bounded latest-campaign touch),
+>   allow-listed `acquisition_partners`, sign-in claim, orders stamped by
+>   TRIGGER (zero client authority), admin `acquisition_report`. Client:
+>   install id + `sharmeats://open?src=&campaign=&partner=` capture. Referral
+>   stays distinct.
+> * **Slice E**: was mostly built already (all seven Package-01 funnel events,
+>   enrichment, deny-list, dictionary). This session: wired the ZERO-call-site
+>   `identifyUser` (the dictionary had claimed it for months), added
+>   `service_area_checked` and `second_order`, and fixed a real regression —
+>   the PII deny-list's 'message' fragment silently ate
+>   `message_id`/`attributed_message_id`, destroying client-side push→funnel
+>   attribution. The production-ingestion device proof remains an owner action
+>   on a fresh build.
+> * **Slice F**: the spec's "no evidence-based review prompt policy" was FALSE —
+>   a high-rating-gated prompt existed. Added the missing frequency policy:
+>   60-day cooldown, once per version, lifetime cap 3, suppressions recorded.
+> * **Slices C/G**: not built this session — C is measurement-driven copy
+>   placement; G is owner-gated partner pilots (the QR link contract and the
+>   report they need now exist).
+
 ## Current evidence
 
 - Customer display conversion exists in `src/currency/fx.ts` and Settings.
