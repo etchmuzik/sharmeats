@@ -1,0 +1,46 @@
+-- 197_dev_analysis_extensions.sql
+--
+-- Three free diagnostic extensions. None sits on a request path; all are
+-- read-only analysis tools invoked by hand.
+--
+-- Installed into `extensions` rather than `public`, both because that is where
+-- pgcrypto/uuid-ossp already live and because the security advisor's
+-- extension_in_public warning already fires twice on this database (postgis and
+-- pg_net) — no reason to make it three.
+--
+--   plpgsql_check  — static analysis for PL/pgSQL. This repo is ~200 migrations
+--                    of it, much of it SECURITY DEFINER handling money, and it
+--                    is a class of bug neither tsc, the test harness, nor CI can
+--                    see: the SQL parses, the migration applies, and it fails
+--                    only at execution. It earned its place on the first run by
+--                    finding four functions that could never have succeeded
+--                    (see migration 197_gen_random_bytes_search_path_fix).
+--
+--                    Usage — every SECURITY DEFINER function in public, minus
+--                    triggers (which need a relation OID and error without one):
+--
+--                      select p.proname, f.msg
+--                        from pg_proc p
+--                        join pg_namespace n on n.oid = p.pronamespace
+--                        cross join lateral
+--                             extensions.plpgsql_check_function(p.oid) as f(msg)
+--                       where n.nspname = 'public'
+--                         and p.prosecdef
+--                         and p.prolang = (select oid from pg_language
+--                                           where lanname = 'plpgsql')
+--                         and p.prorettype <> 'pg_catalog.trigger'::regtype;
+--
+--                    Expect two standing false positives: place_order and
+--                    send_push_campaign report `relation "_lines"` /
+--                    `"_campaign_segment"` does not exist. Those are runtime
+--                    temp tables the checker cannot see. Anything else is worth
+--                    reading.
+--
+--   index_advisor  — suggests indexes for a specific query, rather than the
+--                    advisor's generic unindexed-foreign-key sweep.
+--   hypopg         — index_advisor's dependency; also lets an index be tested
+--                    hypothetically before it is created for real.
+
+create extension if not exists hypopg with schema extensions;
+create extension if not exists index_advisor with schema extensions;
+create extension if not exists plpgsql_check with schema extensions;
