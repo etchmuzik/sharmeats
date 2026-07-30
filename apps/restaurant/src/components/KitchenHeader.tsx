@@ -17,11 +17,12 @@
  */
 import { Pressable, Text, View } from 'react-native';
 import type { KitchenContext } from '../orders';
-import { staffRoleLabel } from '../capabilities';
+import { parseStaffRole } from '../capabilities';
 import { colors, font, radius, spacing } from '../theme';
 import { Icon } from './Icon';
 import { LogoButton } from './LogoButton';
 import { selection, tapMedium } from '../lib/haptics';
+import { useLocale } from '../locale';
 
 const CONTROL_BASE = {
   // 48, not the 44pt iOS floor: these are pressed with wet or gloved hands on a
@@ -66,15 +67,19 @@ export function KitchenHeader({
   compact,
   onNavigate,
 }: Props) {
+  const { direction, locale, t, toggleLocale } = useLocale();
+  const rawRole = kitchen.brands[0]?.staffRole;
+  const role = parseStaffRole(rawRole);
+  const roleLabel = role ? t(`role.${role}`) : rawRole?.trim() || t('role.staff');
   const openLabel = togglingOpen
     ? '…'
     : kitchen.isMultiBrand
       ? isOpen
-        ? 'Open · pause all'
-        : 'Closed · open all'
+        ? t('header.openPauseAll')
+        : t('header.closedOpenAll')
       : isOpen
-        ? 'Open · pause'
-        : 'Closed · open';
+        ? t('header.openPause')
+        : t('header.closedOpen');
 
   return (
     <View
@@ -85,6 +90,7 @@ export function KitchenHeader({
         borderBottomWidth: 1,
         borderBottomColor: colors.line,
         gap: spacing.sm,
+        direction,
       }}
     >
       <View
@@ -113,18 +119,18 @@ export function KitchenHeader({
             style={{ fontSize: font.sizes.xl, fontWeight: '800', color: colors.ink }}
           >
             {kitchen.isMultiBrand
-              ? `Kitchen · ${kitchen.brands.length} brands`
+              ? t('header.kitchenBrandCount', { count: kitchen.brands.length })
               : kitchen.brands[0]?.name}
           </Text>
           <Text style={{ marginTop: 2, fontSize: font.sizes.xs, color: colors.ink3 }}>
             {kitchen.isMultiBrand
               ? kitchen.brands.map((b) => b.shortName).join(' · ')
-              : `Restaurant · ${staffRoleLabel(kitchen.brands[0]?.staffRole)}`}
+              : t('header.restaurantRole', { role: roleLabel })}
           </Text>
         </View>
         {unreadMsgs > 0 && (
           <View
-            accessibilityLabel={`${unreadMsgs} unread customer messages. Open an order to reply.`}
+            accessibilityLabel={t('header.unreadMessages', { count: unreadMsgs })}
             style={{
               minWidth: 44,
               minHeight: 44,
@@ -143,6 +149,36 @@ export function KitchenHeader({
             </Text>
           </View>
         )}
+        <Pressable
+          onPress={() => {
+            selection();
+            toggleLocale();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            locale === 'en' ? t('locale.switchToArabic') : t('locale.switchToEnglish')
+          }
+          style={[
+            CONTROL_BASE,
+            {
+              minWidth: 64,
+              borderWidth: 1,
+              borderColor: colors.line,
+              backgroundColor: colors.bgSoft,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              fontSize: font.sizes.sm,
+              fontWeight: '800',
+              color: colors.accentDark,
+              writingDirection: locale === 'en' ? 'rtl' : 'ltr',
+            }}
+          >
+            {locale === 'en' ? 'العربية' : 'English'}
+          </Text>
+        </Pressable>
       </View>
 
       <View
@@ -165,7 +201,9 @@ export function KitchenHeader({
             disabled={togglingOpen}
             accessibilityRole="switch"
             accessibilityLabel={
-              kitchen.isMultiBrand ? 'All brands accepting orders' : 'Restaurant accepting orders'
+              kitchen.isMultiBrand
+                ? t('header.acceptingAllA11y')
+                : t('header.acceptingRestaurantA11y')
             }
             accessibilityState={{ checked: isOpen, disabled: togglingOpen, busy: togglingOpen }}
             style={[
@@ -189,8 +227,8 @@ export function KitchenHeader({
             accessibilityRole="text"
             accessibilityLabel={
               isOpen
-                ? 'Accepting orders. Only an owner or manager can pause.'
-                : 'Not accepting orders. Only an owner or manager can reopen.'
+                ? t('header.openRestricted')
+                : t('header.closedRestricted')
             }
             style={[
               CONTROL_BASE,
@@ -205,7 +243,7 @@ export function KitchenHeader({
                 color: isOpen ? colors.greenText : colors.redText,
               }}
             >
-              {isOpen ? 'Open' : 'Closed'}
+              {isOpen ? t('header.open') : t('header.closed')}
             </Text>
           </View>
         )}
@@ -221,8 +259,8 @@ export function KitchenHeader({
           accessibilityState={{ checked: muted }}
           accessibilityLabel={
             muted
-              ? 'Sound off — tap to turn new-order chime on'
-              : 'Sound on — tap to mute new-order chime'
+              ? t('header.soundOffA11y')
+              : t('header.soundOnA11y')
           }
           style={[
             CONTROL_BASE,
@@ -242,13 +280,13 @@ export function KitchenHeader({
               color: muted ? colors.redText : colors.greenText,
             }}
           >
-            {muted ? 'Muted' : 'Sound'}
+            {muted ? t('header.muted') : t('header.sound')}
           </Text>
         </Pressable>
 
-        <NavControl label="Menu" a11y="Menu availability" compact={compact} onPress={() => onNavigate('/menu')} />
-        <NavControl label="Docs" a11y="Verification documents" compact={compact} onPress={() => onNavigate('/kyc')} />
-        <NavControl label="Tier" a11y="View tier status" compact={compact} onPress={() => onNavigate('/tier')} />
+        <NavControl label={t('nav.menu')} a11y={t('header.menuA11y')} compact={compact} onPress={() => onNavigate('/menu')} />
+        <NavControl label={t('header.docs')} a11y={t('header.docsA11y')} compact={compact} onPress={() => onNavigate('/kyc')} />
+        <NavControl label={t('nav.tier')} a11y={t('header.tierA11y')} compact={compact} onPress={() => onNavigate('/tier')} />
       </View>
 
       {kitchen.isMultiBrand && (
@@ -265,8 +303,8 @@ export function KitchenHeader({
           }}
         >
           <BrandChip
-            label={`All · ${orders.length}`}
-            a11y={`Show all brands, ${orders.length} active orders`}
+            label={t('header.allOrders', { count: orders.length })}
+            a11y={t('header.allOrdersA11y', { count: orders.length })}
             selected={brandFilter === 'all'}
             onPress={() => onBrandFilter('all')}
           />
@@ -277,7 +315,11 @@ export function KitchenHeader({
               <BrandChip
                 key={b.restaurantId}
                 label={`${b.shortName} · ${count}`}
-                a11y={`Filter to ${b.name}, ${count} active orders${b.isOpen ? '' : ', paused'}`}
+                a11y={t('header.brandFilterA11y', {
+                  brand: b.name,
+                  count,
+                  paused: b.isOpen ? '' : t('header.pausedSuffix'),
+                })}
                 selected={selected}
                 closed={!b.isOpen}
                 onPress={() => onBrandFilter(selected ? 'all' : b.restaurantId)}

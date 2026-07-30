@@ -36,13 +36,13 @@ import { myUnreadMessageCount } from '../src/messages';
 import {
   canToggleOpenAll,
   permissionDeniedMessage,
-  PERMISSION_DENIED_COPY,
 } from '../src/capabilities';
 import { colors, font, radius, spacing } from '../src/theme';
 import { OrderRow } from '../src/components/OrderRow';
 import { KitchenHeader } from '../src/components/KitchenHeader';
 import { QueueSectionHeader } from '../src/components/QueueSectionHeader';
 import { notifyError, notifySuccess } from '../src/lib/haptics';
+import { useLocale } from '../src/locale';
 
 // [H-REST3] Live data shows merchants miss ~2/3 of orders into the 180s
 // auto-accept timeout — a single missed chime = a late kitchen. Re-fire the
@@ -57,6 +57,7 @@ export default function Home() {
   const { width } = useWindowDimensions();
   const { signOut } = useAuth();
   const { toast } = useToast();
+  const { direction, t } = useLocale();
 
   const [kitchen, setKitchen] = useState<KitchenContext | null>(null);
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
@@ -260,12 +261,12 @@ export default function Home() {
         );
       } catch (e) {
         notifyError();
-        toast(e instanceof Error ? e.message : 'Could not update order', 'error');
+        toast(e instanceof Error ? e.message : t('home.updateOrderError'), 'error');
       } finally {
         setBusy(order.id, false);
       }
     },
-    [toast],
+    [toast, t],
   );
 
   // Any brand open = the kitchen is taking orders. The toggle drives ALL
@@ -289,7 +290,7 @@ export default function Home() {
     if (!kitchen || togglingOpen) return;
     if (!mayToggleOpen) {
       notifyError();
-      toast(PERMISSION_DENIED_COPY, 'error');
+      toast(t('home.permissionDenied'), 'error');
       return;
     }
     setTogglingOpen(true);
@@ -317,13 +318,23 @@ export default function Home() {
         // (an RLS denial reads as "manager required", not a raw error).
         notifyError();
         const names = failed.map((f) => f.brand.name).join(', ');
-        const cause =
-          permissionDeniedMessage(failed[0].reason) ??
-          (failed[0].reason instanceof Error ? failed[0].reason.message : 'update failed');
+        const permissionDenied = permissionDeniedMessage(failed[0].reason) !== null;
+        // A recognized permission failure gets client-owned localized copy.
+        // Any other server Error stays verbatim so localization never hides the
+        // authoritative operational cause.
+        const cause = permissionDenied
+          ? t('home.permissionDenied')
+          : failed[0].reason instanceof Error
+            ? failed[0].reason.message
+            : t('home.updateFailed');
         toast(
-          `${targets.length - failed.length}/${targets.length} brands updated — still ${
-            next ? 'closed' : 'OPEN'
-          }: ${names} (${cause})`,
+          t('home.brandUpdatePartial', {
+            updated: targets.length - failed.length,
+            total: targets.length,
+            state: next ? t('home.brandStateClosed') : t('home.brandStateOpen'),
+            brands: names,
+            cause,
+          }),
           'error',
         );
         // The optimistic flip is wrong for the failed brands; re-sync rather
@@ -333,7 +344,7 @@ export default function Home() {
     } finally {
       setTogglingOpen(false);
     }
-  }, [kitchen, isOpen, togglingOpen, toast, load, mayToggleOpen]);
+  }, [kitchen, isOpen, togglingOpen, toast, load, mayToggleOpen, t]);
 
   const handleSignOut = useCallback(async () => {
     await unregisterPush();
@@ -363,11 +374,11 @@ export default function Home() {
   const queueSections = useMemo(
     () =>
       [
-        { key: 'new' as const, title: 'New', accent: true, data: incoming },
-        { key: 'kitchen' as const, title: 'In kitchen', accent: false, data: inKitchen },
-        { key: 'ready' as const, title: 'Ready / picked up', accent: false, data: ready },
+        { key: 'new' as const, title: t('queue.new'), accent: true, data: incoming },
+        { key: 'kitchen' as const, title: t('queue.inKitchen'), accent: false, data: inKitchen },
+        { key: 'ready' as const, title: t('queue.ready'), accent: false, data: ready },
       ].filter((section) => section.data.length > 0),
-    [incoming, inKitchen, ready],
+    [incoming, inKitchen, ready, t],
   );
 
   if (loading) {
@@ -381,12 +392,12 @@ export default function Home() {
   // [H-BIZ1] A fetch failed (network) — retry, don't show "not linked".
   if (loadError && !kitchen) {
     return (
-      <View style={homeStyles.centeredState}>
+      <View style={[homeStyles.centeredState, { direction }]}>
         <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
-          Couldn&apos;t load your restaurant
+          {t('home.loadErrorTitle')}
         </Text>
         <Text style={{ color: colors.ink2, textAlign: 'center' }}>
-          Check your connection and try again.
+          {t('home.loadErrorBody')}
         </Text>
         <Pressable
           onPress={() => {
@@ -394,7 +405,7 @@ export default function Home() {
             load();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Retry loading your restaurant"
+          accessibilityLabel={t('home.retryA11y')}
           style={{
             marginTop: spacing.lg,
             minHeight: 48,
@@ -405,10 +416,10 @@ export default function Home() {
             paddingHorizontal: spacing.xl,
           }}
         >
-          <Text style={{ color: colors.white, fontWeight: '700' }}>Retry</Text>
+          <Text style={{ color: colors.white, fontWeight: '700' }}>{t('home.retry')}</Text>
         </Pressable>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
-          <Text style={{ color: colors.ink3, fontWeight: '700' }}>Sign out</Text>
+          <Text style={{ color: colors.ink3, fontWeight: '700' }}>{t('home.signOut')}</Text>
         </Pressable>
       </View>
     );
@@ -416,22 +427,22 @@ export default function Home() {
 
   if (noRestaurant) {
     return (
-      <View style={homeStyles.centeredState}>
+      <View style={[homeStyles.centeredState, { direction }]}>
         <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
-          No restaurant linked
+          {t('home.noRestaurantTitle')}
         </Text>
         <Text style={{ color: colors.ink2, textAlign: 'center' }}>
-          This account isn&apos;t linked to a restaurant yet. Ask the Sharm Eats team to add you as staff.
+          {t('home.noRestaurantBody')}
         </Text>
         <Pressable onPress={handleSignOut} accessibilityRole="button" style={homeStyles.textButton}>
-          <Text style={{ color: colors.accent, fontWeight: '700' }}>Sign out</Text>
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>{t('home.signOut')}</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, direction }}>
       {kitchen && (
         <KitchenHeader
           kitchen={kitchen}
@@ -496,8 +507,8 @@ export default function Home() {
                   onOpenDetail={() => router.push(`/order/${item.id}`)}
                   primary={
                     item.status === 'accepted'
-                      ? { label: 'Start preparing', next: 'preparing' }
-                      : { label: 'Mark ready', next: 'ready' }
+                      ? { label: t('queue.startPreparing'), next: 'preparing' }
+                      : { label: t('queue.markReady'), next: 'ready' }
                   }
                   onPrimary={(next) => doAdvance(item, next)}
                 />
@@ -516,12 +527,12 @@ export default function Home() {
         }}
         ListEmptyComponent={
           <View style={homeStyles.emptyQueue}>
-            <Icon name="bell" size={40} color={colors.ink3} accessibilityLabel="No orders" />
+            <Icon name="bell" size={40} color={colors.ink3} accessibilityLabel={t('queue.noOrdersA11y')} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.ink }}>
-              Waiting for orders
+              {t('queue.emptyTitle')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.ink2, textAlign: 'center' }}>
-              New orders appear here instantly with a sound alert.
+              {t('queue.emptyBody')}
             </Text>
           </View>
         }
@@ -532,21 +543,21 @@ export default function Home() {
                 fontSize: font.sizes.sm,
                 fontWeight: '700',
                 color: colors.ink2,
-                textTransform: 'uppercase',
-                letterSpacing: 0.6,
+                textTransform: direction === 'rtl' ? 'none' : 'uppercase',
+                letterSpacing: direction === 'rtl' ? 0 : 0.6,
                 marginBottom: spacing.sm,
               }}
             >
-              Legal
+              {t('home.legal')}
             </Text>
             <Pressable
               onPress={() => openLegal(LEGAL_URLS.terms)}
               accessibilityRole="link"
-              accessibilityLabel="Terms of Service"
+              accessibilityLabel={t('home.terms')}
               style={homeStyles.legalRow}
             >
               <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>
-                Terms of Service
+                {t('home.terms')}
               </Text>
               <Icon name="chevronForward" size={16} color={colors.ink3} />
             </Pressable>
@@ -554,22 +565,22 @@ export default function Home() {
             <Pressable
               onPress={() => openLegal(LEGAL_URLS.privacy)}
               accessibilityRole="link"
-              accessibilityLabel="Privacy Policy"
+              accessibilityLabel={t('home.privacy')}
               style={homeStyles.legalRow}
             >
               <Text style={{ flex: 1, color: colors.ink, fontSize: font.sizes.lg, fontWeight: '600' }}>
-                Privacy Policy
+                {t('home.privacy')}
               </Text>
               <Icon name="chevronForward" size={16} color={colors.ink3} />
             </Pressable>
             <Pressable
               onPress={handleSignOut}
               accessibilityRole="button"
-              accessibilityLabel="Sign out"
+              accessibilityLabel={t('home.signOut')}
               style={{ marginTop: spacing.xl, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
             >
               <Text style={{ color: colors.ink3, fontSize: font.sizes.base, fontWeight: '600' }}>
-                Sign out
+                {t('home.signOut')}
               </Text>
             </Pressable>
           </View>

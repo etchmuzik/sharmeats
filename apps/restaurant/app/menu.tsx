@@ -15,6 +15,7 @@ import { Icon } from '../src/components/Icon';
 import { getMyKitchen } from '../src/orders';
 import { getMenuItems, setItemAvailability, type MenuItem } from '../src/menu';
 import { colors, font, radius, spacing } from '../src/theme';
+import { useLocale } from '../src/locale';
 
 /**
  * Menu availability screen ("86-ing"). Staff flip a dish out-of-stock from the
@@ -24,6 +25,7 @@ import { colors, font, radius, spacing } from '../src/theme';
 export default function Menu() {
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
+  const { direction, isRtl, t } = useLocale();
 
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,12 +64,12 @@ export default function Menu() {
         const rows = await getMenuItems(target);
         setItems(rows);
       } catch (e) {
-        toast(e instanceof Error ? e.message : 'Could not load menu', 'error');
+        toast(e instanceof Error ? e.message : t('menu.loadError'), 'error');
       } finally {
         setLoading(false);
       }
     },
-    [toast],
+    [toast, t],
   );
 
   const selectBrand = useCallback(
@@ -100,7 +102,7 @@ export default function Menu() {
       } catch (e) {
         // Roll back on failure.
         setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_available: !next } : i)));
-        toast(e instanceof Error ? e.message : 'Could not update item', 'error');
+        toast(e instanceof Error ? e.message : t('menu.updateError'), 'error');
       } finally {
         setBusyIds((s) => {
           const nextSet = new Set(s);
@@ -109,7 +111,7 @@ export default function Menu() {
         });
       }
     },
-    [toast],
+    [toast, t],
   );
 
   const filtered = useMemo(() => {
@@ -129,7 +131,7 @@ export default function Menu() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, direction }}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.sm }}
@@ -145,7 +147,7 @@ export default function Menu() {
                   onPress={() => selectBrand(b.restaurantId)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  accessibilityLabel={`Brand ${b.shortName}`}
+                  accessibilityLabel={t('menu.brandA11y', { brand: b.shortName })}
                   style={{
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.sm,
@@ -155,7 +157,7 @@ export default function Menu() {
                     backgroundColor: active ? colors.ink : colors.white,
                   }}
                 >
-                  <Text style={{ fontSize: font.sizes.xs, fontWeight: '800', color: active ? colors.white : colors.ink }}>
+                  <Text style={{ fontSize: font.sizes.xs, fontWeight: '800', color: active ? colors.white : colors.ink, writingDirection: 'ltr' }}>
                     {b.shortName}
                   </Text>
                 </Pressable>
@@ -165,13 +167,17 @@ export default function Menu() {
         )}
 
         <Text style={{ fontSize: font.sizes.xs, color: colors.ink3 }}>
-          {outCount > 0 ? `${outCount} item${outCount === 1 ? '' : 's'} out of stock` : 'All items available'}
+          {outCount === 0
+            ? t('menu.allAvailable')
+            : outCount === 1
+              ? t('menu.outCountOne')
+              : t('menu.outCountMany', { count: outCount })}
         </Text>
 
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search items…"
+          placeholder={t('menu.search')}
           placeholderTextColor={colors.ink3}
           style={{
             borderWidth: 1,
@@ -182,14 +188,16 @@ export default function Menu() {
             backgroundColor: colors.white,
             color: colors.ink,
             fontSize: font.sizes.base,
+            textAlign: isRtl ? 'right' : 'left',
+            writingDirection: direction,
           }}
         />
 
         {filtered.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl * 2, gap: spacing.sm }}>
-            <Icon name="restaurant" size={36} color={colors.ink3} accessibilityLabel="No items" />
+            <Icon name="restaurant" size={36} color={colors.ink3} accessibilityLabel={t('menu.noItemsA11y')} />
             <Text style={{ fontSize: font.sizes.base, color: colors.ink2 }}>
-              {items.length === 0 ? 'No menu items' : 'No matching items'}
+              {items.length === 0 ? t('menu.noItems') : t('menu.noMatches')}
             </Text>
           </View>
         ) : (
@@ -214,7 +222,9 @@ export default function Menu() {
                   {item.name}
                 </Text>
                 <Text style={{ fontSize: font.sizes.xs, color: item.is_available ? colors.ink3 : colors.red, fontWeight: item.is_available ? '400' : '700' }}>
-                  {item.price_egp} EGP · {item.is_available ? 'Available' : 'Out of stock'}
+                  <Text style={{ writingDirection: 'ltr' }}>{item.price_egp} EGP</Text>
+                  {' · '}
+                  {item.is_available ? t('menu.available') : t('menu.outOfStock')}
                 </Text>
               </View>
               <Switch
@@ -223,7 +233,10 @@ export default function Menu() {
                 disabled={busyIds.has(item.id)}
                 trackColor={{ true: colors.green, false: colors.line }}
                 thumbColor={colors.white}
-                accessibilityLabel={`${item.name} ${item.is_available ? 'available' : 'out of stock'}`}
+                accessibilityLabel={t('menu.itemAvailabilityA11y', {
+                  item: item.name,
+                  availability: item.is_available ? t('menu.available') : t('menu.outOfStock'),
+                })}
               />
             </View>
           ))

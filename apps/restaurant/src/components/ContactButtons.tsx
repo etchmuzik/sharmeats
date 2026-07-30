@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
 import { colors, font, radius, spacing } from '../theme';
+import { useLocale } from '../locale';
 
 /**
  * [H-REST2] Customer-contact actions for an order. The restaurant previously had
@@ -20,6 +21,7 @@ export function ContactButtons({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { direction, t } = useLocale();
 
   const call = async () => {
     const phone = customerPhone?.trim();
@@ -27,17 +29,17 @@ export function ContactButtons({
     try {
       await Linking.openURL(`tel:${phone}`);
     } catch {
-      toast('Could not open the dialer', 'error');
+      toast(t('contact.dialerError'), 'error');
     }
   };
 
   return (
-    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+    <View style={{ flexDirection: 'row', gap: spacing.sm, direction }}>
       {customerPhone?.trim() ? (
         <Pressable
           onPress={call}
           accessibilityRole="button"
-          accessibilityLabel="Call customer"
+          accessibilityLabel={t('contact.callCustomer')}
           style={{
             flex: 1,
             flexDirection: 'row',
@@ -52,14 +54,14 @@ export function ContactButtons({
         >
           <Icon name="phone" size={16} color={colors.sea} />
           <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.sea }}>
-            Call customer
+            {t('contact.callCustomer')}
           </Text>
         </Pressable>
       ) : null}
       <Pressable
         onPress={() => router.push(`/order/${orderId}/chat`)}
         accessibilityRole="button"
-        accessibilityLabel="Message"
+        accessibilityLabel={t('contact.message')}
         style={{
           flex: 1,
           flexDirection: 'row',
@@ -74,7 +76,7 @@ export function ContactButtons({
       >
         <Icon name="chat" size={16} color={colors.accent} />
         <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.accent }}>
-          Message
+          {t('contact.message')}
         </Text>
       </Pressable>
     </View>
