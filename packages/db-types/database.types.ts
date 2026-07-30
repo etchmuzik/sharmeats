@@ -600,6 +600,229 @@ export type Database = {
           },
         ]
       }
+      delivery_job_events: {
+        Row: {
+          actor_kind: string
+          actor_user_id: string | null
+          delivery_job_id: string
+          event_type: string
+          from_status: string | null
+          id: string
+          idempotency_key: string
+          metadata: Json
+          occurred_at: string
+          reason_code: string | null
+          to_status: string | null
+        }
+        Insert: {
+          actor_kind: string
+          actor_user_id?: string | null
+          delivery_job_id: string
+          event_type: string
+          from_status?: string | null
+          id?: string
+          idempotency_key: string
+          metadata?: Json
+          occurred_at?: string
+          reason_code?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          actor_kind?: string
+          actor_user_id?: string | null
+          delivery_job_id?: string
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          idempotency_key?: string
+          metadata?: Json
+          occurred_at?: string
+          reason_code?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_job_events_delivery_job_id_fkey"
+            columns: ["delivery_job_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_jobs: {
+        Row: {
+          accepted_at: string | null
+          arrived_pickup_at: string | null
+          assigned_driver_id: string | null
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          created_by_user_id: string
+          declared_value_egp: number
+          delivered_at: string | null
+          fragile: boolean
+          id: string
+          idempotency_key: string
+          internal_reason: string | null
+          merchant_reference: string | null
+          package_count: number
+          parcel_band_code: string
+          parcel_category: string
+          payment_method: string
+          picked_up_at: string | null
+          pricing_version_id: string
+          prohibited_goods_version: string
+          public_reference: string
+          quote_id: string
+          quoted_driver_earning_egp: number
+          quoted_fee_egp: number
+          requested_at: string | null
+          requester_kind: string
+          requester_restaurant_id: string | null
+          requester_scope_key: string
+          requester_user_id: string | null
+          return_started_at: string | null
+          returned_at: string | null
+          service_area_id: string
+          status: string
+          terms_version: string
+          updated_at: string
+          version: number
+          zero_fee_reason: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          arrived_pickup_at?: string | null
+          assigned_driver_id?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id: string
+          declared_value_egp: number
+          delivered_at?: string | null
+          fragile?: boolean
+          id?: string
+          idempotency_key: string
+          internal_reason?: string | null
+          merchant_reference?: string | null
+          package_count: number
+          parcel_band_code: string
+          parcel_category: string
+          payment_method: string
+          picked_up_at?: string | null
+          pricing_version_id: string
+          prohibited_goods_version: string
+          public_reference: string
+          quote_id: string
+          quoted_driver_earning_egp: number
+          quoted_fee_egp: number
+          requested_at?: string | null
+          requester_kind: string
+          requester_restaurant_id?: string | null
+          requester_scope_key: string
+          requester_user_id?: string | null
+          return_started_at?: string | null
+          returned_at?: string | null
+          service_area_id: string
+          status?: string
+          terms_version: string
+          updated_at?: string
+          version?: number
+          zero_fee_reason?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          arrived_pickup_at?: string | null
+          assigned_driver_id?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          declared_value_egp?: number
+          delivered_at?: string | null
+          fragile?: boolean
+          id?: string
+          idempotency_key?: string
+          internal_reason?: string | null
+          merchant_reference?: string | null
+          package_count?: number
+          parcel_band_code?: string
+          parcel_category?: string
+          payment_method?: string
+          picked_up_at?: string | null
+          pricing_version_id?: string
+          prohibited_goods_version?: string
+          public_reference?: string
+          quote_id?: string
+          quoted_driver_earning_egp?: number
+          quoted_fee_egp?: number
+          requested_at?: string | null
+          requester_kind?: string
+          requester_restaurant_id?: string | null
+          requester_scope_key?: string
+          requester_user_id?: string | null
+          return_started_at?: string | null
+          returned_at?: string | null
+          service_area_id?: string
+          status?: string
+          terms_version?: string
+          updated_at?: string
+          version?: number
+          zero_fee_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_jobs_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "delivery_jobs_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_jobs_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_jobs_requester_restaurant_id_fkey"
+            columns: ["requester_restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "delivery_jobs_requester_restaurant_id_fkey"
+            columns: ["requester_restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_jobs_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_jobs_service_area_id_fkey"
+            columns: ["service_area_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_merchant_pilot_access: {
         Row: {
           expires_at: string | null
@@ -4849,6 +5072,15 @@ export type Database = {
         Returns: boolean
       }
       can_view_vertical: { Args: { p_vertical_id: string }; Returns: boolean }
+      cancel_delivery_job: {
+        Args: {
+          p_expected_version: number
+          p_idempotency_key: string
+          p_job_id: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
       claim_acquisition_touches: {
         Args: { p_install_id: string }
         Returns: undefined
@@ -4871,6 +5103,25 @@ export type Database = {
       }
       claim_support_case: { Args: { p_case_id: string }; Returns: undefined }
       clear_my_cart: { Args: never; Returns: undefined }
+      create_delivery_job: {
+        Args: {
+          p_dropoff_address: string
+          p_dropoff_contact_name: string
+          p_dropoff_phone: string
+          p_idempotency_key: string
+          p_internal_reason: string
+          p_parcel_description: string
+          p_pickup_address: string
+          p_pickup_contact_name: string
+          p_pickup_phone: string
+          p_quote_id: string
+        }
+        Returns: {
+          job_id: string
+          public_reference: string
+          status: string
+        }[]
+      }
       current_fx_rates: {
         Args: never
         Returns: {
