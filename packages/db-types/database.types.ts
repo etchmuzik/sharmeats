@@ -242,6 +242,42 @@ export type Database = {
           },
         ]
       }
+      cities: {
+        Row: {
+          country_code: string
+          created_at: string
+          currency: string
+          default_locale: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          timezone: string
+        }
+        Insert: {
+          country_code?: string
+          created_at?: string
+          currency?: string
+          default_locale?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          timezone?: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          currency?: string
+          default_locale?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          timezone?: string
+        }
+        Relationships: []
+      }
       credit_ledger: {
         Row: {
           actor_id: string | null
@@ -400,6 +436,122 @@ export type Database = {
           },
         ]
       }
+      delivery_customer_pilot_access: {
+        Row: {
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          reason: string | null
+          revoked_at: string | null
+          service_area_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          service_area_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          service_area_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_customer_pilot_access_service_area_id_fkey"
+            columns: ["service_area_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_customer_pilot_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_driver_pilot_access: {
+        Row: {
+          driver_id: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          reason: string | null
+          revoked_at: string | null
+          service_area_id: string
+          status: string
+        }
+        Insert: {
+          driver_id: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          service_area_id: string
+          status?: string
+        }
+        Update: {
+          driver_id?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          service_area_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_driver_pilot_access_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver_cash_balance"
+            referencedColumns: ["driver_id"]
+          },
+          {
+            foreignKeyName: "delivery_driver_pilot_access_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_driver_pilot_access_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "public_drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_driver_pilot_access_service_area_id_fkey"
+            columns: ["service_area_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_fee_rules: {
         Row: {
           base_fee: number
@@ -444,6 +596,141 @@ export type Database = {
             columns: ["zone_id"]
             isOneToOne: false
             referencedRelation: "zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_merchant_pilot_access: {
+        Row: {
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          reason: string | null
+          restaurant_id: string
+          revoked_at: string | null
+          service_area_id: string
+          status: string
+        }
+        Insert: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          restaurant_id: string
+          revoked_at?: string | null
+          service_area_id: string
+          status?: string
+        }
+        Update: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          restaurant_id?: string
+          revoked_at?: string | null
+          service_area_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_merchant_pilot_access_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "ranking_integrity_audit"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "delivery_merchant_pilot_access_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_merchant_pilot_access_service_area_id_fkey"
+            columns: ["service_area_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_service_configs: {
+        Row: {
+          default_merchant_exposure_limit_egp: number
+          default_merchant_unsettled_job_limit: number
+          driver_location_max_age_seconds: number
+          intake_state: string
+          launch_stage: string
+          max_active_jobs_per_driver: number
+          minimum_customer_build: number | null
+          minimum_driver_build: number | null
+          minimum_merchant_build: number | null
+          offer_ttl_seconds: number
+          otp_max_attempts: number
+          otp_ttl_seconds: number
+          parcel_policy_version_id: string | null
+          payment_recovery_window_seconds: number
+          pricing_version_id: string | null
+          quote_ttl_seconds: number
+          scheduling_enabled: boolean
+          service_area_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          default_merchant_exposure_limit_egp?: number
+          default_merchant_unsettled_job_limit?: number
+          driver_location_max_age_seconds?: number
+          intake_state?: string
+          launch_stage?: string
+          max_active_jobs_per_driver?: number
+          minimum_customer_build?: number | null
+          minimum_driver_build?: number | null
+          minimum_merchant_build?: number | null
+          offer_ttl_seconds?: number
+          otp_max_attempts?: number
+          otp_ttl_seconds?: number
+          parcel_policy_version_id?: string | null
+          payment_recovery_window_seconds?: number
+          pricing_version_id?: string | null
+          quote_ttl_seconds?: number
+          scheduling_enabled?: boolean
+          service_area_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          default_merchant_exposure_limit_egp?: number
+          default_merchant_unsettled_job_limit?: number
+          driver_location_max_age_seconds?: number
+          intake_state?: string
+          launch_stage?: string
+          max_active_jobs_per_driver?: number
+          minimum_customer_build?: number | null
+          minimum_driver_build?: number | null
+          minimum_merchant_build?: number | null
+          offer_ttl_seconds?: number
+          otp_max_attempts?: number
+          otp_ttl_seconds?: number
+          parcel_policy_version_id?: string | null
+          payment_recovery_window_seconds?: number
+          pricing_version_id?: string | null
+          quote_ttl_seconds?: number
+          scheduling_enabled?: boolean
+          service_area_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_service_configs_service_area_id_fkey"
+            columns: ["service_area_id"]
+            isOneToOne: true
+            referencedRelation: "service_areas"
             referencedColumns: ["id"]
           },
         ]
@@ -3333,6 +3620,44 @@ export type Database = {
           },
         ]
       }
+      service_areas: {
+        Row: {
+          boundary: unknown
+          city_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+        }
+        Insert: {
+          boundary: unknown
+          city_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+        }
+        Update: {
+          boundary?: unknown
+          city_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_areas_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null
@@ -4679,6 +5004,16 @@ export type Database = {
         }[]
       }
       gettransactionid: { Args: never; Returns: unknown }
+      grant_delivery_pilot_access: {
+        Args: {
+          p_expires_at?: string
+          p_reason: string
+          p_service_area_id: string
+          p_subject_id: string
+          p_subject_kind: string
+        }
+        Returns: string
+      }
       grant_platform_capability: {
         Args: {
           p_capability: string
@@ -5257,6 +5592,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      resolve_service_area: { Args: { p_point: unknown }; Returns: string }
       resolve_support_case: {
         Args: { p_case_id: string; p_note?: string; p_resolution_code: string }
         Returns: undefined
@@ -5289,6 +5625,15 @@ export type Database = {
       }
       review_kyc_document: {
         Args: { p_approve: boolean; p_document_id: string; p_note?: string }
+        Returns: undefined
+      }
+      revoke_delivery_pilot_access: {
+        Args: {
+          p_reason: string
+          p_service_area_id: string
+          p_subject_id: string
+          p_subject_kind: string
+        }
         Returns: undefined
       }
       revoke_platform_capability: {
@@ -5383,6 +5728,15 @@ export type Database = {
           p_restaurant_id: string
         }
         Returns: string
+      }
+      set_delivery_service_config: {
+        Args: {
+          p_intake_state?: string
+          p_launch_stage?: string
+          p_reason?: string
+          p_service_area_id: string
+        }
+        Returns: undefined
       }
       set_notification_prefs: {
         Args: {
