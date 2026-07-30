@@ -4305,6 +4305,17 @@ export type Database = {
         }[]
       }
       batch_shadow_sweep: { Args: never; Returns: number }
+      brand_gate_report: {
+        Args: { p_days?: number; p_restaurant_id: string }
+        Returns: {
+          gate_name: string
+          gate_no: number
+          measurable: boolean
+          measured_value: string
+          passed: boolean
+          threshold: string
+        }[]
+      }
       can_access_order_thread: {
         Args: { p_order_id: string }
         Returns: boolean
