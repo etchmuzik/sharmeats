@@ -195,6 +195,21 @@ export const ordersRepo = {
   },
 
   /**
+   * Mock feasibility — always in range.
+   *
+   * Deliberate: the mock catalogue has no geography, so any distance answer here
+   * would be invented. Returning `true` keeps development unblocked and matches
+   * the SQL's own fail-open behaviour when geo is missing (mig 186). Live mode
+   * asks `delivery_feasibility`.
+   */
+  async checkDeliveryFeasibility(
+    _restaurantId: string,
+    _addressId: string,
+  ): Promise<{ inRange: boolean; etaMinutes: number | null }> {
+    return delay({ inRange: true, etaMinutes: null });
+  },
+
+  /**
    * Mock cart preparation — mirrors the `prepare_cart` RPC contract (mig 145).
    *
    * Reuses checkReorder rather than reimplementing the reconciliation. Two

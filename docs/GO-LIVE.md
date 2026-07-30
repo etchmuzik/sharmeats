@@ -1,8 +1,13 @@
 # Sharm Eats — Go-Live Checklist
 
-Single source of truth for what's done and what's left. Verified 2026-06-05.
-Code is 100% complete across all surfaces. The remaining items are mostly
-**external** (accounts, Apple review, your device) — not code.
+Single source of truth for what's done and what's left. Verified 2026-07-30
+against the live project and the deployed site — not from memory. The remaining
+items are mostly **external** (accounts, Apple review, your device) — not code.
+
+Re-verify before trusting this file. The 2026-06-05 pass went stale in ways
+that were invisible from the outside: it reported three edge functions as 404
+when five were live, and the landing site ran ~8 weeks behind `main` because
+the build script prints an upload instruction rather than uploading.
 
 ---
 
@@ -68,14 +73,18 @@ App Review reply in
 Owner: **you** (KYC + keys) → then a couple of commands.
 1. ☐ Create a Paymob Egypt merchant account + complete KYC (multi-day). [Runbook §2.1]
 2. ☐ Collect 4 keys: secret, public, integration ID, HMAC. [§2.2]
-3. ☐ **Deploy 3 edge functions** (currently 404 — written but not deployed):
+3. ☐ **Deploy `paymob-create-intention`** — the only Paymob function still
+   missing. Checked against the project 2026-07-30: `paymob-webhook` (v5),
+   `expo-push` (v17), `expo-push-receipts` (v1), `delete-account` (v4) and
+   `telegram-bot` (v3) are all already **ACTIVE**, so the old "3 functions are
+   404" note here was wrong.
    ```bash
-   cd /Users/etch/Projects/apps/sharmeats
    supabase login   # one-time
    supabase functions deploy paymob-create-intention --project-ref ilqpsebcfbaoaogimhud
-   supabase functions deploy paymob-webhook --no-verify-jwt --project-ref ilqpsebcfbaoaogimhud
-   supabase functions deploy expo-push --no-verify-jwt --project-ref ilqpsebcfbaoaogimhud
    ```
+   Also undeployed but **not blocking**, because nothing calls them:
+   `paymob-refund` (no call sites) and `kyc-upload` (no call sites — KYC
+   uploads go straight to storage under the migration 076 policies).
 4. ☐ Set the 4 secrets (`supabase secrets set …`). [§2.4]
 5. ☐ Point Paymob dashboard callbacks at the webhook URL. [§2.5]
 6. ☐ Test with a Paymob test card → order flips to `paid`. [§2.6]

@@ -43,19 +43,33 @@ API route uses the **service role key** (server-only) so the table can stay lock
 
 ## Deploy
 
-### Vercel (fastest)
-```bash
-npx vercel --prod
-```
-Set env vars in Vercel dashboard.
+**Production is Hostinger shared hosting, serving a static export.** Confirmed
+2026-07-30 from the response headers of `sharmeats.online` (`platform: hostinger`,
+`server: hcdn`), as well as `merchant.` and `admin.` (LiteSpeed/Hostinger).
+There is no Vercel deployment and no Node server in production.
 
-### Hostinger VPS (matches your existing infra)
-Build static + Node server:
 ```bash
-pnpm build
-pnpm start    # listens on $PORT (default 3000)
+./scripts/build-hostinger.sh    # produces ./out
 ```
-Front with nginx reverse-proxy + Let's Encrypt. Set env vars in `/etc/sharmeats-landing.env` and load via systemd unit.
+
+Then **upload the contents of `out/`** to `~/domains/sharmeats.online/public_html/`
+via hPanel File Manager or FTP.
+
+> The script builds and stops — it does **not** upload. That manual step is why
+> production once drifted ~8 weeks behind `main` without anyone noticing: the
+> build kept succeeding, so nothing ever looked broken. If you change this file,
+> keep that warning.
+
+Two things the script handles that a plain `next build` does not: it sets
+`STATIC_EXPORT=1` (which switches on `output: 'export'` + `trailingSlash`), and it
+quarantines the internal-only `/screenshots` and `/brand` **routes** out of
+`src/app` for the duration of the build, restoring them afterwards even on
+failure. `/screenshots` reads `searchParams`, which `output: export` cannot
+build. Note that `public/screenshots/` and `public/brand/` are *assets* with the
+same names and are still copied into `out/` — that is correct and expected.
+
+`out/.htaccess` ships from `public/.htaccess` and supplies the AASA
+`Content-Type` header that a static export cannot set through `headers()`.
 
 ## What's NOT here yet
 

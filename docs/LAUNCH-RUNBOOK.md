@@ -241,6 +241,6 @@ accounts via the admin flow.
 | Secrets + callback set | — | ☐ YOU (2.4–2.5) |
 | Card flow tested | — | ☐ YOU (2.6) |
 | **Customer app** | ✅ build #10 (.ipa) | ☐ resubmit (TestFlight now) |
-| **Merchant dashboard** | ✅ | ✅ LIVE (vercel) |
-| **Admin dashboard** | ✅ | ✅ LIVE (vercel) |
+| **Merchant dashboard** | ✅ | ✅ LIVE (Hostinger) |
+| **Admin dashboard** | ✅ | ✅ LIVE (Hostinger) |
 | **Driver app** | ✅ prepped + validated | ☐ YOU run 1st build (§4.1) |
