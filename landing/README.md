@@ -48,6 +48,13 @@ API route uses the **service role key** (server-only) so the table can stay lock
 `server: hcdn`), as well as `merchant.` and `admin.` (LiteSpeed/Hostinger).
 There is no Vercel deployment and no Node server in production.
 
+**Merging to `main` deploys automatically** once the `HOSTINGER_FTP_*` secrets
+are set — see `.github/workflows/deploy-landing.yml`, which builds, re-asserts
+the zone check, and uploads `out/` over FTPS. Until those secrets exist, the
+workflow builds and skips the upload with a notice.
+
+Manual fallback (also the path for a machine without repo secrets):
+
 ```bash
 ./scripts/build-hostinger.sh    # produces ./out
 ```
@@ -57,8 +64,8 @@ via hPanel File Manager or FTP.
 
 > The script builds and stops — it does **not** upload. That manual step is why
 > production once drifted ~8 weeks behind `main` without anyone noticing: the
-> build kept succeeding, so nothing ever looked broken. If you change this file,
-> keep that warning.
+> build kept succeeding, so nothing ever looked broken. The workflow above
+> exists to close exactly that gap; if you change this file, keep that warning.
 
 Two things the script handles that a plain `next build` does not: it sets
 `STATIC_EXPORT=1` (which switches on `output: 'export'` + `trailingSlash`), and it
