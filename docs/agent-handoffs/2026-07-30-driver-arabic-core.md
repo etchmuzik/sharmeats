@@ -25,10 +25,10 @@ Base: `b14433695bf7af74af22fb23bdf36cc0750dd284`
   the RTL + `row-reverse` double-reversal. Text alignment and writing direction
   remain explicit. This intentionally does **not** call
   `I18nManager.forceRTL` or require an app restart.
-- Known sign-in, online/offline, offer, job-status and location failures map to
-  localized recovery copy. Raw exceptions are sent to the existing crash
-  diagnostics with operation/order/assignment context and are not the primary
-  Arabic toast or inline error.
+- Known sign-in, online/offline, offer, job-status, location and avatar-upload
+  failures map to localized recovery copy. Raw exceptions are sent to the
+  existing crash diagnostics with safe operation/order/assignment context and
+  are not the primary Arabic toast or inline error.
 - Android's required persistent location notification reads the same locale key
   directly from AsyncStorage before the foreground task starts, so it is safe
   when React is not mounted.

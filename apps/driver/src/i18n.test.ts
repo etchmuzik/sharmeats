@@ -73,6 +73,9 @@ describe('driver localization', () => {
       'تعذر قبول العرض. حدّث العروض وحاول مرة أخرى.',
     );
     expect(localizedOperationalError('ar', 'offerAccept', new Error(raw))).not.toContain(raw);
+    expect(localizedOperationalError('ar', 'avatarUpload', new Error(raw))).toBe(
+      'تعذر رفع الصورة. حاول مرة أخرى.',
+    );
   });
 
   it('builds the Android tracking notification from a background-safe stored locale', () => {

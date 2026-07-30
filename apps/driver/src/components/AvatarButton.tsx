@@ -20,6 +20,7 @@ import { colors, font } from '../theme';
 import { useToast } from './Toast';
 import { notifySuccess, tapLight } from '../lib/haptics';
 import { useI18n } from '../i18n-context';
+import { captureError } from '../lib/crash';
 
 const SIZE = 56;
 
@@ -30,7 +31,7 @@ type Props = {
 
 export function AvatarButton({ name }: Props) {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { errorMessage, t } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -66,11 +67,12 @@ export function AvatarButton({ name }: Props) {
       notifySuccess();
       toast(t('avatar.updated'), 'success');
     } catch (e) {
-      toast(e instanceof Error ? e.message : t('avatar.uploadError'), 'error');
+      captureError(e, { where: 'driver.avatar.upload' });
+      toast(errorMessage('avatarUpload', e), 'error');
     } finally {
       setBusy(false);
     }
-  }, [t, toast]);
+  }, [errorMessage, t, toast]);
 
   const initial = (name ?? 'D').trim().charAt(0).toUpperCase() || 'D';
 

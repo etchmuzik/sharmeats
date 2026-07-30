@@ -404,6 +404,7 @@ export function localeDirection(locale: Locale) {
 }
 
 export type OperationalFailure =
+  | 'avatarUpload'
   | 'signin'
   | 'online'
   | 'offerAccept'
@@ -449,6 +450,8 @@ export function operationalErrorKey(
     'session expired',
     'invalid token',
   ]);
+
+  if (failure === 'avatarUpload') return 'avatar.uploadError';
 
   if (failure === 'signin') {
     if (
