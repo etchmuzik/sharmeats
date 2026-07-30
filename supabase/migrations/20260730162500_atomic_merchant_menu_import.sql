@@ -81,6 +81,7 @@ set search_path = public, pg_temp
 as $guard$
 declare
   v_restaurant_ids uuid[];
+  v_may_write boolean;
 begin
   if tg_op = 'INSERT' then
     v_restaurant_ids := array[new.restaurant_id];
@@ -88,6 +89,30 @@ begin
     v_restaurant_ids := array[old.restaurant_id];
   else
     v_restaurant_ids := array[old.restaurant_id, new.restaurant_id];
+  end if;
+
+  -- Does this caller have any write authority over EVERY restaurant involved?
+  --
+  -- This trigger is SECURITY DEFINER and BEFORE ROW, and PostgreSQL evaluates
+  -- an INSERT's RLS WITH CHECK only AFTER before-row triggers run. Without
+  -- this gate the definer-privileged duplicate-name lookups below execute for
+  -- any authenticated caller, and their 'name "X" already exists' message --
+  -- distinguishable from the generic RLS rejection, and echoing the name --
+  -- turns a failing INSERT into a confirmation oracle for the hidden menu of
+  -- an unapproved or private-vertical merchant.
+  --
+  -- Exemptions mirror migration 136: a context with NO request JWT
+  -- (service_role, psql, migrations, seeds) and admin both pass through.
+  if auth.uid() is null
+     or coalesce(public.auth_role()::text, '') = 'admin'  -- house rule 4: fail closed
+  then
+    v_may_write := true;
+  else
+    select bool_and(public.is_merchant_staff(candidate))
+      into v_may_write
+      from unnest(v_restaurant_ids) as candidate
+     where candidate is not null;
+    v_may_write := coalesce(v_may_write, false);
   end if;
 
   perform private.acquire_merchant_menu_locks(v_restaurant_ids);
@@ -114,7 +139,12 @@ begin
 
     -- btrim both sides: NEW.name is only normalized above when it is written,
     -- so an untouched legacy name can still carry whitespace here.
-    if (
+    --
+    -- v_may_write gates the lookup, not the outcome: an unauthorized caller
+    -- simply skips it and is rejected by RLS with its uniform error, so a
+    -- correct guess is indistinguishable from a wrong one. The write cannot
+    -- succeed either way.
+    if v_may_write and (
       tg_op = 'INSERT'
       or old.restaurant_id is distinct from new.restaurant_id
       or lower(btrim(old.name)) is distinct from lower(btrim(new.name))
@@ -163,8 +193,9 @@ begin
         using errcode = 'invalid_parameter_value';
     end if;
 
-    -- btrim both sides for the same reason as the section branch.
-    if (
+    -- btrim both sides, and gate on v_may_write, for the same reasons as the
+    -- section branch above.
+    if v_may_write and (
       tg_op = 'INSERT'
       or old.restaurant_id is distinct from new.restaurant_id
       or old.section_id is distinct from new.section_id

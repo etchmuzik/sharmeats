@@ -451,6 +451,68 @@ begin
     null;
   end;
 
+  -- The guard is SECURITY DEFINER and BEFORE ROW, and an INSERT's RLS WITH
+  -- CHECK is evaluated only AFTER before-row triggers. A caller with no write
+  -- authority must therefore not be able to distinguish "this name exists"
+  -- from the generic RLS rejection, or a failing INSERT becomes a
+  -- confirmation oracle for a hidden merchant's menu.
+  insert into public.users (id, role)
+  values ('aaaaaaaa-0000-0000-0000-0000000000ff', 'customer')
+  on conflict (id) do update set role = 'customer';
+
+  perform set_config(
+    'request.jwt.claim.sub',
+    'aaaaaaaa-0000-0000-0000-000000000003',
+    true
+  );
+  insert into public.menu_sections (restaurant_id, name, sort_order)
+  values ('bbbbbbbb-0000-0000-0000-000000000001', 'OracleProbeTarget', 907);
+
+  perform set_config(
+    'request.jwt.claim.sub',
+    'aaaaaaaa-0000-0000-0000-0000000000ff',
+    true
+  );
+
+  -- These assertions run as the test superuser, so RLS (the layer that
+  -- actually rejects the write in production) is bypassed here. What is being
+  -- asserted is the part the TRIGGER owns: an unauthorized caller must never
+  -- reach the definer-privileged duplicate-name lookup, because reaching it is
+  -- what produces the distinguishable, name-echoing error. A duplicate name
+  -- that inserts silently is the correct trigger-level outcome -- in
+  -- production RLS then rejects it exactly as it rejects a novel name, so the
+  -- two probes are indistinguishable to the attacker.
+  begin
+    insert into public.menu_sections (restaurant_id, name, sort_order)
+    values ('bbbbbbbb-0000-0000-0000-000000000001', 'OracleProbeTarget', 908);
+  exception when invalid_parameter_value then
+    v_fail := v_fail
+      || 'the guard leaked menu-name existence to a non-merchant caller'::text;
+  end;
+
+  begin
+    insert into public.menu_sections (restaurant_id, name, sort_order)
+    values ('bbbbbbbb-0000-0000-0000-000000000001', 'OracleProbeMiss', 909);
+  exception when invalid_parameter_value then
+    v_fail := v_fail
+      || 'a non-merchant reached the duplicate check on a novel name'::text;
+  end;
+
+  -- The duplicate check must still fire for an authorized manager.
+  perform set_config(
+    'request.jwt.claim.sub',
+    'aaaaaaaa-0000-0000-0000-000000000003',
+    true
+  );
+  begin
+    insert into public.menu_sections (restaurant_id, name, sort_order)
+    values ('bbbbbbbb-0000-0000-0000-000000000001', 'oracleprobetarget', 910);
+    v_fail := v_fail
+      || 'the manager duplicate-name check stopped firing'::text;
+  exception when invalid_parameter_value then
+    null;
+  end;
+
   if array_length(v_fail, 1) > 0 then
     raise exception E'MENU IMPORT BEHAVIOUR FAILED (%):\n  - %',
       array_length(v_fail, 1),
