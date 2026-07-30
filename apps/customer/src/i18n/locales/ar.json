@@ -226,6 +226,7 @@
   "checkout.total": "الإجمالي",
   "checkout.place": "تأكيد الطلب · {amount}",
   "checkout.conversion": "≈ {amount} · سعر استرشادي: {rate}",
+  "checkout.conversionStale": "≈ {amount} · تقريبي، آخر تحديث للسعر {date}",
   "address.title": "عنوان التوصيل",
   "address.hotel": "فندق",
   "address.street": "شقة",

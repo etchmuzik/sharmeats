@@ -988,6 +988,59 @@ export type Database = {
           },
         ]
       }
+      fx_rates: {
+        Row: {
+          actor_id: string | null
+          base_currency: string
+          created_at: string
+          effective_at: string
+          fetched_at: string
+          id: string
+          note: string | null
+          quote_currency: string
+          rate: number
+          source: string
+          stale_after: string
+          status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          base_currency?: string
+          created_at?: string
+          effective_at?: string
+          fetched_at?: string
+          id?: string
+          note?: string | null
+          quote_currency: string
+          rate: number
+          source: string
+          stale_after: string
+          status?: string
+        }
+        Update: {
+          actor_id?: string | null
+          base_currency?: string
+          created_at?: string
+          effective_at?: string
+          fetched_at?: string
+          id?: string
+          note?: string | null
+          quote_currency?: string
+          rate?: number
+          source?: string
+          stale_after?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fx_rates_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hotels: {
         Row: {
           brand: string | null
@@ -4003,6 +4056,16 @@ export type Database = {
         Args: { p_restaurant_id: string; p_until: string }
         Returns: undefined
       }
+      admin_set_fx_rate: {
+        Args: {
+          p_allow_jump?: boolean
+          p_quote: string
+          p_rate: number
+          p_reason: string
+          p_stale_hours?: number
+        }
+        Returns: string
+      }
       admin_set_merchant_type: {
         Args: {
           p_inherit_geo?: boolean
@@ -4165,6 +4228,17 @@ export type Database = {
       }
       claim_support_case: { Args: { p_case_id: string }; Returns: undefined }
       clear_my_cart: { Args: never; Returns: undefined }
+      current_fx_rates: {
+        Args: never
+        Returns: {
+          effective_at: string
+          quote_currency: string
+          rate: number
+          source: string
+          stale: boolean
+          stale_after: string
+        }[]
+      }
       delivery_feasibility: {
         Args: { p_dropoff: unknown; p_restaurant_id: string }
         Returns: {
@@ -4285,6 +4359,19 @@ export type Database = {
           zone: string
         }[]
       }
+      fx_apply_observation: {
+        Args: {
+          p_actor: string
+          p_allow_jump: boolean
+          p_note: string
+          p_quote: string
+          p_rate: number
+          p_source: string
+          p_stale_hours: number
+        }
+        Returns: string
+      }
+      fx_rates_health_sweep: { Args: never; Returns: number }
       generate_driver_settlements: {
         Args: { p_period_end: string; p_period_start: string }
         Returns: number
@@ -4931,6 +5018,16 @@ export type Database = {
           p_granted: boolean
           p_policy_version?: string
           p_source?: string
+        }
+        Returns: string
+      }
+      record_fx_observation: {
+        Args: {
+          p_allow_jump?: boolean
+          p_quote: string
+          p_rate: number
+          p_source: string
+          p_stale_hours?: number
         }
         Returns: string
       }

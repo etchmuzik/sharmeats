@@ -8,6 +8,7 @@ import { useSession } from '../src/store/session';
 import { db, isBackendLive } from '../src/data';
 import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
 import { identifyUser, initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics';
+import { hydrateFxRates, refreshFxRates } from '../src/currency/rates';
 import { configureNotificationHandler, registerForPush, useNotificationRouting } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
@@ -72,6 +73,10 @@ export default function RootLayout() {
   useEffect(() => {
     hydrateCart();
     hydrateSession();
+    // [P05-B] Last-known server FX rates first (synchronous display never
+    // waits on network), then a fresh fetch. Both are fire-and-forget: a
+    // conversion hint must never delay startup or surface a network error.
+    void hydrateFxRates().then(() => refreshFxRates());
     // In live mode, ensure a real Supabase session exists before any screen
     // queries the backend (the server-authority RPCs require auth.uid()).
     // Anonymous sign-in is the zero-friction guest path; failures are logged

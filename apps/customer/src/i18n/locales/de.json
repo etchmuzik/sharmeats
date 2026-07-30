@@ -226,6 +226,7 @@
   "checkout.total": "Gesamt",
   "checkout.place": "Bestellen · {amount}",
   "checkout.conversion": "≈ {amount} · Richtkurs: {rate}",
+  "checkout.conversionStale": "≈ {amount} · ungefähr, Kurs aktualisiert am {date}",
   "address.title": "Lieferadresse",
   "address.hotel": "Hotel",
   "address.street": "Apartment",

@@ -19,6 +19,14 @@ const RATES_PER_UNIT: Record<Currency, number> = {
   RUB: 0.51,
 };
 
+/**
+ * The static table, exported for the OFFLINE-FALLBACK role only (rates.ts).
+ * Since mig 182 the server (`current_fx_rates`) is the rate source of truth;
+ * these numbers serve a first launch with no connectivity, always resolved
+ * with `source: 'static', stale: true` so no UI can present them as current.
+ */
+export const RATES_PER_UNIT_STATIC: Record<Currency, number> = RATES_PER_UNIT;
+
 const SYMBOLS: Record<Currency, string> = {
   EGP: 'EGP',
   EUR: '€',
@@ -41,6 +49,22 @@ export function formatCurrency(amountEgp: number, currency: Currency): string {
 export function fxRateLine(currency: Currency): string | null {
   if (currency === 'EGP') return null;
   return `1 ${currency} = ${RATES_PER_UNIT[currency].toFixed(2)} EGP`;
+}
+
+/**
+ * Rate-parameterized variants: same formatting, but the RATE comes from the
+ * resolver (rates.ts) instead of the static table. The un-parameterized
+ * functions above remain for the static-fallback path and existing tests;
+ * render surfaces should prefer these with `resolveRate()`.
+ */
+export function formatCurrencyAtRate(amountEgp: number, currency: Currency, rate: number): string {
+  if (currency === 'EGP') return `EGP ${Math.round(amountEgp).toLocaleString('en-US')}`;
+  return `${SYMBOLS[currency]}${(amountEgp / rate).toFixed(2)}`;
+}
+
+export function fxRateLineAtRate(currency: Currency, rate: number): string | null {
+  if (currency === 'EGP') return null;
+  return `1 ${currency} = ${rate.toFixed(2)} EGP`;
 }
 
 export function currencyLabel(currency: Currency): string {

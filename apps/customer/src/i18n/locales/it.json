@@ -226,6 +226,7 @@
   "checkout.total": "Totale",
   "checkout.place": "Ordina · {amount}",
   "checkout.conversion": "≈ {amount} · tasso indicativo: {rate}",
+  "checkout.conversionStale": "≈ {amount} · approssimativo, tasso aggiornato il {date}",
   "address.title": "Indirizzo di consegna",
   "address.hotel": "Hotel",
   "address.street": "Appartamento",

@@ -605,3 +605,22 @@ export interface InboxMessage {
   /** When the customer read it IN THE INBOX. Undefined = unread. */
   readAt?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Display FX (Package 05 Slice B)
+// ---------------------------------------------------------------------------
+
+/** One active server rate. Display metadata only — pricing never touches it. */
+export interface ServerFxRate {
+  quoteCurrency: string;
+  /** EGP per 1 unit of the quote currency. */
+  rate: number;
+  source: string;
+  effectiveAt: string;
+  /** Server-computed: past stale_after. A stale rate must be LABELED stale. */
+  stale: boolean;
+}
+
+export interface FxRepository {
+  currentRates(): Promise<ServerFxRate[]>;
+}

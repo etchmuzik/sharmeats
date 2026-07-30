@@ -226,6 +226,7 @@
   "checkout.total": "Итого",
   "checkout.place": "Оформить заказ · {amount}",
   "checkout.conversion": "≈ {amount} · ориентировочный курс: {rate}",
+  "checkout.conversionStale": "≈ {amount} · приблизительно, курс обновлён {date}",
   "address.title": "Адрес доставки",
   "address.hotel": "Отель",
   "address.street": "Квартира",

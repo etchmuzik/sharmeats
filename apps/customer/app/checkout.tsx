@@ -22,7 +22,8 @@ import { db } from '../src/data';
 import type { Address, AllergyKey, DropoffPreference, PaymentMethod, Restaurant } from '../src/data/types';
 import { formatEgp, formatTime } from '../src/lib/format';
 import { serviceFeeEgp } from '../src/lib/serviceFee';
-import { formatCurrency, fxRateLine, ALL_CURRENCIES } from '../src/currency/fx';
+import { formatCurrencyAtRate, fxRateLineAtRate, ALL_CURRENCIES } from '../src/currency/fx';
+import { resolveRate } from '../src/currency/rates';
 import { success, selection } from '../src/haptics';
 import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
@@ -717,14 +718,30 @@ export default function Checkout() {
             <Text style={styles.totTotalLabel}>{t('checkout.total')}</Text>
             <Text style={styles.totTotalVal}>{formatEgp(total)}</Text>
           </View>
-          {currency !== 'EGP' && (
-            <Text style={styles.conv}>
-              {t('checkout.conversion', {
-                amount: formatCurrency(total, currency as Currency),
-                rate: fxRateLine(currency as Currency) ?? '',
-              })}
-            </Text>
-          )}
+          {currency !== 'EGP' &&
+            (() => {
+              // [P05-B] The rate now comes from the server resolver (mig 182),
+              // not the static table. A stale or static-fallback rate switches
+              // to the dated "approximate" wording — a stale rate may still
+              // CONVERT (a two-week-old real rate beats a planning number) but
+              // must never present itself as current.
+              const resolved = resolveRate(currency as Currency);
+              if (!resolved) return null;
+              const amount = formatCurrencyAtRate(total, currency as Currency, resolved.rate);
+              const rate = fxRateLineAtRate(currency as Currency, resolved.rate) ?? '';
+              return (
+                <Text style={styles.conv}>
+                  {resolved.stale
+                    ? t('checkout.conversionStale', {
+                        amount,
+                        date: resolved.effectiveAt
+                          ? new Date(resolved.effectiveAt).toLocaleDateString()
+                          : '—',
+                      })
+                    : t('checkout.conversion', { amount, rate })}
+                </Text>
+              );
+            })()}
         </View>
       </ScrollView>
 
