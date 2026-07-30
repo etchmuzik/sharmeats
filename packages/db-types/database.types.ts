@@ -4741,6 +4741,23 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      marketplace_integrity_findings: {
+        Args: never
+        Returns: {
+          check_name: string
+          detail: string
+          entity_id: string
+        }[]
+      }
+      marketplace_integrity_report: {
+        Args: never
+        Returns: {
+          check_name: string
+          detail: string
+          entity_id: string
+        }[]
+      }
+      marketplace_integrity_sweep: { Args: never; Returns: number }
       menu_items_staff_writable_columns: { Args: never; Returns: string[] }
       my_cash_balance: { Args: never; Returns: number }
       my_cod_capacity: {
