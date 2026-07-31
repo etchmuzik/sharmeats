@@ -43,6 +43,14 @@ new style/
 *.p8
 *service-account*.json
 
+# Firebase Android config, needed at build time for FCM push. Google does not
+# class this as a secret, but this repository is PUBLIC and the file carries the
+# project number and an API key — publishing them invites nuisance abuse of the
+# FCM quota for no benefit. Supplied to builds as the file-type EAS environment
+# variable GOOGLE_SERVICES_JSON instead; see docs/ANDROID-PUSH-FCM.md.
+google-services.json
+GoogleService-Info.plist
+
 .superpowers/
 __pycache__/
 *.pyc
