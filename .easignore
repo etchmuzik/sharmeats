@@ -1,0 +1,80 @@
+# What NOT to upload to EAS Build — REPO ROOT edition.
+#
+# WHY THIS EXISTS AT THE ROOT: the per-app files (apps/*/.easignore) are not
+# what EAS reads. All three local builds on 2026-07-31 reported "Compressed
+# project files (164 MB)" with apps/customer/.easignore present and committed —
+# identical to the byte count before those files existed. In a monorepo, EAS
+# archives the GIT ROOT, not the app subdirectory named by
+# projectRootDirectory, so the ignore file has to live here to have any effect.
+#
+# DELIBERATELY COMPLETE, not a short list of the big offenders. .easignore is
+# documented to take PRECEDENCE over .gitignore rather than adding to it. If
+# that reading is right, a file naming only the screenshots would start
+# uploading node_modules/, ios/, android/ and .env to EAS — vastly worse than
+# the problem it set out to solve, and a secret leak besides. I could not
+# confirm the precedence from this environment (eas-cli runs via npx and is not
+# on disk), and I am not willing to bet a credential on the favourable reading,
+# so this restates every rule that matters from .gitignore. Correct whether
+# .easignore replaces or supplements.
+#
+# If you add an ignore rule to .gitignore that matters for builds, add it here
+# too. A rule in only one of the two is the failure mode this comment exists to
+# prevent.
+
+# ---- Dependencies and VCS -------------------------------------------------
+node_modules/
+**/node_modules/
+.git/
+
+# ---- Generated / local build output ---------------------------------------
+.expo/
+**/.expo/
+.export/
+**/.export/
+dist/
+**/dist/
+build/
+**/build/
+out/
+landing/out/
+.next/
+**/.next/
+apps/*/ios/
+apps/*/android/
+**/expo-env.d.ts
+*.log
+*.orig.*
+
+# ---- Secrets. Never upload these. -----------------------------------------
+.env
+.env.local
+.env*.local
+**/.env
+**/.env.local
+**/credentials/
+*.p8
+*service-account*.json
+
+# ---- Local binaries -------------------------------------------------------
+*.ipa
+*.aab
+*.apk
+
+# ---- Store listing material: humans need it, no build reads it ------------
+# This is the ~78 MB that was being compressed and discarded on every build.
+apps/customer/store-screenshots/
+apps/customer/store-screenshots-clean/
+apps/customer/store-assets/
+apps/driver/store-screenshots/
+apps/restaurant/store-screenshots/
+
+# ---- The marketing site, which EAS never builds ---------------------------
+landing/
+
+# ---- Repo docs and tooling not needed to compile an app -------------------
+docs/
+supabase/
+.github/
+*.md
+
+.DS_Store
