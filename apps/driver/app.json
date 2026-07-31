@@ -73,7 +73,9 @@
           "photosPermission": "Sharm Eats needs photo access so you can upload your verification documents.",
           "cameraPermission": "Sharm Eats needs the camera so you can photograph a delivery handoff as proof it arrived."
         }
-      ]
+      ],
+      "./plugins/withFmtConstevalFix",
+      "./plugins/withWeakLetFix"
     ],
     "experiments": {
       "typedRoutes": false

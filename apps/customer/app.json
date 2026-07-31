@@ -52,7 +52,10 @@
         }
       ],
       "expo-localization",
-      "expo-notifications"
+      "expo-notifications",
+      "./plugins/withFmtConstevalFix",
+      "./plugins/withLocalizationXcode26Fix",
+      "./plugins/withWeakLetFix"
     ],
     "experiments": {
       "typedRoutes": false
