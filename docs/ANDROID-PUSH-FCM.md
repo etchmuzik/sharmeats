@@ -65,12 +65,35 @@ Download the generated `google-services.json` for each. They are different files
 
 ### 2. Upload each `google-services.json` to EAS as a file variable
 
+**Easiest path — one command that does steps 2 and validates everything first:**
+
+```bash
+scripts/setup-android-fcm.sh \
+  --customer   ~/Downloads/customer-google-services.json \
+  --driver     ~/Downloads/driver-google-services.json \
+  --restaurant ~/Downloads/restaurant-google-services.json \
+  --service-account ~/Downloads/service-account.json
+```
+
+It refuses to upload anything until all four files check out: that each
+`google-services.json` really contains the package it is being uploaded for
+(three near-identical downloads are easy to mix up, and a swap produces no error
+anywhere — just a device that silently never receives), that all four come from
+the *same* Firebase project (mixing them is the classic `MismatchSenderId`, which
+only shows up in a push receipt long after shipping), and that the service
+account is one. Validation runs before the first upload, so you never end up with
+two apps configured and one not — which is worse than none, because the two that
+work make it look finished.
+
+<details>
+<summary>Or do it by hand</summary>
+
 Run from inside each app directory, because EAS environment variables are
 per-project:
 
 ```bash
 cd apps/customer
-eas env:create --environment production \
+eas env:set --environment production \
   --name GOOGLE_SERVICES_JSON \
   --type file \
   --value ./path/to/customer-google-services.json \
@@ -82,6 +105,8 @@ Repeat for `apps/driver` and `apps/restaurant` with their own files.
 `--type file` is required. EAS stores the contents, materialises the file on the
 build worker, and sets `GOOGLE_SERVICES_JSON` to its **path** — which is exactly
 what `app.config.js` in each app expects.
+
+</details>
 
 > Do not commit these files. `.gitignore` blocks `google-services.json`
 > repo-wide. This repository is public; Google does not treat the file as a
