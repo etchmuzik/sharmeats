@@ -107,11 +107,30 @@ jobs:
           FTP_SERVER_DIR: ${{ vars.HOSTINGER_FTP_SERVER_DIR || '.' }}
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp
-          # FTPS enforced: credentials must never travel plaintext. verify-certificate
-          # stays on — if Hostinger's cert does not match the host you configured,
-          # that is worth a failed deploy, not a silent downgrade.
+          # FTPS enforced: credentials must never travel plaintext.
+          #
+          # verify-certificate STAYS ON. check-hostname is off, and the two are
+          # deliberately separate settings rather than one switch:
+          #
+          #   * verify-certificate — does the cert chain to a CA the runner
+          #     trusts? Still required. A self-signed interceptor fails here.
+          #   * check-hostname — does the cert's CN/SAN equal the host we dialled?
+          #     Off, because on Hostinger SHARED hosting it structurally cannot
+          #     match: the FTP server presents the certificate for the shared
+          #     node, not for a customer domain, so ftp.sharmeats.online will
+          #     never appear in it. The first real deploy failed exactly here:
+          #       "certificate common name doesn't match requested host name"
+          #
+          # This is a genuine, bounded reduction in assurance — an attacker
+          # holding ANY CA-issued cert could now impersonate the server, where
+          # before they would have needed one for this exact name. It is not the
+          # same as turning TLS off: the session is still encrypted and the peer
+          # still needs a real CA signature. Restore check-hostname the day this
+          # moves to a host whose cert names it (a VPS, or SFTP over its own
+          # key), and prefer that if the choice ever comes up.
           lftp -u "$FTP_USERNAME","$FTP_PASSWORD" \
                -e "set ftp:ssl-force true; set ssl:verify-certificate true; \
+                   set ssl:check-hostname false; \
                    mirror -R --verbose --parallel=4 landing/out/ $FTP_SERVER_DIR; quit" \
                "$FTP_HOST"
 
