@@ -54,7 +54,8 @@
       "expo-localization",
       "expo-notifications",
       "./plugins/withFmtConstevalFix",
-      "./plugins/withLocalizationXcode26Fix"
+      "./plugins/withLocalizationXcode26Fix",
+      "./plugins/withWeakLetFix"
     ],
     "experiments": {
       "typedRoutes": false
