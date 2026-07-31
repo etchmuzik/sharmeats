@@ -249,16 +249,30 @@ psql -q -d "${SCRATCH_DB}" -c "create extension if not exists pgcrypto" >/dev/nu
 # ---------------------------------------------------------------------------
 # 5. Roles, schema, then data.
 # ---------------------------------------------------------------------------
+# Roles FIRST, and they matter more than they used to: schema.sql now carries the
+# GRANT/REVOKE statements that are this database's entire authorization model,
+# and every one of them names a role. Load them into a database where the roles
+# do not exist and each grant fails with "role does not exist" --
+# hundreds of errors that leave a schema with no authorization at all.
+#
+# `-i` on the grep: the native path writes lowercase `create role` (generated
+# from pg_roles), the Supabase CLI path writes uppercase CREATE ROLE.
 if [[ -s "${BACKUP_DIR}/roles.sql" ]] && grep -qv "^--" "${BACKUP_DIR}/roles.sql" 2>/dev/null \
-   && grep -q "CREATE ROLE\|ALTER ROLE" "${BACKUP_DIR}/roles.sql"; then
+   && grep -qi "create role\|alter role" "${BACKUP_DIR}/roles.sql"; then
   echo "  · roles"
   psql -q -d "${SCRATCH_DB}" -f "${BACKUP_DIR}/roles.sql" >>"${REPORT}" 2>&1 || true
   echo "roles: loaded" >> "${REPORT}"
 else
-  # The native pg_dump path cannot dump cluster roles (see backup-prod.sh), so
-  # roles.sql is a note rather than SQL. Say so instead of implying success.
-  echo "  · roles (not in this dump -- native pg_dump path; see backup-prod.sh)"
-  echo "roles: NOT PRESENT (native dump limitation; recreate from supabase/migrations/)" >> "${REPORT}"
+  # roles.sql is a note rather than SQL (see backup-prod.sh). Say so instead of
+  # implying success, and warn about the consequence rather than leaving the
+  # operator to discover it in a wall of grant errors.
+  echo "  · roles (not in this dump -- see backup-prod.sh)"
+  echo "roles: NOT PRESENT (recreate from supabase/migrations/)" >> "${REPORT}"
+  if grep -q "^GRANT " "${BACKUP_DIR}/schema.sql"; then
+    echo "  · WARNING: schema.sql has GRANTs but roles.sql has no roles --" >&2
+    echo "             every grant will fail and the restore will have NO authorization model." >&2
+    echo "roles: WARNING -- schema.sql GRANTs will all fail without roles" >> "${REPORT}"
+  fi
 fi
 
 # Keep the error TEXT, not just a count. The first real drill reported

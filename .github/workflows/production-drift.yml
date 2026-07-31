@@ -14,7 +14,9 @@
 # should agree with one another even when we do not know the intended SHA), and
 # only a manual run with an explicit `expected_sha` asserts a specific release.
 #
-# This never deploys, never writes and needs no secrets.
+# This never deploys and never writes. The surface comparison needs no secrets;
+# the database job needs a READ-ONLY PROD_DATABASE_URL and skips loudly without
+# one.
 
 name: production-drift
 
@@ -140,6 +142,68 @@ jobs:
               echo "manifests are present, well-formed and self-consistent. Re-run this"
               echo "workflow with the release SHA to assert a specific deployment._"
             } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          exit "$fail"
+
+  # The other half of "is production doing what we think it is": the database.
+  #
+  # scripts/check-db-drift.sh and scripts/check-cron-liveness.sh were written to
+  # be run and then wired into nothing, which makes them documentation rather
+  # than checks. This runs both, daily, on the same schedule as the surface
+  # comparison above.
+  #
+  # WHY THE CRON CHECK MATTERS MOST: dispatch_watchdog's cron-health signal
+  # counts FAILED runs, so a sweep that has simply stopped produces no signal at
+  # all. If dispatch_sweep dies, the first report today is a customer wondering
+  # why nobody came. See the header of check-cron-liveness.sh.
+  #
+  # SKIPS, LOUDLY, WITHOUT THE SECRET. A read-only connection string is needed
+  # and this repository is PUBLIC, so the job cannot assume one exists. It says
+  # so in the summary rather than reporting a green run that checked nothing.
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check migration ledger drift and cron liveness
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::warning title=Database drift not checked::PROD_DATABASE_URL is not set, so the migration-ledger and cron-liveness checks did not run. Add a READ-ONLY connection string as the PROD_DATABASE_URL repository secret."
+            {
+              echo "## Database"
+              echo ""
+              echo "⚠️ **Not checked.** \`PROD_DATABASE_URL\` is not configured, so"
+              echo "\`check-db-drift.sh\` and \`check-cron-liveness.sh\` were skipped."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          fail=0
+
+          echo "## Database" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          for check in check-db-drift check-cron-liveness; do
+            echo "### ${check}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            # Both scripts distinguish drift (1) from misconfiguration (2); a
+            # misconfiguration is reported as an error too, because a check that
+            # could not run must never read as a check that passed.
+            "./scripts/${check}.sh" >"/tmp/${check}.out" 2>&1 || fail=1
+            cat "/tmp/${check}.out"
+            cat "/tmp/${check}.out" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::the database does not match the repository, or a scheduled job has stopped running"
           fi
 
           exit "$fail"

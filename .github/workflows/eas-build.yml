@@ -17,6 +17,11 @@
 #                        tokens). Personal-account token is fine; it needs
 #                        access to the three EAS projects.
 #
+# SENTRY SOURCE MAPS need a second credential, and it is NOT a GitHub secret —
+# it is an EAS environment variable named SENTRY_AUTH_TOKEN on the `production`
+# environment of each app, because sentry-cli runs on the EAS builder, not here.
+# See the preflight step below for the exact command and the two failure modes.
+#
 # WHAT THIS DOES NOT DO: submit to the App Store or Play. Submission needs the
 # ASC API key (.p8) and the Play service-account JSON, which are correctly
 # gitignored (`**/credentials/`, `*.p8`, `*service-account*.json`) and are not
@@ -113,32 +118,72 @@ jobs:
       # grepping the installed package.
       #
       # So the missing-token case would otherwise surface as a full build
-      # burning ~20 minutes and a credit before dying at the archive step. This
-      # asks EAS up front. A warning, not a hard failure: a build without source
-      # maps is still a usable build, and blocking one over observability would
-      # be the wrong trade.
+      # burning ~20 minutes and a credit before dying at the archive step.
+      #
+      # THE FAIL-SAFE IS THIS CHECK, NOT A FLAG. Because the upload cannot be
+      # made non-fatal inside the build, the only way a Sentry problem never
+      # breaks a production build is to refuse to START one that is already
+      # doomed. So the two cases are treated differently:
+      #
+      #   upload ON  + token MISSING  -> hard failure, here, in seconds. The
+      #                                  build cannot succeed; failing now saves
+      #                                  the credit and says why.
+      #   upload OFF + token PRESENT  -> warning. Nothing is broken, but the
+      #                                  build is about to ship a binary whose
+      #                                  crashes are unreadable minified offsets
+      #                                  while the token needed to fix that is
+      #                                  sitting right there.
+      #
+      # An env:list that cannot RUN is neither: that is a CLI/network problem,
+      # not an answer about the token, and it warns rather than blocking a build
+      # on a flaky list call.
       #
       # It reads the flag out of eas.json rather than assuming a value. The flag
       # has now been flipped twice in one day, and a check that hardcodes what it
       # expects to find starts lying the moment someone changes it — which is
       # precisely when a preflight needs to be trusted.
+      #
+      # THE SECRET, EXACTLY: an EAS *environment variable* named
+      # SENTRY_AUTH_TOKEN on the `production` environment of each of the three
+      # EAS projects — not a GitHub Actions secret, because it is consumed by
+      # sentry-cli on the EAS builder, not on this runner. Create it once per app:
+      #
+      #   cd apps/<app> && npx eas-cli env:create --environment production \
+      #     --name SENTRY_AUTH_TOKEN --value <token> --visibility secret
+      #
+      # Mint the token at sentry.io -> Settings -> Auth Tokens with scopes
+      # project:releases and org:read. Org/project are already in eas.json
+      # (SENTRY_ORG=beyond-mngmt, SENTRY_PROJECT=sharmeats-<app>).
       - name: Check Sentry source-map upload prerequisites
         working-directory: apps/${{ matrix.app }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        continue-on-error: true
         run: |
           uploads=$(node -p "(require('./eas.json').build?.['${{ inputs.profile }}']?.env?.SENTRY_DISABLE_AUTO_UPLOAD) === 'false' ? 'yes' : 'no'")
-          if [ "$uploads" != "yes" ]; then
-            echo "Source-map upload is off for profile '${{ inputs.profile }}' (SENTRY_DISABLE_AUTO_UPLOAD is not \"false\") — no token needed."
+
+          if ! env_list=$(npx eas-cli@21.4.0 env:list --environment production 2>&1); then
+            echo "::warning title=Could not check SENTRY_AUTH_TOKEN::eas env:list failed for apps/${{ matrix.app }}, so the Sentry preflight could not run. The build continues. Output: ${env_list}"
             exit 0
           fi
-          if npx eas-cli@21.4.0 env:list --environment production 2>/dev/null \
-               | grep -q 'SENTRY_AUTH_TOKEN'; then
-            echo "SENTRY_AUTH_TOKEN present — source maps will upload."
-          else
-            echo "::warning title=Sentry source maps will not upload::SENTRY_AUTH_TOKEN is not set for the production environment of apps/${{ matrix.app }}, but eas.json sets SENTRY_DISABLE_AUTO_UPLOAD=false for profile '${{ inputs.profile }}'. sentry-cli will fail and, because SENTRY_ALLOW_FAILURE is not honoured in @sentry/react-native 7.11.0, that fails the Xcode build phase. Create it with: eas env:create --environment production --name SENTRY_AUTH_TOKEN --value <token> --visibility secret"
+
+          if echo "$env_list" | grep -q 'SENTRY_AUTH_TOKEN'; then token=present; else token=absent; fi
+
+          if [ "$uploads" = "yes" ] && [ "$token" = "absent" ]; then
+            echo "::error title=Sentry source-map upload cannot succeed::eas.json sets SENTRY_DISABLE_AUTO_UPLOAD=false for profile '${{ inputs.profile }}' but SENTRY_AUTH_TOKEN is not set on the production environment of apps/${{ matrix.app }}. sentry-cli would fail and, because SENTRY_ALLOW_FAILURE is not honoured in @sentry/react-native 7.11.0, take the Xcode build phase down with it ~20 minutes and one build credit from now. Create it with: cd apps/${{ matrix.app }} && npx eas-cli env:create --environment production --name SENTRY_AUTH_TOKEN --value <token> --visibility secret"
+            exit 1
           fi
+
+          if [ "$uploads" = "yes" ]; then
+            echo "SENTRY_AUTH_TOKEN present and upload enabled — source maps will upload."
+            exit 0
+          fi
+
+          if [ "$token" = "present" ]; then
+            echo "::warning title=Source maps are off but the token exists::SENTRY_AUTH_TOKEN is set for apps/${{ matrix.app }}, but eas.json leaves SENTRY_DISABLE_AUTO_UPLOAD=\"true\" for profile '${{ inputs.profile }}', so this binary's crashes will arrive as minified bundle offsets. Set it to \"false\" in apps/${{ matrix.app }}/eas.json to turn uploads on — this preflight now blocks a build that would fail for a missing token, so the flip is safe."
+            exit 0
+          fi
+
+          echo "Source-map upload is off for profile '${{ inputs.profile }}' and no token is set — nothing to do. Stack traces from this build will be minified."
 
       # Only packages/* are npm workspaces; every app owns its own lockfile, so
       # install from inside the app directory. (See CLAUDE.md.)

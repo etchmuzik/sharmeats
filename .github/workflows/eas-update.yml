@@ -20,7 +20,10 @@
 # reported success, and reached nobody. Customer build 58 (2026-07-31) is the
 # first 1.1.0 binary in the wild, which is what makes this workflow worth having.
 #
-# SETUP: needs the same EXPO_TOKEN repository secret as eas-build.yml.
+# SETUP: needs the same EXPO_TOKEN repository secret as eas-build.yml, plus an
+# optional SENTRY_AUTH_TOKEN repository secret — without it the update still
+# publishes, but its crashes arrive as minified bundle offsets. See the
+# source-map step for why that matters more for OTA than for a full build.
 
 name: EAS update (OTA)
 
@@ -96,6 +99,51 @@ jobs:
             console.log('runtimeVersion:', JSON.stringify(e.runtimeVersion));
             console.log('channel       :', '${{ inputs.channel }}');
           "
+
+      # Source maps for the JS this update ships.
+      #
+      # WHY IT IS HERE AND NOT ONLY IN THE BUILD WORKFLOW: an OTA update replaces
+      # the JS bundle inside an already-installed binary. The maps uploaded (or
+      # not) when that binary was built describe the OLD bundle, so every crash
+      # in code shipped this way arrives as a minified offset into a bundle
+      # nobody has — and OTA is how most fixes reach users between builds.
+      #
+      # HOW THE MAPS MATCH: metro.config.js in all three apps uses
+      # getSentryExpoConfig, whose serializer stamps a content-derived Debug ID
+      # into both the bundle and its source map. `expo export` here and the export
+      # `eas update` does below run from the same checkout and the same
+      # node_modules, so they produce the same bundle bytes and therefore the same
+      # Debug ID. If they ever diverge, the uploaded maps are simply unused —
+      # the same state as today, never worse.
+      #
+      # NON-BLOCKING, DELIBERATELY. Observability must never stop a fix reaching
+      # phones. Every failure path here is a warning: no token, a failed export,
+      # a Sentry outage. The one thing it will not do is publish silently and
+      # leave you believing the maps went up.
+      #
+      # THE SECRET: a GitHub Actions repository secret named SENTRY_AUTH_TOKEN
+      # (this one really is a GitHub secret — sentry-cli runs on this runner).
+      # Mint it at sentry.io → Settings → Auth Tokens with scopes
+      # project:releases and org:read. Org and project come from the
+      # @sentry/react-native plugin block in each app's app.json.
+      - name: Upload source maps to Sentry (advisory)
+        working-directory: apps/${{ inputs.app }}
+        continue-on-error: true
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
+            echo "::warning title=Source maps not uploaded::SENTRY_AUTH_TOKEN is not set, so crashes from this update will arrive as minified bundle offsets. Add it as a repository secret (sentry.io → Settings → Auth Tokens, scopes project:releases and org:read)."
+            exit 0
+          fi
+          npx expo export --output-dir dist || {
+            echo "::warning title=Source maps not uploaded::expo export failed. The update still publishes below; only the maps are missing."
+            exit 1
+          }
+          npx sentry-expo-upload-sourcemaps dist || {
+            echo "::warning title=Source maps not uploaded::sentry-expo-upload-sourcemaps failed. The update still publishes below; only the maps are missing."
+            exit 1
+          }
 
       - name: Publish
         working-directory: apps/${{ inputs.app }}

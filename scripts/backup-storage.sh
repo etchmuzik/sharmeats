@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Off-site backup of the production Storage buckets (currently: kyc).
+# Off-site backup of the production Storage buckets (kyc, delivery-proof, avatars).
 #
 # WHY THIS EXISTS, SEPARATE FROM backup-prod.sh
 # A database dump does NOT contain storage objects. pg_dump captures the
@@ -18,8 +18,22 @@
 # has to be collected again from a human.
 #
 # WHAT IT CAPTURES
-#   Every object in every bucket listed in BUCKETS, preserving the bucket's
+#   Every object in EVERY bucket the project has, preserving each bucket's
 #   internal path layout, plus a manifest of what was downloaded.
+#
+#   THE BUCKET LIST IS DISCOVERED, NOT HARDCODED. It used to be the single
+#   literal `kyc`, written when kyc was the only bucket. Migration 194 then added
+#   `delivery-proof` -- proof-of-delivery photos, the evidence in any "it never
+#   arrived" dispute -- and migration 167 added `avatars`, and neither was backed
+#   up by anything. Nothing failed and nothing warned; the script simply kept
+#   backing up the one bucket it had been told about. So the list now comes from
+#   the Storage API, and a bucket added by a future migration is covered the next
+#   time this runs. BUCKETS is still honoured as an explicit override for ad-hoc
+#   runs; when it is set, discovery is skipped.
+#
+#   CRITICAL_BUCKETS is asserted present in whatever list is used. An empty or
+#   truncated API response would otherwise back up nothing and report success --
+#   the same silent-nothing failure this file's header already warns about.
 #
 # WHAT IT NEEDS
 #   SUPABASE_SERVICE_ROLE_KEY -- the kyc bucket is PRIVATE (public=false, see
@@ -32,6 +46,13 @@
 #   security add-generic-password -a "$USER" -s 'sharmeats-service-role-key' -w '...'
 #   ./scripts/backup-storage.sh
 #   BACKUP_DIR=/Volumes/ext ./scripts/backup-storage.sh
+#   BUCKETS='kyc' ./scripts/backup-storage.sh   # override discovery, ad-hoc only
+#
+# SCHEDULING
+#   scripts/com.sharmeats.storage-backup.plist runs this daily at 03:30 local,
+#   half an hour after the database backup, so a database dump and the storage
+#   objects it references are taken from the same day. Install it the same way as
+#   the database job -- see the header of that plist.
 #
 # The downloaded files are identity documents. They are written 0600 into a
 # 0700 directory and must never enter git. Under Egypt's PDPL they are personal
@@ -47,9 +68,16 @@ KEEP="${KEEP:-14}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="${BACKUP_DIR}/storage-${STAMP}"
 
-# Buckets to capture. `kyc` is the only one today (verified against
-# storage.buckets in the 2026-07-27 dump). Add new private buckets here.
-BUCKETS="${BUCKETS:-kyc}"
+# Buckets to capture. Empty = discover from the Storage API (see the header).
+BUCKETS="${BUCKETS:-}"
+
+# Buckets whose loss is unrecoverable from anything else in the system. If a
+# discovered (or overridden) list does not contain these, something is wrong with
+# the list rather than with the project, and backing up the rest and calling it a
+# success would be worse than stopping.
+#   kyc            merchant/driver identity documents -- re-collectable only from a human
+#   delivery-proof proof-of-delivery photos -- the evidence in a payment dispute
+CRITICAL_BUCKETS="kyc delivery-proof"
 
 # Same failure discipline as backup-prod.sh: a partial run must never leave a
 # directory that reads as a usable backup.
@@ -100,12 +128,53 @@ chmod 700 "${BACKUP_DIR}" "${OUT}"
 
 echo "→ backing up storage for ${PROJECT_REF} to ${OUT}"
 
+# Discover the bucket list unless one was supplied. `-f` so an auth failure is a
+# non-zero exit rather than a JSON error body that parses to an empty list --
+# "no buckets" and "wrong key" must not look the same.
+if [[ -z "${BUCKETS}" ]]; then
+  bucket_json=$(curl -fsS \
+    "${SUPABASE_URL}/storage/v1/bucket" \
+    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+  BUCKETS=$(python3 -c '
+import json,sys
+print(" ".join(b["id"] for b in json.load(sys.stdin)))' <<<"${bucket_json}")
+  echo "  · discovered buckets: ${BUCKETS:-<none>}"
+else
+  echo "  · buckets (from BUCKETS): ${BUCKETS}"
+fi
+
+missing_critical=""
+for critical in ${CRITICAL_BUCKETS}; do
+  found=0
+  for bucket in ${BUCKETS}; do
+    [[ "${bucket}" == "${critical}" ]] && { found=1; break; }
+  done
+  [[ "${found}" -eq 1 ]] || missing_critical="${missing_critical} ${critical}"
+done
+if [[ -n "${missing_critical}" ]]; then
+  cat >&2 <<EOF
+ERROR: the bucket list is missing:${missing_critical}
+
+Those buckets hold the only copy of identity documents and delivery-proof
+photos. A run that skipped them would write a manifest, exit 0, and leave you
+believing they were backed up.
+
+If BUCKETS was set by hand, include them. Otherwise the Storage API returned a
+list that does not match the schema -- check the service-role key and the
+project ref before trusting anything else in this backup.
+EOF
+  exit 1
+fi
+
 total_objects=0
 total_bytes=0
+
+bucket_tally=""
 
 for bucket in ${BUCKETS}; do
   echo "  · bucket: ${bucket}"
   mkdir -p "${OUT}/${bucket}"
+  bucket_objects=0
 
   # The list endpoint is NOT recursive: it returns entries for one prefix, where
   # a "folder" comes back as an entry whose `id` is null. Walk the tree with an
@@ -143,6 +212,7 @@ print(json.dumps({"prefix": sys.argv[1], "limit": 1000,
         -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
         -o "${OUT}/${bucket}/${path}"
       total_objects=$((total_objects + 1))
+      bucket_objects=$((bucket_objects + 1))
       total_bytes=$((total_bytes + ${size:-0}))
       echo "      ${path} (${size:-?} bytes)"
     done < <(python3 -c '
@@ -152,6 +222,7 @@ for e in json.load(sys.stdin):
     kind = "file" if e.get("id") else "dir"
     print("\t".join([kind, e.get("name",""), str(meta.get("size",0))]))' <<<"${listing}")
   done
+  bucket_tally="${bucket_tally}  ${bucket}: ${bucket_objects}"$'\n'
 done
 
 {
@@ -161,9 +232,12 @@ done
   echo "buckets: ${BUCKETS}"
   echo "objects: ${total_objects}"
   echo "bytes: ${total_bytes}"
+  echo "objects_per_bucket:"
+  printf '%s' "${bucket_tally}"
   echo "git_head: $(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || echo n/a)"
   if [[ "${total_objects}" -eq 0 ]]; then
-    echo "note: zero objects. Expected while no merchant has completed KYC upload."
+    echo "note: zero objects. Expected while no merchant has completed KYC upload"
+    echo "      and no driver has delivered with a photo."
     echo "      This is NOT treated as a failure -- an empty private bucket and a"
     echo "      permission problem are distinguished by the API call succeeding,"
     echo "      which it did (a bad key would have failed the curl above)."

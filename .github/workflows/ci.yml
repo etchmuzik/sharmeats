@@ -5,6 +5,11 @@ name: CI
 # per surface. Mobile typecheck/test scripts are mandatory; Expo SDK
 # compatibility is reported but ADVISORY (see that step for why); optional checks
 # remain optional for other surfaces.
+#
+# The database is checked too: migration filenames are a hard gate
+# (migration-order), the security/governance suites run against an isolated
+# PostgreSQL (database-security-migrations), and a full in-order replay of every
+# migration runs advisory inside that job.
 on:
   push:
     branches: [main]
@@ -126,6 +131,24 @@ jobs:
       - name: Test edge functions
         run: deno test --permit-no-files supabase/functions/
 
+  # Filename-only gate on the migration set. No database, no network, seconds to
+  # run — so it is a hard gate and sits in its own job rather than behind the
+  # Postgres setup below.
+  #
+  # Two files sharing a numeric prefix cannot both be recorded in the
+  # version-keyed migration ledger, so a fresh replay silently loses one. Two
+  # already exist (026 and 197); they are grandfathered in
+  # scripts/migration-prefix-allow.txt with the remediation left to a human,
+  # because renumbering an APPLIED migration changes apply order. This stops a
+  # third from ever appearing.
+  migration-order:
+    name: migration order (filenames)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check migration prefixes, stems and filename shape
+        run: ./scripts/check-migration-order.sh
+
   database-security-migrations:
     name: database security migrations (postgres)
     runs-on: ubuntu-latest
@@ -135,3 +158,31 @@ jobs:
         run: pg_config --version
       - name: Test security and governance migrations in isolated PostgreSQL
         run: ./scripts/test-security-migrations.sh
+
+      # ADVISORY, not a gate — same reasoning as expo-doctor above, for a
+      # different reason.
+      #
+      # This applies all 206 migrations in order to an empty PostgreSQL, which
+      # answers the question a restore depends on: can the database be rebuilt
+      # from this repository? Today the answer is "205 of 206" — mig 187 seeds a
+      # hardcoded production user UUID against an FK to public.users, so it
+      # cannot apply to a database that does not already contain that person.
+      #
+      # Blocking on that would fail every PR for a condition no PR introduced,
+      # and would pressure whoever hits it into "fixing" an applied migration —
+      # exactly the change class this repo's house rules exist to prevent. It
+      # runs, its output is the work item, and it becomes a gate the day it first
+      # passes. See FOLLOWUPS and the script's own header.
+      #
+      # PostGIS is installed here rather than shimmed: five tables have geography
+      # columns, and without it the replay would fail for an environment reason
+      # that reads as a repository defect.
+      - name: Replay every migration onto an empty database (advisory)
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-$(pg_config --version | awk '{print int($2)}')-postgis-3"
+          ./scripts/replay-migrations.sh || {
+            echo "::warning title=Fresh migration replay failed::supabase/migrations cannot be applied in order to an empty database. This does not fail CI. Reproduce locally with: ./scripts/replay-migrations.sh"
+            exit 1
+          }

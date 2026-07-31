@@ -1,0 +1,17 @@
+# Migration prefixes that are duplicated in supabase/migrations and are
+# GRANDFATHERED, so scripts/check-migration-order.sh can be a hard gate on new
+# ones. SHRINK-ONLY: nothing may be added here without the remediation decision
+# it stands in for, and an entry that stops duplicating anything is reported by
+# the checker so it gets deleted.
+#
+# Both pairs below are ALREADY APPLIED TO PRODUCTION. Renumbering an applied
+# migration changes apply order, which is precisely the class of change this
+# repository's house rules exist because of, so the fix is a deliberate human
+# decision — see FOLLOWUPS-scripts-ci.md for the options.
+#
+# 026  026_auto_accept.sql
+#      026_referrals.sql
+# 197  197_dev_analysis_extensions.sql
+#      197_gen_random_bytes_search_path_fix.sql
+026
+197

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Daily off-site backup of the Sharm Eats production Storage buckets.
+
+  WHY THIS EXISTS SEPARATELY FROM com.sharmeats.backup.plist
+  A database dump does not contain storage objects (see backup-storage.sh). The
+  database job has been scheduled since day one; the storage job was not
+  scheduled at all, so the KYC identity documents and the delivery-proof photos
+  — the two assets in this system that cannot be reconstructed from anything
+  else — had no automated copy anywhere.
+
+  The service-role key is NOT in this file — backup-storage.sh reads it from the
+  macOS Keychain item "sharmeats-service-role-key".
+
+  ⚠ CHECK THE PATHS BELOW BEFORE INSTALLING. They are absolute, and launchd does
+  not warn when a program is missing: it records the failure and the job silently
+  never produces a backup. The database job was dead from 2026-07-29 for exactly
+  this reason after the checkout moved. `launchctl list | grep sharmeats` shows a
+  non-zero last exit status when this has happened.
+
+  Install:
+    cp scripts/com.sharmeats.storage-backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.sharmeats.storage-backup.plist
+
+  Run once now (don't wait for 03:30):
+    launchctl start com.sharmeats.storage-backup
+
+  Check it:
+    launchctl list | grep sharmeats
+    tail -20 ~/sharmeats-backups/storage-backup.log
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.sharmeats.storage-backup.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.sharmeats.storage-backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/etch/Downloads/sharmeats-new/scripts/backup-storage.sh</string>
+  </array>
+
+  <!-- 03:30 local, daily — half an hour after the 03:00 database dump, so the
+       storage.objects metadata rows in that dump and the object bytes here come
+       from the same night and can be restored as a pair. RunAtLoad is false for
+       the same reason as the database job: installing this at midday should not
+       fire an immediate download of every identity document.
+
+       StartCalendarInterval (not StartInterval) so a firing missed while the Mac
+       is asleep is coalesced and run on wake — see the long note in
+       com.sharmeats.backup.plist for why pairing the two keys is wrong. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/etch/Downloads/sharmeats-new</string>
+
+  <!-- Homebrew paths for curl/python3; launchd's default PATH is minimal. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <!-- Both streams to one log, and a DIFFERENT log from the database job: two
+       jobs appending to one file makes an operator reading the tail unable to
+       tell which one failed. -->
+  <key>StandardOutPath</key>
+  <string>/Users/etch/sharmeats-backups/storage-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/etch/sharmeats-backups/storage-backup.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+</dict>
+</plist>

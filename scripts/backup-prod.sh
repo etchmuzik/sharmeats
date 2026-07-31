@@ -13,6 +13,17 @@
 #   1. roles    — cluster roles/grants (needed for a faithful restore)
 #   2. schema   — DDL only: tables, RLS policies, functions, triggers, grants
 #   3. data     — the actual rows
+#
+# GRANTS ARE PART OF THE BACKUP, NOT AN EXTRA. On this platform the entire
+# authorization model IS the grant set: RLS cannot restrict columns, so authority
+# columns (orders.status, restaurants.commission_pct, drivers.is_verified) are
+# protected by the absence of a column-level UPDATE grant, and every SECURITY
+# DEFINER RPC is protected by `revoke all ... from public, anon`. The dump used
+# to run with pg_dump --no-privileges, so it reconstructed the schema and the RLS
+# policies and NONE of that — a restore would have come up either wide open or
+# completely broken, and would have reported success either way. The dump now
+# carries GRANT/REVOKE and ALTER DEFAULT PRIVILEGES, and refuses to be retained
+# without them (see the grant-count guard below).
 #   Storage OBJECTS (the KYC bucket's files) are NOT covered by a database dump.
 #   See "STORAGE" below.
 #
@@ -23,7 +34,8 @@
 #
 # RESTORE (rehearse this BEFORE you need it — an untested backup is a guess):
 #   createdb resttest
-#   psql -d resttest -f <stamp>/roles.sql
+#   psql -d resttest -f <stamp>/roles.sql      # MUST come first — schema.sql's
+#                                              # GRANTs name these roles
 #   psql -d resttest -f <stamp>/schema.sql
 #   psql -d resttest -c 'set session_replication_role = replica' -f <stamp>/data.sql
 #   then spot-check row counts against the manifest.
@@ -159,17 +171,56 @@ if [[ "${USE_NATIVE}" -eq 1 ]]; then
   export PGPASSWORD="${SUPABASE_DB_PASSWORD}"
   PG_CONN="postgresql://postgres.${PROJECT_REF}@${POOLER_HOST}:${POOLER_PORT}/postgres"
 
-  echo "  · roles (native pg_dump cannot dump cluster roles — see manifest)"
-  cat > "${OUT}/roles.sql" <<'EOF'
--- NOT CAPTURED by the native pg_dump path: cluster-level roles live outside the
--- database and need `supabase db dump --role-only` (Docker) or pg_dumpall
--- --roles-only with superuser access, which Supabase's pooler does not grant.
--- On restore, recreate roles from supabase/migrations/ (they are all declared
--- there) before loading schema.sql.
+  # Role NAMES and memberships, reconstructed from the catalog.
+  #
+  # A native pg_dump still cannot dump cluster roles — that needs `supabase db
+  # dump --role-only` (Docker) or pg_dumpall --roles-only with superuser access,
+  # which Supabase's pooler does not grant. But it does not need to: pg_roles is
+  # readable by anyone, and what schema.sql's GRANT statements actually require
+  # is that the role NAMES exist. Without this file every GRANT and REVOKE in the
+  # schema fails with "role does not exist" and the restore comes up with no
+  # authorization model at all.
+  #
+  # NOT captured (and deliberately so — a backup should not carry them):
+  # passwords, LOGIN/SUPERUSER attributes, connection limits, per-role settings.
+  # A drill database wants the grant graph, not the credentials.
+  echo "  · roles (names + memberships, from pg_roles)"
+  if command -v psql >/dev/null 2>&1; then
+    {
+      echo "-- Role names and memberships as of ${STAMP}, reconstructed from pg_roles."
+      echo "-- Load this BEFORE schema.sql: every GRANT there names a role from this file."
+      echo "-- Passwords and login attributes are NOT captured. See backup-prod.sh."
+      psql "${PG_CONN}" -tAc "
+        select 'do \$\$ begin if not exists (select 1 from pg_roles where rolname = '
+               || quote_literal(rolname) || ') then create role ' || quote_ident(rolname)
+               || ' nologin noinherit; end if; end \$\$;'
+          from pg_roles
+         where rolname not like 'pg\_%'
+         order by rolname"
+      psql "${PG_CONN}" -tAc "
+        select 'grant ' || quote_ident(g.rolname) || ' to ' || quote_ident(m.rolname) || ';'
+          from pg_auth_members am
+          join pg_roles g on g.oid = am.roleid
+          join pg_roles m on m.oid = am.member
+         where g.rolname not like 'pg\_%' and m.rolname not like 'pg\_%'
+         order by 1"
+    } > "${OUT}/roles.sql"
+  else
+    cat > "${OUT}/roles.sql" <<'EOF'
+-- NOT CAPTURED: psql is not installed, so role names could not be read from
+-- pg_roles. schema.sql's GRANT statements will fail on restore until the roles
+-- exist. Recreate them from supabase/migrations/ (they are all declared there)
+-- before loading schema.sql, or install the Postgres client tools and re-run.
 EOF
+  fi
 
-  echo "  · schema (DDL, RLS policies, functions)"
-  pg_dump "${PG_CONN}" --schema-only --no-owner --no-privileges \
+  # NO --no-privileges. GRANT/REVOKE and ALTER DEFAULT PRIVILEGES are the
+  # authorization model on this database (see the header) and belong in the
+  # schema dump, in dependency order, right after the objects they apply to.
+  # --no-owner stays: ownership needs roles with matching attributes, which this
+  # backup deliberately does not carry.
+  echo "  · schema (DDL, RLS policies, functions, GRANTs)"
+  pg_dump "${PG_CONN}" --schema-only --no-owner \
     --schema=public --schema=storage --schema=auth \
     -f "${OUT}/schema.sql"
 
@@ -199,6 +250,37 @@ for f in schema.sql data.sql; do
   fi
 done
 
+# A schema dump with no GRANTs is not a backup of this database.
+#
+# Authority here lives in the grant set, not only in RLS: column-level UPDATE
+# grants are what stop a merchant self-setting commission_pct, and
+# `revoke all ... from public, anon` is what stops anon calling the SECURITY
+# DEFINER RPCs. Restoring DDL + RLS without them yields a database that looks
+# right and enforces nothing — the worst possible restore outcome, and one the
+# old --no-privileges dump would have produced silently every night.
+#
+# Counted, not merely presence-checked: prod has ~50 public tables plus the
+# functions, so a healthy dump carries hundreds. A handful would mean the dump
+# captured one schema's ACLs and dropped the rest.
+GRANT_COUNT="$(grep -c '^\(GRANT\|REVOKE\|ALTER DEFAULT PRIVILEGES\) ' "${OUT}/schema.sql" || true)"
+MIN_GRANTS="${BACKUP_MIN_GRANTS:-50}"
+if [[ "${GRANT_COUNT}" -lt "${MIN_GRANTS}" ]]; then
+  cat >&2 <<EOF
+ERROR: schema.sql contains only ${GRANT_COUNT} GRANT/REVOKE statements (expected
+>= ${MIN_GRANTS}) — the authorization model was NOT captured. Backup FAILED, not
+retained.
+
+On this database the grant set IS the authorization model, so a dump without it
+restores to something that reads fine and enforces nothing.
+
+If the dump ran through the Supabase CLI path, that path may be passing
+--no-privileges of its own accord; run with Docker stopped to take the native
+pg_dump path, which captures privileges explicitly. Override the floor only if
+you know why it moved:  BACKUP_MIN_GRANTS=<n> ./scripts/backup-prod.sh
+EOF
+  exit 1
+fi
+
 # Manifest: what was captured, so a restore can be sanity-checked later.
 {
   echo "project_ref: ${PROJECT_REF}"
@@ -206,11 +288,12 @@ done
   echo "taken_by: $(whoami)@$(hostname)"
   if [[ "${USE_NATIVE}" -eq 1 ]]; then
     echo "dump_engine: native pg_dump $(pg_dump --version 2>/dev/null | awk '{print $3}')"
-    echo "roles_captured: NO — see roles.sql for the restore note"
+    echo "roles_captured: names + memberships only (no passwords/attributes)"
   else
     echo "dump_engine: supabase cli $(${SUPABASE_CMD} --version 2>/dev/null | head -1)"
     echo "roles_captured: yes"
   fi
+  echo "grant_statements: ${GRANT_COUNT}"
   echo "git_head: $(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || echo n/a)"
   echo "files:"
   for f in roles.sql schema.sql data.sql; do

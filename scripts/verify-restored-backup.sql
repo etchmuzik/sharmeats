@@ -52,7 +52,7 @@ begin
   --    geography columns (23 references in the 2026-07-27 dump).
   -- ---------------------------------------------------------------------
   if not exists (select 1 from pg_extension where extname = 'postgis') then
-    v_fail := v_fail || 'postgis extension absent -- geography tables cannot have restored; install postgis and re-run the drill';
+    v_fail := v_fail || 'postgis extension absent -- geography tables cannot have restored; install postgis and re-run the drill'::text;
   end if;
 
   -- ---------------------------------------------------------------------
@@ -110,12 +110,100 @@ begin
   end if;
 
   -- Named tables where RLS is non-negotiable.
+  --
+  -- to_regclass INSIDE the subquery, not a ::regclass cast. SQL does not
+  -- short-circuit AND, so `to_regclass(x) is not null and not (select ... where
+  -- oid = x::regclass)` still evaluates the cast when the table is absent, and
+  -- the cast RAISES. The verifier therefore died with "relation does not exist"
+  -- on exactly the restore it was meant to describe. to_regclass returns NULL
+  -- instead of raising; coalesce turns the resulting NULL row into a definite
+  -- "no RLS".
   foreach v_txt in array array['orders','order_financials','kyc_documents','users'] loop
     if to_regclass('public.' || v_txt) is not null
-       and not (select relrowsecurity from pg_class where oid = ('public.' || v_txt)::regclass) then
+       and not coalesce(
+             (select relrowsecurity from pg_class where oid = to_regclass('public.' || v_txt)),
+             false) then
       v_fail := v_fail || ('RLS NOT enabled on public.' || v_txt);
     end if;
   end loop;
+
+  -- ---------------------------------------------------------------------
+  -- 5b. GRANTS. The single largest hole this verifier used to have.
+  --
+  --     RLS is only half the authorization model here; the other half is the
+  --     grant set, and RLS cannot restrict columns at all. Migration 037 exists
+  --     precisely because `authenticated` held UPDATE on every column of
+  --     public.orders (payment_status, status, total_egp, assigned_driver_id)
+  --     through the Supabase default table grant, and RLS could not stop it.
+  --     The fix was a REVOKE plus a three-column GRANT — a privilege, not a
+  --     policy.
+  --
+  --     backup-prod.sh dumped with --no-privileges until 2026-08-01, so a
+  --     restore reconstructed every table, policy and function and NONE of the
+  --     grants. That database reads fine and enforces nothing, and the old
+  --     verifier passed it. These checks make that impossible.
+  -- ---------------------------------------------------------------------
+  -- The roles must exist before any grant could have applied. If they are
+  -- missing, roles.sql was not loaded (or was the "not captured" note) and every
+  -- GRANT in schema.sql failed — say that plainly rather than reporting a dozen
+  -- downstream symptoms.
+  foreach v_txt in array array['anon','authenticated','service_role'] loop
+    if not exists (select 1 from pg_roles where rolname = v_txt) then
+      v_fail := v_fail || ('role ' || v_txt || ' does not exist -- roles.sql was not loaded, so NO grant in schema.sql could apply');
+    end if;
+  end loop;
+
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    -- Positive: the client roles actually hold privileges on the public tables.
+    -- Prod had 50 public tables on 2026-07-27 and the app roles are granted on
+    -- most of them; 25 is a floor low enough to absorb growth either way and
+    -- high enough that a privilege-free restore cannot pass.
+    select count(distinct c.oid) into v_n
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      cross join lateral aclexplode(c.relacl) a
+      join pg_roles r on r.oid = a.grantee
+     where n.nspname = 'public'
+       and c.relkind = 'r'
+       and r.rolname in ('anon','authenticated','service_role');
+    if v_n < 25 then
+      v_fail := v_fail || ('only ' || v_n || ' public tables carry a grant to anon/authenticated/service_role (expected >=25) -- the dump was taken without privileges, or roles.sql was not loaded first');
+    end if;
+
+    -- Positive: SECURITY DEFINER functions carry an explicit ACL. House rule 3
+    -- is `revoke all ... from public, anon` followed by targeted grants; a
+    -- function whose proacl is NULL still has the default EXECUTE TO PUBLIC,
+    -- which on a SECURITY DEFINER RPC means anon can call it.
+    select count(*) into v_n
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proacl is not null;
+    if v_n < 20 then
+      v_fail := v_fail || ('only ' || v_n || ' public functions have an explicit ACL (expected >=20) -- function grants did not restore, so PUBLIC/anon can execute the SECURITY DEFINER RPCs');
+    end if;
+
+    -- Negative, and specific: migration 037's column lockdown. Restoring
+    -- without privileges reinstates the default GRANT ALL and hands every
+    -- customer the ability to mark their own COD order paid.
+    if to_regclass('public.orders') is not null then
+      foreach v_txt in array array['status','payment_status','total_egp','assigned_driver_id'] loop
+        if exists (select 1 from information_schema.columns
+                    where table_schema = 'public' and table_name = 'orders' and column_name = v_txt)
+           and has_column_privilege('authenticated', 'public.orders', v_txt, 'UPDATE') then
+          v_fail := v_fail || ('authenticated has UPDATE on public.orders.' || v_txt || ' -- migration 037''s column lockdown is NOT present in this restore');
+        end if;
+      end loop;
+      -- ...and the grant that SHOULD be there. Its absence means the restore
+      -- over-revoked rather than under-revoked: ratings would fail in the app.
+      if exists (select 1 from information_schema.columns
+                  where table_schema = 'public' and table_name = 'orders' and column_name = 'rating_food')
+         and not has_column_privilege('authenticated', 'public.orders', 'rating_food', 'UPDATE') then
+        v_fail := v_fail || 'authenticated CANNOT update public.orders.rating_food -- migration 037''s rating grant did not restore'::text;
+      end if;
+      if has_table_privilege('anon', 'public.orders', 'UPDATE') then
+        v_fail := v_fail || 'anon holds UPDATE on public.orders -- the default table grant is back; this is the mig-037 hole reopened'::text;
+      end if;
+    end if;
+  end if;
 
   -- ---------------------------------------------------------------------
   -- 6. Authority functions must exist AND have exactly one overload each.
@@ -163,8 +251,12 @@ begin
     end if;
   end if;
 
-  -- Orders must point at a real restaurant and a real customer.
-  if to_regclass('public.orders') is not null then
+  -- Orders must point at a real restaurant and a real customer. BOTH tables are
+  -- guarded: the query names restaurants too, so guarding only on orders made
+  -- this raise "relation public.restaurants does not exist" and abort the whole
+  -- verifier — hiding every check below it on precisely the broken restore it
+  -- exists to describe.
+  if to_regclass('public.orders') is not null and to_regclass('public.restaurants') is not null then
     execute 'select count(*) from public.orders o where not exists
                (select 1 from public.restaurants r where r.id = o.restaurant_id)' into v_n;
     if v_n > 0 then
@@ -181,7 +273,7 @@ begin
   if to_regclass('public.platform_settings') is not null then
     execute 'select count(*) from public.platform_settings' into v_n;
     if v_n = 0 then
-      v_fail := v_fail || 'platform_settings is EMPTY -- dispatch/fees/alerting would be unconfigured';
+      v_fail := v_fail || 'platform_settings is EMPTY -- dispatch/fees/alerting would be unconfigured'::text;
     end if;
   end if;
 
