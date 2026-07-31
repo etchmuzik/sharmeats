@@ -9,14 +9,22 @@
 # that failure mode structurally impossible: merging IS deploying.
 #
 # SETUP (one-time, in GitHub → Settings → Secrets and variables → Actions):
-#   secrets.HOSTINGER_FTP_HOST      e.g. ftp.sharmeats.online or an IP from hPanel
+#   secrets.HOSTINGER_FTP_HOST      ftp.sharmeats.online
 #   secrets.HOSTINGER_FTP_USERNAME  the FTP account (hPanel → Files → FTP Accounts)
 #   secrets.HOSTINGER_FTP_PASSWORD  its password
 #   vars.HOSTINGER_FTP_SERVER_DIR   optional; where out/ lands, RELATIVE TO THE
-#                                   FTP ACCOUNT'S ROOT. A Hostinger FTP account
-#                                   scoped to the domain usually lands in (or
-#                                   directly above) public_html — check with an
-#                                   FTP client once. Defaults to "public_html".
+#                                   FTP ACCOUNT'S ROOT. Defaults to "." — see below.
+#
+# WHY THE DEFAULT IS "." AND NOT "public_html": a Hostinger FTP sub-account is
+# CHROOTED to the directory shown in its hPanel row. The account for this site
+# lists Directory = /home/u375308597/domains/sharmeats.online/public_html, so it
+# logs in already INSIDE public_html — uploading to "public_html" from there
+# would produce public_html/public_html, a perfectly successful transfer that
+# serves nothing. The default therefore matches the account that actually
+# exists. If you point this at the MAIN account (u375308597, rooted at
+# /home/u375308597) instead of a domain-scoped sub-account, you must set the
+# variable to domains/sharmeats.online/public_html. Either way the verify step
+# below catches a wrong guess instead of going green on it.
 #
 # Until the secrets exist this workflow still runs the BUILD on every relevant
 # merge (a free deploy dry-run) and skips the upload with a visible notice —
@@ -96,7 +104,7 @@ jobs:
           FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
           FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ vars.HOSTINGER_FTP_SERVER_DIR || 'public_html' }}
+          FTP_SERVER_DIR: ${{ vars.HOSTINGER_FTP_SERVER_DIR || '.' }}
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp
           # FTPS enforced: credentials must never travel plaintext. verify-certificate
@@ -137,7 +145,7 @@ jobs:
           done
 
           if [ "$live" != "$GITHUB_SHA" ]; then
-            echo "::error title=Deploy did not land::sharmeats.online is serving commit '${live:-<no version.json>}' but this run deployed $GITHUB_SHA. The upload most likely went to the wrong directory — check the HOSTINGER_FTP_SERVER_DIR variable against the FTP account's actual root (a domain-scoped account may already BE public_html, in which case the default nests it as public_html/public_html)."
+            echo "::error title=Deploy did not land::sharmeats.online is serving commit '${live:-<no version.json>}' but this run deployed $GITHUB_SHA. The upload most likely went to the wrong directory — set the HOSTINGER_FTP_SERVER_DIR variable to match the FTP account's root. A domain-scoped sub-account is chrooted to public_html, so the correct value is '.' (the default); the main account (u375308597) is rooted at /home/u375308597 and needs 'domains/sharmeats.online/public_html'."
             exit 1
           fi
           echo "✓ sharmeats.online is serving $GITHUB_SHA"
