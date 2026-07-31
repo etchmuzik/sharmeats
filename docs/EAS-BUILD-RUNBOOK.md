@@ -1,8 +1,31 @@
 # EAS build & submit runbook — customer app
 
-Everything code-side is ready (version bumped to **1.0.0**, `appVersionSource:
-remote` so EAS auto-increments the build number). These steps need YOUR Expo +
-Apple auth, so run them yourself. Copy-paste from here.
+Everything code-side is ready (`appVersionSource: remote`, so EAS
+auto-increments the build number — do not hand-edit it).
+
+## Fastest path: run the build from GitHub
+
+**Actions → EAS build → Run workflow.** Pick the app (or `all`), the platform,
+and the profile. Needs one repository secret, `EXPO_TOKEN` (expo.dev → Account
+→ Access tokens); the workflow fails with a named error if it is missing rather
+than hanging on a login prompt no runner can answer.
+
+It **waits** for the build instead of firing and forgetting, so a red job means
+a failed build. This repository is public, so Actions minutes are free and that
+honesty costs nothing.
+
+It does **not** submit — see §3 below. Submission needs the ASC `.p8` and the
+Play service-account JSON, which are gitignored and not in this repository, so
+that step still runs from a machine that has them.
+
+The rest of this document is the manual path: use it when you want local
+control, when the workflow is unavailable, or when submitting.
+
+> **A JS-only fix still needs a full build right now.** All three apps use
+> `runtimeVersion: {"policy": "appVersion"}` and sit at **1.1.0**, while the
+> binaries on TestFlight were built at **1.0.0**. An `eas update` published
+> today targets runtime 1.1.0, which no installed app is running — it would
+> reach nobody. OTA becomes a real shortcut only once a 1.1.0 binary is out.
 
 ## What this build ships to users (currently only on `main`, not in any binary)
 
