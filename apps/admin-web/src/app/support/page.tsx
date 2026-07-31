@@ -21,6 +21,16 @@ interface Msg {
   created_at: string;
   read_at: string | null;
 }
+/**
+ * How many recent messages the thread list is built from. Every message is one
+ * row of a chat; 400 covers a busy day across every conversation and keeps the
+ * inbox load bounded no matter how long the platform has been running.
+ */
+const THREAD_SCAN_LIMIT = 400;
+
+/** Messages loaded when a thread is opened. Support chats are short. */
+const MESSAGE_LIMIT = 200;
+
 interface Thread {
   user_id: string;
   user_name: string;
@@ -48,11 +58,18 @@ export default function SupportInboxPage() {
 
   const loadThreads = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    // Admin RLS allows reading all support_messages; group into threads client-side.
+    // Admin RLS allows reading all support_messages; group into threads
+    // client-side. BOUNDED: this used to select every support message ever
+    // sent, on load and again after every thread click and every reply. At a
+    // few hundred rows nobody noticed; at launch volume the inbox downloads
+    // the entire support history several times a minute. The newest
+    // THREAD_SCAN_LIMIT messages are what "recent conversations" means — an
+    // older thread with no recent message is not an inbox item.
     const { data, error } = await supabase
       .from('support_messages')
       .select('id, user_id, from_support, body, created_at, read_at')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(THREAD_SCAN_LIMIT);
     if (error) {
       toast(error.message, 'error');
       return;
@@ -89,18 +106,26 @@ export default function SupportInboxPage() {
     async (userId: string) => {
       setOpenUser(userId);
       const supabase = createSupabaseBrowserClient();
-      const { data } = await supabase
+      // Newest MESSAGE_LIMIT for this user, then flipped back into reading
+      // order. Ordering ascending with a limit would hand back the OLDEST
+      // messages and silently hide the one being replied to.
+      const { data, error } = await supabase
         .from('support_messages')
         .select('id, user_id, from_support, body, created_at, read_at')
         .eq('user_id', userId)
-        .order('created_at', { ascending: true });
-      setMessages((data as Msg[]) ?? []);
+        .order('created_at', { ascending: false })
+        .limit(MESSAGE_LIMIT);
+      if (error) {
+        toast(error.message, 'error');
+        return;
+      }
+      setMessages(((data as Msg[]) ?? []).slice().reverse());
       // Mark the user's inbound messages read (admin path).
       await supabase.rpc('mark_support_thread_read', { p_user_id: userId });
       await loadThreads();
       requestAnimationFrame(() => listEnd.current?.scrollIntoView());
     },
-    [loadThreads],
+    [loadThreads, toast],
   );
 
   useEffect(() => {

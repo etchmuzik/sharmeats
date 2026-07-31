@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { captureError } from '@/lib/sentry';
 import { toCsv } from '@/lib/csv';
 import type { DriverCashBalance } from '@/lib/types';
 import { SignOutButton } from '../SignOutButton';
@@ -31,6 +32,13 @@ export default function CashPage() {
       .select('*')
       .order('balance_egp', { ascending: false });
     if (error) {
+      // Cash custody is the biggest theft surface on the platform. A load that
+      // fails silently after 4.5 seconds is a reconciliation nobody did.
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'cash',
+        action: 'load_driver_cash_balance',
+      });
       toast(error.message, 'error');
       return;
     }
@@ -79,6 +87,13 @@ export default function CashPage() {
       p_reason: 'hand_in',
     });
     if (error) {
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'cash',
+        action: 'record_cash_handin',
+        driverId: row.driver_id,
+        amountEgp: amount,
+      });
       toast(error.message, 'error');
       return;
     }
@@ -104,6 +119,14 @@ export default function CashPage() {
       p_reason: 'adjustment',
     });
     if (error) {
+      // A negative adjustment forgives cash a driver owes us — money out.
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'cash',
+        action: 'record_cash_adjustment',
+        driverId: row.driver_id,
+        amountEgp: amount,
+      });
       toast(error.message, 'error');
       return;
     }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { captureError } from '@/lib/sentry';
 import { toCsv } from '@/lib/csv';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -83,6 +84,11 @@ export default function FoundingRatesPage() {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase.rpc('founding_rate_report');
     if (error) {
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'founding-rates',
+        action: 'founding_rate_report',
+      });
       toast(error.message, 'error');
       return false;
     }
@@ -143,6 +149,13 @@ export default function FoundingRatesPage() {
     });
     setBusyId(null);
     if (error) {
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'founding-rates',
+        action: 'admin_set_founding_rate_until',
+        restaurantId: row.restaurant_id,
+        until: trimmed || null,
+      });
       toast(
         error.message.includes('INVALID_DATE')
           ? 'That date is too far in the future — check the year.'
@@ -171,16 +184,48 @@ export default function FoundingRatesPage() {
       p_restaurant_id: row.restaurant_id,
       p_pct: STANDARD_PCT,
     });
+
+    // Two RPCs, no transaction across them. The rate change is the one that
+    // matters and it has already happened; clearing the window is bookkeeping.
+    // Reporting plain success when only the first half landed left the
+    // restaurant sitting in the "expired" queue at the standard rate, so the
+    // next operator moved them again — a no-op that reads like a bug in the
+    // report. Say exactly what happened instead.
+    let clearError: { message: string } | null = null;
     if (!error) {
       // The window is done once they're on standard — clear it so the row leaves the queue.
-      await supabase.rpc('admin_set_founding_rate_until', {
+      const { error: untilError } = await supabase.rpc('admin_set_founding_rate_until', {
         p_restaurant_id: row.restaurant_id,
         p_until: null,
       });
+      clearError = untilError;
     }
     setBusyId(null);
+
     if (error) {
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'founding-rates',
+        action: 'admin_set_commission',
+        restaurantId: row.restaurant_id,
+        pct: STANDARD_PCT,
+      });
       toast(`Failed: ${error.message}`, 'error');
+      return;
+    }
+    if (clearError) {
+      captureError(clearError, {
+        surface: 'admin-web',
+        screen: 'founding-rates',
+        action: 'clear_founding_window_after_commission_change',
+        restaurantId: row.restaurant_id,
+      });
+      toast(
+        `${row.name} IS now on ${STANDARD_PCT}% — but clearing their founding window failed, so they stay in this list. ` +
+          `Clear the end date yourself. (${clearError.message})`,
+        'error',
+      );
+      loadRows();
       return;
     }
     toast(`${row.name} is now on ${STANDARD_PCT}%`, 'success');

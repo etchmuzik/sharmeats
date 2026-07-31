@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { captureError } from '@/lib/sentry';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -157,6 +158,13 @@ export default function OnboardingQueuePage() {
     });
     setBusyId(null);
     if (error) {
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'onboarding',
+        action: 'approve_restaurant',
+        restaurantId: row.id,
+        decision,
+      });
       const m = error.message;
       toast(
         m.includes('KYC_INCOMPLETE')
@@ -188,6 +196,16 @@ export default function OnboardingQueuePage() {
       p_pct: pct,
     });
     if (error) {
+      // Commission is what this restaurant is charged on every future order,
+      // and nothing else records the attempt — a 4.5-second toast was the only
+      // trace a failed change ever left.
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'onboarding',
+        action: 'admin_set_commission',
+        restaurantId: row.id,
+        pct,
+      });
       toast(`Failed: ${error.message}`, 'error');
       return;
     }

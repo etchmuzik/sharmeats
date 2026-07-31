@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { captureError } from '@/lib/sentry';
 import { toCsv } from '@/lib/csv';
 import type { RestaurantSettlement } from '@/lib/types';
 import { SignOutButton } from '../SignOutButton';
@@ -79,6 +80,15 @@ export default function FinancePage() {
       .eq('period_end', end)
       .order('net_payable_egp', { ascending: false });
     if (error) {
+      // A toast is gone in 4.5 seconds and this screen decides real payouts —
+      // the failure has to survive somewhere an owner can find it later.
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'finance',
+        action: 'load_settlements',
+        periodStart: start,
+        periodEnd: end,
+      });
       toast(error.message, 'error');
       return;
     }
@@ -102,7 +112,16 @@ export default function FinancePage() {
       // surface, or a transient error post-126 silently hides revenue.
       const missing =
         revErr.code === 'PGRST202' || /could not find the function/i.test(revErr.message);
-      if (!missing) toast(`Revenue report failed: ${revErr.message}`, 'error');
+      if (!missing) {
+        captureError(revErr, {
+          surface: 'admin-web',
+          screen: 'finance',
+          action: 'platform_revenue_report',
+          periodStart: start,
+          periodEnd: end,
+        });
+        toast(`Revenue report failed: ${revErr.message}`, 'error');
+      }
       return;
     }
     const report = (Array.isArray(rev) ? rev[0] : rev) as RevenueReport | undefined;
@@ -156,6 +175,16 @@ export default function FinancePage() {
       setCreditAmount('');
       setCreditNote('');
     } catch (e) {
+      // Money out. The amount and target go with the report — never the note,
+      // which is free text an operator may have put a customer's details in.
+      captureError(e, {
+        surface: 'admin-web',
+        screen: 'finance',
+        action: 'admin_issue_credit',
+        amountEgp: amount,
+        reason: creditReason,
+        targetKind: /^[0-9a-f-]{36}$/i.test(target) ? 'user_id' : 'order_code',
+      });
       toast(e instanceof Error ? e.message : 'Credit failed', 'error');
     } finally {
       setCreditBusy(false);
@@ -198,6 +227,13 @@ export default function FinancePage() {
       toast(`Generated ${data ?? 0} statement(s) for ${start} → ${end}`, 'success');
       await loadRows();
     } catch (e) {
+      captureError(e, {
+        surface: 'admin-web',
+        screen: 'finance',
+        action: 'generate_settlements',
+        periodStart: start,
+        periodEnd: end,
+      });
       toast(e instanceof Error ? e.message : 'Generate failed', 'error');
     } finally {
       setBusy(false);
@@ -208,6 +244,12 @@ export default function FinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('finalize_settlement', { p_settlement_id: id });
     if (error) {
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'finance',
+        action: 'finalize_settlement',
+        settlementId: id,
+      });
       toast(error.message, 'error');
       return;
     }
@@ -221,6 +263,14 @@ export default function FinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('mark_settlement_paid', { p_settlement_id: id, p_reference: ref });
     if (error) {
+      // The bank transfer may well have already left. A failure here means the
+      // books and the bank disagree, which is the worst state on this screen.
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'finance',
+        action: 'mark_settlement_paid',
+        settlementId: id,
+      });
       toast(error.message, 'error');
       return;
     }

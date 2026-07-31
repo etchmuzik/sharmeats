@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { captureError } from '@/lib/sentry';
 import { toCsv } from '@/lib/csv';
 import type { DriverSettlement } from '@/lib/types';
 import { SignOutButton } from '../SignOutButton';
@@ -54,6 +55,15 @@ export default function DriverFinancePage() {
       .eq('period_end', end)
       .order('net_payable_egp', { ascending: false });
     if (error) {
+      // A toast is gone in 4.5 seconds and this screen decides real payouts —
+      // the failure has to survive somewhere an owner can find it later.
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'driver-finance',
+        action: 'load_driver_settlements',
+        periodStart: start,
+        periodEnd: end,
+      });
       toast(error.message, 'error');
       return;
     }
@@ -100,6 +110,13 @@ export default function DriverFinancePage() {
       toast(`Generated ${data ?? 0} driver statement(s) for ${start} → ${end}`, 'success');
       await loadRows();
     } catch (e) {
+      captureError(e, {
+        surface: 'admin-web',
+        screen: 'driver-finance',
+        action: 'generate_driver_settlements',
+        periodStart: start,
+        periodEnd: end,
+      });
       toast(e instanceof Error ? e.message : 'Generate failed', 'error');
     } finally {
       setBusy(false);
@@ -110,6 +127,12 @@ export default function DriverFinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('finalize_driver_settlement', { p_settlement_id: id });
     if (error) {
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'driver-finance',
+        action: 'finalize_driver_settlement',
+        settlementId: id,
+      });
       toast(error.message, 'error');
       return;
     }
@@ -123,6 +146,14 @@ export default function DriverFinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('mark_driver_settlement_paid', { p_settlement_id: id, p_reference: ref });
     if (error) {
+      // The transfer may already have left the bank. A failure here means the
+      // books and the bank disagree, which is the worst state on this screen.
+      captureError(error, {
+        surface: 'admin-web',
+        screen: 'driver-finance',
+        action: 'mark_driver_settlement_paid',
+        settlementId: id,
+      });
       toast(error.message, 'error');
       return;
     }

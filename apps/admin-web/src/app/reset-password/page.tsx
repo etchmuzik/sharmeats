@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { mfaGate } from '@/lib/mfa';
 
 /**
  * Reset-password landing for the recovery email link.
@@ -11,6 +12,18 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
  * (detectSessionInUrl) consumes it and fires a PASSWORD_RECOVERY event, putting
  * the browser into a short-lived recovery session in which updateUser({password})
  * is allowed. We wait for that event, then let the user set a new password.
+ *
+ * THE TOTP HOLE THIS CLOSES: a recovery session is aal1 — it has satisfied a
+ * password (well, an emailed link) and nothing else. This page used to send it
+ * straight to `/` on success, so anyone who could read the admin's inbox got a
+ * signed-in dashboard without ever touching the authenticator, which is the
+ * entire protection TOTP was added for. A password change now ENDS the session:
+ * sign back in properly, code and all.
+ *
+ * That is the client half. The server half is the one that actually holds —
+ * RLS and the SECURITY DEFINER RPCs authorise on role alone and cannot
+ * currently tell aal1 from aal2, so a recovery session that never loads this
+ * app can still call them. See FOLLOWUPS-admin-web.md.
  */
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -21,6 +34,7 @@ export default function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [signInRequired, setSignInRequired] = useState(false);
 
   useEffect(() => {
     // If the recovery token already produced a session (link just clicked), or
@@ -47,9 +61,27 @@ export default function ResetPasswordPage() {
     setBusy(true);
     setError(null);
     const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      setBusy(false);
+      return setError(error.message);
+    }
+
+    // The password is changed. Decide where this aal1 session may go.
+    const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    // Fail CLOSED on an indeterminate answer, the opposite of the sign-in gate:
+    // there, blocking would lock the only admin out of production over a
+    // transient. Here the user has just chosen a password they know, so the
+    // cost of sending them to /login is one extra sign-in.
+    const needsCode = Boolean(aalError) || mfaGate(aal?.currentLevel, aal?.nextLevel) === 'code_required';
     setBusy(false);
-    if (error) return setError(error.message);
     setDone(true);
+
+    if (needsCode) {
+      setSignInRequired(true);
+      await supabase.auth.signOut();
+      setTimeout(() => router.replace('/login'), 1500);
+      return;
+    }
     setTimeout(() => router.replace('/'), 1500);
   }
 
@@ -65,7 +97,9 @@ export default function ResetPasswordPage() {
 
         {done ? (
           <p className="rounded-lg bg-greensoft px-3 py-3 text-center text-sm font-semibold text-green">
-            Password updated. Signing you in…
+            {signInRequired
+              ? 'Password updated. Sign in again with your new password and your authenticator code.'
+              : 'Password updated. Signing you in…'}
           </p>
         ) : !ready ? (
           <p className="text-center text-sm text-ink2">

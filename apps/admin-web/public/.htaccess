@@ -23,6 +23,46 @@
   RewriteRule ^ /index.html [L]
 </IfModule>
 
+# Security headers. This is the ONLY place they can be set for this surface:
+# `next.config.mjs` headers() does not apply to `output: 'export'` (there is no
+# Node server to run it), so a static export served by Apache had none at all —
+# an admin dashboard that controls commission rates, credit issuance and KYC
+# approval was framable by any origin.
+#
+# `always` matters: without it Apache skips the header on error responses,
+# which is exactly where the SPA fallback and 404 land.
+<IfModule mod_headers.c>
+  # Clickjacking. frame-ancestors is the modern control and X-Frame-Options the
+  # fallback for anything that predates it — both, because the whole point is
+  # covering the browser that ignores one of them.
+  Header always set Content-Security-Policy "frame-ancestors 'none'"
+  Header always set X-Frame-Options "DENY"
+
+  # Never let a browser sniff a content type. A stored SVG or HTML blob served
+  # from this origin would otherwise execute in the dashboard's own origin.
+  Header always set X-Content-Type-Options "nosniff"
+
+  # Order short codes and settlement ids appear in URLs; no-referrer keeps them
+  # out of any third-party log the operator navigates to.
+  Header always set Referrer-Policy "no-referrer"
+
+  # No feature this dashboard uses needs any of these (verified: no
+  # navigator.* call anywhere in src/), so deny them outright.
+  Header always set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+
+  # Ops tooling must never appear in a search index.
+  Header always set X-Robots-Tag "noindex, nofollow"
+
+  # HSTS, one year. Deliberately WITHOUT includeSubDomains/preload: this host
+  # is one subdomain among several (landing, merchant) and committing the
+  # parent domain's other names from here would be a decision made in the
+  # wrong file. `env=HTTPS` emits it only on the TLS response (the rewrite
+  # above already forces every request there) — the plain `env=` form rather
+  # than an <If> block, which older/LiteSpeed parsers reject with a 500 that
+  # would take the whole dashboard down.
+  Header always set Strict-Transport-Security "max-age=31536000" env=HTTPS
+</IfModule>
+
 <IfModule mod_headers.c>
   <FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|webp)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
