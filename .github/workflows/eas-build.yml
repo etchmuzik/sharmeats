@@ -1,0 +1,116 @@
+# Build the three Expo apps on EAS, on demand.
+#
+# WHY MANUAL-ONLY: a cloud build costs credits against a monthly cap that,
+# per docs/EAS-BUILD-RUNBOOK.md, fails AFTER the project is uploaded — so a
+# build that trips the cap wastes the upload and tells you late. Nothing here
+# runs on push. You ask for a build, you get a build.
+#
+# WHY IT WAITS instead of --no-wait: this repository is PUBLIC, so GitHub
+# Actions minutes are free, and waiting is what makes the result honest. With
+# --no-wait the job exits the moment EAS accepts the job and goes green whether
+# or not the build succeeds — the same "green over nothing happened" failure the
+# landing deploy had before it verified /version.json. Free minutes buy a true
+# answer; take it.
+#
+# SETUP (one-time, Settings → Secrets and variables → Actions):
+#   secrets.EXPO_TOKEN   an Expo access token (expo.dev → Account → Access
+#                        tokens). Personal-account token is fine; it needs
+#                        access to the three EAS projects.
+#
+# WHAT THIS DOES NOT DO: submit to the App Store or Play. Submission needs the
+# ASC API key (.p8) and the Play service-account JSON, which are correctly
+# gitignored (`**/credentials/`, `*.p8`, `*service-account*.json`) and are not
+# in this repository. Submit from a machine that has them:
+#     cd apps/<app> && eas submit --platform ios --profile production --latest
+#
+# RUNTIME VERSION NOTE — the reason a JS-only fix still needs a full build:
+# all three apps use runtimeVersion policy "appVersion" and are at 1.1.0, while
+# the binaries on TestFlight were built at 1.0.0. An `eas update` published now
+# targets runtime 1.1.0, which no installed app is running, so it would reach
+# nobody. Until a 1.1.0 binary is out, OTA is not a shortcut — it is a no-op.
+
+name: EAS build
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to build'
+        required: true
+        default: 'all'
+        type: choice
+        options: [all, customer, driver, restaurant]
+      platform:
+        description: 'Which platform'
+        required: true
+        default: 'all'
+        type: choice
+        options: [all, ios, android]
+      profile:
+        description: 'eas.json build profile'
+        required: true
+        default: 'production'
+        type: choice
+        options: [production, preview]
+
+concurrency:
+  group: eas-build-${{ inputs.app }}-${{ inputs.platform }}
+  cancel-in-progress: false # never kill a build that is already burning credits
+
+jobs:
+  pick:
+    runs-on: ubuntu-latest
+    outputs:
+      apps: ${{ steps.choose.outputs.apps }}
+    steps:
+      - id: choose
+        run: |
+          if [ "${{ inputs.app }}" = "all" ]; then
+            echo 'apps=["customer","driver","restaurant"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'apps=["${{ inputs.app }}"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: pick
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # one app failing must not cancel the others mid-build
+      matrix:
+        app: ${{ fromJSON(needs.pick.outputs.apps) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: Require the Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          # Fail here rather than let eas-cli fall through to an interactive
+          # login prompt that cannot be answered on a runner and would hang
+          # until the job times out.
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error title=EXPO_TOKEN not set::Add an Expo access token as the EXPO_TOKEN repository secret (expo.dev → Account → Access tokens). Nothing was built."
+            exit 1
+          fi
+
+      # Only packages/* are npm workspaces; every app owns its own lockfile, so
+      # install from inside the app directory. (See CLAUDE.md.)
+      - name: Install
+        working-directory: apps/${{ matrix.app }}
+        run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
+
+      - name: Build
+        working-directory: apps/${{ matrix.app }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas-cli@latest build \
+            --platform "${{ inputs.platform }}" \
+            --profile "${{ inputs.profile }}" \
+            --non-interactive
