@@ -105,6 +105,18 @@ let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncInFlight = false;
 /** An edit arrived during a write; run one more pass when it finishes. */
 let syncDirty = false;
+/**
+ * Bumped by every `clearEverywhere`. A write that started before the bump lands
+ * in a world where the basket is finished, so it must not be treated as the
+ * current truth.
+ *
+ * Cancelling the debounce timer (which clearEverywhere already did) is only half
+ * the problem: a write that is ALREADY in flight cannot be cancelled, and its
+ * upsert can land AFTER `clear_my_cart` — recreating the exact basket the
+ * customer just paid for, so their next device offers them the meal they are
+ * currently eating. Comparing the epoch on completion is what closes that.
+ */
+let syncEpoch = 0;
 
 function priceForLine(line: CartItem): number {
   const mods = line.modifierChoices.reduce((acc, c) => acc + c.priceDeltaEgp, 0);
@@ -278,12 +290,15 @@ export const useCart = create<CartState>((set, get) => ({
 
   clearEverywhere: async () => {
     // Cancel any pending mirror first: letting a debounced write land after the
-    // clear would recreate the row we are retiring.
+    // clear would recreate the row we are retiring. Bumping the epoch covers the
+    // write that is already in flight and therefore cannot be cancelled — it
+    // will see the change and retire whatever it wrote.
     if (syncTimer) {
       clearTimeout(syncTimer);
       syncTimer = null;
     }
     syncDirty = false;
+    syncEpoch += 1;
     get().clear();
     set({ serverVersion: 0 });
     if (!isBackendLive) return;
@@ -334,6 +349,9 @@ export const useCart = create<CartState>((set, get) => ({
     syncTimer = setTimeout(async () => {
       syncTimer = null;
       syncInFlight = true;
+      // Captured BEFORE the await. If a clearEverywhere lands while this write
+      // is in flight, the epoch moves and the response below is stale.
+      const epoch = syncEpoch;
       try {
         const s = get();
         const expected = s.serverVersion;
@@ -342,6 +360,14 @@ export const useCart = create<CartState>((set, get) => ({
           lines: toServerLines(s.lines),
           expectedVersion: expected,
         });
+        if (epoch !== syncEpoch) {
+          // The basket was retired while this write was in the air. Whatever it
+          // wrote is a resurrected copy of a finished cart, so take it back out
+          // rather than recording its version as current. clear_my_cart is
+          // idempotent, so doing this twice is harmless.
+          if (res.ok) await db.cart.clear().catch(() => {});
+          return;
+        }
         if (res.ok) {
           set({ serverVersion: res.version });
           track('cart_synced', { lineCount: s.lines.length, version: res.version });

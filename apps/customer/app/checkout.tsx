@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-// expo-crypto is imported lazily inside makeIdempotencyKey so a native-module
-// failure can never throw at module-eval / checkout render. See the helper below.
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../src/components/BackButton';
 import { PrimaryButton } from '../src/components/PrimaryButton';
@@ -27,6 +25,12 @@ import { resolveRate } from '../src/currency/rates';
 import { success, selection } from '../src/haptics';
 import { localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
+import {
+  cartFingerprint,
+  clearIdempotencyKey,
+  loadIdempotencyKey,
+} from '../src/lib/checkoutIdempotency';
+import { syncProfilePreferences } from '../src/lib/profilePrefs';
 import { LEGAL_URLS, openLegal } from '../src/legal';
 import { scheduledOrdersEnabled } from '../src/lib/scheduledOrders';
 import {
@@ -46,26 +50,8 @@ function isPrefillablePhone(phone: string | null): phone is string {
   return phone.replace(/\D/g, '').length >= 8;
 }
 
-// Crash-safe idempotency key. Tries expo-crypto's randomUUID (best), but a native
-// failure (module-init throw on some device/arch combos) must NEVER break checkout
-// render — falls back to a plain JS UUIDv4. The value only needs to be unique per
-// checkout attempt for place_order's dedup; cryptographic quality is not required.
-function makeIdempotencyKey(): string {
-  try {
-    // Lazy require so the native module is only touched here, never at module-eval.
-    const crypto = require('expo-crypto') as { randomUUID?: () => string };
-    const id = crypto?.randomUUID?.();
-    if (id) return id;
-  } catch {
-    // fall through to JS fallback
-  }
-  // RFC4122-ish v4 from Math.random — fine for a request-dedup token.
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+/** Lifecycle of each of checkout's three prerequisite fetches. */
+type LoadState = 'loading' | 'ok' | 'failed';
 
 export default function Checkout() {
   const colors = useThemeColors();
@@ -83,17 +69,28 @@ export default function Checkout() {
   // restore. Local-only clear() is for sign-out.
   const clearEverywhere = useCart((s) => s.clearEverywhere);
 
-  // [031] Idempotency key for this checkout attempt. Stable across retries
-  // (double-tap, network retry) so place_order returns the existing order
-  // instead of creating a duplicate. Reset after a successful placement so a
-  // subsequent order gets a fresh key.
+  // [031] Idempotency key for this checkout ATTEMPT — where an "attempt" is a
+  // basket, not a screen mount.
   //
-  // Generated lazily inside useRef's initializer (runs once, NOT on every
-  // render) and guarded: a native randomUUID() failure must never throw during
-  // checkout's render — it would trip the ScreenErrorBoundary. Falls back to a
-  // plain JS UUID; the value only needs to be unique-per-checkout, not crypto.
-  const idempotencyKey = useRef<string>(undefined as unknown as string);
-  if (!idempotencyKey.current) idempotencyKey.current = makeIdempotencyKey();
+  // It used to live in a useRef, which meant it changed every time the screen
+  // remounted. The failure path deliberately keeps the cart, so the natural
+  // recovery from a timed-out tap — back out, re-enter checkout, tap again —
+  // regenerated the key and let place_order create a SECOND real order for a
+  // first request that had quietly committed. The key is now derived from the
+  // cart and persisted, so it survives remounts and app restarts, and is
+  // retired only once an order actually exists. See lib/checkoutIdempotency.
+  const cartKey = useMemo(() => cartFingerprint(restaurantId, lines), [restaurantId, lines]);
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setIdempotencyKey(null);
+    void loadIdempotencyKey(cartKey).then((key) => {
+      if (!cancelled) setIdempotencyKey(key);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cartKey]);
 
   const selectedAddressId = useSession((s) => s.selectedAddressId);
   const sessionPhone = useSession((s) => s.phone);
@@ -108,6 +105,12 @@ export default function Checkout() {
   const [address, setAddress] = useState<Address | null>(null);
   const [payment, setPayment] = useState<PaymentMethod | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  // Load lifecycle for each of the three prerequisites. Bumping loadNonce is how
+  // the "tap to retry" hints re-run their fetch.
+  const [addressState, setAddressState] = useState<LoadState>('loading');
+  const [paymentState, setPaymentState] = useState<LoadState>('loading');
+  const [restaurantState, setRestaurantState] = useState<LoadState>('loading');
+  const [loadNonce, setLoadNonce] = useState(0);
   const [tipEgp, setTipEgp] = useState(0);
   const [placing, setPlacing] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -179,23 +182,83 @@ export default function Checkout() {
     return Array.from(set);
   }, [lines]);
 
+  // These three fetches had NO error handling. A flaky load resolved to nothing,
+  // every state stayed at its initial null, and the screen presented that as
+  // fact: a customer who HAS a saved address was shown the "Add an address"
+  // call-to-action, and the restaurant fetch failing left the Place button
+  // enabled over a `place()` that returns immediately (see below). "Loading",
+  // "failed" and "genuinely empty" are three different answers and now say so.
   useEffect(() => {
-    if (!selectedAddressId) return;
-    db.user.listAddresses().then((all) => {
-      setAddress(all.find((a) => a.id === selectedAddressId) ?? all[0] ?? null);
-    });
-  }, [selectedAddressId]);
+    if (!selectedAddressId) {
+      setAddressState('ok');
+      return;
+    }
+    let cancelled = false;
+    setAddressState('loading');
+    db.user
+      .listAddresses()
+      .then((all) => {
+        if (cancelled) return;
+        setAddress(all.find((a) => a.id === selectedAddressId) ?? all[0] ?? null);
+        setAddressState('ok');
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        captureError(e, { where: 'checkout.listAddresses' });
+        setAddressState('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAddressId, loadNonce]);
 
   useEffect(() => {
-    db.user.listPaymentMethods().then((pms) => {
-      setPayment(pms.find((p) => p.isDefault) ?? pms[0] ?? null);
-    });
-  }, []);
+    let cancelled = false;
+    setPaymentState('loading');
+    db.user
+      .listPaymentMethods()
+      .then((pms) => {
+        if (cancelled) return;
+        setPayment(pms.find((p) => p.isDefault) ?? pms[0] ?? null);
+        setPaymentState('ok');
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        captureError(e, { where: 'checkout.listPaymentMethods' });
+        setPaymentState('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadNonce]);
 
   useEffect(() => {
-    if (!restaurantId) return;
-    db.restaurants.get(restaurantId).then(setRestaurant);
-  }, [restaurantId]);
+    if (!restaurantId) {
+      setRestaurant(null);
+      setRestaurantState('ok');
+      return;
+    }
+    let cancelled = false;
+    setRestaurantState('loading');
+    db.restaurants
+      .get(restaurantId)
+      .then((r) => {
+        if (cancelled) return;
+        setRestaurant(r);
+        // A null restaurant is not "loaded": place() cannot proceed without it,
+        // so a missing merchant is a failure the customer must be told about,
+        // not an empty state to render around.
+        setRestaurantState(r ? 'ok' : 'failed');
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        captureError(e, { where: 'checkout.getRestaurant' });
+        setRestaurantState('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId, loadNonce]);
 
   // Ask the backend what it will actually charge (zone rule + free-over
   // threshold) so the button total always matches place_order's math. Falls
@@ -305,6 +368,7 @@ export default function Checkout() {
       !restaurant ||
       !address ||
       !payment ||
+      !idempotencyKey ||
       lines.length === 0 ||
       !phoneValid ||
       cashTenderInvalid
@@ -332,7 +396,7 @@ export default function Checkout() {
         scheduledFor: effectiveScheduledFor ?? undefined,
         promoCode: promoApplied?.code,
         customerPhone: contactPhone.trim(),
-        idempotencyKey: idempotencyKey.current,
+        idempotencyKey,
       });
       track('order_placed', {
         orderId: order.id,
@@ -373,6 +437,12 @@ export default function Checkout() {
       }
 
       success();
+      // Retire the idempotency key only HERE, on the path that actually reaches
+      // the tracking screen. Anything that throws earlier — the read-back after
+      // place_order, the payment hand-off — leaves the key in place, so the
+      // retry the customer is about to make deduplicates onto the order that
+      // already exists instead of creating a second one.
+      void clearIdempotencyKey();
       // Fire-and-forget: the order is already placed and clear_my_cart is
       // idempotent, so a failed retire must not turn a successful order into an
       // error dialog. The next sync or placement cleans up.
@@ -450,6 +520,22 @@ export default function Checkout() {
                 )}
               </View>
             </View>
+          ) : addressState === 'loading' ? (
+            <Text style={styles.cardHint}>{t('common.loading')}</Text>
+          ) : addressState === 'failed' ? (
+            // NOT the same as having no address. Offering "Add an address" to
+            // someone whose saved address simply failed to load asks them to
+            // re-enter data they already gave us, and is how a flaky lobby wifi
+            // turns into a duplicate address book.
+            <Pressable
+              onPress={() => setLoadNonce((n) => n + 1)}
+              accessibilityRole="button"
+              accessibilityLabel={t('checkout.addressLoadFailed')}
+              style={styles.compactAction}>
+              <Text style={[styles.cardHint, { color: colors.red }]}>
+                {t('checkout.addressLoadFailed')}
+              </Text>
+            </Pressable>
           ) : (
             // No saved address yet (typical for a brand-new tourist): give an
             // explicit add-address CTA instead of the inert "Choose an address"
@@ -621,6 +707,9 @@ export default function Checkout() {
                     selection();
                     setCurrency(c as Currency);
                     setCurrencyOpen(false);
+                    // users.preferred_currency is mapped by the repository and
+                    // was never written by anyone — see lib/profilePrefs.
+                    syncProfilePreferences();
                   }}
                   accessibilityRole="radio"
                   accessibilityLabel={c}
@@ -833,15 +922,35 @@ export default function Checkout() {
         {address && payment && lines.length > 0 && !phoneValid && (
           <Text style={styles.cardHint}>{t('checkout.needPhone')}</Text>
         )}
+        {/* The restaurant fetch failing used to be completely silent: the button
+            stayed enabled and place() returned on its `!restaurant` guard, so
+            the customer tapped a live-looking button forever and the order was
+            lost. Now it says so, and the button below is disabled. */}
+        {restaurantState === 'failed' && (
+          <Pressable
+            onPress={() => setLoadNonce((n) => n + 1)}
+            accessibilityRole="button"
+            accessibilityLabel={t('checkout.restaurantLoadFailed')}>
+            <Text style={[styles.cardHint, { color: colors.red }]}>
+              {t('checkout.restaurantLoadFailed')}
+            </Text>
+          </Pressable>
+        )}
+        {paymentState === 'failed' && (
+          <Pressable
+            onPress={() => setLoadNonce((n) => n + 1)}
+            accessibilityRole="button"
+            accessibilityLabel={t('checkout.paymentLoadFailed')}>
+            <Text style={[styles.cardHint, { color: colors.red }]}>
+              {t('checkout.paymentLoadFailed')}
+            </Text>
+          </Pressable>
+        )}
         {/* Block placement until the delivery fee is confirmed, so the button total
             always equals what the server charges at the door. */}
         {address && quoteState === 'failed' && (
           <Pressable onPress={() => setAddress((a) => (a ? { ...a } : a))}>
-            <Text style={styles.cardHint}>
-              {t('checkout.feeRetry') !== 'checkout.feeRetry'
-                ? t('checkout.feeRetry')
-                : "Couldn't confirm the delivery fee. Tap to retry."}
-            </Text>
+            <Text style={styles.cardHint}>{t('checkout.feeRetry')}</Text>
           </Pressable>
         )}
         {/* Out of range: say so HERE rather than letting place_order raise
@@ -853,20 +962,10 @@ export default function Checkout() {
             <Text style={styles.payErrText}>{t('error.outOfRange')}</Text>
           </View>
         )}
-        {isCard && (
-          <Text style={styles.cardHint}>
-            {t('checkout.cardHint') !== 'checkout.cardHint'
-              ? t('checkout.cardHint')
-              : "You'll complete payment securely on the next screen."}
-          </Text>
-        )}
+        {isCard && <Text style={styles.cardHint}>{t('checkout.cardHint')}</Text>}
         {/* COD reassurance — the cash mirror of the card hint above. */}
         {payment?.kind === 'cash' && (
-          <Text style={styles.cardHint}>
-            {t('checkout.codHint') !== 'checkout.codHint'
-              ? t('checkout.codHint')
-              : 'Pay cash when your order arrives — no card needed.'}
-          </Text>
+          <Text style={styles.cardHint}>{t('checkout.codHint')}</Text>
         )}
         {isGuest && (
           <Pressable
@@ -904,16 +1003,20 @@ export default function Checkout() {
         <PrimaryButton
           label={
             isCard
-              ? t('checkout.payCard', { amount: formatEgp(total) }) !== 'checkout.payCard'
-                ? t('checkout.payCard', { amount: formatEgp(total) })
-                : `Pay ${formatEgp(total)}`
+              ? t('checkout.payCard', { amount: formatEgp(total) })
               : t('checkout.place', { amount: formatEgp(total) })
           }
           onPress={place}
+          // Every condition place() silently returns on must ALSO disable the
+          // button, or the two disagree and the customer taps a live-looking
+          // control that does nothing. `!restaurant` and `!idempotencyKey` were
+          // the two that were only in place().
           disabled={
             placing ||
             !address ||
             !payment ||
+            !restaurant ||
+            !idempotencyKey ||
             lines.length === 0 ||
             !phoneValid ||
             cashTenderInvalid ||

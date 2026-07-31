@@ -48,7 +48,7 @@ function foodCuisines(values: readonly string[]): Cuisine[] {
  * "NaN min" on the tracking screen the moment a status update arrives. Normalize
  * the space→T and the "+00"→"+00:00" offset so both forms parse to the real instant.
  */
-function tsToMs(s: string | number | null | undefined): number | undefined {
+export function tsToMs(s: string | number | null | undefined): number | undefined {
   if (s == null) return undefined;
   if (typeof s === 'number') return s;
   const iso = s.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');

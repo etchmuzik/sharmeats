@@ -8,6 +8,7 @@ import { useT } from '../../src/i18n';
 import { useDirection } from '../../src/lib/direction';
 import { tap, success } from '../../src/haptics';
 import { db } from '../../src/data';
+import { captureError } from '../../src/lib/analytics';
 import { formatEgp } from '../../src/lib/format';
 import { starterFloorPct } from '../../src/lib/rewards';
 import type { RewardsHistoryEntry, RewardsStatus } from '../../src/data/types';
@@ -36,6 +37,31 @@ const REASON_KEY: Record<RewardsHistoryEntry['reason'], string> = {
 };
 
 const REDEEM_POINTS = 100;
+
+/**
+ * Which translated string explains this redemption failure?
+ *
+ * Every failure used to be reported as "not enough points" — a network drop, an
+ * expired session, a server error, all of them. That is worse than unhelpful:
+ * the redeem RPCs decrement the balance and mint the promo code in ONE
+ * transaction, so a lost response is the case where the customer's points are
+ * genuinely gone AND they were told they never had enough. They then try again
+ * and spend twice. Report what actually happened, and for the ambiguous case
+ * send them to their history rather than back to the button.
+ */
+function redeemErrorKey(error: unknown): string {
+  const msg = (error instanceof Error ? error.message : String(error ?? '')).toLowerCase();
+  if (/insufficient_points|insufficient_credit/.test(msg)) return 'rewards.redeemInsufficient';
+  if (/auth_required/.test(msg)) return 'error.authRequired';
+  if (/invalid_points|invalid_amount/.test(msg)) return 'rewards.redeemFailed';
+  // A transport failure is exactly the "did it go through?" case.
+  if (
+    /network request failed|failed to fetch|network error|timeout|timed out|offline/.test(msg)
+  ) {
+    return 'rewards.redeemUnconfirmed';
+  }
+  return 'rewards.redeemFailed';
+}
 
 export default function RewardsTab() {
   const colors = useThemeColors();
@@ -73,8 +99,15 @@ export default function RewardsTab() {
       success();
       Alert.alert(t('rewards.title'), t('rewards.redeemSuccess', { code }));
       await load();
-    } catch {
-      Alert.alert(t('rewards.title'), t('rewards.redeemInsufficient'));
+    } catch (e) {
+      captureError(e, { where: 'rewards.redeem' });
+      Alert.alert(t('rewards.title'), t(redeemErrorKey(e)));
+      // Reload whatever the outcome was. The redeem RPCs decrement the balance
+      // and mint the promo in one transaction, so a LOST RESPONSE means the
+      // redemption may well have succeeded — refetching is the only way the
+      // customer sees the truth rather than a stale balance next to a message
+      // saying it failed.
+      await load();
     } finally {
       setRedeeming(false);
     }
@@ -89,8 +122,10 @@ export default function RewardsTab() {
       success();
       Alert.alert(t('wallet.title'), t('wallet.redeemSuccess', { code }));
       await load();
-    } catch {
-      Alert.alert(t('wallet.title'), t('rewards.redeemInsufficient'));
+    } catch (e) {
+      captureError(e, { where: 'rewards.redeemCredit' });
+      Alert.alert(t('wallet.title'), t(redeemErrorKey(e)));
+      await load();
     } finally {
       setRedeeming(false);
     }

@@ -22,6 +22,7 @@ import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT, LOCALE_LABELS, ALL_LOCALES } from '../src/i18n';
 import { useSession, type Locale } from '../src/store/session';
 import { useDirection } from '../src/lib/direction';
+import { syncProfilePreferences } from '../src/lib/profilePrefs';
 import { selection } from '../src/haptics';
 
 const { width } = Dimensions.get('window');
@@ -158,6 +159,10 @@ export default function Onboarding() {
                       onPress={() => {
                         setLocale(l as Locale);
                         setPickerOpen(false);
+                        // The anonymous session already has a users row, so the
+                        // language picked here is worth persisting immediately —
+                        // otherwise the first push goes out in the 'ar' default.
+                        syncProfilePreferences();
                       }}
                       style={[styles.langOpt, l === locale && styles.langOptActive]}>
                       <Text style={[styles.langOptText, l === locale && { color: colors.accent }]}>

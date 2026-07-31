@@ -15,6 +15,7 @@ import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvide
 import { useT } from '../src/i18n';
 import { db } from '../src/data';
 import { captureError } from '../src/lib/analytics';
+import { authErrorKey } from '../src/lib/authErrors';
 import { LEGAL_URLS, openLegal } from '../src/legal';
 
 /** Normalize a typed phone to E.164-ish: keep a leading +, strip everything else. */
@@ -42,8 +43,11 @@ export default function SignIn() {
       await db.auth.sendOtp(e164);
       router.replace(`/otp?phone=${encodeURIComponent(e164)}`);
     } catch (e) {
+      // The raw message goes to Sentry, never to the screen: the adapter's
+      // strings are operator instructions ("enable a Phone provider in
+      // Supabase → …"), which a customer can neither act on nor should see.
       captureError(e, { where: 'signin.sendOtp' });
-      setError(e instanceof Error ? e.message : t('error.otpSendFailed'));
+      setError(t(authErrorKey(e, 'error.otpSendFailed')));
     } finally {
       setSending(false);
     }

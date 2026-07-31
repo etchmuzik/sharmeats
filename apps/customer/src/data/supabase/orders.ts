@@ -19,6 +19,7 @@
 import { getSupabase } from './client';
 import { rowToOrder } from './mappers';
 import { t } from '../../i18n';
+import { withAllergenBriefing } from '../../lib/allergenBriefing';
 import type {
   CartItem,
   Order,
@@ -55,10 +56,22 @@ export interface DriverLocation {
 export const ordersRepoSupabase = {
   async create(input: CreateOrderInput): Promise<Order> {
     const sb = getSupabase();
-    const {
-      data: { user },
-    } = await sb.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    // getUser() is a NETWORK call, and its error was being discarded — so a
+    // flaky connection produced `user: null` and checkout failed with the
+    // untranslated developer string "Not authenticated", telling a signed-in
+    // customer to sign in. The two answers are different facts and get
+    // different messages, both translated.
+    const { data: auth, error: authError } = await sb.auth.getUser();
+    if (authError) {
+      const name = (authError as { name?: string }).name ?? '';
+      const status = (authError as { status?: number }).status;
+      // AuthSessionMissingError / 401 IS the answer "nobody is signed in".
+      // Anything else means we could not find out, which is not the same thing.
+      if (name !== 'AuthSessionMissingError' && status !== 401) {
+        throw new Error(t('error.authUnavailable'));
+      }
+    }
+    if (!auth?.user) throw new Error(t('error.authRequired'));
 
     // Server-authoritative creation. Client total/fee are IGNORED by the RPC.
     const { data, error } = await sb.rpc('place_order', {
@@ -67,7 +80,9 @@ export const ordersRepoSupabase = {
       p_cart: toCartPayload(input.items),
       p_payment_method: toPaymentMethod(input.payment.kind),
       p_tip: input.tipEgp ?? 0,
-      p_kitchen_notes: input.kitchenNotes ?? null,
+      // Allergens ride along with the note — see withAllergenBriefing. They were
+      // being dropped entirely because place_order has no allergen parameter.
+      p_kitchen_notes: withAllergenBriefing(input.kitchenNotes, input.aggregateAllergens),
       p_promo_code: input.promoCode?.trim() || null,
       p_scheduled_for: input.scheduledFor ? new Date(input.scheduledFor).toISOString() : null,
       p_customer_phone: input.customerPhone?.trim() || null,
@@ -81,10 +96,10 @@ export const ordersRepoSupabase = {
 
     // place_order returns [{ id, short_code, total_egp }]. Re-read the full order.
     const row = Array.isArray(data) ? data[0] : data;
-    if (!row?.id) throw new Error('place_order returned no order id');
+    if (!row?.id) throw new Error(t('error.placeOrderFailed'));
 
     const order = await this.get(row.id as string);
-    if (!order) throw new Error('Order created but could not be read back');
+    if (!order) throw new Error(t('error.placeOrderFailed'));
     return order;
   },
 
@@ -437,5 +452,11 @@ function mapPlaceOrderError(error: { message?: string }): Error {
   for (const key of Object.keys(map)) {
     if (msg.includes(key)) return new Error(t(map[key]));
   }
-  return new Error(msg || t('error.placeOrderFailed'));
+  // NEVER fall back to the raw Postgres/PostgREST text. It is untranslated, it
+  // names our schema, and it is meaningless to a customer — the honest message
+  // for "something we did not anticipate" is the generic translated one. The
+  // original is preserved as `cause` so Sentry still gets the diagnosis.
+  const friendly = new Error(t('error.placeOrderFailed'));
+  (friendly as Error & { cause?: unknown }).cause = msg;
+  return friendly;
 }

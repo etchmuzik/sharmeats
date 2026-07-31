@@ -248,6 +248,42 @@ describe('cart server sync', () => {
     expect(useCart.getState().lines).toEqual([]);
   });
 
+  it('an IN-FLIGHT sync cannot resurrect a basket that was just ordered', async () => {
+    // The failure this pins: cancelling the debounce timer (which
+    // clearEverywhere already did) does nothing for a write that has ALREADY
+    // left. That upsert lands after clear_my_cart, recreates the row, and the
+    // customer's next device offers them the meal they are currently eating.
+    const { db } = await import('../data');
+    const released: (() => void)[] = [];
+    (db.cart.upsert as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          released.push(() => {
+            h.calls.push('cart.upsert');
+            resolve({ ok: true, version: 9, updatedAt: '', expiresAt: '' });
+          });
+        }),
+    );
+
+    useCart.getState().add(LINE);
+    // Fire the debounce so the write is genuinely in flight, then order.
+    await vi.advanceTimersByTimeAsync(1500);
+    h.calls.length = 0;
+    await useCart.getState().clearEverywhere();
+    expect(h.calls).toContain('cart.clear');
+
+    // Now the stranded write finally answers.
+    h.calls.length = 0;
+    released.forEach((release) => release());
+    await vi.advanceTimersByTimeAsync(0);
+
+    // It must take its own row back out rather than leaving a resurrected cart…
+    expect(h.calls).toContain('cart.clear');
+    // …and it must not report a version for a basket that no longer exists.
+    expect(useCart.getState().serverVersion).toBe(0);
+    expect(useCart.getState().lines).toEqual([]);
+  });
+
   it('adoptPrepared replaces the basket and records the version', () => {
     useCart.getState().adoptPrepared({
       restaurantId: 'r9',

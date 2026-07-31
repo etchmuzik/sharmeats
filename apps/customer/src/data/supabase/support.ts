@@ -1,4 +1,5 @@
 import { getSupabase } from './client';
+import { tsToMs } from './mappers';
 import type { OrderMessage } from '../types';
 
 interface SupportRow {
@@ -12,14 +13,17 @@ interface SupportRow {
 }
 
 // Reuse the OrderMessage shape; senderRole is 'admin' for support, 'customer' for the user.
+// Timestamps go through tsToMs for the same Hermes reason as order messages:
+// Realtime hands back the WAL timestamp form, which bare `new Date()` parses to
+// NaN on device, so a live reply sorted to an arbitrary spot in the thread.
 const rowToMessage = (r: SupportRow): OrderMessage => ({
   id: r.id,
   orderId: r.user_id, // support threads are keyed by user, not order
   senderId: r.author_id ?? r.user_id,
   senderRole: r.from_support ? 'admin' : 'customer',
   body: r.body,
-  createdAt: new Date(r.created_at).getTime(),
-  readAt: r.read_at ? new Date(r.read_at).getTime() : null,
+  createdAt: tsToMs(r.created_at) ?? 0,
+  readAt: r.read_at ? (tsToMs(r.read_at) ?? null) : null,
 });
 
 export const supportRepoSupabase = {

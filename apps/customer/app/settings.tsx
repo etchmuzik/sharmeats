@@ -17,6 +17,7 @@ import {
   DEFAULT_NOTIFICATION_PREFS as DEFAULT_PREFS,
   formatQuietWindow,
 } from '../src/lib/notificationPrefs';
+import { syncProfilePreferences } from '../src/lib/profilePrefs';
 import { getReleaseInfo, formatReleaseLine } from '../src/lib/release';
 import { getPermissionDecision } from '../src/lib/push';
 import type { PermissionDecision } from '../src/lib/pushPermission';
@@ -153,6 +154,10 @@ export default function Settings() {
                   onPress={() => {
                     selection();
                     setLocale(l as Locale);
+                    // Record the choice on the profile too — server-composed
+                    // messages (push above all) read users.locale, which
+                    // defaults to 'ar' until a client writes it.
+                    syncProfilePreferences();
                   }}
                   style={[styles.row, isSel && styles.rowActive]}>
                   <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
@@ -176,6 +181,7 @@ export default function Settings() {
                   onPress={() => {
                     selection();
                     setCurrency(c as Currency);
+                    syncProfilePreferences();
                   }}
                   style={[styles.row, isSel && styles.rowActive]}>
                   <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>

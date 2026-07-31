@@ -20,6 +20,8 @@ import { registerForPush } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { db } from '../src/data';
 import { captureError } from '../src/lib/analytics';
+import { authErrorKey } from '../src/lib/authErrors';
+import { syncProfilePreferences } from '../src/lib/profilePrefs';
 
 const LEN = 6;
 
@@ -64,12 +66,18 @@ export default function Otp() {
       // uploads them before anything else can overwrite local state.
       // Not awaited — a slow network must not hold up the redirect.
       syncFavoritesFromServer();
+      // Persist the app language + currency onto the profile row. users.locale
+      // defaults to 'ar' at signup and no client ever wrote it, so every push
+      // notification rendered in Arabic regardless of the language the customer
+      // is actually reading the app in. Best-effort, not awaited.
+      syncProfilePreferences();
       // Best-effort: ask for push permission now there's an account to notify.
       registerForPush();
       router.replace('/(tabs)/home');
     } catch (e) {
+      // Raw provider text never reaches the screen — see lib/authErrors.
       captureError(e, { where: 'otp.verify' });
-      setError(e instanceof Error ? e.message : t('error.otpInvalid'));
+      setError(t(authErrorKey(e, 'error.otpInvalid')));
       setCode('');
     } finally {
       setVerifying(false);
@@ -84,7 +92,7 @@ export default function Otp() {
       setSeconds(42);
     } catch (e) {
       captureError(e, { where: 'otp.resend' });
-      setError(e instanceof Error ? e.message : t('error.otpResendFailed'));
+      setError(t(authErrorKey(e, 'error.otpResendFailed')));
     }
   };
 

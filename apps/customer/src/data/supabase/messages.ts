@@ -1,4 +1,5 @@
 import { getSupabase } from './client';
+import { tsToMs } from './mappers';
 import type { MessageSenderRole, OrderMessage } from '../types';
 
 interface MessageRow {
@@ -11,14 +12,19 @@ interface MessageRow {
   read_at: string | null;
 }
 
+// Timestamps go through tsToMs, NOT bare `new Date()`. Realtime
+// postgres_changes delivers the raw WAL form ("2026-06-27 23:36:59+00") which
+// Hermes' Date parser rejects — a live message then carried a NaN createdAt,
+// which sorts unpredictably and rendered as an empty timestamp in the thread.
+// See the helper's comment in mappers.ts.
 const rowToMessage = (r: MessageRow): OrderMessage => ({
   id: r.id,
   orderId: r.order_id,
   senderId: r.sender_id,
   senderRole: r.sender_role,
   body: r.body,
-  createdAt: new Date(r.created_at).getTime(),
-  readAt: r.read_at ? new Date(r.read_at).getTime() : null,
+  createdAt: tsToMs(r.created_at) ?? 0,
+  readAt: r.read_at ? (tsToMs(r.read_at) ?? null) : null,
 });
 
 export const messagesRepoSupabase = {
