@@ -53,7 +53,8 @@
         {
           "photosPermission": "Sharm Eats needs photo access so you can upload your verification documents."
         }
-      ]
+      ],
+      "./plugins/withFmtConstevalFix"
     ],
     "experiments": {
       "typedRoutes": false
