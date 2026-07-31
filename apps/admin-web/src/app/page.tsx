@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { OpsDriver, OpsOrder } from '@/lib/types';
 import { DispatchBoard } from './DispatchBoard';
+import { DEFAULT_MAX_PING_AGE_SECONDS } from '@/lib/dispatch';
 import { SignOutButton } from './SignOutButton';
 import { Skeleton, DispatchBoardSkeleton } from './Skeleton';
 import { LegalLinks } from './LegalLinks';
@@ -12,7 +13,13 @@ import { LegalLinks } from './LegalLinks';
 type Phase =
   | { state: 'loading' }
   | { state: 'unauthorized' }
-  | { state: 'ready'; displayName: string; orders: OpsOrder[]; drivers: OpsDriver[] };
+  | {
+      state: 'ready';
+      displayName: string;
+      orders: OpsOrder[];
+      drivers: OpsDriver[];
+      maxPingAgeSeconds: number;
+    };
 
 /**
  * Ops dispatch dashboard root — pure client-side (static export, no server).
@@ -50,8 +57,10 @@ export default function OpsPage() {
         return;
       }
 
-      // Active orders + drivers (admin RLS = broad read).
-      const [{ data: orders }, { data: drivers }] = await Promise.all([
+      // Active orders + drivers (admin RLS = broad read), plus the dispatch
+      // freshness window so this board applies the SAME rule nearest_drivers
+      // does (migration 201) instead of a second hardcoded copy that can drift.
+      const [{ data: orders }, { data: drivers }, { data: pingSetting }] = await Promise.all([
         supabase
           .from('orders')
           .select(
@@ -66,6 +75,13 @@ export default function OpsPage() {
           )
           .eq('is_active', true)
           .order('status', { ascending: true }),
+        // maybeSingle, not single: a missing row or a missing grant must degrade
+        // to the documented default, never blank the whole dashboard.
+        supabase
+          .from('platform_settings')
+          .select('value')
+          .eq('key', 'dispatch_max_ping_age_seconds')
+          .maybeSingle(),
       ]);
 
       if (cancelled) return;
@@ -74,6 +90,10 @@ export default function OpsPage() {
         displayName: me?.display_name ?? role,
         orders: (orders as OpsOrder[]) ?? [],
         drivers: (drivers as OpsDriver[]) ?? [],
+        maxPingAgeSeconds:
+          typeof pingSetting?.value === 'number' && pingSetting.value > 0
+            ? pingSetting.value
+            : DEFAULT_MAX_PING_AGE_SECONDS,
       });
     })();
 
@@ -118,7 +138,11 @@ export default function OpsPage() {
         </div>
       </header>
 
-      <DispatchBoard initialOrders={phase.orders} initialDrivers={phase.drivers} />
+      <DispatchBoard
+        initialOrders={phase.orders}
+        initialDrivers={phase.drivers}
+        maxPingAgeSeconds={phase.maxPingAgeSeconds}
+      />
 
       <footer className="border-t border-line px-6 py-6">
         <LegalLinks />

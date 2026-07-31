@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { OpsDriver, OpsOrder } from '@/lib/types';
+import {
+  DEFAULT_MAX_PING_AGE_SECONDS,
+  isDispatchable,
+  isPingStale,
+  lastSeenLabel,
+} from '@/lib/dispatch';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
 
@@ -34,9 +40,16 @@ type CancelReason = (typeof CANCEL_REASONS)[number];
 export function DispatchBoard({
   initialOrders,
   initialDrivers,
+  maxPingAgeSeconds = DEFAULT_MAX_PING_AGE_SECONDS,
 }: {
   initialOrders: OpsOrder[];
   initialDrivers: OpsDriver[];
+  /**
+   * From platform_settings.dispatch_max_ping_age_seconds, so this board and
+   * nearest_drivers (migration 201) apply the same window. Falls back to the
+   * migration's default when the row cannot be read.
+   */
+  maxPingAgeSeconds?: number;
 }) {
   const supabase = createSupabaseBrowserClient();
   const { toast } = useToast();
@@ -103,9 +116,13 @@ export function DispatchBoard({
     () => orders.filter((o) => o.assigned_driver_id),
     [orders],
   );
+  // "Online" here means REACHABLE, not merely flagged online — same rule
+  // nearest_drivers applies since migration 201. A driver whose app stopped
+  // reporting is not someone this count should promise ops they have.
+  // nowMs comes from the shared 60s clock, so staleness re-evaluates on its own.
   const onlineDrivers = useMemo(
-    () => drivers.filter((d) => d.status === 'online' && d.is_verified),
-    [drivers],
+    () => drivers.filter((d) => isDispatchable(d, nowMs, maxPingAgeSeconds)),
+    [drivers, nowMs, maxPingAgeSeconds],
   );
 
   const assign = useCallback(
@@ -261,16 +278,26 @@ export function DispatchBoard({
               .slice()
               .sort((a, b) => a.status.localeCompare(b.status))
               .map((d) => {
-                const assignable = selectedOrder && d.status === 'online' && d.is_verified;
+                // Stale = flagged online but the app has stopped reporting.
+                // Shown rather than hidden: two drivers sat "online" from 4 June
+                // to 31 July precisely because nothing surfaced the drift. But
+                // NOT assignable — nearest_drivers will not offer to them, and a
+                // manual assign would only burn a dispatch cycle on a phone that
+                // is not listening.
+                const stale = d.status === 'online' && isPingStale(d.last_ping_at, nowMs, maxPingAgeSeconds);
+                const assignable = Boolean(selectedOrder) && isDispatchable(d, nowMs, maxPingAgeSeconds);
                 return (
                   <button
                     key={d.id}
                     disabled={!assignable || busy}
                     onClick={() => selectedOrder && assign(selectedOrder, d.id)}
+                    title={stale ? `No ping since ${lastSeenLabel(d.last_ping_at, nowMs)} — dispatch skips this driver` : undefined}
                     className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${
                       assignable
                         ? 'border-accent bg-accentsoft hover:bg-accent hover:text-white'
-                        : 'border-line bg-white opacity-90'
+                        : stale
+                          ? 'border-line bg-white opacity-60'
+                          : 'border-line bg-white opacity-90'
                     }`}
                   >
                     <div>
@@ -281,7 +308,14 @@ export function DispatchBoard({
                         {d.home_zone ?? 'zone ?'}
                       </div>
                     </div>
-                    <StatusDot status={d.status} />
+                    {stale ? (
+                      <span className="flex items-center gap-1 text-xs font-medium text-amber">
+                        <span className="h-2 w-2 rounded-full bg-amber" />
+                        no signal · {lastSeenLabel(d.last_ping_at, nowMs)}
+                      </span>
+                    ) : (
+                      <StatusDot status={d.status} />
+                    )}
                   </button>
                 );
               })}
