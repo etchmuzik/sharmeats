@@ -26,12 +26,14 @@ import {
   type Urgency,
   barFraction,
   formatCountdown,
+  hasUsableExpiry,
   isExpired,
   nextOfferWindow,
   parseExpiry,
   secondsRemaining,
   urgencyOf,
 } from '../offerUrgency';
+import { serverNow } from '../supabase';
 import { font, radius, spacing, type Palette } from '../theme';
 import { useThemeColors } from '../themeProvider';
 import { Icon } from './Icon';
@@ -69,13 +71,19 @@ function paletteOf(urgency: Urgency, colors: Palette) {
  * null when there's no expiry timestamp (legacy rows). Clamps at 0. Fires
  * `onZero` exactly once, the first tick that reaches 0, so the parent can drop
  * the offer without fighting the server (dispatch_sweep already expired it).
+ *
+ * Measured against `serverNow()`, NOT the device clock. `offer_expires_at` is
+ * stamped by Postgres; comparing it to a courier phone whose clock has drifted
+ * either expires every offer on arrival or keeps swept offers alive — and a
+ * driver has no way to see which is happening. See supabase.ts for how the
+ * offset is measured.
  */
 function useCountdown(expiresAt: string | null, onZero: () => void): number | null {
   // parseExpiry collapses an unparseable timestamp to null (see offerUrgency.ts)
   // so the null-handling below — which fails CLOSED — covers it.
   const targetMs = parseExpiry(expiresAt);
   const [seconds, setSeconds] = useState<number | null>(() =>
-    secondsRemaining(targetMs, Date.now()),
+    secondsRemaining(targetMs, serverNow()),
   );
   const firedRef = useRef(false);
 
@@ -85,9 +93,9 @@ function useCountdown(expiresAt: string | null, onZero: () => void): number | nu
       return;
     }
     firedRef.current = false;
-    setSeconds(secondsRemaining(targetMs, Date.now()));
+    setSeconds(secondsRemaining(targetMs, serverNow()));
     const id = setInterval(() => {
-      const remaining = secondsRemaining(targetMs, Date.now());
+      const remaining = secondsRemaining(targetMs, serverNow());
       setSeconds(remaining);
       if (remaining !== null && remaining <= 0 && !firedRef.current) {
         firedRef.current = true;
@@ -140,9 +148,18 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
   const { direction, t } = useI18n();
   const seconds = useCountdown(offer.offer_expires_at, onExpire);
   const payout = offer.delivery_fee_egp + offer.tip_egp;
+  // An offer with no usable deadline is BROKEN, not calm: we cannot know whether
+  // dispatch still holds it, so Accept must be dead. Rendering it as a
+  // permanently-acceptable card is how a driver ended up accepting an offer on a
+  // cancelled order and silently leaving the dispatch pool.
+  const unusableExpiry = !hasUsableExpiry(offer.offer_expires_at);
   const urgency = urgencyOf(seconds);
   const expired = isExpired(seconds);
-  const palette = paletteOf(urgency, colors);
+  // Both states share one meaning at the button: you cannot take this job.
+  const unacceptable = expired || unusableExpiry;
+  // Amber, not the calm accent: a missing deadline is an anomaly the driver
+  // should notice and refresh, not a relaxed offer with plenty of time.
+  const palette = paletteOf(unusableExpiry ? 'warning' : urgency, colors);
 
   // Pulse only while critical AND not yet expired — an expired card should go
   // still, not keep demanding attention it can no longer act on.
@@ -174,9 +191,11 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
 
   const countdownLabel = expired
     ? t('offer.expired')
-    : seconds === null
-      ? null
-      : formatCountdown(seconds);
+    : unusableExpiry
+      ? t('offer.needsRefresh')
+      : seconds === null
+        ? null
+        : formatCountdown(seconds);
 
   return (
     <Animated.View
@@ -186,7 +205,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
       style={[
         {
           backgroundColor: colors.surface,
-          borderWidth: urgency === 'calm' ? 1 : 2,
+          borderWidth: urgency === 'calm' && !unusableExpiry ? 1 : 2,
           borderColor: palette.border,
           borderRadius: radius.xl,
           borderCurve: 'continuous',
@@ -198,7 +217,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             urgency === 'critical'
               ? '0 4px 16px rgba(200, 65, 42, 0.18)'
               : '0 1px 3px rgba(10, 10, 12, 0.06)',
-          opacity: expired ? 0.6 : 1,
+          opacity: unacceptable ? 0.6 : 1,
         },
         pulseStyle,
       ]}
@@ -242,7 +261,9 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             accessibilityLabel={
               expired
                 ? t('offer.expiredA11y')
-                : t('offer.expiresIn', { time: countdownLabel })
+                : unusableExpiry
+                  ? t('offer.needsRefreshA11y')
+                  : t('offer.expiresIn', { time: countdownLabel })
             }
             style={{
               flexDirection: 'row',
@@ -287,6 +308,13 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
       <Text style={{ color: colors.ink3, fontSize: font.sizes.xs }}>
         {t('offer.unlock')}
       </Text>
+      {/* Say WHY Accept is dead. A driver staring at a disabled button with no
+          explanation reads it as a broken app and calls dispatch. */}
+      {unusableExpiry && (
+        <Text style={{ color: colors.amberText, fontSize: font.sizes.xs, fontWeight: '700' }}>
+          {t('offer.needsRefreshHint')}
+        </Text>
+      )}
 
       {/* Accept is weighted 2:1 — a mis-tap here costs the driver a paid job. */}
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs }}>
@@ -320,17 +348,21 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             tapHeavy();
             onAccept();
           }}
-          disabled={expired}
+          disabled={unacceptable}
           accessibilityRole="button"
-          accessibilityLabel={t('offer.acceptA11y', {
-            restaurant: offer.restaurant_name,
-            amount: payout,
-          })}
-          accessibilityState={{ disabled: expired }}
+          accessibilityLabel={
+            unusableExpiry
+              ? t('offer.needsRefreshA11y')
+              : t('offer.acceptA11y', {
+                  restaurant: offer.restaurant_name,
+                  amount: payout,
+                })
+          }
+          accessibilityState={{ disabled: unacceptable }}
           style={({ pressed }) => ({
             flex: 2,
             minHeight: 52,
-            backgroundColor: expired ? colors.ink3 : colors.green,
+            backgroundColor: unacceptable ? colors.ink3 : colors.green,
             borderRadius: radius.lg,
             borderCurve: 'continuous',
             alignItems: 'center',
@@ -343,7 +375,11 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
               white label scored 2.27:1 on the dark green Accept button, the
               single most important control in this app. */}
           <Text style={{ color: colors.onInk, fontWeight: '800', fontSize: font.sizes.lg }}>
-            {expired ? t('offer.expired') : t('offer.accept')}
+            {expired
+              ? t('offer.expired')
+              : unusableExpiry
+                ? t('offer.needsRefresh')
+                : t('offer.accept')}
           </Text>
         </Pressable>
       </View>

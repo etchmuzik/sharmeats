@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase, isSupabaseConfigured } from './supabase';
+import { identifyDriver, resetCrashUser } from './lib/crash';
 
 interface AuthState {
   session: Session | null;
@@ -14,6 +15,17 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // identifyDriver/resetCrashUser existed but were never called, so every
+  // driver-app crash arrived in Sentry anonymous: no way to tell one driver
+  // hitting the same bug twenty times from twenty drivers, and no way to call
+  // the affected rider back. Only the auth user id goes over — no name, no
+  // phone.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (userId) identifyDriver(userId);
+    else resetCrashUser();
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {

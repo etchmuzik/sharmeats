@@ -1,5 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeAddressSnapshot, normalizeJob } from './jobs';
+import { isOfferLive, normalizeAddressSnapshot, normalizeJob, type Assignment } from './jobs';
+
+function offer(overrides: Partial<Assignment> = {}): Assignment {
+  return {
+    id: 'assignment-1',
+    order_id: 'order-1',
+    status: 'offered',
+    offer_expires_at: new Date().toISOString(),
+    restaurant_name: 'Test Kitchen',
+    dropoff_zone: 'naama_bay',
+    delivery_fee_egp: 30,
+    tip_egp: 0,
+    order_status: 'ready',
+    ...overrides,
+  };
+}
+
+describe('isOfferLive — an offer must die with its order', () => {
+  it('keeps offers on orders that can still be picked up', () => {
+    for (const status of ['placed', 'accepted', 'preparing', 'ready'] as const) {
+      expect(isOfferLive(offer({ order_status: status })), status).toBe(true);
+    }
+  });
+
+  // Two of the three stuck `offered` rows in production were on CANCELLED
+  // orders. Accepting one silently removed the driver from the dispatch pool
+  // for a delivery that could never happen.
+  it('drops offers on terminal orders', () => {
+    for (const status of ['delivered', 'cancelled', 'rejected'] as const) {
+      expect(isOfferLive(offer({ order_status: status })), status).toBe(false);
+    }
+  });
+
+  // Fails CLOSED: if the order row is not readable we cannot claim the job is
+  // still available, and hiding a live offer costs nothing (the sweep re-offers).
+  it('drops an offer whose order status is unknown', () => {
+    expect(isOfferLive(offer({ order_status: null }))).toBe(false);
+  });
+});
 
 describe('driver job normalization', () => {
   it('maps snake_case address snapshots without dropping hotel handoff details', () => {

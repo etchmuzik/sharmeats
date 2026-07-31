@@ -83,6 +83,14 @@ const ENGLISH = {
   'home.offlineEmptyTitle': 'Go online when you’re ready',
   'home.onlineEmptyBody': 'New offers will appear here with a notification.',
   'home.offlineEmptyBody': 'Use the switch above to start receiving offers.',
+  // Going online is refused when location does not actually work: without a
+  // position dispatch cannot see this driver at all, so "receiving offers"
+  // would be a lie the driver has no way to detect.
+  'home.locationBlockedPermission':
+    'Location is off, so dispatch can’t see you. Allow location, then go online again.',
+  'home.locationBlockedUnavailable':
+    'Your location is unavailable, so dispatch can’t see you. Turn on device location, then try again.',
+  'home.notEligible': 'Your driver account isn’t cleared for deliveries yet. Contact ops.',
   'earnings.today': 'Earned today',
   'earnings.deliveries': 'Deliveries',
   'earnings.tips': 'Tips today',
@@ -118,6 +126,9 @@ const ENGLISH = {
   'offer.acceptA11y': 'Accept offer from {restaurant} for {amount} EGP',
   'offer.expiredA11y': 'Offer expired',
   'offer.noLongerAvailable': 'This offer is no longer available. Refreshing offers.',
+  'offer.needsRefresh': 'Needs refresh',
+  'offer.needsRefreshHint': 'This offer has no valid deadline — pull down to refresh your offers.',
+  'offer.needsRefreshA11y': 'This offer can’t be accepted. Refresh your offers.',
   'job.locationError': 'Live location could not start. Check location permissions.',
   'job.updateError': 'Could not update. Try again.',
   'job.generalError': 'Something went wrong. Try again.',
@@ -129,6 +140,7 @@ const ENGLISH = {
   'job.locationServices': 'Turn on device location services, then try again.',
   'job.mapsError': 'Could not open maps. Is a maps app installed?',
   'job.notFound': 'Job not found.',
+  'job.cancelledUnderYou': 'This delivery was cancelled. Head back for the next job.',
   'job.codeA11y': 'Delivery code {code}',
   'job.collectCashTitle': 'Collect cash',
   'job.collectCashBody': 'Collect {amount} EGP from the customer?',
@@ -202,6 +214,53 @@ const ENGLISH = {
   'proof.optionalHint': 'Optional, but it protects you if the order is disputed',
   'proof.takeRequiredA11y': 'Take the required handoff photo',
   'proof.takeOptionalA11y': 'Take an optional handoff photo',
+  // Tier, verification, history and chat rendered hardcoded English until now —
+  // four screens in an Arabic-first driver market.
+  'tier.bronze': 'Bronze',
+  'tier.silver': 'Silver',
+  'tier.gold': 'Gold',
+  'tier.title': '{tier} tier',
+  'tier.toNextOne': '1 more delivery to {tier}',
+  'tier.toNextMany': '{count} more deliveries to {tier}',
+  'tier.top': 'You’ve reached the top tier.',
+  'tier.deliveries90d': 'Deliveries (90d)',
+  'tier.bonusPerDelivery': 'Bonus / delivery',
+  'tier.bonusValue': '+{amount} EGP',
+  'tier.firstLook': 'First look',
+  'tier.firstLookValue': '{seconds}s early',
+  'tier.firstLookNone': 'Not yet',
+  'tier.acceptanceRate': 'Acceptance rate',
+  'tier.loadError': 'Couldn’t load your tier.',
+  'kyc.intro':
+    'Upload a clear photo of each document. Our team reviews them, usually within a day. You can start delivering once you’re verified.',
+  'kyc.statusApproved': 'Approved',
+  'kyc.statusRejected': 'Rejected — re-upload',
+  'kyc.statusPending': 'Under review',
+  'kyc.permissionTitle': 'Permission needed',
+  'kyc.permissionBody': 'Allow photo access to upload your document.',
+  'kyc.uploadFailedTitle': 'Upload failed',
+  'kyc.uploadFailedBody': 'Please try again.',
+  'kyc.replacePhoto': 'Replace photo',
+  'kyc.uploadPhoto': 'Upload photo',
+  'kyc.docNationalId': 'National ID',
+  'kyc.docDrivingLicense': 'Driving licence',
+  'kyc.docVehicleReg': 'Vehicle registration',
+  'history.loadError': 'Couldn’t load your history.',
+  'history.emptyA11y': 'No deliveries',
+  'history.emptyTitle': 'No deliveries yet.',
+  'history.emptyBody': 'Completed deliveries will show up here.',
+  'history.tip': '{amount} EGP tip',
+  'history.amount': '{amount} EGP',
+  'chat.emptyA11y': 'No messages',
+  'chat.emptyTitle': 'No messages yet.',
+  'chat.emptyBody': 'Say hi or share an update with the customer.',
+  'chat.placeholder': 'Message the customer…',
+  'chat.inputA11y': 'Message',
+  'chat.sendA11y': 'Send message',
+  'chat.sendError': 'Couldn’t send. Try again.',
+  'chat.roleCustomer': 'Customer',
+  'chat.roleYou': 'You',
+  'chat.roleRestaurant': 'Restaurant',
 } as const;
 
 export type TranslationKey = keyof typeof ENGLISH;
@@ -285,6 +344,11 @@ const ARABIC: Record<TranslationKey, string> = {
   'home.offlineEmptyTitle': 'اتصل عندما تكون مستعدًا',
   'home.onlineEmptyBody': 'ستظهر العروض الجديدة هنا مع إشعار.',
   'home.offlineEmptyBody': 'استخدم المفتاح بالأعلى لبدء استقبال العروض.',
+  'home.locationBlockedPermission':
+    'الموقع مغلق، لذا لا يستطيع فريق التوزيع رؤيتك. اسمح بالوصول إلى الموقع ثم اتصل مرة أخرى.',
+  'home.locationBlockedUnavailable':
+    'موقعك غير متاح، لذا لا يستطيع فريق التوزيع رؤيتك. شغّل خدمات الموقع ثم حاول مرة أخرى.',
+  'home.notEligible': 'حسابك غير معتمد للتوصيل بعد. تواصل مع فريق التشغيل.',
   'earnings.today': 'أرباح اليوم',
   'earnings.deliveries': 'التوصيلات',
   'earnings.tips': 'إكراميات اليوم',
@@ -320,6 +384,9 @@ const ARABIC: Record<TranslationKey, string> = {
   'offer.acceptA11y': 'قبول العرض من {restaurant} مقابل {amount} ج.م',
   'offer.expiredA11y': 'انتهى العرض',
   'offer.noLongerAvailable': 'لم يعد هذا العرض متاحًا. جارٍ تحديث العروض.',
+  'offer.needsRefresh': 'يحتاج تحديثًا',
+  'offer.needsRefreshHint': 'هذا العرض بلا مهلة صالحة — اسحب للأسفل لتحديث العروض.',
+  'offer.needsRefreshA11y': 'لا يمكن قبول هذا العرض. حدّث العروض.',
   'job.locationError': 'تعذر بدء الموقع المباشر. تحقق من أذونات الموقع.',
   'job.updateError': 'تعذر التحديث. حاول مرة أخرى.',
   'job.generalError': 'حدث خطأ. حاول مرة أخرى.',
@@ -331,6 +398,7 @@ const ARABIC: Record<TranslationKey, string> = {
   'job.locationServices': 'شغّل خدمات الموقع في الجهاز ثم حاول مرة أخرى.',
   'job.mapsError': 'تعذر فتح الخرائط. تأكد من تثبيت تطبيق خرائط.',
   'job.notFound': 'لم يتم العثور على التوصيل.',
+  'job.cancelledUnderYou': 'تم إلغاء هذا التوصيل. ارجع لاستلام المهمة التالية.',
   'job.codeA11y': 'رمز التوصيل {code}',
   'job.collectCashTitle': 'تحصيل النقدية',
   'job.collectCashBody': 'هل حصلت {amount} ج.م من العميل؟',
@@ -402,6 +470,51 @@ const ARABIC: Record<TranslationKey, string> = {
   'proof.optionalHint': 'اختياري، لكنه يحميك إذا تم الاعتراض على الطلب',
   'proof.takeRequiredA11y': 'التقط صورة التسليم المطلوبة',
   'proof.takeOptionalA11y': 'التقط صورة تسليم اختيارية',
+  'tier.bronze': 'برونزي',
+  'tier.silver': 'فضي',
+  'tier.gold': 'ذهبي',
+  'tier.title': 'المستوى ال{tier}',
+  'tier.toNextOne': 'توصيلة واحدة للوصول إلى ال{tier}',
+  'tier.toNextMany': '{count} توصيلات للوصول إلى ال{tier}',
+  'tier.top': 'لقد وصلت إلى أعلى مستوى.',
+  'tier.deliveries90d': 'التوصيلات (٩٠ يومًا)',
+  'tier.bonusPerDelivery': 'مكافأة لكل توصيلة',
+  'tier.bonusValue': '+{amount} ج.م',
+  'tier.firstLook': 'أولوية العروض',
+  'tier.firstLookValue': 'أبكر بـ {seconds} ثانية',
+  'tier.firstLookNone': 'ليس بعد',
+  'tier.acceptanceRate': 'نسبة القبول',
+  'tier.loadError': 'تعذر تحميل مستواك.',
+  'kyc.intro':
+    'ارفع صورة واضحة لكل مستند. يراجعها فريقنا خلال يوم عادةً. يمكنك بدء التوصيل بمجرد التحقق من حسابك.',
+  'kyc.statusApproved': 'مقبول',
+  'kyc.statusRejected': 'مرفوض — أعد الرفع',
+  'kyc.statusPending': 'قيد المراجعة',
+  'kyc.permissionTitle': 'الإذن مطلوب',
+  'kyc.permissionBody': 'اسمح بالوصول إلى الصور لرفع مستندك.',
+  'kyc.uploadFailedTitle': 'فشل الرفع',
+  'kyc.uploadFailedBody': 'حاول مرة أخرى.',
+  'kyc.replacePhoto': 'استبدال الصورة',
+  'kyc.uploadPhoto': 'رفع صورة',
+  'kyc.docNationalId': 'بطاقة الرقم القومي',
+  'kyc.docDrivingLicense': 'رخصة القيادة',
+  'kyc.docVehicleReg': 'رخصة المركبة',
+  'history.loadError': 'تعذر تحميل سجلك.',
+  'history.emptyA11y': 'لا توجد توصيلات',
+  'history.emptyTitle': 'لا توجد توصيلات بعد.',
+  'history.emptyBody': 'ستظهر التوصيلات المكتملة هنا.',
+  'history.tip': 'إكرامية {amount} ج.م',
+  'history.amount': '{amount} ج.م',
+  'chat.emptyA11y': 'لا توجد رسائل',
+  'chat.emptyTitle': 'لا توجد رسائل بعد.',
+  'chat.emptyBody': 'ألقِ التحية أو شارك تحديثًا مع العميل.',
+  'chat.placeholder': 'راسل العميل…',
+  'chat.inputA11y': 'رسالة',
+  'chat.sendA11y': 'إرسال الرسالة',
+  'chat.sendError': 'تعذر الإرسال. حاول مرة أخرى.',
+  'chat.roleCustomer': 'العميل',
+  'chat.roleYou': 'أنت',
+  'chat.roleRestaurant': 'المطعم',
 };
 
 const MESSAGES: Record<Locale, Record<TranslationKey, string>> = {
@@ -411,6 +524,17 @@ const MESSAGES: Record<Locale, Record<TranslationKey, string>> = {
 
 export function isSupportedLocale(value: unknown): value is Locale {
   return typeof value === 'string' && SUPPORTED_LOCALES.includes(value as Locale);
+}
+
+/**
+ * Map a platform locale tag ('ar-EG', 'ar_EG', 'en-GB') to a supported locale.
+ * Returns null when the tag matches nothing we ship, so the caller keeps its
+ * own default rather than being handed a wrong guess.
+ */
+export function matchSupportedLocale(tag: unknown): Locale | null {
+  if (typeof tag !== 'string') return null;
+  const language = tag.trim().toLowerCase().split(/[-_]/)[0];
+  return isSupportedLocale(language) ? language : null;
 }
 
 export function translate(
@@ -447,17 +571,25 @@ export type OperationalFailure =
   | 'jobComplete'
   | 'location';
 
+/**
+ * Normalize an error into the shape the patterns below are written in.
+ *
+ * Every server-side failure in this system is raised as a SCREAMING_SNAKE_CASE
+ * sentinel — `ILLEGAL_TRANSITION: preparing -> delivered`, `NOT_YOUR_ASSIGNMENT`,
+ * `ALREADY_RESPONDED` — while the patterns were written as space-separated
+ * prose ('illegal transition', 'not assigned'). Lowercasing alone never bridged
+ * that, so effectively NO branch below ever matched a real server error and
+ * every field failure fell through to the same generic "try again". Folding
+ * separators to spaces is what makes the classifier actually classify.
+ */
 function errorDiagnostic(error: unknown): string {
-  if (typeof error === 'string') return error.toLowerCase();
-  if (
-    error &&
-    typeof error === 'object' &&
-    'message' in error &&
-    typeof error.message === 'string'
-  ) {
-    return error.message.toLowerCase();
-  }
-  return '';
+  const raw =
+    typeof error === 'string'
+      ? error
+      : error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : '';
+  return raw.toLowerCase().replace(/[_-]+/g, ' ');
 }
 
 function containsAny(value: string, patterns: readonly string[]): boolean {
@@ -478,8 +610,11 @@ export function operationalErrorKey(
     'timed out',
     'timeout',
   ]);
+  // 'auth required' is AUTH_REQUIRED, the sentinel every SECURITY DEFINER RPC
+  // raises when auth.uid() is null — i.e. the session died mid-shift.
   const session = containsAny(diagnostic, [
     'not authenticated',
+    'auth required',
     'jwt',
     'session expired',
     'invalid token',
@@ -527,13 +662,24 @@ export function operationalErrorKey(
   if (session) return 'common.sessionExpired';
   if (network) return 'common.connectionRetry';
 
+  // DRIVER_NOT_ELIGIBLE (mig 030) is not a transient failure and not a lost
+  // offer — the account is not verified/active — so it must not be dressed up
+  // as "refresh and try again", which would have the driver retry forever.
+  if (diagnostic.includes('driver not eligible')) return 'home.notEligible';
+
   if (failure === 'offerAccept' || failure === 'offerDecline') {
+    // Sentinels raised by driver_respond (mig 030) plus the sweep's own wording.
     if (
       containsAny(diagnostic, [
         'expired',
         'no longer',
         'already responded',
         'already accepted',
+        'assignment not found',
+        'not your assignment',
+        // ORDER_NOT_AVAILABLE — the order went terminal while the offer sat on
+        // screen. Same remedy for the driver: this one is gone, look at the rest.
+        'not available',
         'reassigned',
         'not offered',
       ])
@@ -544,6 +690,8 @@ export function operationalErrorKey(
   }
 
   if (failure === 'jobUpdate' || failure === 'jobComplete') {
+    if (diagnostic.includes('order not found')) return 'job.notFound';
+    // ILLEGAL_TRANSITION is what advance_order_status raises (mig 103).
     if (
       containsAny(diagnostic, [
         'invalid status',
@@ -554,11 +702,13 @@ export function operationalErrorKey(
     ) {
       return 'job.statusChanged';
     }
+    // NOT_ASSIGNED_DRIVER / NOT_AUTHORIZED — the job moved to someone else.
     if (
       containsAny(diagnostic, [
         'not assigned',
         'reassigned',
         'not authorized',
+        'not your',
         'permission denied',
       ])
     ) {

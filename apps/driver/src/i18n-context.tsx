@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { deviceLocale } from './deviceLocale';
 import {
   DRIVER_LOCALE_STORAGE_KEY,
   isSupportedLocale,
@@ -38,7 +39,10 @@ type I18nValue = {
 const I18nContext = createContext<I18nValue | null>(null);
 
 export function LanguageProvider({ children }: PropsWithChildren) {
-  const [locale, setLocaleState] = useState<Locale>('en');
+  // Seeded from the phone's own language so an Arabic-speaking driver never has
+  // to find the toggle in English first. A stored choice still wins (below):
+  // once the driver has picked, that is the answer.
+  const [locale, setLocaleState] = useState<Locale>(() => deviceLocale() ?? 'en');
   const userSelectedRef = useRef(false);
 
   useEffect(() => {

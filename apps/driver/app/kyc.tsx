@@ -5,6 +5,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { DRIVER_DOC_TYPES, listMyKycDocuments, uploadKycDocument, type KycDocument } from '../src/kyc';
 import { font, radius, spacing, type Palette } from '../src/theme';
 import { useThemeColors } from '../src/themeProvider';
+import { useI18n } from '../src/i18n-context';
+import type { TranslationKey } from '../src/i18n';
 
 /**
  * Takes the palette rather than baking it in at import time. These are TEXT
@@ -18,10 +20,10 @@ function statusColor(status: KycDocument['status'], colors: Palette): string {
     pending: colors.amberText,
   }[status];
 }
-const STATUS_LABEL: Record<KycDocument['status'], string> = {
-  approved: 'Approved',
-  rejected: 'Rejected — re-upload',
-  pending: 'Under review',
+const STATUS_LABEL_KEY: Record<KycDocument['status'], TranslationKey> = {
+  approved: 'kyc.statusApproved',
+  rejected: 'kyc.statusRejected',
+  pending: 'kyc.statusPending',
 };
 
 /**
@@ -33,6 +35,7 @@ const STATUS_LABEL: Record<KycDocument['status'], string> = {
 export default function DriverKyc() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { direction, t } = useI18n();
   const [docs, setDocs] = useState<KycDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -60,7 +63,7 @@ export default function DriverKyc() {
   const pickAndUpload = async (docType: string) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to upload your document.');
+      Alert.alert(t('kyc.permissionTitle'), t('kyc.permissionBody'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -80,7 +83,10 @@ export default function DriverKyc() {
       );
       await load();
     } catch (e) {
-      Alert.alert('Upload failed', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(
+        t('kyc.uploadFailedTitle'),
+        e instanceof Error ? e.message : t('kyc.uploadFailedBody'),
+      );
     } finally {
       setUploading(null);
     }
@@ -95,14 +101,26 @@ export default function DriverKyc() {
       ) : (
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg, paddingBottom: insets.bottom + 40 }}
+          contentContainerStyle={{
+            padding: spacing.xl,
+            gap: spacing.lg,
+            paddingBottom: insets.bottom + 40,
+            direction: direction.direction,
+          }}
         >
-          <Text style={{ color: colors.ink2, fontSize: font.sizes.base, lineHeight: 20 }}>
-            Upload a clear photo of each document. Our team reviews them, usually within a day. You can start delivering
-            once you’re verified.
+          <Text
+            style={{
+              color: colors.ink2,
+              fontSize: font.sizes.base,
+              lineHeight: 20,
+              textAlign: direction.textAlign,
+              writingDirection: direction.writingDirection,
+            }}
+          >
+            {t('kyc.intro')}
           </Text>
 
-          {DRIVER_DOC_TYPES.map(({ key, label }) => {
+          {DRIVER_DOC_TYPES.map(({ key, labelKey }) => {
             const doc = latestFor(key);
             const isUploading = uploading === key;
             return (
@@ -117,10 +135,12 @@ export default function DriverKyc() {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.ink }}>{label}</Text>
+                  <Text style={{ fontSize: font.sizes.base, fontWeight: '700', color: colors.ink }}>
+                    {t(labelKey)}
+                  </Text>
                   {doc && (
                     <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: statusColor(doc.status, colors) }}>
-                      {STATUS_LABEL[doc.status]}
+                      {t(STATUS_LABEL_KEY[doc.status])}
                     </Text>
                   )}
                 </View>
@@ -149,7 +169,7 @@ export default function DriverKyc() {
                         fontSize: font.sizes.base,
                       }}
                     >
-                      {doc ? 'Replace photo' : 'Upload photo'}
+                      {doc ? t('kyc.replacePhoto') : t('kyc.uploadPhoto')}
                     </Text>
                   )}
                 </Pressable>

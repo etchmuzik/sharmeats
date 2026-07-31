@@ -1,14 +1,17 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getMyTier, type DriverTierInfo } from '../src/loyalty';
 import { font, radius, spacing } from '../src/theme';
 import { useThemeColors } from '../src/themeProvider';
+import { useI18n } from '../src/i18n-context';
+import type { TranslationKey } from '../src/i18n';
+import { captureError } from '../src/lib/crash';
 
-const TIER_LABEL: Record<DriverTierInfo['tier'], string> = {
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
+const TIER_LABEL_KEY: Record<DriverTierInfo['tier'], TranslationKey> = {
+  bronze: 'tier.bronze',
+  silver: 'tier.silver',
+  gold: 'tier.gold',
 };
 
 // Rolling-90-day delivery-count thresholds to advance a tier. Verified against
@@ -28,15 +31,26 @@ const NEXT_THRESHOLD: Record<DriverTierInfo['tier'], number | null> = {
 
 export default function Tier() {
   const colors = useThemeColors();
+  const { direction, t } = useI18n();
   const [tier, setTier] = useState<DriverTierInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // my_driver_tier throwing left this screen on a spinner forever — no error,
+  // no retry, nothing to do but force-quit. A tier screen is not worth a
+  // support call.
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
-    const t = await getMyTier();
-    setTier(t);
-    setLoading(false);
-    setRefreshing(false);
+    try {
+      setTier(await getMyTier());
+      setError(false);
+    } catch (e) {
+      captureError(e, { where: 'driver.tier.load' });
+      setError(true);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -53,6 +67,27 @@ export default function Tier() {
     );
   }
 
+  if (error) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xxl }}>
+        <Text style={{ color: colors.ink2, textAlign: 'center', writingDirection: direction.writingDirection }}>
+          {t('tier.loadError')}
+        </Text>
+        <Pressable
+          onPress={() => {
+            setLoading(true);
+            void load();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.retry')}
+          style={{ minHeight: 48, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, paddingHorizontal: spacing.xl }}
+        >
+          <Text style={{ color: colors.onAccent, fontWeight: '700' }}>{t('common.retry')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   const currentTier = tier?.tier ?? 'bronze';
   const nextTier = NEXT_TIER[currentTier];
   const nextThreshold = NEXT_THRESHOLD[currentTier];
@@ -63,7 +98,12 @@ export default function Tier() {
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ paddingTop: spacing.lg, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl }}
+      contentContainerStyle={{
+        paddingTop: spacing.lg,
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.xxxl,
+        direction: direction.direction,
+      }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -74,29 +114,44 @@ export default function Tier() {
         />
       }
     >
-      <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink }}>
-        {TIER_LABEL[currentTier]} tier
+      <Text style={{ fontSize: font.sizes.xxl, fontWeight: '800', color: colors.ink, textAlign: direction.textAlign }}>
+        {t('tier.title', { tier: t(TIER_LABEL_KEY[currentTier]) })}
       </Text>
 
       {nextTier && nextThreshold !== null && (
-        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>
-          {deliveriesToNext} more {deliveriesToNext === 1 ? 'delivery' : 'deliveries'} to {TIER_LABEL[nextTier]}
+        <Text style={{ color: colors.ink2, marginTop: spacing.xs, textAlign: direction.textAlign }}>
+          {t(deliveriesToNext === 1 ? 'tier.toNextOne' : 'tier.toNextMany', {
+            count: deliveriesToNext,
+            tier: t(TIER_LABEL_KEY[nextTier]),
+          })}
         </Text>
       )}
       {!nextTier && (
-        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>You've reached the top tier.</Text>
+        <Text style={{ color: colors.ink2, marginTop: spacing.xs, textAlign: direction.textAlign }}>
+          {t('tier.top')}
+        </Text>
       )}
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
-        <Stat label="Deliveries (90d)" value={String(tier?.deliveriesRolling90d ?? 0)} />
-        <Stat label="Bonus / delivery" value={`+${tier?.bonusPerDeliveryEgp ?? 0} EGP`} />
+        <Stat label={t('tier.deliveries90d')} value={String(tier?.deliveriesRolling90d ?? 0)} />
+        <Stat
+          label={t('tier.bonusPerDelivery')}
+          value={t('tier.bonusValue', { amount: tier?.bonusPerDeliveryEgp ?? 0 })}
+        />
       </View>
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
         <Stat
-          label="First look"
-          value={tier?.firstLookSeconds ? `${tier.firstLookSeconds}s early` : 'Not yet'}
+          label={t('tier.firstLook')}
+          value={
+            tier?.firstLookSeconds
+              ? t('tier.firstLookValue', { seconds: tier.firstLookSeconds })
+              : t('tier.firstLookNone')
+          }
         />
-        <Stat label="Acceptance rate" value={`${Math.round(tier?.acceptanceRateSnapshot ?? 100)}%`} />
+        <Stat
+          label={t('tier.acceptanceRate')}
+          value={`${Math.round(tier?.acceptanceRateSnapshot ?? 100)}%`}
+        />
       </View>
     </ScrollView>
   );

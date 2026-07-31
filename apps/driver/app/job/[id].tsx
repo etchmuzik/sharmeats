@@ -8,10 +8,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { advance, collectCod, fetchJob, type Job } from '../../src/jobs';
+import { advance, collectCod, fetchJob, subscribeJob, type Job } from '../../src/jobs';
 import { isProofRequired, recordProof } from '../../src/proofOfDelivery';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { parseWkbPoint } from '../../src/geo';
@@ -46,6 +46,7 @@ export default function JobScreen() {
   );
   const [capturing, setCapturing] = useState(false);
   const trackingErrorShown = useRef(false);
+  const cancelAnnounced = useRef(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -66,9 +67,44 @@ export default function JobScreen() {
     }
   }, [errorMessage, id, toast]);
 
+  // Refetch whenever the screen regains focus (returning from chat or maps),
+  // matching home.tsx. Cheap next to the cost of acting on a stale order.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  /**
+   * Live order state. Without this the screen fetched once on mount and never
+   * again: no subscription, no focus effect, no polling. A driver waiting at the
+   * counter could not see the kitchen mark the food ready, and a driver whose
+   * order was cancelled under them kept driving it.
+   *
+   * Same reconnect-refetch shape as the rest of the codebase (see
+   * jobs.subscribeOffers / messages.subscribe): supabase-js rejoins after a
+   * network drop but never replays what it missed, so subscribeJob refetches on
+   * (re)connect as well as on every change.
+   */
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!id) return;
+    return subscribeJob(id, (next) => {
+      if (!next) return;
+      setJob(next);
+      setLoadError(null);
+      // A cancellation is the one change the driver must be TOLD about — every
+      // other transition is visible in the timeline they are already watching.
+      // Ref-guarded: the subscription also refetches on every reconnect, and a
+      // toast repeating on each one would be noise, not news.
+      if (
+        (next.status === 'cancelled' || next.status === 'rejected') &&
+        !cancelAnnounced.current
+      ) {
+        cancelAnnounced.current = true;
+        toast(t('job.cancelledUnderYou'), 'error');
+      }
+    });
+  }, [id, t, toast]);
 
   // Ensure streaming matches the job state when the screen mounts/updates:
   // stream between picked_up and out_for_delivery; stop once delivered/terminal.

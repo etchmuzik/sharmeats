@@ -44,26 +44,50 @@ export function configureNotificationHandler(): void {
   });
 }
 
+/**
+ * The Android channel a delivery offer must land on.
+ *
+ * Exported because the SEND side has to name it: FCM routes a notification to
+ * the channel in its payload, and a message with no `channelId` lands on the
+ * app's default channel — DEFAULT importance, no heads-up, and eligible for
+ * Doze deferral, which for a 45-second offer means it may as well not arrive.
+ */
+export const OFFERS_CHANNEL_ID = 'offers';
+
+/**
+ * Create the MAX-importance offers channel.
+ *
+ * Deliberately NOT gated on notification permission: creating a channel needs
+ * no permission on Android, and it must already exist the first time a push
+ * arrives. Registering it only after a granted prompt meant a driver who
+ * deferred the prompt (or granted it from Settings later) had the channel
+ * missing at the moment the first offer landed.
+ */
+async function ensureOffersChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(OFFERS_CHANNEL_ID, {
+    name: 'Delivery offers',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    sound: 'default',
+    enableVibrate: true,
+    // Offers are read on a lock screen at a restaurant counter, and there is
+    // nothing sensitive in "a new delivery offer".
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+}
+
 export async function registerForPush(): Promise<void> {
   if (!isSupabaseConfigured()) return;
   if (Platform.OS === 'web' || !Device.isDevice) return;
   try {
+    await ensureOffersChannel();
+
     let { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') {
       ({ status } = await Notifications.requestPermissionsAsync());
     }
     if (status !== 'granted') return;
-
-    if (Platform.OS === 'android') {
-      // High-importance channel so a new delivery offer surfaces with sound —
-      // a driver must not miss an offer (they expire in ~45s).
-      await Notifications.setNotificationChannelAsync('offers', {
-        name: 'Delivery offers',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        sound: 'default',
-      });
-    }
 
     const projectId = easProjectId();
     const { data: token } = await Notifications.getExpoPushTokenAsync(

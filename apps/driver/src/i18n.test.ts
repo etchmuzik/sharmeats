@@ -3,6 +3,8 @@ import {
   isSupportedLocale,
   localeDirection,
   localizedOperationalError,
+  matchSupportedLocale,
+  operationalErrorKey,
   trackingNotificationCopy,
   translate,
   type TranslationKey,
@@ -76,6 +78,59 @@ describe('driver localization', () => {
     expect(localizedOperationalError('ar', 'avatarUpload', new Error(raw))).toBe(
       'تعذر رفع الصورة. حاول مرة أخرى.',
     );
+  });
+
+  // THE REGRESSION. Every server-side failure in this system is a
+  // SCREAMING_SNAKE_CASE sentinel, while the classifier matched space-separated
+  // prose — so no branch ever fired and every field failure showed the same
+  // generic "try again", regardless of whether the driver needed to refresh,
+  // head home, or call ops.
+  it('classifies the SCREAMING_SNAKE_CASE sentinels the server actually raises', () => {
+    // driver_respond (mig 030)
+    expect(operationalErrorKey('offerAccept', new Error('ALREADY_RESPONDED'))).toBe(
+      'offer.noLongerAvailable',
+    );
+    expect(operationalErrorKey('offerAccept', new Error('NOT_YOUR_ASSIGNMENT'))).toBe(
+      'offer.noLongerAvailable',
+    );
+    expect(operationalErrorKey('offerAccept', new Error('ASSIGNMENT_NOT_FOUND'))).toBe(
+      'offer.noLongerAvailable',
+    );
+    expect(
+      operationalErrorKey('offerAccept', new Error('OFFER_EXPIRED: this offer is no longer available')),
+    ).toBe('offer.noLongerAvailable');
+    expect(
+      operationalErrorKey('offerAccept', new Error('ORDER_NOT_AVAILABLE: this order is already cancelled')),
+    ).toBe('offer.noLongerAvailable');
+    expect(
+      operationalErrorKey(
+        'offerAccept',
+        new Error('DRIVER_NOT_ELIGIBLE: driver must be active and verified to accept'),
+      ),
+    ).toBe('home.notEligible');
+
+    // advance_order_status (mig 103)
+    expect(
+      operationalErrorKey('jobUpdate', new Error('ILLEGAL_TRANSITION: preparing -> delivered')),
+    ).toBe('job.statusChanged');
+    expect(operationalErrorKey('jobUpdate', new Error('NOT_ASSIGNED_DRIVER'))).toBe(
+      'job.assignmentChanged',
+    );
+    expect(operationalErrorKey('jobComplete', new Error('ORDER_NOT_FOUND'))).toBe('job.notFound');
+
+    // Any SECURITY DEFINER RPC with a dead session.
+    expect(operationalErrorKey('jobUpdate', new Error('AUTH_REQUIRED'))).toBe(
+      'common.sessionExpired',
+    );
+  });
+
+  it('maps a device locale tag to a locale we actually ship', () => {
+    expect(matchSupportedLocale('ar-EG')).toBe('ar');
+    expect(matchSupportedLocale('ar_EG')).toBe('ar');
+    expect(matchSupportedLocale('en-GB')).toBe('en');
+    // Nothing we ship: the caller keeps its own default rather than a bad guess.
+    expect(matchSupportedLocale('ru-RU')).toBeNull();
+    expect(matchSupportedLocale(undefined)).toBeNull();
   });
 
   it('builds the Android tracking notification from a background-safe stored locale', () => {

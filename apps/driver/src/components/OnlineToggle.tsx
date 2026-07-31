@@ -14,22 +14,33 @@ import { useI18n } from '../i18n-context';
 type Props = {
   online: boolean;
   verified: boolean;
+  /**
+   * Why this driver is not actually reachable by dispatch, already translated.
+   *
+   * Online is a claim about being REACHABLE, and dispatch (mig 201) only sees
+   * drivers whose phone has reported a position recently. A driver who denied
+   * location saw "You're online · receiving delivery offers" while being
+   * invisible — the worst possible failure, because it is silent and it looks
+   * like success. When this is set the card must never read as receiving work.
+   */
+  warning?: string | null;
   onToggle: (next: boolean) => void;
 };
 
-export function OnlineToggle({ online, verified, onToggle }: Props) {
+export function OnlineToggle({ online, verified, warning, onToggle }: Props) {
   const colors = useThemeColors();
   const { t } = useI18n();
+  const blocked = Boolean(warning);
 
   return (
     <View
       style={{
         margin: spacing.xl,
-        backgroundColor: online ? colors.accentSoft : colors.surface,
+        backgroundColor: blocked ? colors.amberSoft : online ? colors.accentSoft : colors.surface,
         borderRadius: radius.xl,
         borderCurve: 'continuous',
-        borderWidth: online ? 2 : 1,
-        borderColor: online ? colors.accent : colors.line,
+        borderWidth: online || blocked ? 2 : 1,
+        borderColor: blocked ? colors.amber : online ? colors.accent : colors.line,
         padding: spacing.xl,
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -51,17 +62,27 @@ export function OnlineToggle({ online, verified, onToggle }: Props) {
           style={{
             fontSize: font.sizes.xl,
             fontWeight: '700',
-            color: online ? colors.accentDark : colors.ink,
+            // Amber while blocked so the heading never reads as a calm
+            // confirmation of something that isn't true.
+            color: blocked ? colors.amberText : online ? colors.accentDark : colors.ink,
           }}
         >
           {online ? t('home.online') : t('home.offline')}
         </Text>
-        <Text style={{ color: colors.ink2, fontSize: font.sizes.sm }}>
-          {!verified
-            ? t('home.verifyToReceive')
-            : online
-              ? t('home.receivingOffers')
-              : t('home.goOnlineToReceive')}
+        <Text
+          style={{
+            color: blocked ? colors.amberText : colors.ink2,
+            fontSize: font.sizes.sm,
+            fontWeight: blocked ? '700' : '400',
+          }}
+        >
+          {warning
+            ? warning
+            : !verified
+              ? t('home.verifyToReceive')
+              : online
+                ? t('home.receivingOffers')
+                : t('home.goOnlineToReceive')}
         </Text>
       </View>
       <Switch

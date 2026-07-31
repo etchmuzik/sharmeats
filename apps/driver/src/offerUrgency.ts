@@ -37,6 +37,20 @@ export function parseExpiry(expiresAt: string | null): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
+/**
+ * Does this offer carry a deadline we can actually count down to?
+ *
+ * A null (or unparseable) `offer_expires_at` used to render as a card with no
+ * countdown, no auto-dismiss, and a live Accept button — i.e. "valid forever",
+ * which is the one thing an offer can never be. Three such rows were sitting in
+ * production. An offer without a deadline is not a calm offer, it is a BROKEN
+ * offer: the client cannot know whether dispatch still holds it, so the only
+ * honest states are "needs refreshing" and "not acceptable".
+ */
+export function hasUsableExpiry(expiresAt: string | null): boolean {
+  return parseExpiry(expiresAt) !== null;
+}
+
 /** Whole seconds remaining until `targetMs`, clamped at 0. Null passes through. */
 export function secondsRemaining(targetMs: number | null, nowMs: number): number | null {
   if (targetMs === null) return null;

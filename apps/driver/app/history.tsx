@@ -4,10 +4,13 @@ import { getHistory, getMyDriver, type DeliveryHistoryItem } from '../src/jobs';
 import { font, radius, spacing } from '../src/theme';
 import { useThemeColors } from '../src/themeProvider';
 import { Icon } from '../src/components/Icon';
+import { useI18n } from '../src/i18n-context';
+import { captureError } from '../src/lib/crash';
 
 /** Past deliveries for the signed-in driver, newest first (buried feature). */
 export default function HistoryScreen() {
   const colors = useThemeColors();
+  const { direction, locale, t } = useI18n();
   const [items, setItems] = useState<DeliveryHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -23,7 +26,8 @@ export default function HistoryScreen() {
       }
       setItems(await getHistory(driver.id));
       setError(false);
-    } catch {
+    } catch (e) {
+      captureError(e, { where: 'driver.history.load' });
       setError(true);
     } finally {
       setLoading(false);
@@ -42,15 +46,19 @@ export default function HistoryScreen() {
         </View>
       ) : error ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl }}>
-          <Text style={{ color: colors.ink2, textAlign: 'center' }}>Couldn't load your history.</Text>
+          <Text style={{ color: colors.ink2, textAlign: 'center', writingDirection: direction.writingDirection }}>
+            {t('history.loadError')}
+          </Text>
           <Pressable
             onPress={() => {
               setLoading(true);
               load();
             }}
-            style={{ marginTop: spacing.lg, backgroundColor: colors.accent, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.retry')}
+            style={{ marginTop: spacing.lg, minHeight: 48, justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, paddingHorizontal: spacing.xl }}
           >
-            <Text style={{ color: colors.onAccent, fontWeight: '700' }}>Retry</Text>
+            <Text style={{ color: colors.onAccent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -58,7 +66,12 @@ export default function HistoryScreen() {
           data={items}
           keyExtractor={(it) => it.id}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ padding: spacing.xl, gap: spacing.md, flexGrow: 1 }}
+          contentContainerStyle={{
+            padding: spacing.xl,
+            gap: spacing.md,
+            flexGrow: 1,
+            direction: direction.direction,
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -71,12 +84,12 @@ export default function HistoryScreen() {
           }
           ListEmptyComponent={
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl }}>
-              <Icon name="receipt" size={40} color={colors.ink3} accessibilityLabel="No deliveries" />
+              <Icon name="receipt" size={40} color={colors.ink3} accessibilityLabel={t('history.emptyA11y')} />
               <Text style={{ color: colors.ink2, marginTop: spacing.md, textAlign: 'center' }}>
-                No deliveries yet.
+                {t('history.emptyTitle')}
               </Text>
               <Text style={{ color: colors.ink3, marginTop: 2, textAlign: 'center', fontSize: font.sizes.sm }}>
-                Completed deliveries will show up here.
+                {t('history.emptyBody')}
               </Text>
             </View>
           }
@@ -99,12 +112,12 @@ export default function HistoryScreen() {
                   {item.short_code} · {item.restaurant_name}
                 </Text>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.ink3, marginTop: 2 }}>
-                  {formatDate(item.created_at)}
-                  {item.tip > 0 ? ` · ${item.tip} EGP tip` : ''}
+                  {formatDate(item.created_at, locale)}
+                  {item.tip > 0 ? ` · ${t('history.tip', { amount: item.tip })}` : ''}
                 </Text>
               </View>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: '800', color: colors.greenText }}>
-                {item.total} EGP
+                {t('history.amount', { amount: item.total })}
               </Text>
             </View>
           )}
@@ -114,11 +127,15 @@ export default function HistoryScreen() {
   );
 }
 
-/** Compact "Mon 3 Jul, 14:20" style date; empty on parse failure. */
-function formatDate(iso: string): string {
+/**
+ * Compact "Mon 3 Jul, 14:20" style date; empty on parse failure. Formatted in
+ * the app's locale rather than the device's, so an Arabic UI never mixes in an
+ * English weekday.
+ */
+function formatDate(iso: string, locale: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString([], {
+  return d.toLocaleString(locale, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',

@@ -166,6 +166,30 @@ export interface Assignment {
   dropoff_zone: string | null;
   delivery_fee_egp: number;
   tip_egp: number;
+  /**
+   * Status of the underlying order. Null when the embed is missing (the order
+   * row is not readable), which is itself a reason not to show the offer.
+   *
+   * Offers are supposed to die with their order, but three assignments were
+   * sitting in production still flagged `offered` — two of them on CANCELLED
+   * orders. Accepting one takes the driver out of the dispatch pool for a job
+   * that can never be delivered, so the client refuses to present them.
+   */
+  order_status: OrderStatus | null;
+}
+
+/** Statuses after which an order can no longer be picked up by anyone. */
+const TERMINAL_ORDER_STATUSES: readonly OrderStatus[] = ['delivered', 'cancelled', 'rejected'];
+
+/**
+ * Can this offer still be honoured? Fails CLOSED — an offer whose order status
+ * we cannot read is treated as dead, because showing an unacceptable offer costs
+ * the driver a real job while hiding a stale one costs nothing (dispatch_sweep
+ * re-offers live work).
+ */
+export function isOfferLive(assignment: Assignment): boolean {
+  if (assignment.order_status === null) return false;
+  return !TERMINAL_ORDER_STATUSES.includes(assignment.order_status);
 }
 
 /** Distinguishes a genuinely-unlinked account from a transient fetch failure. */
@@ -225,21 +249,30 @@ export async function setOnline(online: boolean): Promise<void> {
 export async function getOffers(driverId: string): Promise<Assignment[]> {
   const { data, error } = await getSupabase()
     .from('order_assignments')
-    .select('id, order_id, status, offer_expires_at, orders(restaurant_name, zone, delivery_fee_egp, tip_egp)')
+    .select(
+      'id, order_id, status, offer_expires_at, orders(restaurant_name, zone, status, delivery_fee_egp, tip_egp)',
+    )
     .eq('driver_id', driverId)
     .eq('status', 'offered');
   if (error) throw error;
-  return (data ?? []).map(toAssignment);
+  // Dropped here rather than in the UI so every consumer (list, Realtime
+  // resync, push refresh) sees the same filtered set.
+  return (data ?? []).map(toAssignment).filter(isOfferLive);
+}
+
+interface OrderEmbed {
+  restaurant_name?: string;
+  zone?: string | null;
+  status?: string;
+  delivery_fee_egp?: number;
+  tip_egp?: number;
 }
 
 /** Normalize a raw assignment row (with nested orders embed) into an Assignment. */
 function toAssignment(row: Record<string, unknown>): Assignment {
   // The embed is many-to-one, so supabase-js should return a single object, but
   // its generated typing sometimes widens the shape to an array — handle both.
-  const embed = row.orders as
-    | { restaurant_name?: string; zone?: string | null; delivery_fee_egp?: number; tip_egp?: number }
-    | { restaurant_name?: string; zone?: string | null; delivery_fee_egp?: number; tip_egp?: number }[]
-    | null;
+  const embed = row.orders as OrderEmbed | OrderEmbed[] | null;
   const ord = Array.isArray(embed) ? embed[0] : embed;
   return {
     id: row.id as string,
@@ -250,6 +283,7 @@ function toAssignment(row: Record<string, unknown>): Assignment {
     dropoff_zone: ord?.zone ?? null,
     delivery_fee_egp: ord?.delivery_fee_egp ?? 0,
     tip_egp: ord?.tip_egp ?? 0,
+    order_status: (ord?.status as OrderStatus | undefined) ?? null,
   };
 }
 
@@ -345,6 +379,46 @@ export async function fetchJob(orderId: string): Promise<Job | null> {
     .maybeSingle();
   if (error) throw error;
   return normalizeJob(data as Record<string, unknown> | null);
+}
+
+/**
+ * Live subscription to ONE order the driver is working, via Realtime
+ * postgres_changes on `orders`.
+ *
+ * The job screen previously fetched once on mount and never again: no
+ * subscription, no focus effect, no polling. So the driver could not learn that
+ * the kitchen had marked the food ready (the screen sat on "waiting for the
+ * restaurant" until they backed out and re-entered), nor that dispatch had
+ * cancelled the order under them — they would keep driving a job that no longer
+ * existed.
+ *
+ * Same shape as subscribeOffers/messages.subscribe: drop any stale same-named
+ * channel first (supabase-js reuses channels by name and .on() after subscribe()
+ * throws), refetch on every change AND once on (re)connect, because supabase-js
+ * rejoins after a drop without replaying what was missed.
+ */
+export function subscribeJob(orderId: string, onChange: (job: Job | null) => void): () => void {
+  const sb = getSupabase();
+  const name = `driver:order:${orderId}`;
+  for (const existing of sb.getChannels()) {
+    if (existing.topic === `realtime:${name}`) sb.removeChannel(existing);
+  }
+  const refresh = () => {
+    fetchJob(orderId).then(onChange).catch(() => {});
+  };
+  const channel = sb
+    .channel(name)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
+      () => refresh(),
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') refresh();
+    });
+  return () => {
+    sb.removeChannel(channel);
+  };
 }
 
 export async function respondToOffer(assignmentId: string, accept: boolean): Promise<void> {

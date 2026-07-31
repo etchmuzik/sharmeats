@@ -1,3 +1,4 @@
+import type { TranslationKey } from './i18n';
 import { getSupabase } from './supabase';
 
 export type KycStatus = 'pending' | 'approved' | 'rejected';
@@ -11,11 +12,13 @@ export interface KycDocument {
 }
 
 // The documents a driver must provide to be verified. doc_type strings match
-// what admins expect in the review queue (mig 075).
-export const DRIVER_DOC_TYPES: { key: string; label: string }[] = [
-  { key: 'national_id', label: 'National ID' },
-  { key: 'driving_license', label: 'Driving licence' },
-  { key: 'vehicle_reg', label: 'Vehicle registration' },
+// what admins expect in the review queue (mig 075); the label is a translation
+// key rather than English text — this list is rendered to drivers, and the
+// verification screen is the first thing a new rider ever sees.
+export const DRIVER_DOC_TYPES: { key: string; labelKey: TranslationKey }[] = [
+  { key: 'national_id', labelKey: 'kyc.docNationalId' },
+  { key: 'driving_license', labelKey: 'kyc.docDrivingLicense' },
+  { key: 'vehicle_reg', labelKey: 'kyc.docVehicleReg' },
 ];
 const DRIVER_DOC_TYPE_KEYS = new Set(DRIVER_DOC_TYPES.map(({ key }) => key));
 const MAX_KYC_FILE_BYTES = 5 * 1024 * 1024;

@@ -5,6 +5,7 @@ import {
   WARNING_S,
   barFraction,
   formatCountdown,
+  hasUsableExpiry,
   isExpired,
   nextOfferWindow,
   parseExpiry,
@@ -33,6 +34,25 @@ describe('parseExpiry — malformed timestamps must fail closed', () => {
     for (const bad of ['not-a-date', '2026-13-45T99:99:99Z', 'null', '{}']) {
       expect(parseExpiry(bad), `input: ${bad}`).toBeNull();
     }
+  });
+});
+
+describe('hasUsableExpiry — an offer without a deadline is broken, not calm', () => {
+  it('accepts a real timestamp', () => {
+    expect(hasUsableExpiry(at(45))).toBe(true);
+    // Already past is still USABLE: it says, definitively, "expired".
+    expect(hasUsableExpiry(at(-45))).toBe(true);
+  });
+
+  // The production case: three assignments were sitting in `offered` with a
+  // NULL offer_expires_at, and the card rendered them with no countdown, no
+  // auto-dismiss and a live Accept button — i.e. valid forever. Two were on
+  // CANCELLED orders, and accepting one takes the driver out of the pool for a
+  // job that can never be delivered.
+  it('rejects null and unparseable expiries', () => {
+    expect(hasUsableExpiry(null)).toBe(false);
+    expect(hasUsableExpiry('')).toBe(false);
+    expect(hasUsableExpiry('not-a-date')).toBe(false);
   });
 });
 

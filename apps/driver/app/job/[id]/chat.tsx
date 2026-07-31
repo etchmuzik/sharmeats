@@ -17,6 +17,8 @@ import { font, radius, spacing } from '../../../src/theme';
 import { useThemeColors } from '../../../src/themeProvider';
 import { Icon } from '../../../src/components/Icon';
 import { useToast } from '../../../src/components/Toast';
+import { useI18n } from '../../../src/i18n-context';
+import type { TranslationKey } from '../../../src/i18n';
 
 /**
  * In-app chat between the driver and the other order parties (customer /
@@ -29,6 +31,7 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { toast } = useToast();
+  const { direction, locale, t } = useI18n();
   const myId = session?.user?.id ?? null;
 
   const [messages, setMessages] = useState<OrderMessage[]>([]);
@@ -77,11 +80,11 @@ export default function ChatScreen() {
       // The realtime INSERT will refetch the thread; no optimistic append needed.
     } catch (e) {
       setDraft(body); // restore so the driver doesn't lose their text
-      toast(e instanceof Error ? e.message : "Couldn't send. Try again.", 'error');
+      toast(e instanceof Error ? e.message : t('chat.sendError'), 'error');
     } finally {
       setSending(false);
     }
-  }, [id, draft, sending, toast]);
+  }, [id, draft, sending, t, toast]);
 
   return (
     <KeyboardAvoidingView
@@ -106,21 +109,22 @@ export default function ChatScreen() {
             paddingVertical: spacing.lg,
             gap: spacing.sm,
             flexGrow: 1,
+            direction: direction.direction,
           }}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.xxxl }}>
-              <Icon name="chat" size={40} color={colors.ink3} accessibilityLabel="No messages" />
+              <Icon name="chat" size={40} color={colors.ink3} accessibilityLabel={t('chat.emptyA11y')} />
               <Text style={{ color: colors.ink2, marginTop: spacing.md, textAlign: 'center' }}>
-                No messages yet.
+                {t('chat.emptyTitle')}
               </Text>
               <Text style={{ color: colors.ink3, marginTop: 2, textAlign: 'center', fontSize: font.sizes.sm }}>
-                Say hi or share an update with the customer.
+                {t('chat.emptyBody')}
               </Text>
             </View>
           }
-          renderItem={({ item }) => <Bubble message={item} mine={isMine(item, myId)} />}
+          renderItem={({ item }) => <Bubble message={item} mine={isMine(item, myId)} locale={locale} />}
         />
       )}
 
@@ -141,12 +145,14 @@ export default function ChatScreen() {
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder="Message the customer…"
+          placeholder={t('chat.placeholder')}
           placeholderTextColor={colors.ink3}
           multiline
-          accessibilityLabel="Message"
+          accessibilityLabel={t('chat.inputA11y')}
           style={{
             flex: 1,
+            textAlign: direction.textAlign,
+            writingDirection: direction.writingDirection,
             maxHeight: 120,
             minHeight: 44,
             backgroundColor: colors.bgSoft,
@@ -162,7 +168,7 @@ export default function ChatScreen() {
           onPress={onSend}
           disabled={sending || draft.trim().length === 0}
           accessibilityRole="button"
-          accessibilityLabel="Send message"
+          accessibilityLabel={t('chat.sendA11y')}
           style={{
             width: 44,
             height: 44,
@@ -189,13 +195,22 @@ function isMine(m: OrderMessage, myId: string | null): boolean {
   return m.sender_role === 'driver';
 }
 
-function Bubble({ message, mine }: { message: OrderMessage; mine: boolean }) {
+function Bubble({
+  message,
+  mine,
+  locale,
+}: {
+  message: OrderMessage;
+  mine: boolean;
+  locale: string;
+}) {
   const colors = useThemeColors();
+  const { t } = useI18n();
   return (
     <View style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
       {!mine && (
         <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, marginBottom: 2, marginLeft: spacing.sm }}>
-          {roleLabel(message.sender_role)}
+          {t(roleLabelKey(message.sender_role))}
         </Text>
       )}
       <View
@@ -216,19 +231,21 @@ function Bubble({ message, mine }: { message: OrderMessage; mine: boolean }) {
         </Text>
       </View>
       <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, marginTop: 2, marginHorizontal: spacing.sm }}>
-        {formatTime(message.created_at)}
+        {formatTime(message.created_at, locale)}
       </Text>
     </View>
   );
 }
 
-function roleLabel(role: OrderMessage['sender_role']): string {
-  return { customer: 'Customer', driver: 'You', restaurant: 'Restaurant' }[role];
+function roleLabelKey(role: OrderMessage['sender_role']): TranslationKey {
+  return { customer: 'chat.roleCustomer', driver: 'chat.roleYou', restaurant: 'chat.roleRestaurant' }[
+    role
+  ] as TranslationKey;
 }
 
-/** Short HH:MM local time for a message timestamp; empty on parse failure. */
-function formatTime(iso: string): string {
+/** Short HH:MM time for a message timestamp, in the app's locale; empty on parse failure. */
+function formatTime(iso: string, locale: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }

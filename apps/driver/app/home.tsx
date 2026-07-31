@@ -25,7 +25,13 @@ import {
   type Job,
 } from '../src/jobs';
 import * as Notifications from 'expo-notifications';
-import { isStreaming, pingOnce, stopStreaming } from '../src/location';
+import {
+  pingOnce,
+  startIdleHeartbeat,
+  stopIdleHeartbeat,
+  stopStreaming,
+  type LocationBlock,
+} from '../src/location';
 import { unreadCount } from '../src/messages';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
 import { font, radius, spacing } from '../src/theme';
@@ -42,6 +48,7 @@ import { ThemeToggle } from '../src/components/ThemeToggle';
 import { notifyError, notifySuccess, tapLight, tapMedium } from '../src/lib/haptics';
 import { LanguageToggle } from '../src/components/LanguageToggle';
 import { useI18n } from '../src/i18n-context';
+import type { TranslationKey } from '../src/i18n';
 import { captureError } from '../src/lib/crash';
 
 export default function Home() {
@@ -61,6 +68,8 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   // [H-BIZ1] true = a fetch failed (network), distinct from "not a driver".
   const [loadError, setLoadError] = useState(false);
+  // Why this driver is unreachable by dispatch despite the switch, or null.
+  const [locationBlock, setLocationBlock] = useState<LocationBlock | null>(null);
   const onlineRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -109,15 +118,38 @@ export default function Home() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (state === 'active') {
-        // Re-seed current_geo (status preserved — pass nothing).
-        pingOnce().catch(() => {});
-        // If a delivery stream is active, refresh the active-job view so any
-        // status change (or reassignment) while backgrounded is reflected.
-        if (isStreaming()) load();
+        // Re-seed current_geo (status preserved — pass nothing) and re-check
+        // that location still works: permission can be revoked from Settings
+        // while we are backgrounded, which would silently drop this driver out
+        // of dispatch with the switch still showing green.
+        void pingOnce().then((result) => {
+          if (!onlineRef.current) return;
+          setLocationBlock(result === 'ok' ? null : result);
+        });
+        // Reconcile unconditionally, not only while streaming: load() re-reads
+        // drivers.status, which is the only thing that can settle a
+        // disagreement between the switch on screen and the row in the DB.
+        load();
       }
     });
     return () => sub.remove();
   }, [load]);
+
+  // [P1] Idle heartbeat. Between jobs nothing else pings, so mig 201's 300s
+  // freshness window would quietly drop an online driver out of dispatch — and
+  // the push that would tell them is the push that stops arriving. Only runs
+  // while online; the location module skips a tick if a delivery is already
+  // streaming its own pings.
+  useEffect(() => {
+    if (!online) {
+      stopIdleHeartbeat();
+      return;
+    }
+    startIdleHeartbeat((result) => {
+      setLocationBlock(result === 'ok' ? null : result);
+    });
+    return stopIdleHeartbeat;
+  }, [online]);
 
   // Live offer sync via Realtime (order_assignments), independent of push. Makes
   // a new offer appear the instant dispatch creates it even when the app is open
@@ -146,15 +178,66 @@ export default function Home() {
     return () => sub.remove();
   }, [load]);
 
+  /**
+   * Force the app and `drivers.status` back into agreement.
+   *
+   * A failed toggle used to revert only the LOCAL switch, leaving the row saying
+   * one thing and the driver believing another with nothing to resolve it — a
+   * driver "online" in the app but offline in the DB earns nothing all shift and
+   * has no way to find out. Re-assert the intended value, then let a fresh read
+   * of the row have the final word over both.
+   */
+  const reconcileOnline = useCallback(async (intended: boolean) => {
+    try {
+      await setOnline(intended);
+    } catch {
+      // The read below is the real reconciliation; a failed compensating write
+      // just means the DB keeps whatever it already had.
+    }
+    try {
+      const d = await getMyDriver();
+      if (d) {
+        setDriver(d);
+        setOnlineState(d.status !== 'offline');
+        onlineRef.current = d.status !== 'offline';
+        return;
+      }
+    } catch (e) {
+      captureError(e, { where: 'driver.home.reconcileOnline' });
+    }
+    setOnlineState(intended);
+    onlineRef.current = intended;
+  }, []);
+
   async function toggleOnline(next: boolean) {
     tapMedium();
+    const previous = onlineRef.current;
     setOnlineState(next);
     onlineRef.current = next;
     try {
-      await setOnline(next);
       if (next) {
-        await pingOnce('online');
+        // Prove the phone can actually report a position BEFORE claiming to be
+        // online. Since mig 201, dispatch ignores any driver without a recent
+        // ping, so a driver with denied permission or device location off is
+        // invisible no matter what the status column says. pingOnce seeds
+        // current_geo + last_ping_at + status in one call, so a successful ping
+        // IS going online; a failed one must not be dressed up as success.
+        const result = await pingOnce('online');
+        if (result !== 'ok') {
+          setLocationBlock(result);
+          setOnlineState(false);
+          onlineRef.current = false;
+          // Best-effort: undo any partial claim so the row can't say online.
+          await reconcileOnline(false);
+          notifyError();
+          toast(locationBlockMessage(result, t), 'error');
+          return;
+        }
+        setLocationBlock(null);
+        await setOnline(true);
       } else {
+        setLocationBlock(null);
+        await setOnline(false);
         // [H-DRV3] Going offline MUST stop any running location stream. Otherwise
         // its throttled driver_ping keeps writing (and, before this fix, re-stamped
         // status back to on_job), so the driver could never actually go offline.
@@ -162,11 +245,10 @@ export default function Home() {
         await pingOnce('offline');
       }
     } catch (e) {
-      setOnlineState(!next); // revert on failure
-      onlineRef.current = !next;
       captureError(e, { where: 'driver.home.toggleOnline', next });
       notifyError();
       toast(errorMessage('online', e), 'error');
+      await reconcileOnline(previous);
     }
   }
 
@@ -174,7 +256,10 @@ export default function Home() {
   // the same device doesn't receive the previous account's offers.
   async function handleSignOut() {
     // [H-DRV3] Stop the stream first so a sign-out mid-delivery doesn't leave the
-    // GPS watcher + pings running for the signed-out account.
+    // GPS watcher + pings running for the signed-out account. Same for the idle
+    // heartbeat: explicit rather than relying on the unmount cleanup, because a
+    // ping loop outliving its session is exactly the class of bug this fixes.
+    stopIdleHeartbeat();
     await stopStreaming();
     await unregisterPush();
     await signOut();
@@ -285,6 +370,12 @@ export default function Home() {
     );
   }
 
+  // The switch being on is not the same as being reachable: dispatch only sees
+  // drivers with a fresh position. Every "you're ready for work" affordance
+  // below reads this, not `online`, so the empty state can never promise offers
+  // that cannot arrive.
+  const receivingOffers = online && locationBlock === null;
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
@@ -330,7 +421,12 @@ export default function Home() {
         <ThemeToggle />
       </View>
 
-      <OnlineToggle online={online} verified={driver.is_verified} onToggle={toggleOnline} />
+      <OnlineToggle
+        online={online}
+        verified={driver.is_verified}
+        warning={locationBlock ? locationBlockMessage(locationBlock, t) : null}
+        onToggle={toggleOnline}
+      />
 
       {earnings && (
         <>
@@ -357,7 +453,7 @@ export default function Home() {
         <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink2, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: spacing.md }}>
           {offers.length > 0
             ? t('home.newOffers', { count: offers.length })
-            : online
+            : receivingOffers
               ? t('home.waitingOffers')
               : t('home.offersPaused')}
         </Text>
@@ -371,7 +467,7 @@ export default function Home() {
         {offers.length === 0 && (
           <View
             accessibilityLabel={
-              online
+              receivingOffers
                 ? t('home.onlineEmptyA11y')
                 : t('home.offlineEmptyA11y')
             }
@@ -388,12 +484,16 @@ export default function Home() {
               gap: spacing.xs,
             }}
           >
-            <Icon name={online ? 'bell' : 'quiet'} size={28} color={online ? colors.accent : colors.ink3} />
+            <Icon
+              name={receivingOffers ? 'bell' : 'quiet'}
+              size={28}
+              color={receivingOffers ? colors.accent : colors.ink3}
+            />
             <Text style={{ marginTop: spacing.xs, color: colors.ink, fontSize: font.sizes.base, fontWeight: '700', textAlign: 'center' }}>
-              {online ? t('home.onlineEmptyTitle') : t('home.offlineEmptyTitle')}
+              {receivingOffers ? t('home.onlineEmptyTitle') : t('home.offlineEmptyTitle')}
             </Text>
             <Text style={{ color: colors.ink2, fontSize: font.sizes.sm, textAlign: 'center' }}>
-              {online ? t('home.onlineEmptyBody') : t('home.offlineEmptyBody')}
+              {receivingOffers ? t('home.onlineEmptyBody') : t('home.offlineEmptyBody')}
             </Text>
           </View>
         )}
@@ -444,6 +544,20 @@ export default function Home() {
       </Pressable>
     </ScrollView>
   );
+}
+
+/**
+ * Why dispatch cannot see this driver, in their language. Separated because the
+ * two causes need different remedies: one is an app permission, the other is a
+ * device setting, and "location error" tells a driver neither.
+ */
+function locationBlockMessage(
+  result: LocationBlock,
+  t: (key: TranslationKey) => string,
+): string {
+  return result === 'permission_denied'
+    ? t('home.locationBlockedPermission')
+    : t('home.locationBlockedUnavailable');
 }
 
 /** A labelled row that pushes a secondary screen. 48pt target, chevron affordance. */
