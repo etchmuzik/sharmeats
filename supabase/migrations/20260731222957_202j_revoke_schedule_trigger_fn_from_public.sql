@@ -1,0 +1,39 @@
+-- ============================================================================
+-- TRANSCRIPT OF AN ALREADY-APPLIED MIGRATION — DO NOT RE-APPLY TO PRODUCTION.
+--
+--   prod ledger version : 20260731222957
+--   prod ledger name    : 202j_revoke_schedule_trigger_fn_from_public
+--   applied to prod     : 2026-07-31 (directly, with no file in this repo)
+--   reconstructed       : 2026-08-01, from
+--                         supabase_migrations.schema_migrations.statements
+--
+-- WHY THIS FILE EXISTS. On 2026-07-31 eleven migrations were applied straight to
+-- production and never committed. The repo therefore no longer described the
+-- database. This file is a byte-exact copy of what production recorded, written
+-- back so that (a) the repo describes production again, and (b) a fresh database
+-- rebuilt by replaying supabase/migrations/ ends up in the same state.
+--
+-- WHAT IT IS NOT. It is not a change. Production ALREADY has everything below.
+-- Do not point this at production, do not "re-run it to be sure", and do not
+-- edit it to fix a defect — a later, higher-numbered migration does that. Editing
+-- a transcript makes the repo lie about production a second time.
+--
+-- ORDERING MATTERS HERE. This is the tail of the 2026-07-31 series: it revokes
+-- from a function CREATED by 20260731222146 (202g). It must replay after that
+-- file, which the filename ordering guarantees.
+--
+-- The body below this marker is reproduced verbatim, including its own original
+-- header comments (which refer to a "202" file that was never committed) and its
+-- own numbering claims. Those are left untouched on purpose: this records what
+-- ran, not what we wish had run. Verified byte-for-byte against the prod ledger
+-- (md5 e3ee2c80354cf0f101fc42e582b8869a).
+-- ============================================================================
+-- ===== BEGIN TRANSCRIPT =====
+-- House rule 3 follow-up for mig 202 F-14. orders_reject_unsupported_schedule()
+-- is a TRIGGER function, so it is invoked by the trigger regardless of grants
+-- and a direct call cannot do anything (it returns type `trigger`) — but it
+-- shipped without an explicit REVOKE and therefore inherited the default PUBLIC
+-- EXECUTE, which the security advisor correctly flagged as a new
+-- anon_security_definer_function_executable. Every other function in 202 states
+-- its grants; this one now does too.
+revoke all on function public.orders_reject_unsupported_schedule() from public, anon, authenticated;
