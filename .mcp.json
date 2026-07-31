@@ -3,6 +3,16 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=ilqpsebcfbaoaogimhud"
+    },
+    "hostinger-hosting": {
+      "command": "npx",
+      "args": ["--package=hostinger-api-mcp@latest", "hostinger-hosting-mcp"],
+      "env": { "HOSTINGER_API_TOKEN": "${HOSTINGER_API_TOKEN}" }
+    },
+    "hostinger-dns": {
+      "command": "npx",
+      "args": ["--package=hostinger-api-mcp@latest", "hostinger-dns-mcp"],
+      "env": { "HOSTINGER_API_TOKEN": "${HOSTINGER_API_TOKEN}" }
     }
   }
 }
