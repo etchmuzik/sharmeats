@@ -18,7 +18,13 @@ vi.mock('@sentry/react-native', () => ({
 }));
 vi.mock('posthog-react-native', () => ({ default: class {} }));
 
-import { buildProperties, isBannedProperty, setAnalyticsContext, __resetAnalyticsContext } from './analytics';
+import {
+  buildProperties,
+  isBannedProperty,
+  setAnalyticsContext,
+  normaliseError,
+  __resetAnalyticsContext,
+} from './analytics';
 
 beforeEach(() => {
   __resetAnalyticsContext();
@@ -171,5 +177,71 @@ describe('common property enrichment', () => {
     const props = buildProperties();
     expect(props.locale).toBe('de');
     expect(props.display_currency).toBe('USD');
+  });
+});
+
+describe('normaliseError', () => {
+  // The bug this guards against: Sentry serialises non-Error values as
+  // "Object captured as exception with keys: code, details, hint, message",
+  // discarding the message and grouping unrelated failures together.
+  it('turns a Supabase PostgrestError into an Error carrying its message', () => {
+    const pg = {
+      code: '23505',
+      details: 'Key (phone)=(+201234567890) already exists.',
+      hint: null,
+      message: 'duplicate key value violates unique constraint',
+    };
+    const { error, extra } = normaliseError(pg);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe('duplicate key value violates unique constraint');
+    // Grouping key: distinct Postgres codes must not share one issue.
+    expect(error.name).toBe('PostgrestError 23505');
+    // Nothing is lost — details/hint survive as context.
+    expect(extra).toEqual(pg);
+  });
+
+  it('gives different Postgres codes different grouping names', () => {
+    const mk = (code: string) => ({ code, details: null, hint: null, message: 'boom' });
+    expect(normaliseError(mk('23505')).error.name).toBe('PostgrestError 23505');
+    expect(normaliseError(mk('PGRST202')).error.name).toBe('PostgrestError PGRST202');
+  });
+
+  it('passes real Errors through untouched so their stack survives', () => {
+    const original = new TypeError('nope');
+    const { error, extra } = normaliseError(original);
+    expect(error).toBe(original);
+    expect(error.name).toBe('TypeError');
+    expect(extra).toBeUndefined();
+  });
+
+  it('does not mislabel an unrelated object that happens to have a code', () => {
+    const { error, extra } = normaliseError({ code: 'X1', message: 'not postgrest' });
+    expect(error.message).toBe('not postgrest');
+    expect(error.name).toBe('Error');
+    expect(extra).toEqual({ code: 'X1', message: 'not postgrest' });
+  });
+
+  it('handles a message-less object by serialising it', () => {
+    const { error } = normaliseError({ a: 1 });
+    expect(error.message).toBe('{"a":1}');
+  });
+
+  it('survives a circular object rather than throwing', () => {
+    const circular: Record<string, unknown> = { a: 1 };
+    circular.self = circular;
+    expect(() => normaliseError(circular)).not.toThrow();
+    expect(normaliseError(circular).error).toBeInstanceOf(Error);
+  });
+
+  it.each([
+    ['string', 'plain failure', 'plain failure'],
+    ['null', null, 'null'],
+    ['undefined', undefined, 'undefined'],
+    ['number', 42, '42'],
+  ])('wraps a bare %s', (_label, input, expected) => {
+    const { error } = normaliseError(input);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe(expected);
   });
 });

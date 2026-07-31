@@ -264,7 +264,69 @@ export function resetAnalyticsUser(): void {
   if (SENTRY_DSN) Sentry.setUser(null);
 }
 
+/**
+ * Sentry only understands Error instances. Hand it anything else and it stores
+ * "Object captured as exception with keys: code, details, hint, message" — the
+ * KEY NAMES, not the values — so the actual message is discarded and every
+ * unrelated failure with that shape groups into a single issue.
+ *
+ * That shape is Supabase's PostgrestError, which is a plain object, not an
+ * Error. Since every data call in this app goes through supabase-js, that was
+ * most of what reached Sentry. Observed in production 2026-07-31: one issue,
+ * no message, unrelated causes merged together.
+ *
+ * Errors pass through untouched, so a real stack and type survive. Everything
+ * else is wrapped in an Error carrying the message, and the original fields
+ * ride along as `extra` rather than being dropped on the floor.
+ *
+ * NOTE: four other surfaces have their own copy of captureError
+ * (apps/{driver,restaurant}/src/lib/crash.ts, apps/{admin,merchant}-web/src/lib/sentry.ts).
+ * They had the identical bug and carry the identical fix.
+ */
+export function normaliseError(error: unknown): {
+  error: Error;
+  extra?: Record<string, unknown>;
+} {
+  if (error instanceof Error) return { error };
+  if (typeof error === 'string') return { error: new Error(error) };
+
+  if (error !== null && typeof error === 'object') {
+    const rec = error as Record<string, unknown>;
+    const message =
+      typeof rec.message === 'string' && rec.message ? rec.message : safeStringify(error);
+    const wrapped = new Error(message);
+
+    // PostgrestError is {code, details, hint, message}. Postgres/PostgREST codes
+    // are a bounded set ('23505', 'PGRST202', ...), so folding the code into the
+    // name gives Sentry a stable grouping key per KIND of failure — which is the
+    // whole point, since the bug being fixed is everything sharing one bucket.
+    // Matched on shape rather than on `code` alone, so an unrelated object that
+    // happens to carry a `code` is not mislabelled.
+    if (typeof rec.code === 'string' && rec.code && 'details' in rec && 'hint' in rec) {
+      wrapped.name = `PostgrestError ${rec.code}`;
+    }
+    return { error: wrapped, extra: rec };
+  }
+
+  // null, undefined, numbers, booleans, symbols.
+  return { error: new Error(String(error)) };
+}
+
+/** JSON.stringify throws on circular references; a logger must never throw. */
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function captureError(error: unknown, context?: Record<string, unknown>): void {
-  if (SENTRY_DSN) Sentry.captureException(error, context ? { extra: context } : undefined);
-  else if (__DEV__) console.warn('[analytics] error (Sentry off):', error);
+  const { error: normalised, extra } = normaliseError(error);
+  // context wins on collision: the call site knows more than the payload does.
+  const merged = { ...extra, ...context };
+  const hasExtra = Object.keys(merged).length > 0;
+
+  if (SENTRY_DSN) Sentry.captureException(normalised, hasExtra ? { extra: merged } : undefined);
+  else if (__DEV__) console.warn('[analytics] error (Sentry off):', normalised.message, merged);
 }
