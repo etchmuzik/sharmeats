@@ -46,6 +46,22 @@
  * older compiler demanded `var`. So the patch is correct where it is needed and
  * inert where it is not, and no machine needs different settings from another.
  *
+ * THIRD REWRITE, same root cause, found the same way (xcresult from the third
+ * failed build — the errors converged 16 -> 6 -> 1):
+ *
+ *   JavaScriptCodable+Date.swift:53:50: error: type of expression is ambiguous
+ *   without a type annotation
+ *
+ * points at `abs(milliseconds) <= maxJavaScriptDateMilliseconds`, both sides
+ * plainly Double. The ambiguity is `abs` itself: this package compiles with
+ * C++ interop (it imports facebook.jsi), which drags the C library's abs
+ * overload family into scope alongside Swift's generic abs. Xcode 26.2
+ * resolves that pile-up; 26.0.1 gives up. `Double.magnitude` is the concrete,
+ * overload-free spelling of the same value (NaN stays NaN and compares false,
+ * identical to abs), so the guard's behaviour is unchanged. Exact-string
+ * match, one occurrence in the whole package — if upstream reshapes the line,
+ * this rewrite silently no-ops and the weak-let count below still reports.
+ *
  * REMOVE THIS when expo-modules-jsi stops using `weak let`, or when the repo's
  * minimum supported Xcode is 26.2+. It logs and skips when it finds nothing to
  * patch, so a stale registration is noisy rather than dangerous.
@@ -100,6 +116,18 @@ module.exports = function withWeakLetFix(config) {
 
       let patchedFiles = 0;
       let patchedSites = 0;
+
+      // Rewrite 2: the C++-interop `abs` ambiguity in the Date decoder.
+      const dateFile = path.join(sourcesDir, 'Coding', 'JavaScriptCodable+Date.swift');
+      if (fs.existsSync(dateFile)) {
+        const src = fs.readFileSync(dateFile, 'utf8');
+        const AMBIGUOUS = 'abs(milliseconds) <= maxJavaScriptDateMilliseconds';
+        const CONCRETE = 'milliseconds.magnitude <= maxJavaScriptDateMilliseconds';
+        if (src.includes(AMBIGUOUS)) {
+          fs.writeFileSync(dateFile, src.replace(AMBIGUOUS, CONCRETE), 'utf8');
+          console.log('[withWeakLetFix] rewrote abs() -> .magnitude in JavaScriptCodable+Date.swift');
+        }
+      }
 
       for (const file of swiftFilesIn(sourcesDir)) {
         const before = fs.readFileSync(file, 'utf8');
