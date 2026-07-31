@@ -110,9 +110,34 @@ jobs:
       - name: Verify the live site took the deploy
         if: steps.creds.outputs.configured == 'true'
         run: |
-          # The build stamps a version manifest (landing prebuild). Fetching the
-          # homepage proves the server answers; a hard fail here means the
-          # upload landed somewhere wrong — better a red deploy than a silent one.
+          # A 200 ON THE HOMEPAGE PROVES NOTHING. That was this step's original
+          # check, and it was worthless for the failure it was meant to catch:
+          # if HOSTINGER_FTP_SERVER_DIR points somewhere wrong, the upload lands
+          # in a directory nobody serves and the OLD site keeps answering 200 —
+          # so the deploy goes green while production is untouched. That is the
+          # same silent-staleness this entire workflow was written to kill.
+          #
+          # The build stamps out/version.json with the commit being built, so
+          # ask the live site which commit it is running and require it to be
+          # THIS one. Only bytes that actually landed where Apache serves them
+          # can satisfy that.
           code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 https://sharmeats.online/)
           echo "sharmeats.online → $code"
           [ "$code" = "200" ] || exit 1
+
+          # Shared hosting may sit behind a cache; a couple of retries is the
+          # difference between a real failure and a flaky one.
+          for attempt in 1 2 3; do
+            live=$(curl -sS --max-time 30 -H 'Cache-Control: no-cache' \
+                     "https://sharmeats.online/version.json?cb=${GITHUB_SHA}" \
+                   | jq -r '.commit // empty' 2>/dev/null || true)
+            [ "$live" = "$GITHUB_SHA" ] && break
+            echo "attempt $attempt: live=/version.json commit=${live:-<none>}, want $GITHUB_SHA"
+            sleep 10
+          done
+
+          if [ "$live" != "$GITHUB_SHA" ]; then
+            echo "::error title=Deploy did not land::sharmeats.online is serving commit '${live:-<no version.json>}' but this run deployed $GITHUB_SHA. The upload most likely went to the wrong directory — check the HOSTINGER_FTP_SERVER_DIR variable against the FTP account's actual root (a domain-scoped account may already BE public_html, in which case the default nests it as public_html/public_html)."
+            exit 1
+          fi
+          echo "✓ sharmeats.online is serving $GITHUB_SHA"

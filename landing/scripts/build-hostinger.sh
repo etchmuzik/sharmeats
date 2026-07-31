@@ -19,6 +19,28 @@ APP="src/app"
 QUARANTINE=".hostinger-quarantine"
 PAGES=("screenshots" "brand")
 
+# ---------------------------------------------------------------------------
+# Version manifest — FIRST, and deliberately so on both counts.
+#
+# WHY IT IS HERE AT ALL: this script runs `npx next build`, which does NOT fire
+# npm's `prebuild` hook. So the one build path that actually produces
+# production skipped the manifest entirely, while `npm run build` — the path
+# nobody deploys from — wrote it. `landing/public/version.json` is gitignored,
+# so on a clean CI checkout the deployed site would have carried NO
+# /version.json at all, and locally it shipped whatever stale copy was lying
+# around: on 2026-07-30 the live site served commit b70b806 while HEAD was four
+# commits further on. A version file that is believed and wrong is worse than
+# none, which is the exact thing write-version-manifest.mjs exists to prevent.
+#
+# WHY BEFORE THE QUARANTINE: the generator refuses to write a manifest from a
+# dirty tree when CI=true, and quarantining moves two directories out of
+# src/app — which makes the tree dirty. Generating after the mv would fail
+# every CI deploy with a message about uncommitted changes that nobody
+# uncommitted. Order is load-bearing; keep it.
+# ---------------------------------------------------------------------------
+echo "→ Writing version manifest…"
+node ../scripts/write-version-manifest.mjs --surface landing
+
 restore() {
   if [ -d "$QUARANTINE" ]; then
     for p in "${PAGES[@]}"; do
