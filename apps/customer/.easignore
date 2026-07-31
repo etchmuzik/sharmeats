@@ -1,0 +1,59 @@
+# What NOT to upload to EAS Build.
+#
+# WHY: the 2026-07-31 build uploaded a 164 MB archive and EAS itself said so
+# ("You can reduce its size ... by excluding files that are unnecessary").
+# 78 MB of that was App Store LISTING material — store-screenshots/ (58 MB) and
+# store-screenshots-clean/ (20 MB) — which the build never reads. It is
+# compressed, uploaded, and thrown away on every single build, on every app.
+#
+# THIS FILE IS DELIBERATELY COMPLETE, NOT A ONE-LINER. eas-cli consults
+# .easignore, and the documented behaviour is that it takes PRECEDENCE over
+# .gitignore rather than adding to it. If that is right, an .easignore listing
+# only the screenshots would start shipping node_modules/, ios/, android/ and
+# .env to EAS — far worse than the problem it set out to fix, and a secret leak
+# besides. So this file restates every rule that matters from the root
+# .gitignore and apps/customer/.gitignore. That makes it correct whether
+# .easignore replaces .gitignore or merely supplements it.
+#
+# If you add an ignore rule to a .gitignore that affects this app, add it here
+# too. A rule that exists in only one of the two is the failure mode this
+# comment exists to prevent.
+
+# ---- Dependencies and VCS -------------------------------------------------
+node_modules/
+.git/
+
+# ---- Generated / local build output ---------------------------------------
+.expo/
+.export/
+dist/
+web-build/
+ios/
+android/
+expo-env.d.ts
+*.log
+*.orig.*
+
+# ---- Secrets. Never upload these. -----------------------------------------
+.env
+.env.local
+.env*.local
+credentials/
+*.p8
+*service-account*.json
+
+# ---- Local binaries -------------------------------------------------------
+*.ipa
+*.aab
+*.apk
+
+# ---- Store listing material: needed by humans, never by a build -----------
+# This is the 78 MB. Keep it in the repo; just stop shipping it to EAS.
+store-screenshots/
+store-screenshots-clean/
+store-assets/
+
+# ---- Repo docs ------------------------------------------------------------
+*.md
+
+.DS_Store

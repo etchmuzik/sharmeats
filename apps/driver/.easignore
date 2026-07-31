@@ -1,0 +1,43 @@
+# What NOT to upload to EAS Build. See apps/customer/.easignore for the full
+# reasoning — in short: store-screenshots/ is listing material the build never
+# reads, and this file is deliberately COMPLETE because .easignore is
+# documented to take precedence over .gitignore, so a one-line version would
+# start uploading node_modules/, ios/, android/ and .env.
+
+# ---- Dependencies and VCS -------------------------------------------------
+node_modules/
+.git/
+
+# ---- Generated / local build output ---------------------------------------
+.expo/
+.export/
+dist/
+web-build/
+ios/
+android/
+expo-env.d.ts
+*.log
+*.orig.*
+
+# ---- Secrets. Never upload these. -----------------------------------------
+.env
+.env.local
+.env*.local
+credentials/
+*.p8
+*service-account*.json
+
+# ---- Local binaries -------------------------------------------------------
+*.ipa
+*.aab
+*.apk
+
+# ---- Store listing material: needed by humans, never by a build -----------
+store-screenshots/
+store-screenshots-clean/
+store-assets/
+
+# ---- Repo docs ------------------------------------------------------------
+*.md
+
+.DS_Store
