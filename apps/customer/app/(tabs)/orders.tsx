@@ -190,10 +190,28 @@ export default function OrdersTab() {
   );
 
   // Subscribe to active orders so the list updates as status changes.
+  //
+  // KEYED ON THE IDS, NOT THE ARRAY. This effect used to depend on `active`
+  // itself, which is a brand-new array object every time refresh() runs — so:
+  //
+  //   realtime ping -> refresh() -> setActive(new array) -> identity changed
+  //   -> effect tears down every subscription and re-subscribes -> ping -> ...
+  //
+  // That is the "orders tab keeps refreshing in a loop" report. It needs an
+  // active order to bite, and it gets much worse when the order's row is being
+  // updated frequently — which is exactly what the dispatch offer/expiry cycle
+  // does. Two bugs feeding each other.
+  //
+  // The set of ids is what the subscriptions actually depend on, and a joined
+  // string compares by value, so the effect now re-runs only when an order
+  // genuinely enters or leaves the active list.
+  const activeIds = useMemo(() => active.map((o) => o.id).join(','), [active]);
+
   useEffect(() => {
-    const unsubs = active.map((o) =>
+    const ids = activeIds ? activeIds.split(',') : [];
+    const unsubs = ids.map((id) =>
       db.orders.subscribe(
-        o.id,
+        id,
         () => {
           refresh();
         },
@@ -201,7 +219,7 @@ export default function OrdersTab() {
       ),
     );
     return () => unsubs.forEach((fn) => fn());
-  }, [active, refresh]);
+  }, [activeIds, refresh]);
 
   const data = [
     ...(active.length > 0 ? [{ kind: 'header' as const, title: t('orders.titleActive') }] : []),

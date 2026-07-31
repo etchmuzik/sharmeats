@@ -1,0 +1,108 @@
+# Publish an over-the-air JS update to installed apps.
+#
+# MANUAL ONLY, and for a sharper reason than the build workflow's credit cap:
+# an `eas update` reaches phones in minutes with no review step. A bad push
+# trigger here would ship whatever landed on main straight to real users. So
+# there is no `push:` trigger, and there never should be.
+#
+# WHAT AN OTA CAN AND CANNOT CARRY. Only JavaScript and assets. Anything native
+# — a new native module, a config plugin, app.json's ios/android sections,
+# userInterfaceStyle, entitlements — needs a full build. Publishing an update
+# that assumes native code the installed binary lacks produces a crash on
+# launch, not a graceful degrade.
+#
+# RUNTIME VERSION IS THE SAFETY CATCH. All three apps use
+# runtimeVersion: {"policy": "appVersion"}, so an update published from
+# version 1.1.0 is only ever delivered to binaries built at 1.1.0. Devices on
+# anything else silently ignore it. That is protection, but it is also the trap
+# that made OTA useless here for months: app.json said 1.1.0 while every
+# installed binary was 1.0.0, so an update would have published cleanly,
+# reported success, and reached nobody. Customer build 58 (2026-07-31) is the
+# first 1.1.0 binary in the wild, which is what makes this workflow worth having.
+#
+# SETUP: needs the same EXPO_TOKEN repository secret as eas-build.yml.
+
+name: EAS update (OTA)
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app'
+        required: true
+        default: 'customer'
+        type: choice
+        options: [customer, driver, restaurant]
+      channel:
+        description: 'Release channel (must match the installed build)'
+        required: true
+        default: 'production'
+        type: choice
+        options: [production, preview]
+      message:
+        description: 'Update message (shown in the EAS dashboard)'
+        required: true
+        type: string
+
+concurrency:
+  group: eas-update-${{ inputs.app }}-${{ inputs.channel }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/${{ inputs.app }}/package-lock.json
+
+      - name: Require the Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error title=EXPO_TOKEN not set::Add an Expo access token as the EXPO_TOKEN repository secret. Nothing was published."
+            exit 1
+          fi
+
+      - name: Install
+        working-directory: apps/${{ inputs.app }}
+        run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
+
+      # Typecheck and test before shipping to real phones. The build workflow
+      # can rely on CI having run against the PR; this one publishes whatever
+      # main holds right now, so it re-checks rather than assumes.
+      - name: Typecheck
+        working-directory: apps/${{ inputs.app }}
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: apps/${{ inputs.app }}
+        run: npm test --if-present
+
+      - name: Report the runtime version this will reach
+        working-directory: apps/${{ inputs.app }}
+        run: |
+          # Printed rather than enforced: only a human knows which binaries are
+          # actually out there. If this does not match the installed build, the
+          # update publishes successfully and reaches nobody.
+          node -e "
+            const e = require('./app.json').expo;
+            console.log('app version   :', e.version);
+            console.log('runtimeVersion:', JSON.stringify(e.runtimeVersion));
+            console.log('channel       :', '${{ inputs.channel }}');
+          "
+
+      - name: Publish
+        working-directory: apps/${{ inputs.app }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas-cli@21.4.0 update \
+            --channel "${{ inputs.channel }}" \
+            --message "${{ inputs.message }}" \
+            --non-interactive

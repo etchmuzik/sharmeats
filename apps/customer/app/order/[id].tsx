@@ -210,21 +210,24 @@ export default function OrderTracking() {
     );
   }, [driverLoc?.lat, driverLoc?.lng, destination.lat, destination.lng]);
 
-  if (!order) {
-    return (
-      <View style={styles.loading}>
-        <ThemedStatusBar />
-        <Text style={{ color: colors.ink3 }}>{t('common.loading')}</Text>
-      </View>
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // EVERY HOOK MUST BE ABOVE THE `if (!order)` GUARD BELOW.
+  //
+  // These three (the share effect and the two share callbacks) originally sat
+  // AFTER that early return, which crashed the screen the moment an order
+  // finished loading:
+  //
+  //   Error: Rendered more hooks than during the previous render.
+  //
+  // The first render has no order yet, so the guard returns and React records
+  // N hooks. The order arrives, the guard no longer fires, and suddenly N+3
+  // hooks run — which is exactly the invariant React refuses. It reproduced on
+  // every single order placement, because that screen is always mounted with a
+  // null order and then filled in.
+  //
+  // Nothing below this line may call a hook. Read the guard as the boundary.
+  // ---------------------------------------------------------------------------
 
-  // `picked_up` is a real lifecycle state (driver has the food, en route) but the
-  // customer-facing timeline collapses it into "on the way", exactly as the orders
-  // list does (orders.tsx). Without this, findIndex('picked_up') returns -1 and the
-  // whole progress bar resets to pending mid-delivery.
-  const displayStatus = order.status === 'picked_up' ? 'out_for_delivery' : order.status;
-  const stepIndex = STEPS.findIndex((s) => s.key === displayStatus);
   // Reflect an existing share so the card renders "Stop sharing" rather than
   // offering to create a second link.
   useEffect(() => {
@@ -272,6 +275,23 @@ export default function OrderTracking() {
       setSharing(false);
     }
   }, [id, sharing, t]);
+
+  // ---- Hooks end here. Everything below runs only with a loaded order. ------
+  if (!order) {
+    return (
+      <View style={styles.loading}>
+        <ThemedStatusBar />
+        <Text style={{ color: colors.ink3 }}>{t('common.loading')}</Text>
+      </View>
+    );
+  }
+
+  // `picked_up` is a real lifecycle state (driver has the food, en route) but the
+  // customer-facing timeline collapses it into "on the way", exactly as the orders
+  // list does (orders.tsx). Without this, findIndex('picked_up') returns -1 and the
+  // whole progress bar resets to pending mid-delivery.
+  const displayStatus = order.status === 'picked_up' ? 'out_for_delivery' : order.status;
+  const stepIndex = STEPS.findIndex((s) => s.key === displayStatus);
 
   const remainingMs = order.etaAt - now;
   const remainingMin = Math.max(0, Math.ceil(remainingMs / 60_000));
