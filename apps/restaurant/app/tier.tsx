@@ -4,8 +4,14 @@ import { useFocusEffect } from 'expo-router';
 import { getMyRestaurantTier, type RestaurantTierInfo } from '../src/loyalty';
 import { font, radius, spacing } from '../src/theme';
 import { makeStyles, useThemeColors } from '../src/themeProvider';
+import { useLocale } from '../src/locale';
+import type { TranslationKey } from '../src/i18n';
 
-const TIER_LABEL: Record<RestaurantTierInfo['tier'], string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
+const TIER_LABEL_KEY: Record<RestaurantTierInfo['tier'], TranslationKey> = {
+  bronze: 'tier.bronze',
+  silver: 'tier.silver',
+  gold: 'tier.gold',
+};
 
 // Rolling-90-day delivered-order-count thresholds to advance a tier. Verified
 // against the seeded platform_settings in supabase/migrations/042_loyalty_ledger.sql:
@@ -16,6 +22,7 @@ const TIER_FLOOR: Record<RestaurantTierInfo['tier'], number> = { bronze: 0, silv
 export default function Tier() {
   const colors = useThemeColors();
   const styles = useStyles();
+  const { direction, t } = useLocale();
   const [tier, setTier] = useState<RestaurantTierInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,7 +57,7 @@ export default function Tier() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
+      style={{ flex: 1, backgroundColor: colors.bg, direction }}
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={
@@ -64,31 +71,37 @@ export default function Tier() {
       }
     >
       <Text style={styles.title}>
-        {tier ? TIER_LABEL[tier.tier] : 'Bronze'} tier
+        {t('tier.title', { tier: t(TIER_LABEL_KEY[tier?.tier ?? 'bronze']) })}
       </Text>
       {tier?.featured && (
-        <Text style={{ color: colors.accentText, fontWeight: '600', marginTop: spacing.xs }}>Featured placement active</Text>
+        <Text style={{ color: colors.accentText, fontWeight: '600', marginTop: spacing.xs }}>
+          {t('tier.featured')}
+        </Text>
       )}
       {nextThreshold ? (
-        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>{ordersToNext} more orders to next tier</Text>
+        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>
+          {t('tier.ordersToNext', { count: ordersToNext })}
+        </Text>
       ) : (
-        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>You&apos;ve reached the top tier.</Text>
+        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>{t('tier.topTier')}</Text>
       )}
 
       <View
         accessible
         accessibilityRole="progressbar"
-        accessibilityLabel="Delivered-order progress to the next restaurant tier"
+        accessibilityLabel={t('tier.progressA11y')}
         accessibilityValue={{
           min: floor,
           max: nextThreshold ?? Math.max(floor, tier?.ordersRolling90d ?? floor),
           now: tier?.ordersRolling90d ?? 0,
-          text: nextThreshold ? `${ordersToNext} more orders` : 'Top tier reached',
+          text: nextThreshold
+            ? t('tier.progressMoreA11y', { count: ordersToNext })
+            : t('tier.progressTopA11y'),
         }}
         style={styles.progressSection}
       >
         <View style={styles.progressHeading}>
-          <Text style={styles.sectionTitle}>90-day delivery progress</Text>
+          <Text style={styles.sectionTitle}>{t('tier.progressTitle')}</Text>
           <Text style={styles.progressCount}>
             {tier?.ordersRolling90d ?? 0}{nextThreshold ? ` / ${nextThreshold}` : ''}
           </Text>
@@ -97,20 +110,34 @@ export default function Tier() {
           <View style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]} />
         </View>
         <Text style={styles.progressHint}>
-          {nextThreshold ? `${ordersToNext} delivered orders to the next tier` : 'You have every restaurant tier benefit.'}
+          {nextThreshold
+            ? t('tier.progressHint', { count: ordersToNext })
+            : t('tier.progressHintTop')}
         </Text>
       </View>
 
       <View style={styles.benefits}>
-        <Text style={styles.sectionTitle}>Your benefits</Text>
-        <Benefit label="Current commission" value={`${(tier?.commissionPct ?? 12).toFixed(1)}%`} />
+        <Text style={styles.sectionTitle}>{t('tier.benefits')}</Text>
+        <Benefit label={t('tier.commission')} value={`${(tier?.commissionPct ?? 12).toFixed(1)}%`} />
         <Benefit
-          label="Featured placement"
-          value={tier?.featured ? 'Active' : tier?.tier === 'gold' ? 'Activating' : 'Unlocks at Gold'}
+          label={t('tier.featuredLabel')}
+          value={
+            tier?.featured
+              ? t('tier.featuredActive')
+              : tier?.tier === 'gold'
+                ? t('tier.featuredActivating')
+                : t('tier.featuredLocked')
+          }
         />
-        {tier?.tier === 'bronze' && <Benefit label="Next benefit" value="Silver: 1 point lower commission" />}
-        {tier?.tier === 'silver' && <Benefit label="Next benefit" value="Gold: 2 points lower commission and featured placement" />}
-        {tier?.tier === 'gold' && <Benefit label="Status" value="All restaurant benefits unlocked" />}
+        {tier?.tier === 'bronze' && (
+          <Benefit label={t('tier.nextBenefit')} value={t('tier.nextSilver')} />
+        )}
+        {tier?.tier === 'silver' && (
+          <Benefit label={t('tier.nextBenefit')} value={t('tier.nextGold')} />
+        )}
+        {tier?.tier === 'gold' && (
+          <Benefit label={t('tier.statusLabel')} value={t('tier.statusGold')} />
+        )}
       </View>
     </ScrollView>
   );
@@ -170,3 +197,11 @@ const useStyles = makeStyles((colors) => ({
   benefitLabel: { flex: 1, fontSize: font.sizes.sm, color: colors.ink2 },
   benefitValue: { flexShrink: 1, maxWidth: '58%', fontSize: font.sizes.sm, fontWeight: '700', color: colors.ink, textAlign: 'right' },
 }));
+
+/**
+ * Per-ROUTE recovery. The root layout already exports this, but a boundary that
+ * only exists at the root means any throw anywhere unmounts the whole stack —
+ * including the kitchen queue. Exported here as well so a crash on this screen
+ * is contained to this screen and offers Retry / Home instead.
+ */
+export { ScreenErrorBoundary as ErrorBoundary } from '../src/components/ScreenErrorBoundary';

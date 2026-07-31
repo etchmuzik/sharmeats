@@ -260,3 +260,11 @@ export default function Menu() {
     </View>
   );
 }
+
+/**
+ * Per-ROUTE recovery. The root layout already exports this, but a boundary that
+ * only exists at the root means any throw anywhere unmounts the whole stack —
+ * including the kitchen queue. Exported here as well so a crash on this screen
+ * is contained to this screen and offers Retry / Home instead.
+ */
+export { ScreenErrorBoundary as ErrorBoundary } from '../src/components/ScreenErrorBoundary';

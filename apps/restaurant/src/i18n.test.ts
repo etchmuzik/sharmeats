@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deviceLocale,
   dictionaries,
   localeDirection,
+  localeFromLanguageTag,
   nextLocale,
   normalizeLocale,
   supportedLocales,
@@ -67,5 +69,25 @@ describe('restaurant operational translations', () => {
   it('requires a valid typed translation key at runtime', () => {
     const key: TranslationKey = 'queue.new';
     expect(translate('ar', key)).toBe('جديد');
+  });
+});
+
+describe('device language detection', () => {
+  it('accepts a region subtag and any casing, unlike the persisted-value guard', () => {
+    expect(localeFromLanguageTag('ar')).toBe('ar');
+    expect(localeFromLanguageTag('ar-EG')).toBe('ar');
+    expect(localeFromLanguageTag('AR-eg')).toBe('ar');
+    expect(localeFromLanguageTag('en-GB')).toBe('en');
+    expect(localeFromLanguageTag('ru-RU')).toBe('en');
+  });
+
+  it('falls back to English rather than throwing on nonsense', () => {
+    expect(localeFromLanguageTag(null)).toBe('en');
+    expect(localeFromLanguageTag('')).toBe('en');
+    expect(localeFromLanguageTag(undefined)).toBe('en');
+  });
+
+  it('always resolves to a supported locale', () => {
+    expect(supportedLocales).toContain(deviceLocale());
   });
 });

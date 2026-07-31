@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ACTIVE_ORDER_WINDOW_HOURS,
+  activeOrderSince,
   allergenLabel,
   isActive,
   isVisible,
+  isWithinQueueWindow,
   normalizeRestaurantOrder,
 } from './orders';
 
@@ -87,5 +90,25 @@ describe('restaurant order policy helpers', () => {
   it('provides kitchen-safe allergen labels', () => {
     expect(allergenLabel('shellfish')).toBe('Shellfish');
     expect(allergenLabel('sesame')).toBe('Sesame');
+  });
+});
+
+describe('kitchen queue age bound', () => {
+  const NOW = Date.parse('2026-07-31T20:00:00.000Z');
+  const HOUR = 3_600_000;
+
+  it('reaches back exactly one service window', () => {
+    expect(Date.parse(activeOrderSince(NOW))).toBe(NOW - ACTIVE_ORDER_WINDOW_HOURS * HOUR);
+  });
+
+  it('keeps tonight and drops the 238-hour ghost', () => {
+    expect(isWithinQueueWindow(new Date(NOW - 2 * HOUR).toISOString(), NOW)).toBe(true);
+    expect(isWithinQueueWindow(new Date(NOW - 238 * HOUR).toISOString(), NOW)).toBe(false);
+  });
+
+  it('never HIDES a ticket because its timestamp is unreadable', () => {
+    // Same fail-open-toward-visible rule the ticket's wait timer uses: dropping
+    // a live order is far worse than showing one extra.
+    expect(isWithinQueueWindow('not-a-date', NOW)).toBe(true);
   });
 });

@@ -24,13 +24,16 @@ import {
 } from '../../../src/messages';
 import { font, radius, spacing } from '../../../src/theme';
 import { useThemeColors } from '../../../src/themeProvider';
+import { useLocale } from '../../../src/locale';
+import type { TranslationKey } from '../../../src/i18n';
+import { captureError } from '../../../src/lib/crash';
 
 /** Friendly label for the OTHER party's role on a bubble. */
-function roleLabel(role: MessageRole): string {
-  if (role === 'customer') return 'Customer';
-  if (role === 'driver') return 'Driver';
-  return 'Restaurant';
-}
+const ROLE_LABEL_KEY: Record<MessageRole, TranslationKey> = {
+  customer: 'chat.roleCustomer',
+  driver: 'chat.roleDriver',
+  restaurant: 'chat.roleRestaurant',
+};
 
 /**
  * In-app order chat for the kitchen. The restaurant staffer's own messages are
@@ -43,6 +46,7 @@ export default function Chat() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { toast } = useToast();
+  const { direction, isRtl, t } = useLocale();
   const myId = session?.user?.id ?? null;
 
   const [messages, setMessages] = useState<OrderMessage[]>([]);
@@ -63,12 +67,13 @@ export default function Chat() {
       // Clear the unread badge for this thread; ignore failures (non-critical).
       markThreadRead(id).catch(() => {});
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not load messages', 'error');
+      captureError(e, { where: 'restaurant.chat.load', orderId: id });
+      toast(t('chat.loadError'), 'error');
     } finally {
       setLoading(false);
       scrollToEnd();
     }
-  }, [id, toast, scrollToEnd]);
+  }, [id, toast, t, scrollToEnd]);
 
   useEffect(() => {
     load();
@@ -111,14 +116,15 @@ export default function Chat() {
       // The Realtime INSERT echoes our own message back and appends it.
     } catch (e) {
       setDraft(body); // restore so the staffer can retry
-      toast(e instanceof Error ? e.message : 'Could not send message', 'error');
+      captureError(e, { where: 'restaurant.chat.send', orderId: id });
+      toast(t('chat.sendError'), 'error');
     } finally {
       setSending(false);
     }
-  }, [id, draft, sending, toast]);
+  }, [id, draft, sending, toast, t]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, direction }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -140,10 +146,12 @@ export default function Chat() {
           >
             {messages.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl * 2, gap: spacing.sm }}>
-                <Icon name="chat" size={36} color={colors.ink3} accessibilityLabel="No messages" />
-                <Text style={{ fontSize: font.sizes.base, color: colors.ink2 }}>No messages yet</Text>
+                <Icon name="chat" size={36} color={colors.ink3} accessibilityLabel={t('chat.emptyA11y')} />
+                <Text style={{ fontSize: font.sizes.base, color: colors.ink2 }}>
+                  {t('chat.emptyTitle')}
+                </Text>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center' }}>
-                  Send a message to the customer or driver about this order.
+                  {t('chat.emptyBody')}
                 </Text>
               </View>
             ) : (
@@ -156,7 +164,7 @@ export default function Chat() {
                   >
                     {!mine ? (
                       <Text style={{ fontSize: font.sizes.xs, color: colors.ink3, marginBottom: 2, marginLeft: spacing.sm }}>
-                        {roleLabel(m.sender_role)}
+                        {t(ROLE_LABEL_KEY[m.sender_role])}
                       </Text>
                     ) : null}
                     <View
@@ -201,8 +209,9 @@ export default function Chat() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Type a message…"
+            placeholder={t('chat.placeholder')}
             placeholderTextColor={colors.ink3}
+            accessibilityLabel={t('chat.placeholder')}
             multiline
             style={{
               flex: 1,
@@ -215,13 +224,16 @@ export default function Chat() {
               backgroundColor: colors.bg,
               color: colors.ink,
               fontSize: font.sizes.base,
+              textAlign: isRtl ? 'right' : 'left',
+              writingDirection: direction,
             }}
           />
           <Pressable
             onPress={send}
             disabled={sending || !draft.trim()}
             accessibilityRole="button"
-            accessibilityLabel="Send message"
+            accessibilityLabel={t('chat.sendA11y')}
+            accessibilityState={{ disabled: sending || !draft.trim(), busy: sending }}
             style={{
               width: 44,
               height: 44,
@@ -234,7 +246,7 @@ export default function Chat() {
             {sending ? (
               <ActivityIndicator color={colors.onAccent} />
             ) : (
-              <Icon name="send" size={20} color={colors.onAccent} accessibilityLabel="Send" />
+              <Icon name="send" size={20} color={colors.onAccent} />
             )}
           </Pressable>
         </View>
@@ -242,3 +254,11 @@ export default function Chat() {
     </View>
   );
 }
+
+/**
+ * Per-ROUTE recovery. The root layout already exports this, but a boundary that
+ * only exists at the root means any throw anywhere unmounts the whole stack —
+ * including the kitchen queue. Exported here as well so a crash on this screen
+ * is contained to this screen and offers Retry / Home instead.
+ */
+export { ScreenErrorBoundary as ErrorBoundary } from '../../../src/components/ScreenErrorBoundary';

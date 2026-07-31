@@ -1,5 +1,6 @@
 import { getSupabase } from './supabase';
 import { getMyRestaurant } from './orders';
+import type { TranslationKey } from './i18n';
 
 export type KycStatus = 'pending' | 'approved' | 'rejected';
 
@@ -12,11 +13,13 @@ export interface KycDocument {
 }
 
 // Documents a restaurant must provide to be verified (doc_type strings match
-// the admin review queue, mig 075).
-export const RESTAURANT_DOC_TYPES: { key: string; label: string }[] = [
-  { key: 'commercial_reg', label: 'Commercial registration' },
-  { key: 'tax_card', label: 'Tax card' },
-  { key: 'food_license', label: 'Food licence' },
+// the admin review queue, mig 075). The label is a translation KEY, not text:
+// the doc_type itself is a protocol value shared with admin-web and must never
+// change, while what the merchant reads has to follow the tablet's locale.
+export const RESTAURANT_DOC_TYPES: { key: string; labelKey: TranslationKey }[] = [
+  { key: 'commercial_reg', labelKey: 'kyc.doc.commercial_reg' },
+  { key: 'tax_card', labelKey: 'kyc.doc.tax_card' },
+  { key: 'food_license', labelKey: 'kyc.doc.food_license' },
 ];
 const RESTAURANT_DOC_TYPE_KEYS = new Set(RESTAURANT_DOC_TYPES.map(({ key }) => key));
 const MAX_KYC_FILE_BYTES = 5 * 1024 * 1024;

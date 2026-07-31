@@ -43,6 +43,9 @@ import { cardEnter, cardExit, listReflow, usePulse } from './motion';
 import { notifyWarning, tapHeavy, tapLight } from '../lib/haptics';
 import { useLocale } from '../locale';
 import type { TranslationKey, TranslationParams } from '../i18n';
+// Shared with the unacknowledged-order banner so the ticket and the banner can
+// never disagree about how long a customer has been waiting.
+import { formatWait } from '../alerting';
 
 /** Seconds an unaccepted ticket may wait before it reads as a warning. */
 const WARN_AFTER_S = 60;
@@ -84,13 +87,6 @@ function waitingOf(seconds: number, active: boolean): Waiting {
   if (seconds >= CRITICAL_AFTER_S) return 'critical';
   if (seconds >= WARN_AFTER_S) return 'warning';
   return 'calm';
-}
-
-/** Format seconds as m:ss for the wait timer. */
-function formatWait(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 type Translate = (key: TranslationKey, params?: TranslationParams) => string;

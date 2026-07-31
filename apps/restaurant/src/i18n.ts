@@ -33,8 +33,12 @@ const en = {
   'header.closedRestricted': 'Not accepting orders. Only an owner or manager can reopen.',
   'header.sound': 'Sound',
   'header.muted': 'Muted',
+  'header.mutedFor': 'Muted {{minutes}}m',
   'header.soundOnA11y': 'Sound on — tap to mute new-order chime',
   'header.soundOffA11y': 'Sound off — tap to turn new-order chime on',
+  'header.soundOffTimedA11y':
+    'Sound off for {{minutes}} more minutes — tap to turn the new-order chime back on',
+  'header.muteExpired': 'New-order sound is back on.',
   'header.menuA11y': 'Menu availability',
   'header.docs': 'Docs',
   'header.docsA11y': 'Verification documents',
@@ -162,6 +166,110 @@ const en = {
   'theme.dark': 'Dark',
   'theme.a11y': 'Appearance: {{mode}}',
   'theme.hint': 'Switches to {{next}}',
+  // Alerting honesty. Every one of these exists so a kitchen that is NOT being
+  // alerted can see that fact, rather than assuming silence means no orders.
+  'alert.pushDeniedTitle': 'Notifications are off',
+  'alert.pushDeniedBody':
+    'This tablet will not buzz for a new order while the app is in the background. Turn notifications on in Settings.',
+  'alert.openSettings': 'Open settings',
+  'alert.openSettingsA11y': 'Open the system notification settings for this app',
+  'alert.settingsError': "Couldn't open Settings. Open it from the device home screen.",
+  'alert.mutedTitle': 'New-order sound is muted',
+  'alert.mutedBody':
+    'Sound turns itself back on in {{minutes}} min. Tap to turn it on now.',
+  'alert.unmuteA11y': 'Turn the new-order sound back on now',
+  'alert.feedTitle': 'Live order feed lost',
+  'alert.feedBody': 'Reconnecting. The queue is refreshing on a timer until it is back.',
+  'alert.unackedOne': '1 new order needs accepting',
+  'alert.unackedMany': '{{count}} new orders need accepting',
+  'alert.unackedWaiting': 'Oldest waiting {{time}}',
+  'alert.unackedA11y': '{{summary}}. {{waiting}}. Tap to show every brand.',
+  // Busy mode (mig 186): a bounded, self-expiring prep bump so a slammed kitchen
+  // tells customers the truth before they order.
+  'busy.normal': 'Normal prep',
+  'busy.active': '+{{extra}} min · {{remaining}}m',
+  'busy.normalA11y': 'Prep time normal. Tap to add minutes while the kitchen is slammed.',
+  'busy.activeA11y':
+    'Busy mode: {{extra}} extra prep minutes, {{remaining}} minutes left. Tap to change.',
+  'busy.preset': '+{{minutes}} min',
+  'busy.presetA11y': 'Add {{minutes}} minutes to the prep estimate for the next {{duration}} minutes',
+  'busy.clear': 'Back to normal',
+  'busy.clearA11y': 'Clear busy mode and return to the normal prep estimate',
+  'busy.explain':
+    'Customers see the longer time before they order. It clears itself after {{duration}} minutes.',
+  'busy.restricted': 'Prep time is normal. Only an owner or manager can change it.',
+  'home.busySet': 'Prep time +{{minutes}} min for the next {{duration}} minutes.',
+  'home.busyCleared': 'Prep time back to normal.',
+  'home.busyFailed': 'Could not change prep time: {{brands}} ({{cause}})',
+  'signin.surface': 'Restaurant',
+  'signin.title': 'Sign in',
+  'signin.subtitle': 'Use your restaurant email and password (same as the web dashboard).',
+  'signin.emailLabel': 'Restaurant email',
+  'signin.emailPlaceholder': 'owner@restaurant.com',
+  'signin.passwordLabel': 'Password',
+  'signin.passwordPlaceholder': 'Password',
+  'signin.submit': 'Sign in',
+  'signin.error': 'Could not sign in',
+  'signin.resetLink': 'Forgot your password? Reset it on the dashboard',
+  'signin.resetA11y': 'Reset your password on the merchant dashboard',
+  'signin.legalPrefix': 'By continuing you agree to our',
+  'boot.notConfiguredTitle': 'Backend not configured',
+  'boot.notConfiguredBody':
+    'Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY, then restart.',
+  'kyc.intro': 'Upload a clear photo of each document. Our team reviews them, usually within a day.',
+  'kyc.loadError': "Couldn't load your documents. Check your connection and reopen this screen.",
+  'kyc.statusApproved': 'Approved',
+  'kyc.statusRejected': 'Rejected — re-upload',
+  'kyc.statusPending': 'Under review',
+  'kyc.permissionTitle': 'Permission needed',
+  'kyc.permissionBody': 'Allow photo access to upload your document.',
+  'kyc.uploadFailedTitle': 'Upload failed',
+  'kyc.uploadFailedBody': 'Please try again.',
+  'kyc.replacePhoto': 'Replace photo',
+  'kyc.uploadPhoto': 'Upload photo',
+  'kyc.uploadA11y': '{{document}}: {{action}}',
+  'kyc.doc.commercial_reg': 'Commercial registration',
+  'kyc.doc.tax_card': 'Tax card',
+  'kyc.doc.food_license': 'Food licence',
+  'tier.bronze': 'Bronze',
+  'tier.silver': 'Silver',
+  'tier.gold': 'Gold',
+  'tier.title': '{{tier}} tier',
+  'tier.featured': 'Featured placement active',
+  'tier.ordersToNext': '{{count}} more orders to next tier',
+  'tier.topTier': "You've reached the top tier.",
+  'tier.progressA11y': 'Delivered-order progress to the next restaurant tier',
+  'tier.progressMoreA11y': '{{count}} more orders',
+  'tier.progressTopA11y': 'Top tier reached',
+  'tier.progressTitle': '90-day delivery progress',
+  'tier.progressHint': '{{count}} delivered orders to the next tier',
+  'tier.progressHintTop': 'You have every restaurant tier benefit.',
+  'tier.benefits': 'Your benefits',
+  'tier.commission': 'Current commission',
+  'tier.featuredLabel': 'Featured placement',
+  'tier.featuredActive': 'Active',
+  'tier.featuredActivating': 'Activating',
+  'tier.featuredLocked': 'Unlocks at Gold',
+  'tier.nextBenefit': 'Next benefit',
+  'tier.nextSilver': 'Silver: 1 point lower commission',
+  'tier.nextGold': 'Gold: 2 points lower commission and featured placement',
+  'tier.statusLabel': 'Status',
+  'tier.statusGold': 'All restaurant benefits unlocked',
+  'chat.roleCustomer': 'Customer',
+  'chat.roleDriver': 'Driver',
+  'chat.roleRestaurant': 'Restaurant',
+  'chat.loadError': 'Could not load messages',
+  'chat.sendError': 'Could not send message',
+  'chat.emptyA11y': 'No messages',
+  'chat.emptyTitle': 'No messages yet',
+  'chat.emptyBody': 'Send a message to the customer or driver about this order.',
+  'chat.placeholder': 'Type a message…',
+  'chat.send': 'Send',
+  'chat.sendA11y': 'Send message',
+  'error.title': 'Something went wrong',
+  'error.body': 'Your order queue is safe. Retry this screen or return home.',
+  'error.retry': 'Retry',
+  'error.home': 'Home',
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -192,8 +300,12 @@ const ar: Record<TranslationKey, string> = {
   'header.closedRestricted': 'لا يستقبل الطلبات. يمكن للمالك أو المدير فقط إعادة فتحه.',
   'header.sound': 'الصوت',
   'header.muted': 'صامت',
+  'header.mutedFor': 'صامت {{minutes}} د',
   'header.soundOnA11y': 'الصوت يعمل — اضغط لكتم تنبيه الطلب الجديد',
   'header.soundOffA11y': 'الصوت متوقف — اضغط لتشغيل تنبيه الطلب الجديد',
+  'header.soundOffTimedA11y':
+    'الصوت متوقف لمدة {{minutes}} دقيقة أخرى — اضغط لإعادة تشغيل تنبيه الطلب الجديد',
+  'header.muteExpired': 'عاد تنبيه الطلب الجديد للعمل.',
   'header.menuA11y': 'توفر عناصر القائمة',
   'header.docs': 'المستندات',
   'header.docsA11y': 'مستندات التحقق',
@@ -319,6 +431,105 @@ const ar: Record<TranslationKey, string> = {
   'theme.dark': 'داكن',
   'theme.a11y': 'المظهر: {{mode}}',
   'theme.hint': 'التبديل إلى {{next}}',
+  'alert.pushDeniedTitle': 'الإشعارات متوقفة',
+  'alert.pushDeniedBody':
+    'لن يصدر هذا الجهاز تنبيهاً عند وصول طلب جديد أثناء عمل التطبيق في الخلفية. فعّل الإشعارات من الإعدادات.',
+  'alert.openSettings': 'فتح الإعدادات',
+  'alert.openSettingsA11y': 'فتح إعدادات إشعارات النظام لهذا التطبيق',
+  'alert.settingsError': 'تعذر فتح الإعدادات. افتحها من الشاشة الرئيسية للجهاز.',
+  'alert.mutedTitle': 'تنبيه الطلب الجديد مكتوم',
+  'alert.mutedBody': 'سيعود الصوت تلقائياً خلال {{minutes}} دقيقة. اضغط لتشغيله الآن.',
+  'alert.unmuteA11y': 'إعادة تشغيل تنبيه الطلب الجديد الآن',
+  'alert.feedTitle': 'انقطع البث المباشر للطلبات',
+  'alert.feedBody': 'جارٍ إعادة الاتصال. يتم تحديث قائمة الطلبات دورياً حتى يعود البث.',
+  'alert.unackedOne': 'طلب جديد واحد بحاجة إلى القبول',
+  'alert.unackedMany': '{{count}} طلبات جديدة بحاجة إلى القبول',
+  'alert.unackedWaiting': 'أقدم طلب ينتظر {{time}}',
+  'alert.unackedA11y': '{{summary}}. {{waiting}}. اضغط لعرض كل العلامات.',
+  'busy.normal': 'تحضير عادي',
+  'busy.active': '+{{extra}} د · {{remaining}} د',
+  'busy.normalA11y': 'وقت التحضير عادي. اضغط لإضافة دقائق عندما يكون المطبخ مزدحماً.',
+  'busy.activeA11y':
+    'وضع الازدحام: {{extra}} دقائق تحضير إضافية، يتبقى {{remaining}} دقيقة. اضغط للتغيير.',
+  'busy.preset': '+{{minutes}} د',
+  'busy.presetA11y': 'إضافة {{minutes}} دقيقة إلى وقت التحضير لمدة {{duration}} دقيقة',
+  'busy.clear': 'العودة للوضع العادي',
+  'busy.clearA11y': 'إلغاء وضع الازدحام والعودة إلى وقت التحضير العادي',
+  'busy.explain':
+    'يرى العملاء الوقت الأطول قبل الطلب. ينتهي تلقائياً بعد {{duration}} دقيقة.',
+  'busy.restricted': 'وقت التحضير عادي. يمكن للمالك أو المدير فقط تغييره.',
+  'home.busySet': 'وقت التحضير +{{minutes}} دقيقة لمدة {{duration}} دقيقة.',
+  'home.busyCleared': 'عاد وقت التحضير إلى الوضع العادي.',
+  'home.busyFailed': 'تعذر تغيير وقت التحضير: {{brands}} ({{cause}})',
+  'signin.surface': 'المطعم',
+  'signin.title': 'تسجيل الدخول',
+  'signin.subtitle': 'استخدم بريد المطعم وكلمة المرور (نفس بيانات لوحة التحكم).',
+  'signin.emailLabel': 'بريد المطعم الإلكتروني',
+  'signin.emailPlaceholder': 'owner@restaurant.com',
+  'signin.passwordLabel': 'كلمة المرور',
+  'signin.passwordPlaceholder': 'كلمة المرور',
+  'signin.submit': 'تسجيل الدخول',
+  'signin.error': 'تعذر تسجيل الدخول',
+  'signin.resetLink': 'نسيت كلمة المرور؟ أعد ضبطها من لوحة التحكم',
+  'signin.resetA11y': 'إعادة ضبط كلمة المرور من لوحة تحكم التاجر',
+  'signin.legalPrefix': 'بالمتابعة أنت توافق على',
+  'boot.notConfiguredTitle': 'الخادم غير مهيأ',
+  'boot.notConfiguredBody':
+    'اضبط EXPO_PUBLIC_SUPABASE_URL و EXPO_PUBLIC_SUPABASE_ANON_KEY ثم أعد التشغيل.',
+  'kyc.intro': 'ارفع صورة واضحة لكل مستند. يراجعها فريقنا عادةً خلال يوم واحد.',
+  'kyc.loadError': 'تعذر تحميل مستنداتك. تحقق من الاتصال وأعد فتح هذه الشاشة.',
+  'kyc.statusApproved': 'مقبول',
+  'kyc.statusRejected': 'مرفوض — أعد الرفع',
+  'kyc.statusPending': 'قيد المراجعة',
+  'kyc.permissionTitle': 'الإذن مطلوب',
+  'kyc.permissionBody': 'اسمح بالوصول إلى الصور لرفع المستند.',
+  'kyc.uploadFailedTitle': 'فشل الرفع',
+  'kyc.uploadFailedBody': 'يرجى المحاولة مرة أخرى.',
+  'kyc.replacePhoto': 'استبدال الصورة',
+  'kyc.uploadPhoto': 'رفع صورة',
+  'kyc.uploadA11y': '{{document}}: {{action}}',
+  'kyc.doc.commercial_reg': 'السجل التجاري',
+  'kyc.doc.tax_card': 'البطاقة الضريبية',
+  'kyc.doc.food_license': 'ترخيص الأغذية',
+  'tier.bronze': 'برونزي',
+  'tier.silver': 'فضي',
+  'tier.gold': 'ذهبي',
+  'tier.title': 'المستوى ال{{tier}}',
+  'tier.featured': 'الظهور المميز مفعّل',
+  'tier.ordersToNext': '{{count}} طلبات أخرى للمستوى التالي',
+  'tier.topTier': 'لقد وصلت إلى أعلى مستوى.',
+  'tier.progressA11y': 'التقدم في الطلبات المسلّمة نحو المستوى التالي',
+  'tier.progressMoreA11y': '{{count}} طلبات أخرى',
+  'tier.progressTopA11y': 'تم الوصول إلى أعلى مستوى',
+  'tier.progressTitle': 'تقدم التوصيل خلال 90 يوماً',
+  'tier.progressHint': '{{count}} طلبات مسلّمة للمستوى التالي',
+  'tier.progressHintTop': 'لديك كل مزايا مستويات المطاعم.',
+  'tier.benefits': 'مزاياك',
+  'tier.commission': 'العمولة الحالية',
+  'tier.featuredLabel': 'الظهور المميز',
+  'tier.featuredActive': 'مفعّل',
+  'tier.featuredActivating': 'قيد التفعيل',
+  'tier.featuredLocked': 'يُفتح في المستوى الذهبي',
+  'tier.nextBenefit': 'الميزة التالية',
+  'tier.nextSilver': 'الفضي: عمولة أقل بنقطة واحدة',
+  'tier.nextGold': 'الذهبي: عمولة أقل بنقطتين مع ظهور مميز',
+  'tier.statusLabel': 'الحالة',
+  'tier.statusGold': 'كل مزايا المطاعم مفتوحة',
+  'chat.roleCustomer': 'العميل',
+  'chat.roleDriver': 'السائق',
+  'chat.roleRestaurant': 'المطعم',
+  'chat.loadError': 'تعذر تحميل الرسائل',
+  'chat.sendError': 'تعذر إرسال الرسالة',
+  'chat.emptyA11y': 'لا توجد رسائل',
+  'chat.emptyTitle': 'لا توجد رسائل بعد',
+  'chat.emptyBody': 'أرسل رسالة إلى العميل أو السائق بخصوص هذا الطلب.',
+  'chat.placeholder': 'اكتب رسالة…',
+  'chat.send': 'إرسال',
+  'chat.sendA11y': 'إرسال الرسالة',
+  'error.title': 'حدث خطأ ما',
+  'error.body': 'قائمة طلباتك آمنة. أعد محاولة هذه الشاشة أو ارجع إلى الرئيسية.',
+  'error.retry': 'إعادة المحاولة',
+  'error.home': 'الرئيسية',
 };
 
 export const dictionaries = { en, ar } as const;
@@ -329,6 +540,37 @@ export type TranslationParams = Record<string, string | number>;
 
 export function normalizeLocale(value: string | null | undefined): RestaurantLocale {
   return value === 'ar' ? 'ar' : 'en';
+}
+
+/**
+ * Map a BCP-47 language tag ('ar', 'ar-EG', 'en-GB') onto a supported locale.
+ *
+ * Separate from normalizeLocale on purpose: that one guards a value WE persisted
+ * and must reject anything it did not write, while this one reads a tag the OS
+ * chose and has to tolerate a region subtag and any casing.
+ */
+export function localeFromLanguageTag(tag: string | null | undefined): RestaurantLocale {
+  return typeof tag === 'string' && tag.trim().toLowerCase().startsWith('ar') ? 'ar' : 'en';
+}
+
+/**
+ * The device's language.
+ *
+ * expo-localization is not a dependency of this app, and Hermes ships full ICU,
+ * so Intl reports the OS locale on both platforms without adding a native
+ * module. Wrapped because a runtime without Intl would otherwise throw during
+ * the very first render of the provider — English is the fail-safe.
+ *
+ * Why this matters operationally: users.locale defaults to 'ar' (mig 002), so a
+ * tablet hard-defaulted to English showed an English UI to a merchant who was
+ * simultaneously receiving Arabic push notifications for the same orders.
+ */
+export function deviceLocale(): RestaurantLocale {
+  try {
+    return localeFromLanguageTag(Intl.DateTimeFormat().resolvedOptions().locale);
+  } catch {
+    return 'en';
+  }
 }
 
 export function localeDirection(locale: RestaurantLocale): LocaleDirection {

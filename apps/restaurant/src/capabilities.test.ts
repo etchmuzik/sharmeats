@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canSetBusyAll,
   canToggleOpenAll,
   isManagerPlus,
   parseStaffRole,
@@ -140,5 +141,20 @@ describe('permissionDeniedMessage — must recognise what the DB actually raises
     expect(permissionDeniedMessage(new Error('network request failed'))).toBeNull();
     expect(permissionDeniedMessage(null)).toBeNull();
     expect(permissionDeniedMessage(undefined)).toBeNull();
+  });
+});
+
+describe('canSetBusyAll — mig 186 gates on the same manager+ tier', () => {
+  it('requires manager+ on EVERY brand the one action will write', () => {
+    expect(canSetBusyAll(['owner', 'manager'])).toBe(true);
+    expect(canSetBusyAll(['manager', 'staff'])).toBe(false);
+    expect(canSetBusyAll([])).toBe(false);
+  });
+
+  it('is the SAME predicate as the open/closed toggle, not a copy of it', () => {
+    // set_busy_mode and restaurants.is_open both gate on is_merchant_manager().
+    // Two copies of one permission rule drift, and they drift toward offering a
+    // control the server will refuse.
+    expect(canSetBusyAll).toBe(canToggleOpenAll);
   });
 });

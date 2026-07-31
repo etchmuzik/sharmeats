@@ -58,6 +58,18 @@ export function canToggleOpenAll(roles: readonly (string | null | undefined)[]):
 }
 
 /**
+ * May this account set busy mode (mig 186's prep bump) on EVERY brand it staffs?
+ *
+ * set_busy_mode gates on is_merchant_manager() exactly as restaurants.is_open
+ * does, and the header applies busy mode to all brands in one action for the
+ * same reason the open/closed toggle does — one kitchen, one pass. The rule is
+ * therefore identical, and it deliberately SHARES the implementation rather than
+ * being restated: two copies of a permission rule drift, and the direction they
+ * drift in is always "offers a control the server will refuse".
+ */
+export const canSetBusyAll = canToggleOpenAll;
+
+/**
  * "86" a dish — menu_items.is_available. Granted to EVERY merchant_staff row
  * by migration 136 precisely so a sold-out item can be stopped by whoever is
  * on the line. There is deliberately no predicate to call; documented as a

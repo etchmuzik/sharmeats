@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Pressable,
   RefreshControl,
   SectionList,
@@ -17,7 +18,13 @@ import { useAuth } from '../src/auth';
 import { useToast } from '../src/components/Toast';
 import { Icon } from '../src/components/Icon';
 import { LEGAL_URLS, openLegal } from '../src/legal';
-import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
+import {
+  configureNotificationHandler,
+  currentPushAlertStatus,
+  openNotificationSettings,
+  registerForPush,
+  unregisterPush,
+} from '../src/push';
 import { initChime, playNewOrderChime, releaseChime, setChimeMuted } from '../src/chime';
 import {
   advanceStatus,
@@ -25,6 +32,8 @@ import {
   getMyKitchen,
   isActive,
   isVisible,
+  isWithinQueueWindow,
+  setBusyMode,
   setRestaurantOpen,
   subscribeOrdersMulti,
   type KitchenBrand,
@@ -34,6 +43,7 @@ import {
 } from '../src/orders';
 import { myUnreadMessageCount } from '../src/messages';
 import {
+  canSetBusyAll,
   canToggleOpenAll,
   permissionDeniedMessage,
 } from '../src/capabilities';
@@ -42,17 +52,42 @@ import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { OrderRow } from '../src/components/OrderRow';
 import { KitchenHeader } from '../src/components/KitchenHeader';
 import { QueueSectionHeader } from '../src/components/QueueSectionHeader';
+import { AlertingStatusBanner, UnacknowledgedAlert } from '../src/components/AlertBanners';
 import { notifyError, notifySuccess } from '../src/lib/haptics';
 import { useLocale } from '../src/locale';
 import { captureError } from '../src/lib/crash';
 import { operationalErrorKey } from '../src/operationalErrors';
+import { syncProfileLocale } from '../src/profile';
+import {
+  formatWait,
+  isMuteActive,
+  muteMinutesRemaining,
+  muteUntilFrom,
+  oldestWaitSeconds,
+  type PushAlertStatus,
+} from '../src/alerting';
+import { BUSY_CLEAR, BUSY_DURATION_MINUTES, summarizeBusy } from '../src/busyMode';
+import { nextBrandFilterReset } from '../src/brandFilter';
 
 // [H-REST3] Live data shows merchants miss ~2/3 of orders into the 180s
 // auto-accept timeout — a single missed chime = a late kitchen. Re-fire the
 // chime on this cadence while any 'placed' order sits unacknowledged.
 const CHIME_REPEAT_MS = 25_000;
-// Persist the mute toggle so it survives a kiosk reload.
-const MUTE_KEY = 'chime:muted';
+/**
+ * Persisted mute EXPIRY (ISO), not a boolean.
+ *
+ * The old 'chime:muted' flag was permanent: one tap during a loud service
+ * silenced the counter until somebody remembered to tap it again, which — on a
+ * wall-mounted tablet nobody owns — meant forever. A window that lapses on its
+ * own is the same discipline mig 186 applies to busy mode, and for the same
+ * reason. The key is deliberately NEW so an existing '1' cannot be misread as a
+ * timestamp and leave a tablet muted after this ships.
+ */
+const MUTE_KEY = 'chime:mutedUntil';
+/** How often derived "minutes remaining" values are recomputed. */
+const CLOCK_TICK_MS = 15_000;
+/** Fallback poll cadence while the Realtime feed is down. */
+const FEED_DOWN_POLL_MS = 20_000;
 
 export default function Home() {
   const colors = useThemeColors();
@@ -62,7 +97,7 @@ export default function Home() {
   const { width } = useWindowDimensions();
   const { signOut } = useAuth();
   const { toast } = useToast();
-  const { direction, t } = useLocale();
+  const { direction, locale, t } = useLocale();
 
   const [kitchen, setKitchen] = useState<KitchenContext | null>(null);
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
@@ -73,7 +108,17 @@ export default function Home() {
   const [togglingOpen, setTogglingOpen] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [unreadMsgs, setUnreadMsgs] = useState(0);
-  const [muted, setMuted] = useState(false);
+  // Mute is a self-expiring WINDOW, not a permanent flag — see MUTE_KEY.
+  const [mutedUntil, setMutedUntil] = useState<string | null>(null);
+  // One shared clock for every "minutes remaining" the screen renders (mute and
+  // busy mode). A second-resolution tick would re-render the whole queue.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [pushStatus, setPushStatus] = useState<PushAlertStatus>('unknown');
+  // Optimistic: the channel has not failed until it says so. Starting false
+  // would flash "feed lost" on every cold start.
+  const [feedLive, setFeedLive] = useState(true);
+  const [busyPending, setBusyPending] = useState(false);
+  const listRef = useRef<SectionList<RestaurantOrder> | null>(null);
   // Multi-brand: which brand's tickets to show. 'all' is the default and the
   // reset target — a filter that hides a new ticket is a bug (see the
   // brand-filter reset effect below).
@@ -128,26 +173,67 @@ export default function Home() {
     return () => releaseChime();
   }, []);
 
-  // [H-REST3] Restore the persisted mute preference on mount so a kiosk reload
-  // doesn't silently un-mute (or re-mute) the counter.
+  // One clock drives every countdown on this screen.
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), CLOCK_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // [H-REST3] Restore the persisted mute window on mount so a kiosk reload
+  // doesn't silently un-mute the counter — or, worse, leave it muted past the
+  // window the staffer actually chose.
   useEffect(() => {
     AsyncStorage.getItem(MUTE_KEY)
-      .then((v) => {
-        const on = v === '1';
-        setMuted(on);
-        setChimeMuted(on);
+      .then((stored) => {
+        if (isMuteActive(stored, Date.now())) setMutedUntil(stored);
+        else AsyncStorage.removeItem(MUTE_KEY).catch(() => {});
       })
-      .catch(() => {});
+      .catch(() => {
+        // Sound ON is the fail-safe: an unreadable preference must never leave a
+        // kitchen silent.
+      });
+  }, []);
+
+  const muted = useMemo(() => isMuteActive(mutedUntil, nowMs), [mutedUntil, nowMs]);
+  const muteMinutesLeft = useMemo(
+    () => muteMinutesRemaining(mutedUntil, nowMs),
+    [mutedUntil, nowMs],
+  );
+
+  // The chime module owns a single flag so BOTH the first chime and the repeat
+  // loop honour it; keep it in step with the window rather than with a tap.
+  useEffect(() => {
+    setChimeMuted(muted);
+  }, [muted]);
+
+  // The window lapsed on its own — clear the stored value (so the interval has
+  // nothing left to count) and SAY that sound is back. A kitchen that muted 30
+  // minutes ago must not have to wonder whether it is still muted.
+  useEffect(() => {
+    if (!mutedUntil || muted) return;
+    setMutedUntil(null);
+    AsyncStorage.removeItem(MUTE_KEY).catch(() => {});
+    toast(t('header.muteExpired'), 'success');
+  }, [mutedUntil, muted, toast, t]);
+
+  const unmute = useCallback(() => {
+    setMutedUntil(null);
+    AsyncStorage.removeItem(MUTE_KEY).catch(() => {});
   }, []);
 
   const toggleMuted = useCallback(() => {
-    setMuted((prev) => {
-      const next = !prev;
-      setChimeMuted(next); // gates both the first chime and the repeat loop
-      AsyncStorage.setItem(MUTE_KEY, next ? '1' : '0').catch(() => {});
-      return next;
+    if (muted) {
+      unmute();
+      return;
+    }
+    const until = muteUntilFrom(Date.now());
+    setMutedUntil(until);
+    setNowMs(Date.now());
+    AsyncStorage.setItem(MUTE_KEY, until).catch(() => {
+      // The in-memory mute still applies for this shift; a failed write only
+      // means the next reload starts with sound ON, which is the safe direction.
     });
-  }, []);
+  }, [muted, unmute]);
 
   // Unread-chat badge: refresh when the screen regains focus (order screens
   // mark their thread read on open) and on a slow poll — the kiosk sits on
@@ -168,6 +254,18 @@ export default function Home() {
   // Live order updates via Realtime once we know the brands. One channel per
   // brand (postgres_changes has no `in.()` filter); a single-brand merchant
   // gets exactly one channel, same as before.
+  const resync = useCallback(() => {
+    if (brandIds.length === 0) return;
+    getActiveOrders(brandIds)
+      .then((rows) => setOrders(rows))
+      .catch((e) => {
+        // A failed resync means the queue is now stale in a way nothing on
+        // screen admits to. It must reach Sentry even though it cannot be
+        // retried here — the poll below is the user-visible recovery.
+        captureError(e, { where: 'restaurant.home.resync' });
+      });
+  }, [brandIds]);
+
   useEffect(() => {
     if (brandIds.length === 0) return;
     const unsub = subscribeOrdersMulti(
@@ -179,6 +277,10 @@ export default function Home() {
           if (!visible) return prev.filter((o) => o.id !== row.id);
           const exists = prev.some((o) => o.id === row.id);
           if (exists) return prev.map((o) => (o.id === row.id ? { ...o, ...row } : o));
+          // An UPDATE on a long-abandoned order must not resurrect it into
+          // tonight's queue — Realtime hands us whatever row changed, with no
+          // regard for the fetch's age bound.
+          if (!isWithinQueueWindow(row.placed_at)) return prev;
           // [H-REST1] A newly-visible order the queue hasn't seen → sound the
           // in-app chime (independent of push, which may be denied/hiccup).
           playNewOrderChime();
@@ -187,22 +289,35 @@ export default function Home() {
       },
       // [H-CUST2] Refetch the active list on (re)connect so orders placed during
       // a network drop — or before the channel joined — still appear.
-      () => {
-        getActiveOrders(brandIds)
-          .then((rows) => setOrders(rows))
-          .catch(() => {});
-      },
+      resync,
+      setFeedLive,
     );
     return unsub;
-  }, [brandIds]);
+  }, [brandIds, resync]);
 
-  // A filter that hides a new ticket is a bug: if an order arrives for a brand
-  // that is currently filtered out, snap back to All so it cannot be missed.
+  // While the live feed is down, poll. Realtime rejoins on its own most of the
+  // time, but "most of the time" is not a promise a kitchen can run a service
+  // on, and a silent dead channel looks exactly like a quiet night.
   useEffect(() => {
-    if (brandFilter === 'all') return;
-    if (orders.some((o) => o.status === 'placed' && o.restaurant_id !== brandFilter)) {
-      setBrandFilter('all');
-    }
+    if (feedLive || brandIds.length === 0) return;
+    const id = setInterval(resync, FEED_DOWN_POLL_MS);
+    return () => clearInterval(id);
+  }, [feedLive, brandIds, resync]);
+
+  // A filter that hides a NEW ticket is a bug — but a ticket the operator has
+  // already been shown must not re-lock the filter. The previous check was
+  // stateless, so any brand with an outstanding order snapped the filter back to
+  // All on every render and made it unusable. Fire once per ticket instead.
+  const filterResetSeen = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const unaccepted = orders.filter((o) => o.status === 'placed');
+    const { reset, seen } = nextBrandFilterReset(
+      brandFilter,
+      unaccepted,
+      filterResetSeen.current,
+    );
+    filterResetSeen.current = seen;
+    if (reset) setBrandFilter('all');
   }, [orders, brandFilter]);
 
   // [H-REST3] Count of unacknowledged orders — 'placed' means the kitchen hasn't
@@ -225,10 +340,12 @@ export default function Home() {
   }, [hasUnacked, muted]);
 
   // Push: register the tablet for new-order notifications; a tapped notification
-  // refreshes the queue.
+  // refreshes the queue. The RESULT is kept, not discarded — a denied permission
+  // means this tablet will never buzz in the background, and the kitchen has to
+  // be told that rather than left to infer it from silence.
   useEffect(() => {
     configureNotificationHandler();
-    registerForPush();
+    registerForPush().then(setPushStatus);
     const sub = Notifications.addNotificationResponseReceivedListener(
       (response: Notifications.NotificationResponse) => {
         const event = response.notification.request.content.data?.event;
@@ -237,6 +354,34 @@ export default function Home() {
     );
     return () => sub.remove();
   }, [load]);
+
+  // Re-read the permission whenever the tablet comes back to the foreground: the
+  // fix for a denial happens in Settings, not in this app, and the warning must
+  // clear itself when it has been acted on. Reads only — never re-prompts.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      currentPushAlertStatus().then(setPushStatus);
+    });
+    return () => sub.remove();
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    openNotificationSettings().catch((e) => {
+      captureError(e, { where: 'restaurant.home.openNotificationSettings' });
+      toast(t('alert.settingsError'), 'error');
+    });
+  }, [toast, t]);
+
+  // Keep users.locale in step with the tablet. Push notification COPY is
+  // rendered server-side from that column (default 'ar'), so without this an
+  // English kitchen gets Arabic order alerts and vice versa. Best-effort: this
+  // must never block the queue, but it must not fail silently either.
+  useEffect(() => {
+    syncProfileLocale(locale).catch((e) => {
+      captureError(e, { where: 'restaurant.home.syncProfileLocale', locale });
+    });
+  }, [locale]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -358,6 +503,76 @@ export default function Home() {
     }
   }, [kitchen, isOpen, togglingOpen, toast, load, mayToggleOpen, t]);
 
+  // [mig 186] Busy mode, collapsed across every brand. Same "one kitchen, one
+  // pass" reasoning as the open/closed toggle: the fryer that just died belongs
+  // to all five storefronts.
+  const busy = useMemo(
+    () => summarizeBusy(kitchen?.brands ?? [], nowMs),
+    [kitchen, nowMs],
+  );
+  const maySetBusy = useMemo(
+    () => canSetBusyAll((kitchen?.brands ?? []).map((b) => b.staffRole)),
+    [kitchen],
+  );
+
+  const applyBusyMode = useCallback(
+    async (extraMinutes: number) => {
+      if (!kitchen || busyPending) return;
+      if (!maySetBusy) {
+        notifyError();
+        toast(t('home.permissionDenied'), 'error');
+        return;
+      }
+      setBusyPending(true);
+      const targets = kitchen.brands;
+      try {
+        // allSettled, not all: a half-applied bump must name the brands still
+        // promising the old prep time, exactly as the open/closed toggle does.
+        const results = await Promise.allSettled(
+          targets.map((b) => setBusyMode(b.restaurantId, extraMinutes, BUSY_DURATION_MINUTES)),
+        );
+        const failed = results
+          .map((r, i) => (r.status === 'rejected' ? { brand: targets[i], reason: r.reason } : null))
+          .filter((f): f is { brand: (typeof targets)[number]; reason: unknown } => f !== null);
+        if (failed.length > 0) {
+          notifyError();
+          for (const failure of failed) {
+            captureError(failure.reason, {
+              where: 'restaurant.home.setBusyMode',
+              restaurantId: failure.brand.restaurantId,
+              extraMinutes,
+            });
+          }
+          const permissionDenied = permissionDeniedMessage(failed[0].reason) !== null;
+          toast(
+            t('home.busyFailed', {
+              brands: failed.map((f) => f.brand.name).join(', '),
+              cause: permissionDenied
+                ? t('home.permissionDenied')
+                : t(operationalErrorKey('brandToggle')),
+            }),
+            'error',
+          );
+        } else {
+          notifySuccess();
+          toast(
+            extraMinutes === BUSY_CLEAR
+              ? t('home.busyCleared')
+              : t('home.busySet', { minutes: extraMinutes, duration: BUSY_DURATION_MINUTES }),
+            'success',
+          );
+        }
+        // Always resync: busy_until is computed by the server, and the partial
+        // case must not leave the header claiming a state no brand is in.
+        await load();
+        setNowMs(Date.now());
+      } finally {
+        setBusyPending(false);
+      }
+    },
+    [kitchen, busyPending, maySetBusy, toast, t, load],
+  );
+
   const handleSignOut = useCallback(async () => {
     await unregisterPush();
     await signOut();
@@ -383,6 +598,35 @@ export default function Home() {
     [visibleOrders],
   );
   const compactHeader = width < 560;
+  // The unacknowledged banner reads `placedCount`, which counts EVERY brand's
+  // tickets rather than the filtered view: the whole point is that no filter can
+  // hide an order awaiting accept.
+  const oldestUnackedWait = useMemo(
+    () =>
+      formatWait(
+        oldestWaitSeconds(
+          orders.filter((o) => o.status === 'placed').map((o) => o.placed_at),
+          nowMs,
+        ),
+      ),
+    [orders, nowMs],
+  );
+  const showUnackedFirstTicket = useCallback(() => {
+    // Clearing the filter is the load-bearing half — it guarantees the ticket is
+    // rendered at all. Scrolling is a convenience and must not be able to throw
+    // over it (SectionList rejects a location it has not measured yet).
+    setBrandFilter('all');
+    try {
+      listRef.current?.scrollToLocation({
+        sectionIndex: 0,
+        itemIndex: 0,
+        viewPosition: 0,
+        animated: true,
+      });
+    } catch {
+      /* the ticket is visible either way */
+    }
+  }, []);
   const queueSections = useMemo(
     () =>
       [
@@ -463,7 +707,14 @@ export default function Home() {
           togglingOpen={togglingOpen}
           onToggleOpen={toggleOpen}
           muted={muted}
+          muteMinutesLeft={muteMinutesLeft}
           onToggleMuted={toggleMuted}
+          busyActive={busy.active}
+          busyExtraMinutes={busy.extraMinutes}
+          busyMinutesRemaining={busy.minutesRemaining}
+          busyPending={busyPending}
+          maySetBusy={maySetBusy}
+          onSetBusy={applyBusyMode}
           unreadMsgs={unreadMsgs}
           orders={orders}
           brandFilter={brandFilter}
@@ -473,8 +724,29 @@ export default function Home() {
         />
       )}
 
+      {/* Every way this tablet is currently NOT alerting the kitchen, in words. */}
+      <AlertingStatusBanner
+        pushStatus={pushStatus}
+        muted={muted}
+        muteMinutesLeft={muteMinutesLeft}
+        feedLive={feedLive}
+        onOpenSettings={handleOpenSettings}
+        onUnmute={unmute}
+      />
+
+      {/* The alert of last resort: in-process, always on, needs no permission. */}
+      <UnacknowledgedAlert
+        count={placedCount}
+        oldestWait={oldestUnackedWait}
+        onPress={showUnackedFirstTicket}
+      />
+
       <SectionList
+        ref={listRef}
         sections={queueSections}
+        onScrollToIndexFailed={() => {
+          /* measured later; the banner's filter reset already exposed the ticket */
+        }}
         keyExtractor={(item) => item.id}
         contentInsetAdjustmentBehavior="automatic"
         stickySectionHeadersEnabled={false}
@@ -645,3 +917,11 @@ const useHomeStyles = makeStyles((colors) => ({
     minHeight: 48,
   },
 }));
+
+/**
+ * Per-ROUTE recovery. The root layout already exports this, but a boundary that
+ * only exists at the root means any throw anywhere unmounts the whole stack —
+ * including the kitchen queue. Exported here as well so a crash on this screen
+ * is contained to this screen and offers Retry / Home instead.
+ */
+export { ScreenErrorBoundary as ErrorBoundary } from '../src/components/ScreenErrorBoundary';

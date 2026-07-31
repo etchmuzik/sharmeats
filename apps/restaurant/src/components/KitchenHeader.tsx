@@ -22,6 +22,7 @@ import { font, radius, spacing } from '../theme';
 import { useThemeColors, useThemeMode, type ThemeMode } from '../themeProvider';
 import { Icon, type IconName } from './Icon';
 import { LogoButton } from './LogoButton';
+import { BusyControl } from './BusyControl';
 import { selection, tapMedium } from '../lib/haptics';
 import { useLocale } from '../locale';
 import type { TranslationKey } from '../i18n';
@@ -45,7 +46,16 @@ type Props = {
   togglingOpen: boolean;
   onToggleOpen: () => void;
   muted: boolean;
+  /** Minutes left on the self-expiring mute; 0 when sound is on. */
+  muteMinutesLeft: number;
   onToggleMuted: () => void;
+  /** [mig 186] Busy mode, collapsed across every brand this account staffs. */
+  busyActive: boolean;
+  busyExtraMinutes: number;
+  busyMinutesRemaining: number;
+  busyPending: boolean;
+  maySetBusy: boolean;
+  onSetBusy: (extraMinutes: number) => void;
   unreadMsgs: number;
   orders: { restaurant_id: string }[];
   brandFilter: 'all' | string;
@@ -61,7 +71,14 @@ export function KitchenHeader({
   togglingOpen,
   onToggleOpen,
   muted,
+  muteMinutesLeft,
   onToggleMuted,
+  busyActive,
+  busyExtraMinutes,
+  busyMinutesRemaining,
+  busyPending,
+  maySetBusy,
+  onSetBusy,
   unreadMsgs,
   orders,
   brandFilter,
@@ -262,7 +279,9 @@ export function KitchenHeader({
           accessibilityState={{ checked: muted }}
           accessibilityLabel={
             muted
-              ? t('header.soundOffA11y')
+              ? muteMinutesLeft > 0
+                ? t('header.soundOffTimedA11y', { minutes: muteMinutesLeft })
+                : t('header.soundOffA11y')
               : t('header.soundOnA11y')
           }
           style={[
@@ -283,9 +302,26 @@ export function KitchenHeader({
               color: muted ? colors.redText : colors.greenText,
             }}
           >
-            {muted ? t('header.muted') : t('header.sound')}
+            {muted
+              ? muteMinutesLeft > 0
+                ? t('header.mutedFor', { minutes: muteMinutesLeft })
+                : t('header.muted')
+              : t('header.sound')}
           </Text>
         </Pressable>
+
+        {/* [mig 186] Busy mode: the honest prep bump. Sat immediately after the
+            open/closed pair because it is the same decision one notch earlier —
+            "we are behind" before "we have to stop". */}
+        <BusyControl
+          active={busyActive}
+          extraMinutes={busyExtraMinutes}
+          minutesRemaining={busyMinutesRemaining}
+          pending={busyPending}
+          mayEdit={maySetBusy}
+          compact={compact}
+          onSet={onSetBusy}
+        />
 
         {/* Appearance, sat next to the chime because it is the same KIND of
             setting: per-device, set once by whoever runs this counter, and not

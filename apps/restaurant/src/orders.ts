@@ -1,5 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
+import { BUSY_DURATION_MINUTES } from './busyMode';
 
 export type OrderStatus =
   | 'placed'
@@ -104,6 +105,10 @@ export interface KitchenBrand {
   shortName: string;
   isOpen: boolean;
   staffRole: string;
+  /** [mig 186] When the current prep bump lapses; null = not busy. */
+  busyUntil: string | null;
+  /** [mig 186] Extra prep minutes applied while busyUntil is in the future. */
+  busyExtraMinutes: number;
 }
 
 /**
@@ -196,7 +201,12 @@ export async function getMyRestaurant(): Promise<RestaurantContext | null> {
 type StaffRow = {
   restaurant_id: string;
   staff_role: string;
-  restaurants: { name: string; is_open: boolean } | null;
+  restaurants: {
+    name: string;
+    is_open: boolean;
+    busy_until: string | null;
+    busy_extra_minutes: number | null;
+  } | null;
 };
 
 /**
@@ -216,7 +226,9 @@ export async function getMyKitchen(): Promise<KitchenContext | null> {
   const sb = getSupabase();
   const { data, error } = await sb
     .from('merchant_staff')
-    .select('restaurant_id, staff_role, restaurants(name, is_open)');
+    .select(
+      'restaurant_id, staff_role, restaurants(name, is_open, busy_until, busy_extra_minutes)',
+    );
   if (error) throw error;
 
   // supabase-js infers the embedded `restaurants` join loosely (array/any); the
@@ -231,6 +243,8 @@ export async function getMyKitchen(): Promise<KitchenContext | null> {
         shortName: brandShortName(name),
         isOpen: row.restaurants?.is_open ?? false,
         staffRole: row.staff_role,
+        busyUntil: row.restaurants?.busy_until ?? null,
+        busyExtraMinutes: row.restaurants?.busy_extra_minutes ?? 0,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -240,13 +254,43 @@ export async function getMyKitchen(): Promise<KitchenContext | null> {
 }
 
 /**
+ * How far back the kitchen queue reaches.
+ *
+ * The query had no age bound at all, and prod had an order sitting in the
+ * "ready" column for 238 hours. The queue is a picture of TONIGHT'S service: a
+ * ticket that was never completed and never will be is not work, it is debris,
+ * and it pushes live tickets off a counter tablet. 24h comfortably covers a
+ * scheduled order placed the previous evening while excluding anything that has
+ * plainly been abandoned. Abandoned orders are an OPS problem (admin-web
+ * dispatch) — they are not fixed by leaving them on the pass forever.
+ */
+export const ACTIVE_ORDER_WINDOW_HOURS = 24;
+
+/**
+ * Hard cap on rows fetched, so a pathological backlog cannot make the tablet
+ * render (and re-render on every Realtime event) an unbounded list.
+ */
+export const ACTIVE_ORDER_LIMIT = 200;
+
+/** The oldest placed_at the queue will show, as an ISO timestamp. */
+export function activeOrderSince(nowMs: number = Date.now()): string {
+  return new Date(nowMs - ACTIVE_ORDER_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
+}
+
+/**
  * Active orders across one or more storefronts (COD shows immediately; card
- * only once paid).
+ * only once paid), bounded to the last ACTIVE_ORDER_WINDOW_HOURS.
  *
  * Accepts a single id or a list so a cloud kitchen sees ONE combined queue.
- * Ordered by placed_at across all brands: the oldest ticket is the most urgent
- * regardless of which brand it belongs to. RLS already restricts the caller to
- * their own restaurants, so `.in()` cannot widen visibility.
+ * RLS already restricts the caller to their own restaurants, so `.in()` cannot
+ * widen visibility.
+ *
+ * The fetch is ordered NEWEST-first and reversed here, which is not cosmetic:
+ * with the cap applied to an oldest-first fetch, the rows dropped would be the
+ * ones that just arrived — the queue would silently hide new orders under a
+ * backlog, which is the exact failure this whole surface exists to prevent.
+ * Callers still receive oldest-first, because the oldest live ticket is the
+ * most urgent regardless of which brand it belongs to.
  */
 export async function getActiveOrders(
   restaurantIds: string | string[],
@@ -259,11 +303,13 @@ export async function getActiveOrders(
     .in('restaurant_id', ids)
     .not('status', 'in', '(delivered,cancelled,rejected)')
     .or('payment_method.eq.cash_on_delivery,payment_status.eq.paid')
-    .order('placed_at', { ascending: true });
+    .gte('placed_at', activeOrderSince())
+    .order('placed_at', { ascending: false })
+    .limit(ACTIVE_ORDER_LIMIT);
   if (error) throw error;
-  return (data ?? []).map((row) =>
-    normalizeRestaurantOrder(row as unknown as Record<string, unknown>),
-  );
+  return (data ?? [])
+    .map((row) => normalizeRestaurantOrder(row as unknown as Record<string, unknown>))
+    .reverse();
 }
 
 /** Read a single order by id (RLS-scoped to the staffer's restaurant). */
@@ -298,6 +344,7 @@ export function subscribeOrders(
   subscriberKey: string,
   onChange: (row: RestaurantOrder) => void,
   onResync?: () => void,
+  onLiveChange?: (live: boolean) => void,
 ): () => void {
   const sb = getSupabase();
   const name = `restaurant:${restaurantId}:orders:${subscriberKey}`;
@@ -320,7 +367,17 @@ export function subscribeOrders(
       // events emitted during the outage — an order placed while offline would
       // otherwise never appear or chime. Also covers the join-window gap between
       // the initial load and the first SUBSCRIBED.
-      if (status === 'SUBSCRIBED') onResync?.();
+      if (status === 'SUBSCRIBED') {
+        onResync?.();
+        onLiveChange?.(true);
+        return;
+      }
+      // A dead channel is the quietest failure this app has: no error surfaces,
+      // no ticket arrives, and the kitchen reads the silence as "no orders".
+      // Report it so the caller can say so out loud and fall back to polling.
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        onLiveChange?.(false);
+      }
     });
   return () => {
     sb.removeChannel(channel);
@@ -338,15 +395,24 @@ export function subscribeOrders(
  *
  * `onResync` fires when ANY brand's channel (re)connects; callers should
  * refetch the whole combined list, which is exactly what they already do.
+ *
+ * `onLiveChange` reports the WEAKEST link: the combined feed is live only while
+ * every brand's channel is. One dead channel means one brand's tickets stop
+ * arriving, and a partial feed presented as healthy is the missed-order case.
  */
 export function subscribeOrdersMulti(
   restaurantIds: string[],
   subscriberKey: string,
   onChange: (row: RestaurantOrder) => void,
   onResync?: () => void,
+  onLiveChange?: (live: boolean) => void,
 ): () => void {
+  const liveByBrand = new Map<string, boolean>(restaurantIds.map((id) => [id, true]));
   const unsubscribes = restaurantIds.map((id) =>
-    subscribeOrders(id, subscriberKey, onChange, onResync),
+    subscribeOrders(id, subscriberKey, onChange, onResync, (live) => {
+      liveByBrand.set(id, live);
+      onLiveChange?.([...liveByBrand.values()].every(Boolean));
+    }),
   );
   return () => {
     for (const unsubscribe of unsubscribes) unsubscribe();
@@ -374,6 +440,49 @@ export async function setRestaurantOpen(restaurantId: string, open: boolean): Pr
     .update({ is_open: open })
     .eq('id', restaurantId);
   if (error) throw error;
+}
+
+/**
+ * Set (or clear, with `extraMinutes = 0`) this brand's prep bump — mig 186.
+ *
+ * There is deliberately no direct UPDATE grant on restaurants.busy_until /
+ * busy_extra_minutes; set_busy_mode is the only writer, it enforces manager+ on
+ * the brand, and it bounds both the bump (5..60) and the window (15..240). The
+ * client therefore validates nothing and invents nothing — a refusal comes back
+ * as a PostgrestError and is surfaced, never swallowed.
+ *
+ * Returns the instant the bump lapses, or null when it was cleared.
+ */
+export async function setBusyMode(
+  restaurantId: string,
+  extraMinutes: number,
+  durationMinutes: number = BUSY_DURATION_MINUTES,
+): Promise<string | null> {
+  const { data, error } = await getSupabase().rpc('set_busy_mode', {
+    p_restaurant_id: restaurantId,
+    p_extra_minutes: extraMinutes,
+    p_duration_minutes: durationMinutes,
+  });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+/**
+ * Would this ticket still be inside the queue's age window?
+ *
+ * Realtime hands us whatever row changed, with no regard for the fetch's age
+ * bound — an UPDATE on a long-abandoned order would otherwise resurrect it into
+ * tonight's queue and undo the bound entirely.
+ */
+export function isWithinQueueWindow(
+  placedAt: string,
+  nowMs: number = Date.now(),
+): boolean {
+  const placedMs = new Date(placedAt).getTime();
+  // An unparseable timestamp must NOT hide a ticket: OrderRow already treats
+  // that case as "waiting since now" rather than dropping it.
+  if (Number.isNaN(placedMs)) return true;
+  return placedMs >= nowMs - ACTIVE_ORDER_WINDOW_HOURS * 60 * 60 * 1000;
 }
 
 /** Is this order still active (not terminal)? */
