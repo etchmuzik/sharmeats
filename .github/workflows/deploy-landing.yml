@@ -104,9 +104,45 @@ jobs:
           FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
           FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-          FTP_SERVER_DIR: ${{ vars.HOSTINGER_FTP_SERVER_DIR || '.' }}
+          FTP_SERVER_DIR_OVERRIDE: ${{ vars.HOSTINGER_FTP_SERVER_DIR }}
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+          # ---------------------------------------------------------------
+          # Where does out/ go? ASK THE SERVER instead of guessing.
+          #
+          # This account has two shapes and the right answer differs:
+          #   * a domain-scoped SUB-account (u…​.etch) is chrooted to
+          #     /home/u…/domains/sharmeats.online/public_html — it logs in
+          #     already inside the web root, so the target is "."
+          #   * the MAIN account (u…​.sharmeats.online) logs in at /home/u…,
+          #     which CONTAINS public_html — so the target is "public_html"
+          #
+          # Guessing cost one failed deploy already, and the two guesses fail
+          # in opposite directions: "." on the main account dumps the site into
+          # the home dir, "public_html" on the sub-account nests it as
+          # public_html/public_html. Both are transfers that succeed completely
+          # and serve nothing. So: list the login directory, and if public_html
+          # is in it, that is the web root; otherwise we are already there.
+          #
+          # An explicit HOSTINGER_FTP_SERVER_DIR variable always wins — this
+          # only runs when it is unset.
+          # ---------------------------------------------------------------
+          LFTP_TLS="set ftp:ssl-force true; set ssl:verify-certificate true; set ssl:check-hostname false;"
+
+          if [ -z "${FTP_SERVER_DIR_OVERRIDE:-}" ]; then
+            listing=$(lftp -u "$FTP_USERNAME","$FTP_PASSWORD" \
+                        -e "$LFTP_TLS cls -1 --classify; quit" "$FTP_HOST" 2>/dev/null || true)
+            if printf '%s\n' "$listing" | grep -qx 'public_html/'; then
+              FTP_SERVER_DIR=public_html
+            else
+              FTP_SERVER_DIR=.
+            fi
+            echo "Detected web root: $FTP_SERVER_DIR (login dir contains: $(printf '%s' "$listing" | tr '\n' ' '))"
+          else
+            FTP_SERVER_DIR="$FTP_SERVER_DIR_OVERRIDE"
+            echo "Using HOSTINGER_FTP_SERVER_DIR override: $FTP_SERVER_DIR"
+          fi
           # FTPS enforced: credentials must never travel plaintext.
           #
           # verify-certificate STAYS ON. check-hostname is off, and the two are
@@ -129,9 +165,7 @@ jobs:
           # moves to a host whose cert names it (a VPS, or SFTP over its own
           # key), and prefer that if the choice ever comes up.
           lftp -u "$FTP_USERNAME","$FTP_PASSWORD" \
-               -e "set ftp:ssl-force true; set ssl:verify-certificate true; \
-                   set ssl:check-hostname false; \
-                   mirror -R --verbose --parallel=4 landing/out/ $FTP_SERVER_DIR; quit" \
+               -e "$LFTP_TLS mirror -R --verbose --parallel=4 landing/out/ $FTP_SERVER_DIR; quit" \
                "$FTP_HOST"
 
       - name: Verify the live site took the deploy
