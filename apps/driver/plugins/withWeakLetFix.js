@@ -17,8 +17,26 @@
  * and fastlane have all succeeded, which makes it look like a project problem
  * when it is purely a toolchain version gap.
  *
- * The patch rewrites `weak let` to `weak var`, which every affected Swift
- * version accepts.
+ * The patch rewrites `weak let` to `nonisolated(unsafe) weak var`.
+ *
+ * WHY `nonisolated(unsafe)` AND NOT JUST `weak var`: that was the first attempt
+ * and it traded one error for another. Six of these classes conform to
+ * `Sendable`, which forbids mutable stored properties:
+ *
+ *   HostFunctionContext.swift:17:12: error: stored property 'runtime' of
+ *   'Sendable'-conforming class 'UnownedThisHostFunctionContext' is mutable
+ *
+ * So `let` is exactly what upstream needed to satisfy Sendable, and `var` is
+ * exactly what the older compiler demands for `weak` — the two requirements are
+ * in direct conflict on this toolchain. `nonisolated(unsafe)` is the sanctioned
+ * way out: it asserts the property is safe to access concurrently without the
+ * compiler proving it. This is not an invention — expo-modules-jsi already uses
+ * that exact modifier two lines below one of these, on
+ * `nonisolated(unsafe) private let pointee` in JavaScriptError.swift.
+ *
+ * The safety claim it makes is the same one upstream is already relying on:
+ * these references are only touched on the JavaScript thread while the runtime
+ * is alive, which JavaScriptError.swift states in its own doc comment.
  *
  * WHY THIS IS SAFE ON BOTH TOOLCHAINS, and why it is registered unconditionally
  * rather than guarded on a version check: `weak var` is strictly more permissive
@@ -89,7 +107,11 @@ module.exports = function withWeakLetFix(config) {
         const matches = before.match(/\bweak\s+let\b/g);
         if (!matches) continue;
 
-        fs.writeFileSync(file, before.replace(/\bweak(\s+)let\b/g, 'weak$1var'), 'utf8');
+        fs.writeFileSync(
+          file,
+          before.replace(/\bweak(\s+)let\b/g, 'nonisolated(unsafe) weak$1var'),
+          'utf8',
+        );
         patchedFiles += 1;
         patchedSites += matches.length;
       }
@@ -100,7 +122,7 @@ module.exports = function withWeakLetFix(config) {
         );
       } else {
         console.log(
-          `[withWeakLetFix] rewrote ${patchedSites} \`weak let\` -> \`weak var\` across ${patchedFiles} file(s)`,
+          `[withWeakLetFix] rewrote ${patchedSites} \`weak let\` -> \`nonisolated(unsafe) weak var\` across ${patchedFiles} file(s)`,
         );
       }
       return cfg;
