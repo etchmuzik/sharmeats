@@ -137,7 +137,7 @@ jobs:
                | grep -q 'SENTRY_AUTH_TOKEN'; then
             echo "SENTRY_AUTH_TOKEN present — source maps will upload."
           else
-            echo "::warning title=Sentry source maps will not upload::SENTRY_AUTH_TOKEN is not set for the production environment of apps/${{ matrix.app }}, but eas.json sets SENTRY_DISABLE_AUTO_UPLOAD=false for profile '${{ inputs.profile }}'. sentry-cli will fail and, because SENTRY_ALLOW_FAILURE is not honoured in @sentry/react-native 7.11.0, that fails the Xcode build phase. Create it with: eas env:create --environment production --name SENTRY_AUTH_TOKEN --value <token> --visibility secret"
+            echo "::warning title=Sentry source maps will not upload::SENTRY_AUTH_TOKEN is not set for the production environment of apps/${{ matrix.app }}, but eas.json sets SENTRY_DISABLE_AUTO_UPLOAD=false for profile '${{ inputs.profile }}'. sentry-cli will fail and, because SENTRY_ALLOW_FAILURE is not honoured in @sentry/react-native 7.11.0, that fails the Xcode build phase. Create it with: eas env:set --environment production --name SENTRY_AUTH_TOKEN --value <token> --visibility secret"
           fi
 
       # Only packages/* are npm workspaces; every app owns its own lockfile, so
