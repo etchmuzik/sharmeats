@@ -41,7 +41,8 @@ set -euo pipefail
 
 PROJECT_REF="${SUPABASE_PROJECT_REF:-ilqpsebcfbaoaogimhud}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/sharmeats-backups}"
-KEEP="${KEEP:-14}"                      # how many timestamped backups to retain
+KEEP="${KEEP:-14}"                      # how many SUCCESSFUL backups to retain
+KEEP_FAILED="${KEEP_FAILED:-5}"         # how many -FAILED quarantine dirs to retain
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="${BACKUP_DIR}/${STAMP}"
 
@@ -231,9 +232,25 @@ for f in schema.sql data.sql; do
   fi
 done
 
-# Retention: keep the newest ${KEEP} timestamped directories.
-ls -1d "${BACKUP_DIR}"/*/ 2>/dev/null | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+# Retention: keep the newest ${KEEP} SUCCESSFUL timestamped directories.
+#
+# The earlier version globbed every directory, so `-FAILED` quarantine dirs
+# counted against KEEP. Four consecutive failures on 2026-07-27 therefore
+# evicted four good backups: with 14 slots and 8 failure dirs present, the
+# effective retention was 6 real backups, not 14 — retention silently shrank
+# in exactly the circumstance where history matters most. Failures are now
+# counted and pruned separately.
+ls -1d "${BACKUP_DIR}"/*/ 2>/dev/null \
+  | grep -v -- '-FAILED/$' \
+  | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
   echo "  · pruning $(basename "${old}")"
+  rm -rf "${old}"
+done
+
+# Quarantined failures are kept for diagnosis but must not accumulate forever.
+ls -1d "${BACKUP_DIR}"/*-FAILED/ 2>/dev/null \
+  | sort -r | tail -n +$((KEEP_FAILED + 1)) | while read -r old; do
+  echo "  · pruning failed run $(basename "${old}")"
   rm -rf "${old}"
 done
 

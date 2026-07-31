@@ -29,7 +29,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/etch/Downloads/sharmeats/scripts/backup-prod.sh</string>
+    <string>/Users/etch/Downloads/sharmeats-new/scripts/backup-prod.sh</string>
   </array>
 
   <!-- 03:00 local time, daily. RunAtLoad is deliberately false so installing
@@ -61,7 +61,7 @@
        ~2 MB dump of every customer row. Removed. -->
 
   <key>WorkingDirectory</key>
-  <string>/Users/etch/Downloads/sharmeats</string>
+  <string>/Users/etch/Downloads/sharmeats-new</string>
 
   <!-- Homebrew paths for pg_dump/supabase; launchd's default PATH is minimal. -->
   <key>EnvironmentVariables</key>
