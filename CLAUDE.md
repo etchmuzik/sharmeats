@@ -33,7 +33,7 @@ Per app (run from the app's directory):
 
 ```bash
 npm run typecheck        # tsc --noEmit — exists in every surface; run after any change
-npm test                 # vitest — exists in apps/customer and apps/merchant-web only
+npm test                 # vitest — every app has it; landing's runs the zone check
 npx vitest run src/lib/rewards.test.ts   # single test file
 npm run lint             # Next.js apps only
 ```
@@ -70,7 +70,17 @@ All money, order-status, and dispatch logic is in **SECURITY DEFINER Postgres RP
 
 ## Migration house rules (each of these caused a real production incident)
 
-Migrations are `supabase/migrations/NNN_name.sql`, applied in order (currently through 109). When writing one:
+Migrations are `supabase/migrations/NNN_name.sql`, applied in order. Three legacy `YYYYMMDDHHMMSS_name.sql` files also exist and sort after them.
+
+**Read the highest number off disk before naming a new one** — never trust a count written in a doc, including this one. It previously said "currently through 109" while the real answer was 201, and a stale count is exactly how two migrations end up claiming the same number:
+
+```bash
+ls supabase/migrations | sed -n 's/^\([0-9]\{3\}\)_.*/\1/p' | sort -n | tail -1
+```
+
+The trailing `_` in that pattern is load-bearing: without it the timestamped files match on their first three digits and report `202`, a migration that does not exist.
+
+When writing one:
 
 1. **Never `CREATE OR REPLACE` a function with a different argument list** — Postgres creates a second overload, PostgREST then fails with PGRST202 on every call. Drop the old signature explicitly, and verify prod ends up with exactly ONE overload matching the app's arg list.
 2. **Start from the latest version of a function's body**, never an older migration's copy — re-pasting an old body silently reverts later security hardening.
