@@ -1,6 +1,16 @@
--- 202_platform_settings_secret_keys_lockdown.sql
+-- 209_platform_settings_secret_keys_lockdown.sql
 --
 -- Stop serving the Telegram bot token to anyone who asks.
+--
+-- RENUMBERED 202 -> 209 on 2026-08-01. Two sessions worked this repo in
+-- parallel, both correctly read "the highest migration is 201", and both wrote
+-- a 202 — this file and 202_audit_20260731_p0_p1_fixes.sql. That one keeps the
+-- number because 203_audit_20260731_p2_fixes.sql is its pair; splitting them
+-- would be the worse edit. Production is unaffected either way: Supabase
+-- records migrations under timestamp versions, not this prefix, so the rename
+-- is a repo-ordering fix only. scripts/check-migration-numbers.mjs now fails
+-- CI on a collision, because the race is between concurrent readers and no
+-- amount of documentation prevents it.
 --
 -- FOUND 2026-07-31 during post-migration verification: platform_settings had
 -- SELECT policy `using (true)` for {public} AND an anon SELECT grant, so
@@ -61,4 +71,4 @@ create policy platform_settings_read on public.platform_settings
   );
 
 comment on table public.platform_settings is
-  'Operational tunables, readable by signed-in users (apps mirror most of them in code anyway). EXCEPTIONS: ops_alert_webhook_url, telegram_webhook_secret, ops_alert_telegram_chat_id and any key named secret_* are admin-only via the platform_settings_read policy — the webhook URL embeds the Telegram bot token, which was publicly readable until 2026-07-31 (migration 202). Put future credentials under a secret_ prefix (or better, in edge function env vars), never in a plainly-named row. Writes are admin-only (policies from earlier migrations, unchanged here).';
+  'Operational tunables, readable by signed-in users (apps mirror most of them in code anyway). EXCEPTIONS: ops_alert_webhook_url, telegram_webhook_secret, ops_alert_telegram_chat_id and any key named secret_* are admin-only via the platform_settings_read policy — the webhook URL embeds the Telegram bot token, which was publicly readable until 2026-07-31 (migration 209, written as 202). Put future credentials under a secret_ prefix (or better, in edge function env vars), never in a plainly-named row. Writes are admin-only (policies from earlier migrations, unchanged here).';
