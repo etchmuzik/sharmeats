@@ -46,9 +46,21 @@ These are the biggest standing risk and none of tonight's work changed them:
   server-side gate is currently **inert** for both. Enrol at
   `admin.sharmeats.online/security`. (Read the lockout warning in
   `docs/GO-LIVE.md` first — an MFA lockout is worse than a password one.)
-- **Rotate the Telegram bot token + webhook secret** — the ops-alert webhook URL
-  embeds the bot token and was world-readable until mig 202. Update
-  `platform_settings` in the same step and send a test alert.
+- ~~**Rotate the Telegram bot token + webhook secret**~~ — **owner reports this
+  done (2026-08-01)** and confirms alerts are still arriving, which is the
+  meaningful test. Closed on that basis.
+
+  Recorded for the next auditor, because it is the kind of thing that looks
+  settled and is not: I could not verify it myself. The values I read in
+  `platform_settings` afterwards were byte-identical to the pre-rotation ones
+  (same `bot85…` prefix, same `9b9b2299…` secret), and I lost database access
+  before I could re-check. Either I read a stale snapshot, or the rotation
+  landed in BotFather without landing in the database. **Arriving alerts rule
+  out the dangerous half** — a database holding a revoked token would be
+  completely silent — so this is closed, but if alerts ever stop abruptly,
+  start here. The good news that made this safe to close: the token was never
+  in git history, so the exposure was the world-readable `platform_settings`
+  row that mig 209 closed, not a permanent public leak.
 - **Enable leaked-password protection (HaveIBeenPwned)** in the Supabase
   dashboard → Auth → Password settings. One toggle; the advisor still flags it.
 
@@ -58,8 +70,26 @@ These are the biggest standing risk and none of tonight's work changed them:
 
 `NEXT_PUBLIC_SENTRY_DSN` was unset at build time, so the deployed
 merchant-web/admin-web bundles resolve it to `undefined` — **zero error
-reporting on the dashboards**. (Verified: `NEXT_PUBLIC_SUPABASE_URL` *is* inlined
-in the same chunk, proving inlining works; the DSN var was simply absent.)
+reporting on the dashboards**.
+
+**Still true — re-verified against production 2026-08-01**, after the day's
+merges, by fetching every JS chunk each surface references and grepping it:
+
+| Surface | Chunks with a Sentry ingest URL | Chunks with the Supabase URL |
+|---|---|---|
+| `admin.sharmeats.online` | **0 of 14** | 3 |
+| `merchant.sharmeats.online` | **0 of 14** | 2 |
+
+The second column is the control, and it is what makes this conclusive rather
+than suggestive: `NEXT_PUBLIC_SUPABASE_URL` *is* inlined by the same mechanism
+in the same build, so inlining works and the DSN var was simply absent. This is
+not a Sentry misconfiguration to debug — nothing is being sent at all.
+
+**Read the consequence carefully: an empty Sentry for these two surfaces is not
+a clean bill of health.** Zero dashboard errors means zero dashboard reporting.
+It is the same shape as the silent Telegram channel and the dead backup job —
+quiet that reads like good news. Any triage that says "no new web errors" is
+describing the instrument, not the platform.
 
 I could not fix this myself: the mobile apps have per-surface DSNs in their
 `eas.json`, but **the two web dashboards need their own Sentry-project DSNs**,
@@ -71,8 +101,15 @@ errors, so this is yours:
 2. Set `NEXT_PUBLIC_SENTRY_DSN=<dsn>` in the build env for each, then tell me and
    I'll rebuild + redeploy both to Hostinger (or you can run the same
    `STATIC_EXPORT=1 npm run build` + deploy I've been using).
-3. Verify: `curl -s https://admin.sharmeats.online/_next/static/chunks/…` grep for
-   `ingest.de.sentry.io`.
+3. Verify with the same check used above — a per-chunk grep, not a homepage
+   grep, since the DSN lands in a chunk and not in the HTML:
+
+```bash
+for c in $(curl -fsS https://admin.sharmeats.online/ \
+           | grep -oE '/_next/static/[^"]+\.js' | sort -u); do
+  curl -fsS "https://admin.sharmeats.online$c" | grep -oE 'ingest\.[a-z.]*sentry\.io'
+done | sort -u    # expect at least one hit; empty means still dark
+```
 
 ---
 
