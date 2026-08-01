@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { advance, collectCod, completeCodDelivery, fetchJob, type Job } from '../../src/jobs';
+import { advance, collectCod, completeCodDelivery, fetchJob, subscribeJob, type Job } from '../../src/jobs';
 import { isProofRequired, recordProof } from '../../src/proofOfDelivery';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { parseWkbPoint } from '../../src/geo';
@@ -69,6 +69,20 @@ export default function JobScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Live job updates: without this the screen fetched once and went stale, so a
+  // kitchen marking the order ready — or a dispatcher reassigning/cancelling —
+  // stayed invisible until the driver left and re-entered. Mirrors the customer
+  // order subscription; refetches on any orders UPDATE and on reconnect.
+  useEffect(() => {
+    if (!id) return;
+    const unsubscribe = subscribeJob(id, (j) => {
+      setJob(j);
+      setLoadError(null);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, [id]);
 
   // Ensure streaming matches the job state when the screen mounts/updates:
   // stream between picked_up and out_for_delivery; stop once delivered/terminal.
