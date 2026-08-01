@@ -39,7 +39,12 @@ export function isPingStale(
   if (!lastPingAt) return true;
   const pingedMs = Date.parse(lastPingAt);
   if (Number.isNaN(pingedMs)) return true;
-  return nowMs - pingedMs > maxAgeSeconds * 1000;
+  // >= not >, so the boundary matches the SQL. Migration 201 asks
+  // `last_ping_at > now() - interval`, which is FALSE at exactly the threshold
+  // and therefore excludes that driver. Comparing age with a bare `>` inverts
+  // it — 300s old would read as fresh here and stale there. One instant wide,
+  // but "the board applies the identical rule" has to survive being checked.
+  return nowMs - pingedMs >= maxAgeSeconds * 1000;
 }
 
 /**

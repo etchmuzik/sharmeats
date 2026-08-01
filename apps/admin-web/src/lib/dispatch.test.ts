@@ -21,12 +21,22 @@ describe('isPingStale', () => {
     expect(isPingStale(agoSeconds(3600), NOW)).toBe(true);
   });
 
-  it('treats exactly the boundary as fresh, matching the SQL `>` comparison', () => {
-    // Migration 201: last_ping_at > now() - interval. Equal is not greater, but
-    // the SQL compares the timestamp while this compares the age, so the
-    // inclusive side lands here. Asserted so a future edit to `>=` is a visible
-    // behaviour change rather than a silent one.
-    expect(isPingStale(agoSeconds(300), NOW)).toBe(false);
+  it('excludes a driver at EXACTLY the boundary, matching the SQL', () => {
+    // Migration 201 asks `last_ping_at > now() - interval`. At exactly the
+    // threshold that is FALSE, so the RPC excludes the driver. Comparing age
+    // with a bare `>` inverts it: 300s would read fresh here and stale there.
+    // This assertion is the thing that keeps the two definitions honest.
+    expect(isPingStale(agoSeconds(300), NOW)).toBe(true);
+    expect(isPingStale(agoSeconds(299), NOW)).toBe(false);
+  });
+
+  it('agrees with the SQL predicate across the boundary', () => {
+    // Differential check rather than a hand-picked case: for each age, compare
+    // this function against the migration's actual predicate, evaluated in JS.
+    const sqlDispatchable = (ageSec: number) => NOW - ageSec * 1000 > NOW - 300 * 1000;
+    for (const age of [0, 1, 150, 298, 299, 300, 301, 600, 86_400]) {
+      expect(isPingStale(agoSeconds(age), NOW)).toBe(!sqlDispatchable(age));
+    }
   });
 
   it('FAILS CLOSED on a driver that has never pinged', () => {

@@ -135,3 +135,27 @@ jobs:
         run: pg_config --version
       - name: Test security and governance migrations in isolated PostgreSQL
         run: ./scripts/test-security-migrations.sh
+
+  # Two guards for failures that every other job in this file was blind to.
+  # Both are pure repo inspection: no install, no network, seconds to run.
+  repo-integrity:
+    name: repo integrity (migrations + easignore)
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth 0 is not needed — both checks read the working tree only.
+      - uses: actions/checkout@v4
+
+      # 2026-08-01: two sessions both correctly read "highest is 201" and both
+      # wrote a 202. The collision is a race between concurrent readers, which
+      # is why the warning already in CLAUDE.md did not prevent it and a check
+      # that runs on both branches does.
+      - name: Migration numbers are unique
+        run: node scripts/check-migration-numbers.mjs
+
+      # 2026-07-31: an unanchored `supabase/` in .easignore deleted
+      # apps/customer/src/data/supabase/ from every EAS upload. Typecheck,
+      # tests, lint and expo export all read the working tree and stayed green;
+      # the only signal was a failed cloud build ~20 minutes and one credit
+      # later. This turns the archive's contents into a CI-time assertion.
+      - name: EAS upload keeps the app source
+        run: ./scripts/check-easignore.sh
