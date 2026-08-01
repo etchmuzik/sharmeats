@@ -14,30 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      __pre_mig126_129_snapshot: {
-        Row: {
-          acl: string | null
-          args: string | null
-          def: string | null
-          proname: unknown
-          taken_at: string | null
-        }
-        Insert: {
-          acl?: string | null
-          args?: string | null
-          def?: string | null
-          proname?: unknown
-          taken_at?: string | null
-        }
-        Update: {
-          acl?: string | null
-          args?: string | null
-          def?: string | null
-          proname?: unknown
-          taken_at?: string | null
-        }
-        Relationships: []
-      }
       acquisition_partners: {
         Row: {
           code: string
@@ -4129,6 +4105,36 @@ export type Database = {
           },
         ]
       }
+      site_health_checks: {
+        Row: {
+          alerted: boolean
+          failing_since: string | null
+          fired_at: string | null
+          last_ok_at: string | null
+          last_status: number | null
+          request_id: number | null
+          url: string
+        }
+        Insert: {
+          alerted?: boolean
+          failing_since?: string | null
+          fired_at?: string | null
+          last_ok_at?: string | null
+          last_status?: number | null
+          request_id?: number | null
+          url: string
+        }
+        Update: {
+          alerted?: boolean
+          failing_since?: string | null
+          fired_at?: string | null
+          last_ok_at?: string | null
+          last_status?: number | null
+          request_id?: number | null
+          url?: string
+        }
+        Relationships: []
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null
@@ -4990,6 +4996,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_mfa_posture: {
+        Args: never
+        Returns: {
+          email: string
+          has_factor: boolean
+          last_sign_in: string
+          user_id: string
+        }[]
+      }
       admin_resolve_user_names: {
         Args: { p_ids: string[] }
         Returns: {
@@ -5146,10 +5161,15 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      assert_scheduled_orders_allowed: {
+        Args: { p_scheduled_for: string }
+        Returns: undefined
+      }
       assign_driver: {
         Args: { p_driver_id: string; p_order_id: string }
         Returns: undefined
       }
+      auth_aal: { Args: never; Returns: string }
       auth_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -5266,6 +5286,19 @@ export type Database = {
         Returns: boolean
       }
       disablelongtransactions: { Args: never; Returns: string }
+      dispatch_churn_watchdog: { Args: never; Returns: number }
+      dispatch_push_outbox: { Args: { p_limit?: number }; Returns: number }
+      dispatch_push_retries: { Args: { p_limit?: number }; Returns: number }
+      dispatch_stuck_report: {
+        Args: never
+        Returns: {
+          age_minutes: number
+          detail: string
+          order_id: string
+          shape: string
+          status: string
+        }[]
+      }
       dispatch_sweep: { Args: never; Returns: number }
       dispatch_watchdog: { Args: never; Returns: undefined }
       driver_cod_capacity: {
@@ -5580,6 +5613,7 @@ export type Database = {
         Args: { p_capability: string; p_user_id: string }
         Returns: boolean
       }
+      has_verified_mfa_factor: { Args: { p_user_id: string }; Returns: boolean }
       i_have_platform_capability: {
         Args: { p_capability: string }
         Returns: boolean
@@ -6099,6 +6133,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      reclaim_stuck_push_messages: { Args: never; Returns: number }
       reconcile_push_campaigns: { Args: never; Returns: number }
       reconcile_stale_card_orders: { Args: never; Returns: number }
       record_acquisition_touch: {
@@ -6174,6 +6209,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      require_admin: { Args: never; Returns: undefined }
       resolve_service_area: { Args: { p_point: unknown }; Returns: string }
       resolve_support_case: {
         Args: { p_case_id: string; p_note?: string; p_resolution_code: string }
@@ -6379,6 +6415,7 @@ export type Database = {
         Returns: undefined
       }
       settlement_sweep: { Args: never; Returns: number }
+      site_health_sweep: { Args: never; Returns: undefined }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown

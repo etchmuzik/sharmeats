@@ -17,6 +17,7 @@ import {
   DEFAULT_NOTIFICATION_PREFS as DEFAULT_PREFS,
   formatQuietWindow,
 } from '../src/lib/notificationPrefs';
+import { syncLocaleToProfile } from '../src/lib/localeSync';
 import { getReleaseInfo, formatReleaseLine } from '../src/lib/release';
 import { getPermissionDecision } from '../src/lib/push';
 import type { PermissionDecision } from '../src/lib/pushPermission';
@@ -153,6 +154,11 @@ export default function Settings() {
                   onPress={() => {
                     selection();
                     setLocale(l as Locale);
+                    // [202 F-03] Also tell the SERVER, which composes every push
+                    // from users.locale — that column was stuck at its 'ar'
+                    // signup default, so notifications ignored this choice.
+                    // Best-effort: never blocks the tap.
+                    void syncLocaleToProfile(l as Locale);
                   }}
                   style={[styles.row, isSel && styles.rowActive]}>
                   <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
