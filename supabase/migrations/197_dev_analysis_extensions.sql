@@ -14,7 +14,9 @@
 --                    see: the SQL parses, the migration applies, and it fails
 --                    only at execution. It earned its place on the first run by
 --                    finding four functions that could never have succeeded
---                    (see migration 197_gen_random_bytes_search_path_fix).
+--                    (see migration 20260730223634_gen_random_bytes_search_path_fix,
+--                    which shipped as a second `197_` file until it was renamed
+--                    to the version prod recorded).
 --
 --                    Usage — every SECURITY DEFINER function in public, minus
 --                    triggers (which need a relation OID and error without one):

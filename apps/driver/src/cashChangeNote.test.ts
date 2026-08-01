@@ -105,6 +105,50 @@ describe('cash-change dropoff-note v1 contract', () => {
     });
   });
 
+  // [203 P2-02] Reconciliation alone does not bound the magnitude. A marker
+  // injected via a direct place_order call (dropoff_note is free text) can be
+  // perfectly self-consistent and still absurd — and the driver card renders it
+  // as an authoritative instruction, lending app authority to a quick-change
+  // scam at the doorstep. The writer refuses to emit these; the reader must
+  // refuse to honour them.
+  it('rejects a self-consistent but implausibly large tender', () => {
+    // 100,000 tendered on a 572 EGP order: arithmetic reconciles exactly.
+    const note = '[[sharmeats:cash-change:v1:tender=100000;change=99428]]';
+    expect(parseCashChangeNote(note, 572)).toEqual({
+      customerNote: note,
+      cashChange: null,
+    });
+  });
+
+  it('accepts a tender at the plausibility ceiling and rejects one above it', () => {
+    // Ceiling mirrors the writer: payable + 200 * 5.
+    const atCeiling = '[[sharmeats:cash-change:v1:tender=1572;change=1000]]';
+    expect(parseCashChangeNote(atCeiling, 572)).toEqual({
+      customerNote: '',
+      cashChange: { tenderEgp: 1572, changeEgp: 1000 },
+    });
+
+    const overCeiling = '[[sharmeats:cash-change:v1:tender=1573;change=1001]]';
+    expect(parseCashChangeNote(overCeiling, 572)).toEqual({
+      customerNote: overCeiling,
+      cashChange: null,
+    });
+  });
+
+  it('scales the ceiling with the order so a genuinely large bill still works', () => {
+    // A 5,000 EGP order paid with 6,000 is ordinary, and must not be caught by
+    // a flat cap.
+    expect(
+      parseCashChangeNote(
+        '[[sharmeats:cash-change:v1:tender=6000;change=1000]]',
+        5000,
+      ),
+    ).toEqual({
+      customerNote: '',
+      cashChange: { tenderEgp: 6000, changeEgp: 1000 },
+    });
+  });
+
   it('renders a note-only card when preference is null', () => {
     const markerOnly = parseCashChangeNote(
       '[[sharmeats:cash-change:v1:tender=600;change=28]]',

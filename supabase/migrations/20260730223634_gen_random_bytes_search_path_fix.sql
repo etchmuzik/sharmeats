@@ -1,4 +1,17 @@
--- 197_gen_random_bytes_search_path_fix.sql
+-- 20260730223634_gen_random_bytes_search_path_fix.sql
+--
+-- RENAMED 2026-08-01 (audit P2-14/P2-18), content unchanged. This shipped as
+-- `197_gen_random_bytes_search_path_fix.sql`, colliding with
+-- `197_dev_analysis_extensions.sql`: supabase_migrations.schema_migrations keys
+-- on version, so two local files parsing to `197` cannot both be recorded. Any
+-- fresh replay (`db push`, `db reset`, a staging build, the eventual ledger
+-- reconciliation) would error on the duplicate or silently apply only one —
+-- and if it dropped THIS one, create_order_share/redeem_points/redeem_credit
+-- would be broken on that environment with no obvious cause.
+--
+-- The new name is the version production already recorded for this migration
+-- (20260730223634), so the repo now matches the live ledger exactly rather than
+-- inventing a third number.
 --
 -- Four SECURITY DEFINER functions could never have succeeded past the line
 -- where they mint a random token. All of them pin

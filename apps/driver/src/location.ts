@@ -146,3 +146,58 @@ export function isStreaming(orderId?: string): boolean {
   if (!active) return false;
   return orderId ? active.orderId === orderId : true;
 }
+
+/**
+ * IDLE HEARTBEAT — the client half of migration 201.
+ *
+ * Mig 201 made `nearest_drivers` require a ping newer than
+ * platform_settings.dispatch_max_ping_age_seconds (default 300s): status is
+ * intent and survives a force-quit, `last_ping_at` is evidence. That was the
+ * right call — seed drivers marked online since June were being re-dispatched
+ * thousands of times to phones that were not listening.
+ *
+ * But nothing ever sent that evidence while a driver was WAITING. driver_ping
+ * fired only on the online/offline toggle, on a foreground transition, and from
+ * the background task — which returns early unless an active delivery is
+ * streaming. So an online driver between jobs, phone pocketed, stopped
+ * satisfying the filter 5 minutes later and silently left the dispatch pool.
+ *
+ * That deadlocks: no candidate -> no offer row -> no push -> nothing wakes the
+ * driver, who is waiting for exactly that push. The 2026-07-31 audit rated it
+ * P0 for that reason.
+ *
+ * INTERVAL: 120s against a 300s window gives two missed beats of slack before a
+ * driver drops out, so a single failed request or a brief radio gap does not
+ * cost them offers. Cheap: one small RPC per two minutes per online driver.
+ *
+ * BATTERY: this is deliberately NOT a location subscription. It takes a single
+ * Balanced-accuracy fix per beat — the same thing the foreground transition
+ * already did — and does nothing at all while streaming, because an active
+ * delivery is already pinging on its own.
+ */
+const IDLE_HEARTBEAT_MS = 120_000;
+
+let heartbeat: ReturnType<typeof setInterval> | null = null;
+
+export function startIdleHeartbeat(): void {
+  if (heartbeat) return;  // already beating; never stack two
+  heartbeat = setInterval(() => {
+    // While streaming, the location task's throttled ping is the fresher
+    // signal — beating on top of it would be redundant GPS work.
+    if (isStreaming()) return;
+    pingOnce('online').catch(() => {
+      /* fire-and-forget: a missed beat costs slack, not the shift */
+    });
+  }, IDLE_HEARTBEAT_MS);
+}
+
+export function stopIdleHeartbeat(): void {
+  if (!heartbeat) return;
+  clearInterval(heartbeat);
+  heartbeat = null;
+}
+
+/** Test seam: is the heartbeat currently running? */
+export function isIdleHeartbeatRunning(): boolean {
+  return heartbeat !== null;
+}

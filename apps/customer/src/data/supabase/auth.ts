@@ -17,6 +17,35 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabase } from './client';
 
+/**
+ * [202 F-03] The language the person has already chosen, read straight from the
+ * session store's persisted blob.
+ *
+ * Read rather than imported on purpose: the data layer must not depend on the
+ * store (the dependency runs the other way), and this is the one moment — row
+ * creation — where the value has to be available to a repository. The key and
+ * shape are `@sharmeats:session:v1` / `{ locale }` from src/store/session.ts.
+ *
+ * Falls back to 'en' (the store's own tourist-first default) rather than to the
+ * database's 'ar', so a first launch with no stored session still gets sensible
+ * push copy.
+ */
+const SESSION_STORAGE_KEY = '@sharmeats:session:v1';
+const SUPPORTED_LOCALES = ['en', 'ar', 'ru', 'it', 'de'] as const;
+
+async function readPersistedLocale(): Promise<string> {
+  try {
+    const raw = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return 'en';
+    const parsed = JSON.parse(raw) as { locale?: unknown };
+    return (SUPPORTED_LOCALES as readonly string[]).includes(parsed.locale as string)
+      ? (parsed.locale as string)
+      : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
 export interface SessionInfo {
   userId: string;
   isAnonymous: boolean;
@@ -146,7 +175,15 @@ export const authRepoSupabase = {
       return { userId: session.user.id, isAnonymous: session.user.is_anonymous ?? false };
     }
 
-    const { data, error } = await sb.auth.signInAnonymously();
+    // [202 F-03] Seed the locale at row creation. handle_new_user (mig 124)
+    // sets users.locale from `coalesce(raw_user_meta_data->>'locale', 'ar')`,
+    // and this call passed no metadata — so EVERY account was born 'ar' and
+    // every server-composed push ignored the language the person had chosen.
+    // Reading the persisted store here (rather than importing it, which would
+    // make the data layer depend on the store) keeps the layering intact.
+    const { data, error } = await sb.auth.signInAnonymously({
+      options: { data: { locale: await readPersistedLocale() } },
+    });
     if (error) {
       // Most common cause: the provider is off. Make that obvious.
       const hint =

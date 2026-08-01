@@ -22,6 +22,7 @@ import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT, LOCALE_LABELS, ALL_LOCALES } from '../src/i18n';
 import { useSession, type Locale } from '../src/store/session';
 import { useDirection } from '../src/lib/direction';
+import { syncLocaleToProfile } from '../src/lib/localeSync';
 import { selection } from '../src/haptics';
 
 const { width } = Dimensions.get('window');
@@ -157,6 +158,12 @@ export default function Onboarding() {
                       key={l}
                       onPress={() => {
                         setLocale(l as Locale);
+                        // [202 F-03] Mirror the choice into users.locale, which
+                        // is what expo-push localizes from. Before a session
+                        // exists this no-ops; the row is then born with the
+                        // right locale anyway, because ensureSession() passes
+                        // the persisted choice as signup metadata.
+                        void syncLocaleToProfile(l as Locale);
                         setPickerOpen(false);
                       }}
                       style={[styles.langOpt, l === locale && styles.langOptActive]}>

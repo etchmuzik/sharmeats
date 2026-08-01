@@ -45,6 +45,11 @@ export default function SupportInboxPage() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const listEnd = useRef<HTMLDivElement>(null);
+  // The realtime subscription must not tear down and rebuild every time an
+  // agent opens a different thread, so the open user is read through a ref
+  // rather than being a dependency of the effect.
+  const openUserRef = useRef<string | null>(null);
+  openUserRef.current = openUser;
 
   const loadThreads = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
@@ -126,6 +131,67 @@ export default function SupportInboxPage() {
       cancelled = true;
     };
   }, [router, loadThreads]);
+
+  // Live inbound messages. support_messages is realtime-published with replica
+  // identity full precisely for this (mig 069), but only the customer end
+  // subscribed — an agent sitting on the inbox never saw a new message or a new
+  // thread until they re-opened a thread or reloaded, so "live support chat"
+  // was live in one direction only.
+  //
+  // Gated on 'ready' so it never runs for an unauthorized viewer, and rebuilt
+  // only on that transition (the open thread is read via ref).
+  useEffect(() => {
+    if (phase.state !== 'ready') return;
+    const supabase = createSupabaseBrowserClient();
+    const name = 'admin:support:inbox';
+    // Same stale-channel guard as the dispatch board — .on() throws if this
+    // topic is still registered from a previous mount.
+    for (const existing of supabase.getChannels()) {
+      if (existing.topic === `realtime:${name}`) supabase.removeChannel(existing);
+    }
+    const channel = supabase
+      .channel(name)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'support_messages' },
+        (payload) => {
+          const row = payload.new as Msg;
+          if (!row?.id) return;
+          // Not the thread on screen: just refresh the list (new thread, new
+          // preview, unread count).
+          if (row.user_id !== openUserRef.current) {
+            void loadThreads();
+            return;
+          }
+          // On-screen thread: append rather than re-running openThread, which
+          // would reload the whole message list on every keystroke-speed
+          // insert. An agent's own reply already refreshed via reply().
+          setMessages((prev) =>
+            prev.some((m) => m.id === row.id) ? prev : [...prev, row],
+          );
+          requestAnimationFrame(() => listEnd.current?.scrollIntoView());
+          // The agent is looking at it, so it is read — otherwise the thread
+          // would keep an unread badge for a message visible on screen.
+          // Idempotent (the RPC only touches read_at IS NULL rows), and
+          // loadThreads runs after so the badge clears in the same pass.
+          if (row.from_support) {
+            void loadThreads();
+            return;
+          }
+          void supabase
+            .rpc('mark_support_thread_read', { p_user_id: row.user_id })
+            .then(() => loadThreads());
+        },
+      )
+      .subscribe((status) => {
+        // Resync on (re)connect: supabase-js rejoins after a drop but never
+        // replays events emitted during the outage.
+        if (status === 'SUBSCRIBED') void loadThreads();
+      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [phase.state, loadThreads]);
 
   const reply = async () => {
     if (!openUser || !draft.trim() || sending) return;

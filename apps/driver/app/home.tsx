@@ -25,7 +25,13 @@ import {
   type Job,
 } from '../src/jobs';
 import * as Notifications from 'expo-notifications';
-import { isStreaming, pingOnce, stopStreaming } from '../src/location';
+import {
+  isStreaming,
+  pingOnce,
+  startIdleHeartbeat,
+  stopIdleHeartbeat,
+  stopStreaming,
+} from '../src/location';
 import { unreadCount } from '../src/messages';
 import { configureNotificationHandler, registerForPush, unregisterPush } from '../src/push';
 import { font, radius, spacing } from '../src/theme';
@@ -119,6 +125,20 @@ export default function Home() {
     return () => sub.remove();
   }, [load]);
 
+  // [202 F-02] The heartbeat must also run for a driver who was ALREADY online
+  // when the app opened — the common case after a force-quit or a phone
+  // restart, where toggleOnline never fires. Mirrors the toggle: beat while
+  // online, never while offline, and always clear on unmount so a backgrounded
+  // screen cannot leave a timer running.
+  useEffect(() => {
+    if (online) {
+      startIdleHeartbeat();
+    } else {
+      stopIdleHeartbeat();
+    }
+    return () => stopIdleHeartbeat();
+  }, [online]);
+
   // Live offer sync via Realtime (order_assignments), independent of push. Makes
   // a new offer appear the instant dispatch creates it even when the app is open
   // and push is disabled — the previous paths (focus/foreground/push-tap) left a
@@ -154,10 +174,16 @@ export default function Home() {
       await setOnline(next);
       if (next) {
         await pingOnce('online');
+        // [202 F-02] Keep proving we are here. Mig 201 only dispatches to
+        // drivers whose last_ping_at is inside dispatch_max_ping_age_seconds
+        // (300s), and nothing refreshed it while waiting between jobs — so an
+        // online driver silently left the dispatch pool after 5 idle minutes.
+        startIdleHeartbeat();
       } else {
         // [H-DRV3] Going offline MUST stop any running location stream. Otherwise
         // its throttled driver_ping keeps writing (and, before this fix, re-stamped
         // status back to on_job), so the driver could never actually go offline.
+        stopIdleHeartbeat();
         await stopStreaming();
         await pingOnce('offline');
       }

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Postgres 18.4 on macOS aborts startup ("postmaster became multithreaded
+# during startup") when LC_ALL is unset or invalid in the calling shell.
+export LC_ALL=C
+
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 postgres_bin_dir="$(pg_config --bindir)"
 test_work_dir="$(mktemp -d "${TMPDIR:-/tmp}/sharmeats-db-tests.XXXXXX")"
@@ -52,6 +56,8 @@ test_files=(
   "supabase/tests/144_admin_test_ops_alert.test.sql"
   "supabase/tests/194_proof_of_delivery.test.sql"
   "supabase/tests/195_order_share_links.test.sql"
+  "supabase/tests/202_audit_fixes.test.sql"
+  "supabase/tests/203_audit_p2_fixes.test.sql"
 )
 
 # Guard against silent orphaning.

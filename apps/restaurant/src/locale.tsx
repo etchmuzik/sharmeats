@@ -19,6 +19,7 @@ import {
   type TranslationParams,
 } from './i18n';
 import { shouldApplyPersistedLocale } from './localePersistence';
+import { syncLocaleToProfile } from './localeSync';
 
 const LOCALE_STORAGE_KEY = 'restaurant:locale';
 
@@ -48,7 +49,14 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     AsyncStorage.getItem(LOCALE_STORAGE_KEY)
       .then((stored) => {
         if (shouldApplyPersistedLocale(mounted, userSelectedRef.current)) {
-          setLocaleState(normalizeLocale(stored));
+          const restored = normalizeLocale(stored);
+          setLocaleState(restored);
+          // Backfill: staff who chose Arabic before locale sync shipped have the
+          // right value on the tablet and the wrong one on the server, and would
+          // only be corrected by tapping the switch again. Only sync a locale
+          // the staffer actually picked — `stored === null` normalizes to 'en',
+          // and writing that would overwrite a good server value with a default.
+          if (stored) void syncLocaleToProfile(restored);
         }
       })
       .catch(() => {
@@ -62,6 +70,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const setLocale = useCallback((next: RestaurantLocale) => {
     userSelectedRef.current = true;
     setLocaleState(next);
+    // The server composes every push from public.users.locale, so the choice
+    // has to reach the column as well as the tablet. Fire-and-forget: a failed
+    // sync must never block the switch mid-service.
+    void syncLocaleToProfile(next);
     AsyncStorage.setItem(LOCALE_STORAGE_KEY, next).catch(() => {
       // The in-memory switch remains useful for this shift even if persistence
       // fails; there is no safe operational reason to block the UI.

@@ -71,6 +71,18 @@ export function DispatchBoard({
 
   // Realtime: orders + driver status.
   useEffect(() => {
+    // supabase-js returns an EXISTING channel if one with this topic is still
+    // registered, and removeChannel only splices it out after the async
+    // unsubscribe completes. On a fast unmount/remount (client-side nav away
+    // and back, or StrictMode's double-effect in dev) the effect would receive
+    // an already-subscribed channel and .on('postgres_changes') throws
+    // "cannot add postgres_changes callbacks ... after subscribe()" — inside an
+    // effect that takes the whole board to the error boundary. Every Expo-side
+    // subscriber guards this; the two dashboards did not.
+    const topic = 'realtime:ops:board';
+    for (const existing of supabase.getChannels()) {
+      if (existing.topic === topic) supabase.removeChannel(existing);
+    }
     const ch = supabase
       .channel('ops:board')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (p) => {
@@ -90,7 +102,40 @@ export function DispatchBoard({
           return row.is_active ? [...rest, row] : rest;
         });
       })
-      .subscribe();
+      .subscribe((status) => {
+        // [202 F-16] On (re)connect, refetch the board. supabase-js rejoins the
+        // channel after a network drop but never replays events emitted during
+        // the outage — every other realtime consumer in the repo carries this
+        // fix ([H-CUST2]); the dispatch board, the one surface where a missed
+        // event means an order sits undispatched, was the only one without it.
+        // Also closes the join-window gap after the initial SSR load.
+        //
+        // Both selects mirror the server-rendered queries in page.tsx exactly;
+        // a narrower projection here would blank fields the cards render.
+        if (status !== 'SUBSCRIBED') return;
+
+        supabase
+          .from('orders')
+          .select(
+            'id, short_code, restaurant_id, restaurant_name, status, payment_method, payment_status, fulfillment_type, total_egp, delivery_fee_egp, assigned_driver_id, zone, address_snapshot, placed_at, eta_at',
+          )
+          .not('status', 'in', '(delivered,cancelled,rejected)')
+          .order('placed_at', { ascending: true })
+          .then(({ data }) => {
+            if (data) setOrders(data as OpsOrder[]);
+          });
+
+        supabase
+          .from('drivers')
+          .select(
+            'id, name, phone, vehicle, status, is_verified, is_active, rating, home_zone, last_ping_at',
+          )
+          .eq('is_active', true)
+          .order('status', { ascending: true })
+          .then(({ data }) => {
+            if (data) setDrivers(data as OpsDriver[]);
+          });
+      });
     return () => {
       supabase.removeChannel(ch);
     };

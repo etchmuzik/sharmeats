@@ -59,8 +59,19 @@ export function OrderQueue({
   );
 
   useEffect(() => {
+    // supabase-js returns an EXISTING channel if one with this topic is still
+    // registered, and removeChannel only splices it out after the async
+    // unsubscribe completes. On a fast unmount/remount the effect would receive
+    // an already-subscribed channel and .on('postgres_changes') throws
+    // "cannot add postgres_changes callbacks ... after subscribe()" — inside an
+    // effect that means the kitchen stops seeing orders until reload. Every
+    // Expo-side subscriber guards this; the two dashboards did not.
+    const name = `merchant:${context.restaurantId}:orders`;
+    for (const existing of supabase.getChannels()) {
+      if (existing.topic === `realtime:${name}`) supabase.removeChannel(existing);
+    }
     const channel = supabase
-      .channel(`merchant:${context.restaurantId}:orders`)
+      .channel(name)
       .on(
         'postgres_changes',
         {
