@@ -34,6 +34,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-${HOME}/sharmeats-backups}"
 MAX_AGE_HOURS="${MAX_AGE_HOURS:-26}"   # 24h cadence + 2h slack for a sleeping Mac
 LABEL="com.sharmeats.backup"
+STORAGE_LABEL="${STORAGE_LABEL:-com.sharmeats.storage-backup}"
 
 fail() { echo "✗ BACKUP UNHEALTHY: $*" >&2; exit 1; }
 
@@ -44,8 +45,16 @@ fail() { echo "✗ BACKUP UNHEALTHY: $*" >&2; exit 1; }
 
 # -FAILED dirs are quarantined failures, not backups. Excluding them is the
 # whole point: a run of failures must not read as "recent activity".
+#
+# `storage-*` is excluded too, and that exclusion is load-bearing: the storage
+# backup writes storage-<stamp>/ into this SAME directory, and "storage-" sorts
+# AFTER any digit, so `sort -r | head -1` would pick a storage backup as the
+# newest database backup and then fail it for having no schema.sql. The check
+# would have started reporting UNHEALTHY the first time a storage backup ran,
+# describing the wrong problem.
 newest="$(ls -1d "${BACKUP_DIR}"/*/ 2>/dev/null \
   | grep -v -- '-FAILED/$' \
+  | grep -v '/storage-[^/]*/$' \
   | sort -r | head -1 || true)"
 
 [[ -n "${newest}" ]] || fail "no successful backup found in ${BACKUP_DIR}"
@@ -72,17 +81,29 @@ done
 #    A job that never runs shows "-" for PID and its last exit code here. That
 #    78 is precisely what three days of silent failure looked like.
 # ---------------------------------------------------------------------------
-if command -v launchctl >/dev/null 2>&1; then
-  row="$(launchctl list 2>/dev/null | awk -v l="${LABEL}" '$3 == l' || true)"
+check_scheduler() {
+  local label="$1" what="$2"
+  local row last_exit
+  row="$(launchctl list 2>/dev/null | awk -v l="${label}" '$3 == l' || true)"
   if [[ -z "${row}" ]]; then
-    echo "⚠ scheduler: ${LABEL} is not loaded — backups are not scheduled at all" >&2
-    echo "  fix: launchctl load ~/Library/LaunchAgents/${LABEL}.plist" >&2
-  else
-    last_exit="$(echo "${row}" | awk '{print $2}')"
-    if [[ "${last_exit}" != "0" ]]; then
-      fail "scheduler ${LABEL} last exited ${last_exit} (78 = program path wrong). Backups are firing and failing."
-    fi
+    echo "⚠ scheduler: ${label} is not loaded — ${what} is not scheduled at all" >&2
+    echo "  fix: launchctl load ~/Library/LaunchAgents/${label}.plist" >&2
+    return 0
   fi
+  last_exit="$(echo "${row}" | awk '{print $2}')"
+  if [[ "${last_exit}" != "0" ]]; then
+    fail "scheduler ${label} last exited ${last_exit} (78 = program path wrong). ${what} is firing and failing."
+  fi
+}
+
+if command -v launchctl >/dev/null 2>&1; then
+  check_scheduler "${LABEL}" "database backups"
+  # The STORAGE job is checked the same way and for the same reason: a dump
+  # without the bucket files restores rows that point at objects which no
+  # longer exist. It is a separate label because it is a separate failure —
+  # the database backup can be perfectly healthy while identity documents and
+  # proof-of-delivery photos are being backed up by nothing at all.
+  check_scheduler "${STORAGE_LABEL}" "storage backups"
 fi
 
 # ---------------------------------------------------------------------------
@@ -100,6 +121,7 @@ if [[ -n "${MIRROR_DIR:-}" ]]; then
 
   m_newest="$(ls -1d "${MIRROR_DIR}"/*/ 2>/dev/null \
     | grep -v -- '-FAILED/$' \
+    | grep -v '/storage-[^/]*/$' \
     | sort -r | head -1 || true)"
   [[ -n "${m_newest}" ]] || fail "off-site mirror ${MIRROR_DIR} contains no backup"
 
