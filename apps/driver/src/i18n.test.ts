@@ -66,6 +66,28 @@ describe('driver localization', () => {
     ).toBe('اسمح للموقع بالعمل طوال الوقت من الإعدادات لبدء التوصيل.');
   });
 
+  it('maps COD settlement errors to a cash-retry message, not the generic one', () => {
+    // mig 202 F-06 codes must reach the driver as a retry prompt, not a raw
+    // Postgres string or the catch-all "something went wrong".
+    for (const locale of ['en', 'ar'] as const) {
+      const retry = localizedOperationalError(
+        locale,
+        'jobComplete',
+        new Error('COD_NOT_COLLECTABLE: order is out_for_delivery'),
+      );
+      expect(retry).not.toContain('COD_NOT_COLLECTABLE');
+      expect(retry).not.toBe(translate(locale, 'job.generalError'));
+      expect(retry).toBe(translate(locale, 'job.cashSettleRetry'));
+
+      const mismatch = localizedOperationalError(
+        locale,
+        'jobComplete',
+        new Error('COD_AMOUNT_MISMATCH'),
+      );
+      expect(mismatch).toBe(translate(locale, 'job.cashAmountMismatch'));
+    }
+  });
+
   it('keeps raw diagnostics out of the primary localized error', () => {
     const raw = 'PGRST204 internal driver_respond diagnostic';
 

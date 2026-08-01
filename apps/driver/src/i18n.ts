@@ -121,6 +121,8 @@ const ENGLISH = {
   'job.locationError': 'Live location could not start. Check location permissions.',
   'job.updateError': 'Could not update. Try again.',
   'job.generalError': 'Something went wrong. Try again.',
+  'job.cashSettleRetry': 'Could not record the cash. The order is delivered — tap to confirm the cash again.',
+  'job.cashAmountMismatch': 'The cash amount does not match the order total. Check and try again.',
   'job.statusChanged': 'The delivery status changed. Refresh and try again.',
   'job.assignmentChanged':
     'This delivery is no longer assigned to you. Return home for the latest job.',
@@ -133,6 +135,7 @@ const ENGLISH = {
   'job.collectCashTitle': 'Collect cash',
   'job.collectCashBody': 'Collect {amount} EGP from the customer?',
   'job.cashCollected': 'Collected {amount} EGP',
+  'job.cashNotSettled': 'Delivered — confirm the cash you collected to finish.',
   'job.hotel': 'Hotel',
   'job.room': 'Room',
   'job.building': 'Bldg',
@@ -323,6 +326,8 @@ const ARABIC: Record<TranslationKey, string> = {
   'job.locationError': 'تعذر بدء الموقع المباشر. تحقق من أذونات الموقع.',
   'job.updateError': 'تعذر التحديث. حاول مرة أخرى.',
   'job.generalError': 'حدث خطأ. حاول مرة أخرى.',
+  'job.cashSettleRetry': 'تعذّر تسجيل النقدية. تم توصيل الطلب — اضغط لتأكيد المبلغ مرة أخرى.',
+  'job.cashAmountMismatch': 'المبلغ النقدي لا يطابق إجمالي الطلب. تحقّق وحاول مرة أخرى.',
   'job.statusChanged': 'تغيرت حالة التوصيل. حدّث الشاشة وحاول مرة أخرى.',
   'job.assignmentChanged':
     'لم يعد هذا التوصيل مسندًا إليك. ارجع إلى الرئيسية لرؤية أحدث مهمة.',
@@ -335,6 +340,7 @@ const ARABIC: Record<TranslationKey, string> = {
   'job.collectCashTitle': 'تحصيل النقدية',
   'job.collectCashBody': 'هل حصلت {amount} ج.م من العميل؟',
   'job.cashCollected': 'تم تحصيل {amount} ج.م',
+  'job.cashNotSettled': 'تم التوصيل — أكِّد المبلغ الذي حصّلته لإنهاء الطلب.',
   'job.hotel': 'الفندق',
   'job.room': 'غرفة',
   'job.building': 'مبنى',
@@ -544,6 +550,12 @@ export function operationalErrorKey(
   }
 
   if (failure === 'jobUpdate' || failure === 'jobComplete') {
+    if (containsAny(diagnostic, ['cod_amount_mismatch'])) {
+      return 'job.cashAmountMismatch';
+    }
+    if (containsAny(diagnostic, ['cod_not_collectable', 'already settled', 'not_a_cod_order'])) {
+      return 'job.cashSettleRetry';
+    }
     if (
       containsAny(diagnostic, [
         'invalid status',
