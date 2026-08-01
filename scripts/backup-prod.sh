@@ -232,6 +232,77 @@ for f in schema.sql data.sql; do
   fi
 done
 
+# ---------------------------------------------------------------------------
+# OFF-SITE MIRROR (optional, opt-in via MIRROR_DIR)
+#
+# The script has always ended by telling the operator to "copy this directory
+# off this machine". It never happened, because a manual step at the end of an
+# automated job is a step that does not exist. This does it.
+#
+# MIRROR, NOT RELOCATE. Pointing BACKUP_DIR at the external drive was already
+# possible and is the wrong shape: unplug the drive and there is no backup at
+# all. Here the laptop copy stays authoritative and the drive gets a verified
+# duplicate, so either one alone is a complete restore point.
+#
+# ONLY AFTER VERIFICATION. This runs below the size checks deliberately — a
+# truncated dump must never be propagated to the one place you would reach for
+# when the laptop is gone.
+#
+# AN ABSENT DRIVE IS NOT A DUMP FAILURE. If the mirror is unreachable the
+# primary backup still stands and this does not exit non-zero: conflating
+# "the SSD is unplugged" with "the dump failed" would train you to ignore the
+# exit code that catches a real dump failure. It is recorded in the manifest
+# and in the log, and check-backup-freshness.sh treats a configured-but-stale
+# mirror as unhealthy — which is where a persistent problem surfaces.
+# ---------------------------------------------------------------------------
+mirror_note="not configured (set MIRROR_DIR to enable)"
+if [[ -n "${MIRROR_DIR:-}" ]]; then
+  if [[ ! -d "${MIRROR_DIR}" ]]; then
+    mirror_note="FAILED — ${MIRROR_DIR} is not mounted"
+    echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not mounted." >&2
+    echo "    The laptop copy is complete; this backup exists in ONE place." >&2
+  elif ! mkdir -p "${MIRROR_DIR}/${STAMP}" 2>/dev/null; then
+    mirror_note="FAILED — ${MIRROR_DIR} is not writable"
+    echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not writable (full? read-only?)." >&2
+  else
+    chmod 700 "${MIRROR_DIR}/${STAMP}" 2>/dev/null || true
+    if cp -pR "${OUT}/." "${MIRROR_DIR}/${STAMP}/" 2>/dev/null; then
+      # Verify the copy rather than trusting cp's exit code. A drive that is
+      # failing or full can accept a write and return 0 with short files.
+      mirror_ok=1
+      for f in roles.sql schema.sql data.sql; do
+        [[ -f "${OUT}/${f}" ]] || continue
+        a=$(wc -c < "${OUT}/${f}" | tr -d ' ')
+        b=$(wc -c < "${MIRROR_DIR}/${STAMP}/${f}" 2>/dev/null | tr -d ' ' || echo 0)
+        if [[ "${a}" != "${b}" ]]; then
+          mirror_ok=0
+          echo "  ⚠ mirror verify FAILED on ${f}: ${a} bytes here, ${b} bytes there" >&2
+        fi
+      done
+      if [[ "${mirror_ok}" -eq 1 ]]; then
+        mirror_note="ok — ${MIRROR_DIR}/${STAMP}"
+        echo "  · mirrored to ${MIRROR_DIR}/${STAMP} (byte-verified)"
+        # Same retention on the mirror, or the drive fills and starts failing
+        # silently — which is how the mirror becomes the stale copy you trust.
+        ls -1d "${MIRROR_DIR}"/*/ 2>/dev/null \
+          | grep -v -- '-FAILED/$' \
+          | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+          echo "  · pruning mirror $(basename "${old}")"
+          rm -rf "${old}"
+        done
+      else
+        mirror_note="FAILED — copy did not verify"
+        rm -rf "${MIRROR_DIR}/${STAMP}"
+      fi
+    else
+      mirror_note="FAILED — copy errored"
+      echo "  ⚠ off-site mirror SKIPPED: copy to ${MIRROR_DIR} failed." >&2
+      rm -rf "${MIRROR_DIR}/${STAMP}" 2>/dev/null || true
+    fi
+  fi
+fi
+printf 'off-site mirror: %s\n' "${mirror_note}" >> "${OUT}/MANIFEST.txt"
+
 # Retention: keep the newest ${KEEP} SUCCESSFUL timestamped directories.
 #
 # The earlier version globbed every directory, so `-FAILED` quarantine dirs

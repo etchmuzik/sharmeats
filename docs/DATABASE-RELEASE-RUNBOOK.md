@@ -305,6 +305,32 @@ launchctl start com.sharmeats.backup     # run once now, don't wait for 03:00
 tail -20 ~/sharmeats-backups/backup.log  # confirm it succeeded
 ```
 
+**Get it off the laptop** (the step this runbook used to leave as prose, which
+is why it never happened). Attach the external drive, find its mount point with
+`ls /Volumes`, then add `MIRROR_DIR` to the plist's `EnvironmentVariables` —
+the commented block in `scripts/com.sharmeats.backup.plist` shows exactly where:
+
+```xml
+<key>MIRROR_DIR</key>
+<string>/Volumes/YOUR_DRIVE_NAME/sharmeats-backups</string>
+```
+
+Then reload the agent. Every backup is copied there after it verifies, and the
+copy is byte-compared against the original — a failing or full drive can accept
+a write and still return success, so `cp`'s exit code is not evidence.
+
+It MIRRORS rather than relocates: the laptop copy stays authoritative and
+either copy alone is a complete restore point. Pointing `BACKUP_DIR` at the
+drive instead would mean an unplugged drive is no backup at all.
+
+An unplugged drive warns and does **not** fail the dump — conflating "the SSD
+is out" with "the dump failed" would devalue the exit code that catches a real
+failure. Persistent absence surfaces through the freshness check instead:
+
+```sh
+MIRROR_DIR=/Volumes/YOUR_DRIVE_NAME/sharmeats-backups ./scripts/check-backup-freshness.sh
+```
+
 An ad-hoc run without the Keychain item still works via
 `export SUPABASE_DB_PASSWORD='...'`.
 

@@ -86,10 +86,45 @@ if command -v launchctl >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Verdict
+# 4. Is the off-site copy real?
+#
+# Only checked when MIRROR_DIR is configured — setting it IS the opt-in. But
+# once it is set, a stale or missing mirror is a failure, not a note: the whole
+# point of the mirror is the case where this laptop is gone, and "I thought it
+# was copying" is precisely the belief that made the dead launchd job survive
+# three days. An unplugged drive for one night is caught here rather than
+# discovered during a restore.
+# ---------------------------------------------------------------------------
+if [[ -n "${MIRROR_DIR:-}" ]]; then
+  [[ -d "${MIRROR_DIR}" ]] || fail "off-site mirror ${MIRROR_DIR} is not mounted — backups exist only on this machine"
+
+  m_newest="$(ls -1d "${MIRROR_DIR}"/*/ 2>/dev/null \
+    | grep -v -- '-FAILED/$' \
+    | sort -r | head -1 || true)"
+  [[ -n "${m_newest}" ]] || fail "off-site mirror ${MIRROR_DIR} contains no backup"
+
+  if stat -f %m "${m_newest}" >/dev/null 2>&1; then
+    m_mtime=$(stat -f %m "${m_newest}")
+  else
+    m_mtime=$(stat -c %Y "${m_newest}")
+  fi
+  m_age=$(( ( $(date +%s) - m_mtime ) / 3600 ))
+
+  for f in schema.sql data.sql; do
+    [[ -s "${m_newest}/${f}" ]] || fail "mirrored backup $(basename "${m_newest}") has no ${f}"
+  done
+
+  (( m_age > MAX_AGE_HOURS )) && fail "off-site mirror $(basename "${m_newest}") is ${m_age}h old (limit ${MAX_AGE_HOURS}h)"
+  mirror_msg=" · off-site $(basename "${m_newest}") ${m_age}h old"
+else
+  mirror_msg=" · off-site mirror NOT CONFIGURED (set MIRROR_DIR — a backup on one machine is one incident from gone)"
+fi
+
+# ---------------------------------------------------------------------------
+# 5. Verdict
 # ---------------------------------------------------------------------------
 if (( age_hours > MAX_AGE_HOURS )); then
   fail "newest backup $(basename "${newest}") is ${age_hours}h old (limit ${MAX_AGE_HOURS}h)"
 fi
 
-echo "✓ backup healthy: $(basename "${newest}") is ${age_hours}h old (limit ${MAX_AGE_HOURS}h)"
+echo "✓ backup healthy: $(basename "${newest}") is ${age_hours}h old (limit ${MAX_AGE_HOURS}h)${mirror_msg}"

@@ -54,7 +54,7 @@
          · StartCalendarInterval is the key that survives sleep (quoted above);
            StartInterval is the one that MISSES firings during sleep
            ("that interval will be missed due to shortcomings in kqueue(3)");
-         · the two are evaluated INDEPENDENTLY -- launchd.plist(5): "Note that
+         · the two are evaluated INDEPENDENTLY, per launchd.plist(5): "Note that
            StartInterval and StartCalendarInterval are not aware of each other."
        Together they produced TWO schedules: 03:00 daily, plus another every 24h
        counted from whenever the agent was last loaded. Each extra run is a full
@@ -63,7 +63,27 @@
   <key>WorkingDirectory</key>
   <string>/Users/etch/Downloads/sharmeats-new</string>
 
-  <!-- Homebrew paths for pg_dump/supabase; launchd's default PATH is minimal. -->
+  <!-- Homebrew paths for pg_dump/supabase; launchd's default PATH is minimal.
+
+       OFF-SITE MIRROR: add MIRROR_DIR below, pointing at the external drive,
+       and every backup is duplicated there automatically after it verifies.
+       Find the exact path with `ls /Volumes` while the drive is attached —
+       macOS mounts by volume NAME, so a drive called "Backups" is
+       /Volumes/Backups, and a space in the name is a real character.
+
+         <key>MIRROR_DIR</key>
+         <string>/Volumes/YOUR_DRIVE_NAME/sharmeats-backups</string>
+
+       It mirrors rather than relocates: the laptop copy stays authoritative
+       and either copy alone is a complete restore point. An unplugged drive
+       warns and does NOT fail the dump, but check-backup-freshness.sh treats a
+       configured-yet-stale mirror as unhealthy — so leaving it unplugged for a
+       day is visible instead of silent.
+
+       Re-load the agent after editing:
+         launchctl unload ~/Library/LaunchAgents/com.sharmeats.backup.plist
+         cp scripts/com.sharmeats.backup.plist ~/Library/LaunchAgents/
+         launchctl load ~/Library/LaunchAgents/com.sharmeats.backup.plist -->
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
