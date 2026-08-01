@@ -69,12 +69,19 @@ apps/driver/store-screenshots/
 apps/restaurant/store-screenshots/
 
 # ---- The marketing site, which EAS never builds ---------------------------
-landing/
+# LEADING SLASH IS LOAD-BEARING on the four directory rules below. An
+# unanchored `supabase/` matches any directory named supabase at ANY depth —
+# it silently stripped apps/customer/src/data/supabase/ (the entire production
+# data layer) out of every upload, and every EAS build from 2026-07-31 on died
+# in Bundle JavaScript with "Unable to resolve ../src/data/supabase/client"
+# while local bundling and CI stayed green. `/supabase/` anchors the rule to
+# the repo root, which is the only thing these four ever meant.
+/landing/
 
 # ---- Repo docs and tooling not needed to compile an app -------------------
-docs/
-supabase/
-.github/
+/docs/
+/supabase/
+/.github/
 *.md
 
 .DS_Store
