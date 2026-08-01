@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Daily backup of the production Storage buckets (kyc, delivery-proof).
+
+  SEPARATE FROM com.sharmeats.backup BECAUSE THE DATABASE DUMP DOES NOT
+  CONTAIN THESE FILES. pg_dump captures the storage.objects METADATA rows,
+  but the bytes live in S3 behind the Storage API. Restoring data.sql alone
+  recreates rows pointing at objects that no longer exist: a dangling pointer
+  that looks like a successful restore.
+
+  Both buckets were EMPTY when this was written (verified 2026-08-01), which
+  is exactly why it is worth scheduling now. Orders, menus and settlements can
+  be recomputed; a merchant's passport scan has to be collected again from a
+  human, and a proof-of-delivery photo cannot be recreated at all.
+
+  RUNS AT 03:30, half an hour after the database backup, so the two do not
+  contend and the pair from one night stays same-day. Keep them together:
+  the files are useless without the metadata rows in that night's data.sql.
+
+  The service_role key is NOT in this file. backup-storage.sh reads it from
+  the macOS Keychain item "sharmeats-service-role-key". That key bypasses RLS
+  entirely — treat it exactly like the database password.
+
+  One-time setup:
+    security add-generic-password -a "$USER" -s 'sharmeats-service-role-key' -w 'YOUR-KEY'
+    ./scripts/backup-storage.sh          # verify it works before scheduling
+
+  Install:
+    cp scripts/com.sharmeats.storage-backup.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.sharmeats.storage-backup.plist
+    launchctl start com.sharmeats.storage-backup    # run once now
+
+  Check it (the exit status in column 2 is the part that matters — a loaded
+  job that has been failing for days still prints a row):
+    launchctl list | grep sharmeats
+    tail -20 ~/sharmeats-backups/storage-backup.log
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.sharmeats.storage-backup.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.sharmeats.storage-backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/etch/Downloads/sharmeats-new/scripts/backup-storage.sh</string>
+  </array>
+
+  <!-- 03:30 local, daily. RunAtLoad false so installing this at midday does
+       not immediately pull down every identity document; use launchctl start.
+
+       StartCalendarInterval survives sleep on its own (launchd starts the job
+       on wake, coalescing missed intervals), so no catch-up key is needed —
+       and deliberately NO StartInterval, which is the key that MISSES firings
+       during sleep and is evaluated independently of this one. Pairing them
+       silently produces two schedules; see the note in com.sharmeats.backup.plist. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/etch/Downloads/sharmeats-new</string>
+
+  <!-- Homebrew paths for curl/jq; launchd's default PATH is minimal.
+
+       OFF-SITE MIRROR: these are identity documents, so the mirror needs BOTH
+       keys. MIRROR_DIR points at the drive; STORAGE_MIRROR_ENCRYPTED=yes is
+       your explicit confirmation that the drive is an encrypted volume
+       (FileVault, or an encrypted APFS volume). A script cannot verify that
+       reliably, so it asks rather than assumes — and skips the mirror, loudly,
+       if the acknowledgement is absent.
+
+       A lost database dump is a breach. A lost box of passport scans is worse.
+
+         <key>MIRROR_DIR</key>
+         <string>/Volumes/YOUR_DRIVE_NAME/sharmeats-backups</string>
+         <key>STORAGE_MIRROR_ENCRYPTED</key>
+         <string>yes</string> -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <!-- Both streams to one log, and a DIFFERENT file from the database job:
+       sharing backup.log would interleave two jobs and make "the last line
+       says complete" ambiguous about which one completed. -->
+  <key>StandardOutPath</key>
+  <string>/Users/etch/sharmeats-backups/storage-backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/etch/sharmeats-backups/storage-backup.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+</dict>
+</plist>

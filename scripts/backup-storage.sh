@@ -47,9 +47,16 @@ KEEP="${KEEP:-14}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="${BACKUP_DIR}/storage-${STAMP}"
 
-# Buckets to capture. `kyc` is the only one today (verified against
-# storage.buckets in the 2026-07-27 dump). Add new private buckets here.
-BUCKETS="${BUCKETS:-kyc}"
+# Buckets to capture.
+#
+# `delivery-proof` added 2026-08-01. It was created later (migration 194) and
+# this list was never updated, so proof-of-delivery photos — the evidence in
+# any "it never arrived" dispute — were outside every backup this project had.
+# Both buckets were empty when it was added, which is the only reason the gap
+# cost nothing. Re-check this list against storage.buckets whenever a migration
+# adds one:
+#   select id, public from storage.buckets order by id;
+BUCKETS="${BUCKETS:-kyc delivery-proof}"
 
 # Same failure discipline as backup-prod.sh: a partial run must never leave a
 # directory that reads as a usable backup.
@@ -175,6 +182,69 @@ chmod -R go-rwx "${OUT}"
 trap - EXIT
 echo "✓ storage backup complete: ${OUT}"
 cat "${OUT}/MANIFEST.txt"
+
+# ---------------------------------------------------------------------------
+# OFF-SITE MIRROR — same mechanism as backup-prod.sh, with one extra gate.
+#
+# WHY THIS ONE ASKS AND THE DATABASE ONE DOES NOT. These files are identity
+# documents: passport and licence scans, and proof-of-delivery photographs of
+# people's doorways. Under Egypt's PDPL they are personal data. Copying them to
+# an external drive is exactly the right thing to do for durability and exactly
+# the wrong thing to do if that drive is unencrypted and later lost — a lost
+# database dump is a breach, a lost box of passport scans is a worse one.
+#
+# A script cannot reliably verify that a volume is encrypted (diskutil output
+# varies by filesystem, and a FileVault-protected APFS volume mounted read-write
+# looks like any other directory). So instead of guessing, this requires an
+# explicit acknowledgement: set STORAGE_MIRROR_ENCRYPTED=yes to confirm the
+# destination is an encrypted volume. Without it the mirror is skipped and says
+# why. The speed bump is the point — it is placed on the one dataset where
+# getting it wrong is a notifiable incident rather than an inconvenience.
+# ---------------------------------------------------------------------------
+mirror_note="not configured (set MIRROR_DIR + STORAGE_MIRROR_ENCRYPTED=yes)"
+if [[ -n "${MIRROR_DIR:-}" ]]; then
+  if [[ "${STORAGE_MIRROR_ENCRYPTED:-}" != "yes" ]]; then
+    mirror_note="SKIPPED — STORAGE_MIRROR_ENCRYPTED is not 'yes'"
+    echo "  ⚠ off-site mirror SKIPPED: these are identity documents." >&2
+    echo "    Confirm the destination is an ENCRYPTED volume (FileVault or an" >&2
+    echo "    encrypted APFS volume), then set STORAGE_MIRROR_ENCRYPTED=yes." >&2
+  elif [[ ! -d "${MIRROR_DIR}" ]]; then
+    mirror_note="FAILED — ${MIRROR_DIR} is not mounted"
+    echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not mounted." >&2
+  elif ! mkdir -p "${MIRROR_DIR}/storage-${STAMP}" 2>/dev/null; then
+    mirror_note="FAILED — ${MIRROR_DIR} is not writable"
+    echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not writable." >&2
+  else
+    chmod 700 "${MIRROR_DIR}/storage-${STAMP}" 2>/dev/null || true
+    if cp -pR "${OUT}/." "${MIRROR_DIR}/storage-${STAMP}/" 2>/dev/null; then
+      # Compare file COUNT and total bytes: unlike the DB dump there is no
+      # single large file to size-check, and a half-copied bucket is the
+      # failure that would otherwise pass unnoticed.
+      a_n=$(find "${OUT}" -type f | wc -l | tr -d ' ')
+      b_n=$(find "${MIRROR_DIR}/storage-${STAMP}" -type f | wc -l | tr -d ' ')
+      a_b=$(find "${OUT}" -type f -exec wc -c {} + 2>/dev/null | tail -1 | awk '{print $1}')
+      b_b=$(find "${MIRROR_DIR}/storage-${STAMP}" -type f -exec wc -c {} + 2>/dev/null | tail -1 | awk '{print $1}')
+      if [[ "${a_n}" == "${b_n}" && "${a_b}" == "${b_b}" ]]; then
+        mirror_note="ok — ${MIRROR_DIR}/storage-${STAMP} (${a_n} files, ${a_b} bytes)"
+        echo "  · mirrored to ${MIRROR_DIR}/storage-${STAMP} (${a_n} files verified)"
+        chmod -R go-rwx "${MIRROR_DIR}/storage-${STAMP}" 2>/dev/null || true
+        ls -1d "${MIRROR_DIR}"/storage-*/ 2>/dev/null \
+          | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+          echo "  · pruning mirror $(basename "${old}")"
+          rm -rf "${old}"
+        done
+      else
+        mirror_note="FAILED — verify mismatch (${a_n}/${a_b} here, ${b_n}/${b_b} there)"
+        echo "  ⚠ mirror verify FAILED: ${a_n} files/${a_b} bytes here, ${b_n}/${b_b} there" >&2
+        rm -rf "${MIRROR_DIR}/storage-${STAMP}"
+      fi
+    else
+      mirror_note="FAILED — copy errored"
+      rm -rf "${MIRROR_DIR}/storage-${STAMP}" 2>/dev/null || true
+    fi
+  fi
+fi
+printf 'off-site mirror: %s\n' "${mirror_note}" >> "${OUT}/MANIFEST.txt"
 
 # Retention, matching backup-prod.sh's policy.
 ls -1d "${BACKUP_DIR}"/storage-*/ 2>/dev/null | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
