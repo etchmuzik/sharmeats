@@ -299,6 +299,43 @@ export function subscribeOffers(
 }
 
 /**
+ * Live updates for one job the driver is working. Mirrors the customer app's
+ * order subscription (orders.ts subscribe, the [H-CUST2] pattern): before this,
+ * the job screen fetched once on mount and never refreshed, so a kitchen marking
+ * the order ready — or a dispatcher reassigning/cancelling it — was invisible
+ * until the driver backed out and re-entered. Refetches the whole job on any
+ * orders UPDATE and once on (re)connect, since supabase-js does not replay
+ * events missed during a socket drop. Returns an unsubscribe.
+ */
+export function subscribeJob(orderId: string, onChange: (job: Job) => void): () => void {
+  const sb = getSupabase();
+  const name = `driver:job:${orderId}`;
+  for (const existing of sb.getChannels()) {
+    if (existing.topic === `realtime:${name}`) sb.removeChannel(existing);
+  }
+  const refresh = () => {
+    fetchJob(orderId)
+      .then((job) => {
+        if (job) onChange(job);
+      })
+      .catch(() => {});
+  };
+  const channel = sb
+    .channel(name)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
+      () => refresh(),
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') refresh();
+    });
+  return () => {
+    sb.removeChannel(channel);
+  };
+}
+
+/**
  * The driver's current active order — one they have ACCEPTED and not finished.
  *
  * [H-DRV2] auto_assign_order/assign_driver set orders.assigned_driver_id at OFFER
