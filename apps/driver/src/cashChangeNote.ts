@@ -23,6 +23,26 @@ export function shouldRenderDropoffCard(
 const CASH_CHANGE_V1 =
   /\n?\[\[sharmeats:cash-change:v1:tender=(\d+);change=(\d+)\]\]$/;
 
+// MIRRORED from apps/customer/src/lib/cashChange.ts — keep the two in lockstep.
+// Egypt's largest circulating banknote; a customer pays with notes, so a
+// plausible tender sits within a few of these above the bill.
+const LARGEST_NOTE_EGP = 200;
+const MAX_CHANGE_NOTES = 5;
+
+/**
+ * The most a driver could plausibly be asked to make change for.
+ *
+ * The writer already refuses to emit a marker above this (checkout rejects the
+ * amount before the order exists), but `orders.dropoff_note` is free text passed
+ * to `place_order`, so a caller bypassing the app can plant a marker that
+ * reconciles arithmetically at any magnitude. Bounding the READER too means a
+ * `tender=100000` marker on a 572 EGP order degrades to visible plain text
+ * rather than the driver app authoritatively instructing "hand back 99,428".
+ */
+function maxPlausibleTender(payableEgp: number): number {
+  return payableEgp + LARGEST_NOTE_EGP * MAX_CHANGE_NOTES;
+}
+
 /**
  * Extract the generated cash-change marker without rewriting customer prose.
  * Unsupported or malformed markers stay visible, which fails safely if a
@@ -63,7 +83,14 @@ export function parseCashChangeNote(
   }
 
   // Mirror the writer's rounding exactly (apps/customer/src/lib/cashChange.ts).
-  if (changeEgp !== tenderEgp - Math.ceil(collectibleEgp)) {
+  const payableEgp = Math.ceil(collectibleEgp);
+  if (changeEgp !== tenderEgp - payableEgp) {
+    return { customerNote: raw, cashChange: null };
+  }
+
+  // Mirror the writer's plausibility ceiling. A self-consistent marker can still
+  // be absurd: reconciliation alone does not bound the magnitude.
+  if (tenderEgp > maxPlausibleTender(payableEgp)) {
     return { customerNote: raw, cashChange: null };
   }
 

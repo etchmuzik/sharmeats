@@ -19,6 +19,7 @@ import {
   type OperationalFailure,
   type TranslationKey,
 } from './i18n';
+import { syncLocaleToProfile } from './localeSync';
 
 type Translate = (
   key: TranslationKey,
@@ -47,6 +48,11 @@ export function LanguageProvider({ children }: PropsWithChildren) {
       .then((saved) => {
         if (active && !userSelectedRef.current && isSupportedLocale(saved)) {
           setLocaleState(saved);
+          // Backfill: a driver who chose Arabic before locale sync shipped has
+          // the right value on the device and the wrong one on the server, and
+          // would only be corrected by tapping the switch again. Push the
+          // restored choice once on start so their pushes localize.
+          void syncLocaleToProfile(saved);
         }
       })
       .catch(() => {
@@ -60,6 +66,10 @@ export function LanguageProvider({ children }: PropsWithChildren) {
   const setLocale = useCallback(async (next: Locale) => {
     userSelectedRef.current = true;
     setLocaleState(next);
+    // The server composes every push from public.users.locale, so the choice
+    // has to reach the column as well as the device. Fire-and-forget: a failed
+    // sync must never block the switch mid-shift.
+    void syncLocaleToProfile(next);
     try {
       await AsyncStorage.setItem(DRIVER_LOCALE_STORAGE_KEY, next);
     } catch {
