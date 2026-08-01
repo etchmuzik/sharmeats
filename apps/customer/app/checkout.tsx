@@ -314,6 +314,12 @@ export default function Checkout() {
     // A guest must explicitly accept the Terms/Privacy before ordering.
     if (isGuest && !guestConsent) return;
     setPlacing(true);
+    // Remember the order once place_order commits: if anything AFTER that throws
+    // (card-intent open, a read-back hiccup), the order already exists on the
+    // server and re-tapping would dedup on the same idempotency key — so we must
+    // route to the real order rather than show an error and strand the customer
+    // on a basket that no longer matches what was placed.
+    let placedOrderId: string | null = null;
     try {
       // place_order (server-authoritative). Returns the created order.
       const order = await db.orders.create({
@@ -334,6 +340,7 @@ export default function Checkout() {
         customerPhone: contactPhone.trim(),
         idempotencyKey: idempotencyKey.current,
       });
+      placedOrderId = order.id;
       track('order_placed', {
         orderId: order.id,
         total: order.totalEgp,
@@ -379,8 +386,16 @@ export default function Checkout() {
       void clearEverywhere();
       router.replace(`/order/${order.id}?celebrate=1`);
     } catch (e) {
-      captureError(e, { where: 'checkout.place' });
-      setPaymentError(e instanceof Error ? e.message : 'Could not place your order.');
+      captureError(e, { where: 'checkout.place', placedOrderId });
+      if (placedOrderId) {
+        // The order committed server-side; only a later step failed. Retire the
+        // cart and route to the real order — a card order that never opened
+        // checkout still shows as pending and can be paid from tracking.
+        void clearEverywhere();
+        router.replace(`/order/${placedOrderId}`);
+      } else {
+        setPaymentError(e instanceof Error ? e.message : 'Could not place your order.');
+      }
     } finally {
       setPlacing(false);
     }

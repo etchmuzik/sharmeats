@@ -60,6 +60,13 @@ export default function OrderTracking() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const [order, setOrder] = useState<Order | null>(null);
+  // 'loading' until the first fetch resolves; 'not-found' when the order is not
+  // visible to this session (signed-out, guest, or a different account — RLS
+  // returns null); 'error' on a transient fetch failure (offer retry). Without
+  // this the screen showed a permanent spinner for both, most easily hit by
+  // tapping an order push after signing out.
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'not-found' | 'error'>('loading');
+  const [reloadKey, setReloadKey] = useState(0);
   const [showCelebration, setShowCelebration] = useState(shouldCelebrate(celebrate));
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -91,16 +98,38 @@ export default function OrderTracking() {
 
   useEffect(() => {
     if (!id) return;
-    db.orders.get(id).then(setOrder);
-    const unsub = db.orders.subscribe(id, setOrder, 'tracking');
+    let cancelled = false;
+    db.orders
+      .get(id)
+      .then((o) => {
+        if (cancelled) return;
+        if (o) {
+          setOrder(o);
+          setLoadState('ready');
+        } else {
+          setLoadState('not-found');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadState('error');
+      });
+    const unsub = db.orders.subscribe(
+      id,
+      (o) => {
+        setOrder(o);
+        setLoadState('ready');
+      },
+      'tracking',
+    );
     // 10s granularity is plenty: the countdown renders whole minutes and the
     // stale-fix threshold is 45s. A 1s tick re-rendered the screen every second.
     const tick = setInterval(() => setNow(Date.now()), 10_000);
     return () => {
+      cancelled = true;
       unsub();
       clearInterval(tick);
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   // Pre-fill the save-preset name once the order loads and is delivered.
   useEffect(() => {
@@ -278,6 +307,40 @@ export default function OrderTracking() {
 
   // ---- Hooks end here. Everything below runs only with a loaded order. ------
   if (!order) {
+    // Not accessible to this session (signed-out / guest / other account), or a
+    // transient failure. Give the customer a way out instead of a dead spinner.
+    if (loadState === 'not-found' || loadState === 'error') {
+      const isError = loadState === 'error';
+      return (
+        <View style={[styles.loading, { paddingHorizontal: 32, gap: 16 }]}>
+          <ThemedStatusBar />
+          <Text style={{ color: colors.ink, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>
+            {t(isError ? 'order.loadErrorTitle' : 'order.notFoundTitle')}
+          </Text>
+          <Text style={{ color: colors.ink3, textAlign: 'center' }}>
+            {t(isError ? 'order.loadErrorBody' : 'order.notFoundBody')}
+          </Text>
+          {isError ? (
+            <Pressable
+              onPress={() => {
+                setLoadState('loading');
+                setReloadKey((k) => k + 1);
+              }}
+              style={{ paddingVertical: 12, paddingHorizontal: 24 }}
+            >
+              <Text style={{ color: colors.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => router.replace('/(tabs)/orders')}
+              style={{ paddingVertical: 12, paddingHorizontal: 24 }}
+            >
+              <Text style={{ color: colors.accent, fontWeight: '700' }}>{t('order.backToOrders')}</Text>
+            </Pressable>
+          )}
+        </View>
+      );
+    }
     return (
       <View style={styles.loading}>
         <ThemedStatusBar />
