@@ -133,9 +133,14 @@ type Props = {
   onAccept: () => void;
   onDecline: () => void;
   onExpire: () => void;
+  // True while a response (accept or decline) for THIS offer is in flight, so
+  // both buttons lock — a double-tap, or tapping Decline after Accept, would
+  // otherwise fire a second driver_respond that rejects and toasts a spurious
+  // failure for a job the driver actually won.
+  responding?: boolean;
 };
 
-export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
+export function OfferCard({ offer, onAccept, onDecline, onExpire, responding = false }: Props) {
   const colors = useThemeColors();
   const { direction, t } = useI18n();
   const seconds = useCountdown(offer.offer_expires_at, onExpire);
@@ -288,19 +293,21 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
         {t('offer.unlock')}
       </Text>
 
-      {/* Accept is weighted 2:1 — a mis-tap here costs the driver a paid job. */}
+      {/* Accept is weighted 2:1 — a mis-tap here costs the driver a paid job.
+          Both lock the moment a response is in flight (responding) as well as on
+          expiry, so a double-tap cannot fire a second driver_respond. */}
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs }}>
         <Pressable
           onPress={() => {
             tapLight();
             onDecline();
           }}
-          disabled={expired}
+          disabled={expired || responding}
           accessibilityRole="button"
           accessibilityLabel={t('offer.declineA11y', {
             restaurant: offer.restaurant_name,
           })}
-          accessibilityState={{ disabled: expired }}
+          accessibilityState={{ disabled: expired || responding }}
           style={({ pressed }) => ({
             flex: 1,
             minHeight: 52,
@@ -310,7 +317,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             borderCurve: 'continuous',
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: pressed ? 0.6 : 1,
+            opacity: responding ? 0.4 : pressed ? 0.6 : 1,
           })}
         >
           <Text style={{ color: colors.redText, fontWeight: '600' }}>{t('offer.decline')}</Text>
@@ -320,13 +327,13 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             tapHeavy();
             onAccept();
           }}
-          disabled={expired}
+          disabled={expired || responding}
           accessibilityRole="button"
           accessibilityLabel={t('offer.acceptA11y', {
             restaurant: offer.restaurant_name,
             amount: payout,
           })}
-          accessibilityState={{ disabled: expired }}
+          accessibilityState={{ disabled: expired || responding }}
           style={({ pressed }) => ({
             flex: 2,
             minHeight: 52,
@@ -335,7 +342,7 @@ export function OfferCard({ offer, onAccept, onDecline, onExpire }: Props) {
             borderCurve: 'continuous',
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: pressed ? 0.85 : 1,
+            opacity: responding ? 0.6 : pressed ? 0.85 : 1,
           })}
         >
           {/* onInk, not white: BOTH fills behind this label invert with the

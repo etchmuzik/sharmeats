@@ -61,6 +61,9 @@ export default function Home() {
   const [online, setOnlineState] = useState(false);
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [offers, setOffers] = useState<Assignment[]>([]);
+  // The assignment whose accept/decline RPC is in flight — locks that card's
+  // buttons so a double-tap cannot fire a second driver_respond.
+  const [respondingId, setRespondingId] = useState<string | null>(null);
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -207,6 +210,8 @@ export default function Home() {
   }
 
   async function accept(a: Assignment) {
+    if (respondingId) return; // a response is already in flight
+    setRespondingId(a.id);
     try {
       await respondToOffer(a.id, true);
       notifySuccess();
@@ -222,10 +227,14 @@ export default function Home() {
       notifyError();
       toast(errorMessage('offerAccept', e), 'error');
       await load();
+    } finally {
+      setRespondingId(null);
     }
   }
 
   async function reject(a: Assignment) {
+    if (respondingId) return;
+    setRespondingId(a.id);
     try {
       await respondToOffer(a.id, false);
       setOffers((prev) => prev.filter((o) => o.id !== a.id));
@@ -238,6 +247,8 @@ export default function Home() {
       notifyError();
       toast(errorMessage('offerDecline', e), 'error');
       await load();
+    } finally {
+      setRespondingId(null);
     }
   }
 
@@ -427,6 +438,7 @@ export default function Home() {
           <OfferCard
             key={o.id}
             offer={o}
+            responding={respondingId === o.id}
             onAccept={() => accept(o)}
             onDecline={() => reject(o)}
             onExpire={() => dismissOffer(o.id)}
