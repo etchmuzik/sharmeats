@@ -81,12 +81,51 @@ errors, so this is yours:
 Every watchdog (dispatch, churn, site-health, FX, receipts) funnels through one
 fire-and-forget `net.http_post` in `ops_alert` whose response is discarded and
 whose errors are swallowed. If that one channel dies, **every alert goes silent
-and nothing notices.** Partly addressed by the rotation in §2; the durable fix is
-a delivery check (store the pg_net request id, a 5-min cron inspects
-`net._http_response` for non-2xx and writes an `ops_alert_failures` row) plus one
-out-of-band heartbeat (e.g. the daily GitHub Action pings Telegram directly). I
-can write this as a migration on request — flagging it here because the decision
-(and the rotated token) is yours.
+and nothing notices.**
+
+Both halves of the fix are now built:
+
+- **Delivery check — done, applied to prod** (migration 211). `ops_alert` keeps
+  the pg_net request id, and a 5-minute cron resolves each send against
+  `net._http_response` into `public.ops_alert_deliveries`. The table doubles as
+  an outbox-of-record: with the channel completely dead, the alert **text** still
+  survives, so nothing is lost, only delayed.
+- **Out-of-band heartbeat — done, needs one secret from you**
+  (`.github/workflows/telegram-heartbeat.yml`). Pings Telegram daily at 06:00 UTC
+  from GitHub Actions and fails the run if the channel does not answer. The alarm
+  travels over GitHub's failure email, **not** over Telegram — a channel cannot
+  carry the news that it is down.
+
+**Your one action:**
+
+```bash
+gh secret set TELEGRAM_BOT_TOKEN      # the bot token, no "bot" prefix
+gh secret set TELEGRAM_OPS_CHAT_ID    # the numeric chat id ops_alert posts to
+```
+
+Until both are set the workflow **fails on purpose** rather than skipping — an
+unconfigured dead-man's switch that quietly passes is worse than none, because it
+manufactures the confidence it exists to prevent.
+
+### The gap neither half closes
+
+The heartbeat validates the token **in the repo secret**; migration 211 validates
+the token **in the database**. Nothing compares the two. A rotation that updates
+BotFather and GitHub but not `platform_settings` leaves the workflow green while
+production is deaf.
+
+The tell is visible in the chat: the daily heartbeat keeps arriving while every
+other alert stops. **A chat where the heartbeat is the only thing that ever
+appears is not a quiet week.** After any rotation, prove the database side
+separately — `ok = true` is the only acceptable answer, and `ok is null` means the
+response was pruned before the checker looked, which is *not* a success:
+
+```sql
+select public.ops_alert('[sharmeats] post-rotation test');
+-- wait ~30s (the checker deliberately skips sends younger than 20s), then:
+select created_at, ok, status_code, detail
+  from public.ops_alert_deliveries order by id desc limit 3;
+```
 
 ---
 

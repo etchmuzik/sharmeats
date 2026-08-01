@@ -293,6 +293,49 @@ test that looks like an incident corrupts the incident record.
 |---|---|---|---|
 | _(pending — owner runs this from an admin session)_ | | | |
 
+### 5.2 Is the channel itself alive? (two checks, deliberately separate)
+
+§5.1 is a *manual* test. Between runs of it, the failure mode is total and
+silent: `ops_alert` used to `perform net.http_post(...)`, discarding the request
+id, so Telegram answering 401 was indistinguishable from success. Every watchdog
+kept firing, every alert vanished, and **the platform looked quieter than
+usual** — which reads like good news.
+
+Two checks now run continuously, from opposite sides. Neither replaces the other.
+
+| Check | Where | Validates | Tells you |
+|---|---|---|---|
+| `check_ops_alert_deliveries()` | pg_cron, every 5 min (mig 211) | the token **in the database** | which sends failed, and their text |
+| `telegram-heartbeat` | GitHub Actions, 06:00 UTC daily | the token **in the repo secret** | that Telegram + the ops chat answer at all |
+
+**Did an alert actually arrive?** `ops_alert_deliveries` is also an
+outbox-of-record — with the channel completely dead the alert text still
+survives, so nothing is lost, only delayed:
+
+```sql
+select created_at, ok, status_code, detail, left(alert_text, 100)
+  from public.ops_alert_deliveries
+ where ok is not true order by created_at desc limit 20;
+```
+
+`ok = true` is success. `ok = false` is a definite failure. **`ok is null` with
+`checked_at` set means the pg_net response was pruned before the checker looked —
+unknown, not success.** pg_net prunes within hours (measured 2026-08-01: 214 rows
+retained, oldest ~5h), which is why the cron runs every 5 minutes.
+
+**The gap between the two checks.** Nothing compares the database's token to the
+repo secret's. A rotation that updates BotFather and GitHub but not
+`platform_settings` leaves the heartbeat green while production is deaf. The tell
+is in the chat: the daily heartbeat keeps arriving while every other alert stops.
+A chat where the heartbeat is the only thing that ever appears is not a quiet
+week. Rotation order is documented at the top of
+`.github/workflows/telegram-heartbeat.yml` — change all three together, then
+prove the database side with §5.1.
+
+**Why nothing alerts about alert failures.** There is one channel; a broken
+channel cannot carry news of itself. That is exactly why the heartbeat lives
+outside the database and reports via GitHub's failure email instead.
+
 ---
 
 ## 6. Crash reporting (apps)

@@ -1,0 +1,227 @@
+# Out-of-band heartbeat for the ops alert channel.
+#
+# THE PROBLEM THIS SOLVES. Eighteen watchdogs — dispatch, churn, site health, FX,
+# push receipts, COD ceiling, the daily digest — funnel into one `ops_alert()`
+# call that POSTs to Telegram. When that channel dies, every one of them keeps
+# "alerting" and every alert vanishes. The platform then looks QUIETER THAN
+# USUAL, which reads like good news. Nothing in the database can tell you,
+# because the only thing it could tell you with is the channel that is broken.
+#
+# Migration 211 fixed half of that: ops_alert now keeps the pg_net request id and
+# a 5-minute cron resolves each send against net._http_response, so the outcome
+# is recorded and the alert TEXT survives even when delivery fails. But that
+# record is inside the database, and reading it requires someone to go and look —
+# which is exactly the thing nobody does while everything seems calm.
+#
+# This workflow is the other half. It pings Telegram from OUTSIDE the database,
+# on a schedule, and fails the run when the channel does not answer. The alarm
+# travels over GitHub's own failure notifications — deliberately NOT over
+# Telegram, because a channel cannot carry the news that it is down. That is the
+# whole point: every other check in this repo would report a dead Telegram over
+# Telegram.
+#
+# WHAT A GREEN RUN PROVES, EXACTLY:
+#   the bot token in this repo's secrets is live, the ops chat is reachable, and
+#   a message posted to it is accepted.
+#
+# WHAT IT DOES NOT PROVE — read this before trusting it:
+#   that the token in `platform_settings.ops_alert_webhook_url` is the SAME one.
+#   This workflow cannot read the database (it holds no service-role key, by
+#   design). If a rotation updates BotFather and this secret but not the
+#   database, this stays green while production is deaf. Rotating means changing
+#   all three together; §"Rotating the token" below is the order that works.
+#
+#   The tell for that specific divergence is visible in the chat itself: the
+#   daily heartbeat keeps arriving while every other alert stops. A chat where
+#   the ONLY thing that ever appears is this message is not a quiet week — it is
+#   a database whose copy of the token is dead.
+#
+# ROTATING THE TOKEN (all three, one sitting):
+#   1. BotFather → /revoke → new token.
+#   2. Repo secret: gh secret set TELEGRAM_BOT_TOKEN
+#   3. Database, both keys, in one statement:
+#        update public.platform_settings
+#           set value = to_jsonb('https://api.telegram.org/bot<NEW>/sendMessage'::text)
+#         where key = 'ops_alert_webhook_url';
+#   4. Prove the DATABASE copy works — not just this workflow:
+#        select public.ops_alert('[sharmeats] post-rotation test');
+#        -- wait ~30s, then:
+#        select created_at, ok, status_code, detail
+#          from public.ops_alert_deliveries order by id desc limit 3;
+#      `ok = true` is the only acceptable answer. `ok is null` means the response
+#      was pruned before the checker looked, which is NOT a success.
+#   5. Run this workflow manually to confirm the secret's copy agrees.
+#
+# COST: two curl calls a day. No checkout, no build, no repo write access.
+
+name: telegram-heartbeat
+
+on:
+  workflow_dispatch:
+    inputs:
+      quiet:
+        description: 'Check the channel without posting a message to the ops chat'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # 06:00 UTC daily = 08:00–09:00 Africa/Cairo depending on DST, i.e. the start
+    # of the working day in Sharm. Chosen so the heartbeat lands where a human
+    # will see it, because ITS ABSENCE is a signal too and absence is only
+    # noticeable at a time you expect something.
+    #
+    # Once a day, not hourly: a heartbeat frequent enough to become wallpaper is
+    # a heartbeat nobody reads, and the failure notification — not the message —
+    # is what actually pages anyone.
+    - cron: '0 6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Telegram directly
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_OPS_CHAT_ID }}
+          QUIET: ${{ github.event.inputs.quiet }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # No `set -x`, ever: it would expand the API URL, which contains the
+          # bot token. GitHub masks exact secret matches in logs, but the safe
+          # habit is to never construct a printable line containing one.
+          set -uo pipefail
+
+          say() { echo "$*" >> "$GITHUB_STEP_SUMMARY"; }
+
+          # --- Configured at all? ------------------------------------------
+          # A missing secret FAILS rather than skips. A dead-man's switch that
+          # quietly passes when it is unconfigured is worse than no switch: it
+          # manufactures the exact false confidence it exists to prevent. This
+          # repo has already been bitten by that shape twice — a launchd job
+          # that printed a healthy row while exiting 78 for three days, and a
+          # backup log whose last line said "complete" because nothing had
+          # appended to it since.
+          missing=""
+          [ -n "${BOT_TOKEN:-}" ] || missing="TELEGRAM_BOT_TOKEN"
+          if [ -z "${CHAT_ID:-}" ]; then
+            [ -n "$missing" ] && missing="$missing and TELEGRAM_OPS_CHAT_ID" || missing="TELEGRAM_OPS_CHAT_ID"
+          fi
+
+          if [ -n "$missing" ]; then
+            echo "::error::heartbeat NOT CONFIGURED — missing repository secret(s): ${missing}. The ops alert channel is unmonitored from outside the database."
+            say "## ❌ Heartbeat not configured"
+            say ""
+            say "Missing from repository secrets: **${missing}**. Until set, nothing"
+            say "outside the database can tell you the ops alert channel has died."
+            say ""
+            say '```bash'
+            say 'gh secret set TELEGRAM_BOT_TOKEN      # the bot token, no "bot" prefix'
+            say 'gh secret set TELEGRAM_OPS_CHAT_ID    # numeric chat id ops_alert posts to'
+            say '```'
+            say ""
+            say "The chat id is stored as a secret because it is a personal Telegram"
+            say "account id, not because it is a credential."
+            exit 1
+          fi
+
+          API="https://api.telegram.org/bot${BOT_TOKEN}"
+          body="$(mktemp)"
+
+          # --- 1. Is the TOKEN live? ---------------------------------------
+          # getMe first so a revoked token is reported as a revoked token,
+          # rather than as a vague send failure. The two have different fixes.
+          code="$(curl -sS --max-time 20 -o "$body" -w '%{http_code}' "${API}/getMe" 2>/dev/null || echo 000)"
+
+          if [ "$code" = "401" ]; then
+            echo "::error::TELEGRAM TOKEN REVOKED — getMe returned 401. Every ops alert is silently going nowhere."
+            say "## ❌ Token revoked"
+            say ""
+            say "\`getMe\` → **401**. The bot token in this repo's secrets is dead."
+            say ""
+            say "If the token was rotated, the database almost certainly still holds the"
+            say "old one too — see the rotation checklist at the top of this workflow."
+            say "Recover the alert text that was lost meanwhile:"
+            say ""
+            say '```sql'
+            say 'select created_at, left(alert_text, 120) from public.ops_alert_deliveries'
+            say ' where ok is not true order by created_at desc limit 50;'
+            say '```'
+            exit 1
+          fi
+
+          if [ "$code" != "200" ]; then
+            echo "::error::Telegram getMe returned ${code} — cannot confirm the alert channel is alive."
+            say "## ❌ Telegram unreachable"
+            say ""
+            say "\`getMe\` → **${code}**. Either Telegram is down or this runner cannot reach it."
+            say "Re-run before treating it as an outage; a single failed run is weak evidence."
+            exit 1
+          fi
+
+          bot_user="$(jq -r '.result.username // "unknown"' "$body" 2>/dev/null)"
+          bot_id="$(jq -r '.result.id // "unknown"' "$body" 2>/dev/null)"
+
+          # --- 2. Does a message actually LAND? -----------------------------
+          # getChat is not enough. A user who blocks the bot still resolves
+          # through getChat, and sendMessage is what then returns 403 — so only
+          # an actual send exercises the path the watchdogs use.
+          if [ "${QUIET:-false}" = "true" ]; then
+            say "## ✅ Token live (quiet run — nothing posted)"
+            say ""
+            say "Bot \`@${bot_user}\` (id \`${bot_id}\`) authenticated."
+            say ""
+            say "⚠️ A quiet run does **not** prove delivery: a blocked bot passes \`getMe\`"
+            say "and fails \`sendMessage\`. Re-run without \`quiet\` to test the real path."
+            exit 0
+          fi
+
+          text="✓ sharmeats alert channel alive — daily heartbeat from GitHub Actions (@${bot_user}). If this is the ONLY message you have seen here lately, the database's copy of the bot token is dead, not the platform. ${RUN_URL}"
+
+          code="$(curl -sS --max-time 20 -o "$body" -w '%{http_code}' \
+                    -X POST "${API}/sendMessage" \
+                    --data-urlencode "chat_id=${CHAT_ID}" \
+                    --data-urlencode "text=${text}" \
+                    --data "disable_notification=true" 2>/dev/null || echo 000)"
+
+          if [ "$code" != "200" ]; then
+            # Telegram puts the real reason in the body and it never contains the
+            # token, so surfacing it turns "400" into something actionable.
+            reason="$(jq -r '.description // empty' "$body" 2>/dev/null)"
+            echo "::error::ALERT CHANNEL DEAD — token is valid but sendMessage returned ${code}: ${reason:-no detail}. Ops alerts are going nowhere."
+            say "## ❌ Alert channel dead"
+            say ""
+            say "Bot \`@${bot_user}\` authenticates fine, but posting to the ops chat failed:"
+            say ""
+            say "| | |"
+            say "|---|---|"
+            say "| Status | **${code}** |"
+            say "| Telegram says | ${reason:-—} |"
+            say ""
+            say "Common causes: \`chat not found\` (wrong \`TELEGRAM_OPS_CHAT_ID\`, or the bot"
+            say "has never been messaged by that account), \`bot was blocked by the user\`,"
+            say "\`bot was kicked\` (removed from the group)."
+            say ""
+            say "Nothing was lost — every alert since the channel broke is still in"
+            say "\`ops_alert_deliveries.alert_text\` (migration 211)."
+            exit 1
+          fi
+
+          echo "Telegram alert channel is alive (@${bot_user})."
+          say "## ✅ Alert channel alive"
+          say ""
+          say "| | |"
+          say "|---|---|"
+          say "| Bot | \`@${bot_user}\` (id \`${bot_id}\`) |"
+          say "| Ops chat | reachable, message accepted |"
+          say ""
+          say "This proves the token **in this repo's secrets** works. It does not prove"
+          say "the database holds the same one — confirm that side separately:"
+          say ""
+          say '```sql'
+          say 'select created_at, ok, status_code, detail'
+          say '  from public.ops_alert_deliveries order by id desc limit 5;'
+          say '```'
