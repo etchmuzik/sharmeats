@@ -3369,6 +3369,7 @@ export type Database = {
           order_id: string
           promo_id: string
           redemption_seq: number | null
+          released_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -3379,6 +3380,7 @@ export type Database = {
           order_id: string
           promo_id: string
           redemption_seq?: number | null
+          released_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -3389,6 +3391,7 @@ export type Database = {
           order_id?: string
           promo_id?: string
           redemption_seq?: number | null
+          released_at?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -5261,6 +5264,16 @@ export type Database = {
         }[]
       }
       create_order_share: { Args: { p_order_id: string }; Returns: string }
+      credit_wallet_internal: {
+        Args: {
+          p_amount_egp: number
+          p_note: string
+          p_order_id: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       current_fx_rates: {
         Args: never
         Returns: {
