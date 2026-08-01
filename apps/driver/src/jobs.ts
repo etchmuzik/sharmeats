@@ -372,6 +372,27 @@ export async function collectCod(orderId: string, amount: number): Promise<void>
   if (error) throw error;
 }
 
+/**
+ * Complete a cash-on-delivery order in the ONE order the server accepts:
+ * advance to 'delivered' first, then settle the cash. mark_cod_collected
+ * (mig 202 F-06) rejects collection on any non-delivered order, so collecting
+ * first — as an earlier build did — makes every COD delivery fail. Kept as a
+ * pure two-step so the ordering is unit-tested and cannot silently invert
+ * again. Deliberately does NOT swallow errors: a throw after the advance means
+ * the order is delivered but unsettled, and the caller must offer a cash retry.
+ */
+export async function completeCodDelivery(
+  orderId: string,
+  amount: number,
+  deps: {
+    advance: (orderId: string, next: OrderStatus) => Promise<void>;
+    collectCod: (orderId: string, amount: number) => Promise<void>;
+  } = { advance, collectCod },
+): Promise<void> {
+  await deps.advance(orderId, 'delivered');
+  await deps.collectCod(orderId, amount);
+}
+
 export interface EarningsSummary {
   todayTotal: number;
   todayCount: number;

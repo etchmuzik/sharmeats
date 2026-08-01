@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { advance, collectCod, fetchJob, type Job } from '../../src/jobs';
+import { advance, collectCod, completeCodDelivery, fetchJob, type Job } from '../../src/jobs';
 import { isProofRequired, recordProof } from '../../src/proofOfDelivery';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { parseWkbPoint } from '../../src/geo';
@@ -193,8 +193,12 @@ export default function JobScreen() {
             onPress: async () => {
               setBusy(true);
               try {
-                await collectCod(id, job.total_egp);
-                await advance(id, 'delivered');
+                // Deliver first, then settle the cash — mark_cod_collected
+                // (mig 202 F-06) rejects collection on a non-delivered order.
+                // If collectCod throws after the advance, the order is correctly
+                // delivered and the row below offers a retry rather than
+                // stranding it.
+                await completeCodDelivery(id, job.total_egp);
                 // After the advance, on purpose: the photo must never gate the
                 // status change (see src/proofOfDelivery.ts).
                 await uploadProofBestEffort(id);
@@ -232,6 +236,35 @@ export default function JobScreen() {
       setBusy(false);
     }
   }, [errorMessage, id, job, router, t, toast, uploadProofBestEffort]);
+
+  // Recovery: the order is already delivered but the cash was never settled
+  // (collectCod threw after the advance succeeded). Retry only the settlement —
+  // no status change, so it is safe to repeat until the ledger is written.
+  const settleCod = useCallback(async () => {
+    if (!id || !job) return;
+    Alert.alert(
+      t('job.collectCashTitle'),
+      t('job.collectCashBody', { amount: job.total_egp }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('job.cashCollected', { amount: job.total_egp }),
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await collectCod(id, job.total_egp);
+              await load();
+            } catch (e) {
+              captureError(e, { where: 'driver.job.settleCod', orderId: id });
+              toast(errorMessage('jobComplete', e), 'error');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [errorMessage, id, job, load, t, toast]);
 
   const navigateTo = useCallback(
     async (kind: 'restaurant' | 'dropoff') => {
@@ -556,13 +589,31 @@ export default function JobScreen() {
             {t('job.waitingRestaurant')}
           </Text>
         )}
-        {['delivered', 'cancelled', 'rejected'].includes(job.status) && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            {job.status === 'delivered' && <Icon name="check" size={18} color={colors.green} />}
-            <Text style={{ textAlign: 'center', color: colors.greenText, fontWeight: '700' }}>
-              {t(statusKey(job.status))}
+        {job.status === 'delivered' &&
+        job.payment_method === 'cash_on_delivery' &&
+        job.payment_status !== 'paid' ? (
+          // Delivered but the cash settlement did not land (e.g. it failed
+          // right after the status advanced). Offer a retry rather than a
+          // terminal checkmark, so custody is never silently unledgered.
+          <View style={{ gap: spacing.md }}>
+            <Text style={{ textAlign: 'center', color: colors.ink2 }}>
+              {t('job.cashNotSettled')}
             </Text>
+            <Action
+              label={t('job.cashCollected', { amount: job.total_egp })}
+              busy={busy}
+              onPress={settleCod}
+            />
           </View>
+        ) : (
+          ['delivered', 'cancelled', 'rejected'].includes(job.status) && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              {job.status === 'delivered' && <Icon name="check" size={18} color={colors.green} />}
+              <Text style={{ textAlign: 'center', color: colors.greenText, fontWeight: '700' }}>
+                {t(statusKey(job.status))}
+              </Text>
+            </View>
+          )
         )}
       </View>
     </View>
