@@ -1336,7 +1336,7 @@ export type Database = {
           created_at: string
           driver_id: string
           expires_at: string
-          granted_by: string
+          granted_by: string | null
           id: string
           reason: string
         }
@@ -1344,7 +1344,7 @@ export type Database = {
           created_at?: string
           driver_id: string
           expires_at: string
-          granted_by: string
+          granted_by?: string | null
           id?: string
           reason: string
         }
@@ -1352,7 +1352,7 @@ export type Database = {
           created_at?: string
           driver_id?: string
           expires_at?: string
-          granted_by?: string
+          granted_by?: string | null
           id?: string
           reason?: string
         }
