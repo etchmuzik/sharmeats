@@ -114,7 +114,10 @@ echo "Uploading GOOGLE_SERVICES_JSON to each EAS project…"
 upload() {
   local app="$1" file="$2"
   local abs; abs="$(cd "$(dirname "$file")" && pwd)/$(basename "$file")"
-  echo "  apps/$app…"
+  # ${app} braced: macOS ships bash 3.2, which misparses an unbraced variable
+  # immediately followed by a multibyte character (the ellipsis) into the
+  # variable NAME — under set -u that dies as "app?: unbound variable".
+  echo "  apps/${app}…"
   # env:set rather than the deprecated env:create: it is create-or-update, so
   # re-running this script after fixing one file is safe and needs no --force.
   ( cd "apps/$app" && npx eas-cli@21.4.0 env:set \
