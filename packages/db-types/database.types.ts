@@ -2501,6 +2501,39 @@ export type Database = {
           },
         ]
       }
+      ops_alert_deliveries: {
+        Row: {
+          alert_text: string
+          checked_at: string | null
+          created_at: string
+          detail: string | null
+          id: number
+          ok: boolean | null
+          request_id: number | null
+          status_code: number | null
+        }
+        Insert: {
+          alert_text: string
+          checked_at?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: number
+          ok?: boolean | null
+          request_id?: number | null
+          status_code?: number | null
+        }
+        Update: {
+          alert_text?: string
+          checked_at?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: number
+          ok?: boolean | null
+          request_id?: number | null
+          status_code?: number | null
+        }
+        Relationships: []
+      }
       order_assignments: {
         Row: {
           assigned_at: string
@@ -5222,6 +5255,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      check_ops_alert_deliveries: { Args: never; Returns: number }
       claim_acquisition_touches: {
         Args: { p_install_id: string }
         Returns: undefined
@@ -6205,6 +6239,10 @@ export type Database = {
       }
       redeem_credit: { Args: { p_amount_egp: number }; Returns: string }
       redeem_points: { Args: { p_points: number }; Returns: string }
+      register_push_token: {
+        Args: { p_platform: string; p_token: string }
+        Returns: undefined
+      }
       reorder_cadence_sweep: { Args: never; Returns: number }
       reply_support_message: {
         Args: { p_body: string; p_user_id: string }
