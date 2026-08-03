@@ -3319,6 +3319,35 @@ export type Database = {
           },
         ]
       }
+      payment_reconciliation_exclusions: {
+        Row: {
+          created_at: string
+          excluded_by: string
+          order_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          excluded_by?: string
+          order_id: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          excluded_by?: string
+          order_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reconciliation_exclusions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_settings: {
         Row: {
           key: string
@@ -5996,6 +6025,21 @@ export type Database = {
       }
       ops_stats_text: { Args: { p_scope: string }; Returns: string }
       payment_reconciliation_findings: {
+        Args: { p_days?: number }
+        Returns: {
+          age_days: number
+          amount_egp: number
+          detail: string
+          ledger_id: string
+          mismatch_class: string
+          order_id: string
+          payment_method: string
+          provider_ref: string
+          settlement_id: string
+          short_code: string
+        }[]
+      }
+      payment_reconciliation_findings_raw: {
         Args: { p_days?: number }
         Returns: {
           age_days: number
