@@ -42,13 +42,19 @@ new style/
 **/credentials/
 *.p8
 *service-account*.json
+# Firebase names its downloaded service-account key "<project>-firebase-adminsdk-<id>.json"
+# — no "service-account" in the name, so the pattern above does NOT catch it. It
+# is the FCM signing key: with it anyone can push notifications as this app.
+*firebase-adminsdk*.json
 
 # Firebase Android config, needed at build time for FCM push. Google does not
 # class this as a secret, but this repository is PUBLIC and the file carries the
 # project number and an API key — publishing them invites nuisance abuse of the
 # FCM quota for no benefit. Supplied to builds as the file-type EAS environment
 # variable GOOGLE_SERVICES_JSON instead; see docs/ANDROID-PUSH-FCM.md.
-google-services.json
+# The * covers browser-renamed duplicates: "google-services (1).json" etc. —
+# the exact-name pattern alone left those trackable.
+google-services*.json
 GoogleService-Info.plist
 
 .superpowers/
