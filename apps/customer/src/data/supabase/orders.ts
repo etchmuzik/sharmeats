@@ -76,6 +76,11 @@ export const ordersRepoSupabase = {
       p_idempotency_key: input.idempotencyKey ?? null,
       p_dropoff_preference: input.dropoffPreference ?? null,
       p_dropoff_note: input.dropoffNote?.trim() || null,
+      // [214] The kitchen allergy briefing. REQUIRES mig 214 on prod — an
+      // older place_order has no such parameter and PostgREST answers
+      // PGRST202 to the whole call (the mig 212 failure mode). Do not ship
+      // a binary with this line before 214 is prod-applied.
+      p_aggregate_allergens: input.aggregateAllergens?.length ? input.aggregateAllergens : null,
     });
     if (error) throw mapPlaceOrderError(error);
 

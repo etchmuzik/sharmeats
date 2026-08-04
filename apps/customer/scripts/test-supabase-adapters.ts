@@ -12,10 +12,16 @@
  * Why a custom client instead of pg-mem + real supabase-js: we don't need
  * to test PostgREST itself — we trust it. We need to prove our mappers
  * + adapters preserve every field across the wire.
+ *
+ * Writes that go through SECURITY DEFINER RPCs (place_order) are asserted by
+ * RPC name + argument payload, not table ops: the server recomputes money and
+ * status, so the only client-side contract worth pinning is "the right RPC,
+ * with the right arg names and values". A renamed or dropped arg is exactly
+ * how PGRST202 outages start (mig 212, mig 214).
  */
 
 // ---------------------------------------------------------------------------
-// 1. Fake supabase-js client. Captures query intent, returns canned rows.
+// 1. Fake supabase-js client. Captures query + RPC intent, returns canned rows.
 // ---------------------------------------------------------------------------
 
 interface QueryLog {
@@ -26,8 +32,17 @@ interface QueryLog {
 }
 const log: QueryLog[] = [];
 
+interface RpcLog {
+  name: string;
+  args: Record<string, unknown>;
+}
+const rpcLog: RpcLog[] = [];
+
 type RowProvider = (q: QueryLog) => unknown;
 const tableRows: Record<string, RowProvider> = {};
+
+type RpcProvider = (args: Record<string, unknown>) => unknown;
+const rpcResults: Record<string, RpcProvider> = {};
 
 function makeQuery(table: string, op: QueryLog['op'] = 'select', payload?: unknown) {
   const entry: QueryLog = { table, op, filters: {}, payload };
@@ -83,10 +98,22 @@ const fakeSb = {
       delete: () => makeQuery(table, 'delete'),
     };
   },
+  // supabase-js's rpc() builder is thenable; adapters only ever
+  // `await sb.rpc(...)` and destructure { data, error }, so a plain
+  // promise is a faithful stand-in.
+  rpc(name: string, args: Record<string, unknown> = {}) {
+    rpcLog.push({ name, args });
+    return Promise.resolve({ data: rpcResults[name]?.(args) ?? null, error: null });
+  },
   auth: {
     async getUser() {
       return { data: { user: fakeAuthUser }, error: null };
     },
+  },
+  // subscribe() sweeps existing channels for stale same-named ones before
+  // creating a fresh one; an empty registry is enough for that sweep.
+  getChannels() {
+    return [] as { topic: string }[];
   },
   channel(_name: string) {
     return {
@@ -101,28 +128,38 @@ const fakeSb = {
   removeChannel() {},
 };
 
-// Inject the fake by poisoning require.cache for the client module BEFORE
-// any adapter imports it. tsx runs in CJS mode by default, so require.cache
-// is authoritative.
+// Inject fakes by poisoning require.cache BEFORE any adapter imports the
+// real modules. tsx runs in CJS mode by default, so require.cache is
+// authoritative.
 import { createRequire } from 'node:module';
-import * as path from 'node:path';
 const req = createRequire(__filename);
-const clientPath = req.resolve('../src/data/supabase/client.ts');
-req.cache[clientPath] = {
-  id: clientPath,
-  filename: clientPath,
-  loaded: true,
-  exports: {
-    getSupabase: () => fakeSb as unknown,
-    isSupabaseConfigured: () => true,
-  },
-  children: [],
-  paths: [],
-  // @ts-expect-error — partial Module shape, enough for downstream require.
-  parent: null,
-};
-// touch path to silence TS unused-import.
-void path;
+
+function stubModule(specifier: string, exports: Record<string, unknown>) {
+  const resolved = req.resolve(specifier);
+  req.cache[resolved] = {
+    id: resolved,
+    filename: resolved,
+    loaded: true,
+    exports,
+    children: [],
+    paths: [],
+    // @ts-expect-error — partial Module shape, enough for downstream require.
+    parent: null,
+  };
+}
+
+stubModule('../src/data/supabase/client.ts', {
+  getSupabase: () => fakeSb as unknown,
+  isSupabaseConfigured: () => true,
+});
+
+// orders.ts localises place_order errors via t(), and the real i18n module
+// imports the zustand session store + AsyncStorage — a react-native chain
+// that cannot load under plain Node. Error copy is not under test here;
+// returning the key is enough.
+stubModule('../src/i18n/index.ts', {
+  t: (key: string) => key,
+});
 
 // ---------------------------------------------------------------------------
 // 2. Canned rows — shaped to match migrations 002, 003, 004.
@@ -200,6 +237,10 @@ tableRows.orders = (q) => {
   if (q.filters['eq:id']) return orderRow;
   return [orderRow];
 };
+
+// place_order RETURNS TABLE(id, short_code, total_egp) — PostgREST hands the
+// adapter an array of one row, and the adapter re-reads the full order by id.
+rpcResults.place_order = () => [{ id: 'o-1', short_code: 'SE-ABC123', total_egp: 95 }];
 
 // ---------------------------------------------------------------------------
 // 3. Test harness — minimal pass/fail printer.
@@ -279,22 +320,37 @@ async function run() {
   check('listPaymentMethods maps PaymentMethod', pms[0]?.kind === 'cash');
 
   console.log('\norders adapter');
-  const created = await ordersRepoSupabase.create({
+  const createInput = {
     restaurantId: 'r-1',
     restaurantName: 'Koshary El-Hadaba',
     items: [],
     address: { id: 'a-1', kind: 'street', label: 'Home', streetText: 'x', isDefault: true } as never,
-    payment: { kind: 'cash', label: 'Cash on delivery' },
+    payment: { kind: 'cash' as const, label: 'Cash on delivery' },
     deliveryFeeEgp: 15,
-    aggregateAllergens: ['nuts'],
+    aggregateAllergens: ['nuts' as const],
     scheduledFor: 1747500000000,
-  });
-  const insertLog = log.find((q) => q.table === 'orders' && q.op === 'insert');
-  const insertedPayload = insertLog?.payload as Record<string, unknown>;
-  check('create inserts payment_method_kind', insertedPayload?.payment_method_kind === 'cash');
-  check('create inserts aggregate_allergens', Array.isArray(insertedPayload?.aggregate_allergens));
-  check('create inserts scheduled_for as ISO string', typeof insertedPayload?.scheduled_for === 'string');
-  check('create returns mapped Order', created.shortCode === 'SE-ABC123');
+  };
+  const created = await ordersRepoSupabase.create(createInput);
+  const placeCall = rpcLog.find((c) => c.name === 'place_order');
+  check('create calls place_order RPC, not a direct insert',
+    placeCall !== undefined && !log.some((q) => q.table === 'orders' && q.op === 'insert'));
+  check('create passes restaurant + address ids',
+    placeCall?.args.p_restaurant_id === 'r-1' && placeCall?.args.p_address_id === 'a-1');
+  check('create maps cash to cash_on_delivery',
+    placeCall?.args.p_payment_method === 'cash_on_delivery');
+  check('create passes p_scheduled_for as ISO string',
+    placeCall?.args.p_scheduled_for === new Date(1747500000000).toISOString());
+  check('create passes p_aggregate_allergens through (mig 214)',
+    JSON.stringify(placeCall?.args.p_aggregate_allergens) === '["nuts"]');
+  check('create returns mapped Order (re-read by id)', created.shortCode === 'SE-ABC123');
+
+  // An empty allergen list must reach the RPC as null, not [] — the adapter
+  // normalises "nothing to brief" to the parameter's default so the column
+  // stays NULL instead of storing an empty array.
+  await ordersRepoSupabase.create({ ...createInput, aggregateAllergens: [] });
+  const placeCall2 = rpcLog.filter((c) => c.name === 'place_order')[1];
+  check('create nulls p_aggregate_allergens for an empty list',
+    placeCall2 !== undefined && placeCall2.args.p_aggregate_allergens === null);
 
   const got = await ordersRepoSupabase.get('o-1');
   check('get maps Order', got?.totalEgp === 95);
@@ -303,7 +359,7 @@ async function run() {
 
   const active = await ordersRepoSupabase.listActive();
   check('listActive uses not-in filter', log.some(
-    (q) => q.table === 'orders' && q.filters['not:status:in'] === '(delivered,cancelled)',
+    (q) => q.table === 'orders' && q.filters['not:status:in'] === '(delivered,cancelled,rejected)',
   ));
   check('listActive returns array', Array.isArray(active));
 
