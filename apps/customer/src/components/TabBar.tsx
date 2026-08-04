@@ -14,9 +14,13 @@ import { PressableScale } from './PressableScale';
 
 /**
  * App v2 floating pill nav: a dark rounded bar hovering above the bottom edge;
- * the active tab sits in a white pill with its label, inactive tabs are
- * icon-only. Pure restyle of the v1 bar — routing, haptics and the cart /
- * unread badges are unchanged.
+ * the active tab sits in a white pill, all tabs icon-only. Labels were dropped
+ * (owner call, 2026-08-03): the active pill grew with its label, and long
+ * translations squeezed the other four tabs on narrow phones — worst in
+ * Arabic, where the bar visibly jumped on every tab change. Icon-only makes
+ * every tab equal width and the bar geometry constant. The label text still
+ * exists for screen readers via accessibilityLabel, which is why removing the
+ * visible text costs no accessibility.
  */
 export function TabBar() {
   const colors = useThemeColors();
@@ -77,7 +81,6 @@ export function TabBar() {
                 </View>
               )}
             </View>
-            {active && <Text style={styles.labelOn}>{t(tab.tKey)}</Text>}
           </PressableScale>
         );
       })}
@@ -103,21 +106,16 @@ const useStyles = makeStyles((colors) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Same flex:1 as inactive tabs — equal widths are the point of icon-only.
   tabOn: {
+    flex: 1,
     height: 52,
     borderRadius: radius.pill,
     backgroundColor: colors.white,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 18,
+    justifyContent: 'center',
   },
   iconDim: { opacity: 0.45 },
-  labelOn: {
-    fontSize: font.sizes.base,
-    fontWeight: font.weights.extrabold,
-    color: colors.inkDeep,
-  },
   badge: {
     position: 'absolute',
     top: -4,
