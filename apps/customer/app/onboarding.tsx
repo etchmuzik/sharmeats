@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import {
-  Dimensions,
   Image,
   Pressable,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   ImageSourcePropType,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -24,8 +24,7 @@ import { useSession, type Locale } from '../src/store/session';
 import { useDirection } from '../src/lib/direction';
 import { syncLocaleToProfile } from '../src/lib/localeSync';
 import { selection } from '../src/haptics';
-
-const { width } = Dimensions.get('window');
+import { onboardingHeroHeight } from '../src/lib/onboardingLayout';
 
 type Slide = {
   kind: 'mascot' | 'image';
@@ -72,6 +71,8 @@ export default function Onboarding() {
   const locale = useSession((s) => s.locale);
   const setLocale = useSession((s) => s.setLocale);
   const signIn = useSession((s) => s.signIn);
+  const { width, height } = useWindowDimensions();
+  const heroHeight = onboardingHeroHeight(height);
   const [index, setIndex] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const scrollRef = useRef<ScrollView | null>(null);
@@ -111,8 +112,13 @@ export default function Onboarding() {
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScroll}>
         {SLIDES.map((s, i) => (
-          <View key={i} style={{ width, flex: 1 }}>
-            <View style={styles.imageWrap}>
+          <ScrollView
+            key={i}
+            style={{ width }}
+            contentContainerStyle={[styles.slideContent, { minHeight: height }]}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled>
+            <View style={[styles.imageWrap, { height: heroHeight }]}>
               {s.kind === 'mascot' ? (
                 <View style={styles.mascotWrap}>
                   <Mascot pose={s.pose} size={220} />
@@ -128,6 +134,8 @@ export default function Onboarding() {
               {i < SLIDES.length - 1 && (
                 <Pressable
                   onPress={startAsGuest}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.skip')}
                   style={[
                     styles.skip,
                     { top: insets.top + 16 },
@@ -139,6 +147,9 @@ export default function Onboarding() {
               )}
               <Pressable
                 onPress={() => setPickerOpen((o) => !o)}
+                accessibilityRole="button"
+                accessibilityLabel={LOCALE_LABELS[locale]}
+                accessibilityState={{ expanded: pickerOpen }}
                 style={[
                   styles.langBtn,
                   { top: insets.top + 16 },
@@ -166,6 +177,8 @@ export default function Onboarding() {
                         void syncLocaleToProfile(l as Locale);
                         setPickerOpen(false);
                       }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: l === locale }}
                       style={[styles.langOpt, l === locale && styles.langOptActive]}>
                       <Text style={[styles.langOptText, l === locale && { color: colors.accent }]}>
                         {LOCALE_LABELS[l]}
@@ -201,7 +214,7 @@ export default function Onboarding() {
                 )}
               </View>
             </View>
-          </View>
+          </ScrollView>
         ))}
       </ScrollView>
     </View>
@@ -209,7 +222,8 @@ export default function Onboarding() {
 }
 
 const useStyles = makeStyles((colors) => ({
-  imageWrap: { height: 460, position: 'relative' },
+  slideContent: { flexGrow: 1 },
+  imageWrap: { position: 'relative' },
   image: { width: '100%', height: '100%' },
   mascotWrap: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   // NOTE: horizontal pinning (left/right 20) is applied inline per direction — see useDirection().

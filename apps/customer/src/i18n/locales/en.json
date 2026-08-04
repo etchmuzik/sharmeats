@@ -555,5 +555,20 @@
   "order.shareStop": "Stop sharing",
   "order.shareSubtitle": "Anyone with the link sees the delivery, never your address",
   "order.shareMessage": "Follow my Sharm Eats delivery: {url}",
-  "order.shareFailed": "Couldn't create the link. Try again."
+  "order.shareFailed": "Couldn't create the link. Try again.",
+  "checkout.placing": "Placing order…",
+  "modifier.required": "Required",
+  "modifier.optional": "Optional",
+  "modifier.upTo": "up to {count}",
+  "modifier.no": "No",
+  "modifier.popular": "Popular",
+  "modifier.free": "Free",
+  "modifier.add": "Add",
+  "modifier.remove": "Remove",
+  "otp.codeInput": "Verification code",
+  "otp.codeHint": "Enter the six-digit code we sent you.",
+  "quantity.decrease": "Decrease quantity",
+  "quantity.increase": "Increase quantity",
+  "quantity.value": "Quantity: {value}",
+  "allergy.conflictHint": "This dish contains this allergen."
 }

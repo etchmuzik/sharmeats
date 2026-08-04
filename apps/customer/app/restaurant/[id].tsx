@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
+import { GlassActionDock, GlassControl } from '../../src/components/GlassSurface';
 import { FlagBadge } from '../../src/components/FlagBadge';
 import { RxBadge } from '../../src/components/RxBadge';
 import { TouristSafeBadge } from '../../src/components/TouristSafeBadge';
@@ -310,40 +311,60 @@ export default function RestaurantDetail() {
       </Animated.ScrollView>
 
       <View style={[styles.heroNav, { top: insets.top + 6 }]}>
-        <BackButton tint="light" />
+        <BackButton tint="light" material="glass" />
       </View>
-      <Pressable
+      <GlassControl
         onPress={() => {
           selection();
           toggleFav();
         }}
-        accessibilityRole="button"
+        haptic="none"
+        size={38}
+        tone="light"
         accessibilityState={{ selected: isFav }}
         accessibilityLabel={isFav ? t('fav.remove') : t('fav.add')}
         style={[styles.heroFav, { top: insets.top + 6 }]}>
         <Text style={[styles.heroFavIcon, isFav && { color: colors.accent }]}>
           {isFav ? '♥' : '♡'}
         </Text>
-      </Pressable>
+      </GlassControl>
 
       {showCartBar && (() => {
         const shortBy = Math.max(0, (restaurant?.minOrderEgp ?? 0) - cartSubtotal);
         const belowMin = shortBy > 0;
+        const cartLabel = belowMin
+          ? t('checkout.minOrderShort', { amount: formatEgp(shortBy) })
+          : t('restaurant.viewCart');
+        const cartContent = (
+          <View style={styles.ctaContent}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.ctaCount, belowMin ? styles.ctaCountWarning : styles.ctaCountGlass]}>
+                <Text style={[styles.ctaCountText, !belowMin && styles.ctaGlassText]}>{cartCount}</Text>
+              </View>
+              <Text style={[styles.ctaLabel, !belowMin && styles.ctaGlassText]}>{cartLabel}</Text>
+            </View>
+            <Text style={[styles.ctaPrice, !belowMin && styles.ctaGlassText]}>{formatEgp(cartSubtotal)}</Text>
+          </View>
+        );
+
+        if (!belowMin) {
+          return (
+            <GlassActionDock
+              onPress={() => router.push('/(tabs)/cart')}
+              accessibilityLabel={`${cartLabel}, ${formatEgp(cartSubtotal)}`}
+              style={[styles.cta, { bottom: 24 + insets.bottom }]}>
+              {cartContent}
+            </GlassActionDock>
+          );
+        }
+
         return (
           <Pressable
             onPress={() => router.push('/(tabs)/cart')}
-            style={[styles.cta, { bottom: 24 + insets.bottom }, belowMin && styles.ctaWarn]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={styles.ctaCount}>
-                <Text style={styles.ctaCountText}>{cartCount}</Text>
-              </View>
-              <Text style={styles.ctaLabel}>
-                {belowMin
-                  ? t('checkout.minOrderShort', { amount: formatEgp(shortBy) })
-                  : t('restaurant.viewCart')}
-              </Text>
-            </View>
-            <Text style={styles.ctaPrice}>{formatEgp(cartSubtotal)}</Text>
+            accessibilityRole="button"
+            accessibilityLabel={`${cartLabel}, ${formatEgp(cartSubtotal)}`}
+            style={[styles.cta, styles.ctaWarn, { bottom: 24 + insets.bottom }]}>
+            {cartContent}
           </Pressable>
         );
       })()}
@@ -375,18 +396,7 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
   heroNav: { position: 'absolute', left: 14, zIndex: 10 },
-  heroFav: {
-    position: 'absolute',
-    right: 14,
-    zIndex: 10,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.soft,
-  },
+  heroFav: { position: 'absolute', right: 14, zIndex: 10 },
   heroFavIcon: { fontSize: 20, color: colors.ink2, lineHeight: 22 },
   reviewsTitle: {
     fontSize: font.sizes.sm,
@@ -491,25 +501,30 @@ const useStyles = makeStyles((colors) => ({
     position: 'absolute',
     left: 16,
     right: 16,
-    backgroundColor: colors.ink,
     borderRadius: radius.xxl,
+    overflow: 'hidden',
+    ...shadow.card,
+  },
+  ctaContent: {
+    minHeight: 56,
     paddingHorizontal: 18,
     paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    ...shadow.card,
   },
   ctaWarn: { backgroundColor: colors.amber },
   ctaCount: {
     width: 26,
     height: 26,
     borderRadius: 8,
-    backgroundColor: colors.onInkOverlay,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  ctaCountWarning: { backgroundColor: colors.onInkOverlay },
+  ctaCountGlass: { backgroundColor: 'rgba(255,253,250,0.18)' },
   ctaCountText: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.base },
   ctaLabel: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
   ctaPrice: { color: colors.onInk, fontWeight: font.weights.extrabold, fontSize: font.sizes['2xl'] },
+  ctaGlassText: { color: colors.white },
 }));

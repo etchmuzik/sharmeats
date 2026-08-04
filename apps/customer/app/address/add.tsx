@@ -153,6 +153,8 @@ export default function AddAddress() {
 
       <ScrollView
         scrollEnabled={!mapActive}
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 20, paddingBottom: 140 + insets.bottom, gap: 16 }}>
         {kind === 'hotel' && (
           <>
@@ -162,6 +164,7 @@ export default function AddAddress() {
               onChangeText={setHotelQuery}
               placeholder="Hilton, Marriott, …"
               placeholderTextColor={colors.ink3}
+              accessibilityLabel={t('address.searchHotel')}
               style={styles.input}
             />
             <View style={{ gap: 8 }}>
@@ -172,6 +175,9 @@ export default function AddAddress() {
                     selection();
                     setPickedHotel(h);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: pickedHotel?.id === h.id }}
+                  accessibilityLabel={`${h.name}, ${h.brand}, ${h.zone.replace('_', ' ')}`}
                   style={[
                     styles.hotelRow,
                     pickedHotel?.id === h.id && { borderColor: colors.accent, backgroundColor: colors.accentSoft },
@@ -199,6 +205,7 @@ export default function AddAddress() {
               placeholder="412"
               placeholderTextColor={colors.ink3}
               keyboardType="number-pad"
+              accessibilityLabel={t('address.roomNumber')}
               style={styles.input}
             />
 
@@ -211,6 +218,9 @@ export default function AddAddress() {
                     selection();
                     setHandoff(h);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: handoff === h }}
+                  accessibilityLabel={h === 'lobby' ? t('address.lobby') : h === 'reception' ? t('address.reception') : t('address.poolside')}
                   style={[styles.segBtn, handoff === h && styles.segBtnActive]}>
                   <Text style={[styles.segText, handoff === h && { color: colors.onInk }]}>
                     {h === 'lobby' ? t('address.lobby') : h === 'reception' ? t('address.reception') : t('address.poolside')}
@@ -224,23 +234,23 @@ export default function AddAddress() {
         {kind === 'street' && (
           <>
             <Text style={styles.label}>{t('address.streetText')}</Text>
-            <TextInput value={street} onChangeText={setStreet} style={styles.input} placeholder="السلام، شارع الإمام علي" placeholderTextColor={colors.ink3} />
+            <TextInput value={street} onChangeText={setStreet} style={styles.input} placeholder="السلام، شارع الإمام علي" placeholderTextColor={colors.ink3} accessibilityLabel={t('address.streetText')} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1, gap: 6 }}>
                 <Text style={styles.label}>{t('address.block')}</Text>
-                <TextInput value={block} onChangeText={setBlock} style={styles.input} placeholder="14" placeholderTextColor={colors.ink3} keyboardType="number-pad" />
+                <TextInput value={block} onChangeText={setBlock} style={styles.input} placeholder="14" placeholderTextColor={colors.ink3} keyboardType="number-pad" accessibilityLabel={t('address.block')} />
               </View>
               <View style={{ flex: 1, gap: 6 }}>
                 <Text style={styles.label}>{t('address.floor')}</Text>
-                <TextInput value={floor} onChangeText={setFloor} style={styles.input} placeholder="3" placeholderTextColor={colors.ink3} keyboardType="number-pad" />
+                <TextInput value={floor} onChangeText={setFloor} style={styles.input} placeholder="3" placeholderTextColor={colors.ink3} keyboardType="number-pad" accessibilityLabel={t('address.floor')} />
               </View>
               <View style={{ flex: 1, gap: 6 }}>
                 <Text style={styles.label}>{t('address.apt')}</Text>
-                <TextInput value={apt} onChangeText={setApt} style={styles.input} placeholder="7" placeholderTextColor={colors.ink3} />
+                <TextInput value={apt} onChangeText={setApt} style={styles.input} placeholder="7" placeholderTextColor={colors.ink3} accessibilityLabel={t('address.apt')} />
               </View>
             </View>
             <Text style={styles.label}>{t('address.landmark')}</Text>
-            <TextInput value={landmark} onChangeText={setLandmark} style={styles.input} placeholder="جنب مسجد الرحمة" placeholderTextColor={colors.ink3} />
+            <TextInput value={landmark} onChangeText={setLandmark} style={styles.input} placeholder="جنب مسجد الرحمة" placeholderTextColor={colors.ink3} accessibilityLabel={t('address.landmark')} />
           </>
         )}
 
@@ -253,6 +263,7 @@ export default function AddAddress() {
               style={styles.input}
               placeholder="Sharks Bay Beach Club"
               placeholderTextColor={colors.ink3}
+              accessibilityLabel={t('address.beachName')}
             />
           </>
         )}
@@ -273,10 +284,11 @@ export default function AddAddress() {
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
-        {saveError && <Text style={styles.saveError}>{saveError}</Text>}
+        {saveError && <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.saveError}>{saveError}</Text>}
         <PrimaryButton
           label={saving ? t('address.saving') : t('common.save')}
           onPress={save}
+          loading={saving}
           disabled={!canSave || saving}
         />
       </View>

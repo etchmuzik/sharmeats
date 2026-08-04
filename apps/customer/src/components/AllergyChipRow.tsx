@@ -36,6 +36,10 @@ export function AllergyChipRow({ selected, onChange, conflictWith }: Props) {
             key={k}
             haptic="selection"
             onPress={() => toggle(k)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isSel }}
+            accessibilityLabel={t(`allergy.${k}`)}
+            accessibilityHint={isConflict ? t('allergy.conflictHint') : undefined}
             style={[
               styles.chip,
               isSel && styles.chipSel,

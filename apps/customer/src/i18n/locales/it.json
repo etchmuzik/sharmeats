@@ -555,5 +555,20 @@
   "order.shareStop": "Interrompi condivisione",
   "order.shareSubtitle": "Chi ha il link vede la consegna, mai il tuo indirizzo",
   "order.shareMessage": "Segui la mia consegna Sharm Eats: {url}",
-  "order.shareFailed": "Impossibile creare il link. Riprova."
+  "order.shareFailed": "Impossibile creare il link. Riprova.",
+  "checkout.placing": "Ordine in corso…",
+  "modifier.required": "Obbligatorio",
+  "modifier.optional": "Facoltativo",
+  "modifier.upTo": "fino a {count}",
+  "modifier.no": "Senza",
+  "modifier.popular": "Popolare",
+  "modifier.free": "Gratis",
+  "modifier.add": "Aggiungi",
+  "modifier.remove": "Rimuovi",
+  "otp.codeInput": "Codice di verifica",
+  "otp.codeHint": "Inserisci il codice a sei cifre che ti abbiamo inviato.",
+  "quantity.decrease": "Diminuisci quantità",
+  "quantity.increase": "Aumenta quantità",
+  "quantity.value": "Quantità: {value}",
+  "allergy.conflictHint": "Questo piatto contiene questo allergene."
 }

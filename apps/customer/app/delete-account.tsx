@@ -21,7 +21,10 @@ import { useDirection } from '../src/lib/direction';
 import { tap, success, warn } from '../src/haptics';
 import { db } from '../src/data';
 import { AccountDeletionError } from '../src/data/supabase/user';
-import { transitionIdentity } from '../src/lib/identityTeardown';
+import {
+  transitionIdentity,
+  type IdentityTransitionResult,
+} from '../src/lib/identityTeardown';
 
 /**
  * Account deletion screen — Apple App Store Guideline 5.1.1(v).
@@ -76,6 +79,44 @@ export default function DeleteAccount() {
     !hasActiveOrder &&
     confirmText.trim().toUpperCase() === confirmWord.toUpperCase();
 
+  // Confirm, THEN navigate from the alert's action so the message is tied to a
+  // real interaction (not a detached timer that can be orphaned by the
+  // navigation that replaces this screen).
+  //
+  // The ACCOUNT is gone server-side before this runs — irreversible either way.
+  // What can still fall short is LOCAL isolation (identityTeardown's contract:
+  // callers must not present the device as handed over unless
+  // isolationComplete). So an incomplete teardown offers a retry — every step
+  // of transitionIdentity is idempotent — before letting the person continue
+  // to onboarding with the honest shortfall message.
+  const confirmDeleted = (teardown: IdentityTransitionResult) => {
+    if (teardown.isolationComplete) {
+      Alert.alert(
+        t('deleteAccount.successTitle'),
+        t('deleteAccount.successBody'),
+        [{ text: t('common.continue'), onPress: () => router.replace('/onboarding') }],
+        { cancelable: false },
+      );
+      return;
+    }
+    Alert.alert(
+      t('deleteAccount.successTitle'),
+      // Never claim a clean device we did not achieve. The account IS gone;
+      // if local teardown fell short, say so instead of implying otherwise.
+      `${t('deleteAccount.successBody')}\n\n${t('profile.signOutIncomplete')}`,
+      [
+        {
+          text: t('common.retry'),
+          onPress: () => {
+            transitionIdentity().then(confirmDeleted, () => confirmDeleted(teardown));
+          },
+        },
+        { text: t('common.continue'), onPress: () => router.replace('/onboarding') },
+      ],
+      { cancelable: false },
+    );
+  };
+
   const handleDelete = async () => {
     if (!canDelete) return;
     setDeleting(true);
@@ -101,20 +142,7 @@ export default function DeleteAccount() {
       // proven rather than assumed.
       const teardown = await transitionIdentity();
       success();
-
-      // Confirm, THEN navigate from the alert's action so the message is tied
-      // to a real interaction (not a detached timer that can be orphaned by the
-      // navigation that replaces this screen).
-      Alert.alert(
-        t('deleteAccount.successTitle'),
-        // Never claim a clean device we did not achieve. The account IS gone;
-        // if local teardown fell short, say so instead of implying otherwise.
-        teardown.isolationComplete
-          ? t('deleteAccount.successBody')
-          : `${t('deleteAccount.successBody')}\n\n${t('profile.signOutIncomplete')}`,
-        [{ text: t('common.continue'), onPress: () => router.replace('/onboarding') }],
-        { cancelable: false },
-      );
+      confirmDeleted(teardown);
     } catch (e) {
       warn();
       setDeleting(false);

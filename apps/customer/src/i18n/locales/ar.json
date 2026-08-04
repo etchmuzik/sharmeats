@@ -555,5 +555,20 @@
   "order.shareStop": "إيقاف المشاركة",
   "order.shareSubtitle": "أي شخص لديه الرابط يرى التوصيل، ولا يرى عنوانك أبداً",
   "order.shareMessage": "تابع توصيل شارم إيتس الخاص بي: {url}",
-  "order.shareFailed": "تعذّر إنشاء الرابط. حاول مرة أخرى."
+  "order.shareFailed": "تعذّر إنشاء الرابط. حاول مرة أخرى.",
+  "checkout.placing": "جارٍ تأكيد الطلب…",
+  "modifier.required": "مطلوب",
+  "modifier.optional": "اختياري",
+  "modifier.upTo": "حتى {count}",
+  "modifier.no": "بدون",
+  "modifier.popular": "الأكثر طلبًا",
+  "modifier.free": "مجانًا",
+  "modifier.add": "إضافة",
+  "modifier.remove": "إزالة",
+  "otp.codeInput": "رمز التحقق",
+  "otp.codeHint": "أدخل الرمز المكوّن من ستة أرقام الذي أرسلناه لك.",
+  "quantity.decrease": "تقليل الكمية",
+  "quantity.increase": "زيادة الكمية",
+  "quantity.value": "الكمية: {value}",
+  "allergy.conflictHint": "هذا الطبق يحتوي على هذا المسبب للحساسية."
 }

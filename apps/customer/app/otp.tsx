@@ -47,14 +47,18 @@ export default function Otp() {
   const focusedIdx = code.length;
   const digits = Array.from({ length: LEN }, (_, i) => code[i] ?? '');
 
-  const verify = async () => {
-    if (verifying || code.length !== LEN) return;
+  // `submitted` must be passed explicitly by the auto-submit path: the timeout
+  // fires against THIS render's closure, whose `code` still holds the value
+  // from before the final digit's setCode — so reading state here would see a
+  // 5-digit code and silently bail on the length guard.
+  const verify = async (submitted: string = code) => {
+    if (verifying || submitted.length !== LEN) return;
     setVerifying(true);
     setError(null);
     try {
       // Real verification: links the phone to the (anonymous) session, so order
       // history is preserved. Only on success do we flip the local UI flag.
-      const { phone } = await db.auth.verifyOtp(phoneDisplay, code);
+      const { phone } = await db.auth.verifyOtp(phoneDisplay, submitted);
       success();
       signIn(phone);
       // Merge favourites for the account we just landed in. This is the moment
@@ -100,20 +104,24 @@ export default function Otp() {
 
       <View style={styles.top}>
         <Text style={styles.title}>{t('otp.title')}</Text>
-        <Text style={styles.sub}>
-          {t('otp.subtitle')}
-          {'\n'}
-          <Text style={{ fontWeight: font.weights.bold, color: colors.ink }}>{phoneDisplay}</Text>
-          {'  ·  '}
-          <Text
-            onPress={() => router.replace('/signin')}
-            style={{ color: colors.accent, fontWeight: font.weights.semibold }}>
-            {t('otp.edit')}
-          </Text>
-        </Text>
+        <View style={styles.sub}>
+          <Text style={styles.subText}>{t('otp.subtitle')}</Text>
+          <View style={styles.phoneRow}>
+            <Text style={styles.phone}>{phoneDisplay}</Text>
+            <Text style={styles.phoneSeparator}>·</Text>
+            <Pressable
+              onPress={() => router.replace('/signin')}
+              accessibilityRole="button"
+              accessibilityLabel={t('otp.edit')}>
+              <Text style={styles.edit}>
+                {t('otp.edit')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
 
-      <Pressable style={styles.boxes} onPress={() => input.current?.focus()}>
+      <Pressable accessible={false} style={styles.boxes} onPress={() => input.current?.focus()}>
         {digits.map((d, i) => (
           <View
             key={i}
@@ -128,29 +136,40 @@ export default function Otp() {
           onChangeText={(txt) => {
             const next = txt.replace(/\D/g, '').slice(0, LEN);
             setCode(next);
-            if (next.length === LEN) setTimeout(verify, 220);
+            if (next.length === LEN) setTimeout(() => verify(next), 220);
           }}
           keyboardType="number-pad"
           maxLength={LEN}
           autoFocus
           caretHidden
+          accessibilityLabel={t('otp.codeInput')}
+          accessibilityHint={t('otp.codeHint')}
           style={styles.hiddenInput}
         />
       </Pressable>
 
-      <Text style={styles.resend}>
-        {t('otp.resendPrompt')}{' '}
-        <Text
+      <View style={styles.resendRow}>
+        <Text style={styles.resend}>{t('otp.resendPrompt')}</Text>
+        <Pressable
           onPress={resend}
-          style={{ color: colors.accent, fontWeight: font.weights.bold }}>
-          {seconds > 0
-            ? t('otp.resendCountdown', { seconds: seconds.toString().padStart(2, '0') })
-            : t('otp.resendNow')}
-        </Text>
-      </Text>
+          disabled={seconds > 0}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: seconds > 0 }}
+          accessibilityLabel={
+            seconds > 0
+              ? t('otp.resendCountdown', { seconds: seconds.toString().padStart(2, '0') })
+              : t('otp.resendNow')
+          }>
+          <Text style={[styles.resendAction, seconds > 0 && styles.resendActionDisabled]}>
+            {seconds > 0
+              ? t('otp.resendCountdown', { seconds: seconds.toString().padStart(2, '0') })
+              : t('otp.resendNow')}
+          </Text>
+        </Pressable>
+      </View>
 
       {error ? (
-        <Text style={{ color: colors.red, textAlign: 'center', paddingHorizontal: 24, marginTop: 8 }}>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ color: colors.red, textAlign: 'center', paddingHorizontal: 24, marginTop: 8 }}>
           {error}
         </Text>
       ) : null}
@@ -158,7 +177,14 @@ export default function Otp() {
       <View style={{ flex: 1 }} />
 
       <View style={{ paddingHorizontal: 24, paddingBottom: 36 }}>
-        <PrimaryButton testID="customer-verify-otp" label={t('otp.cta')} onPress={verify} />
+        {/* Wrapped so the press event object is not passed as `submitted`. */}
+        <PrimaryButton
+          testID="customer-verify-otp"
+          label={t('otp.cta')}
+          onPress={() => verify()}
+          disabled={verifying}
+          loading={verifying}
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -173,7 +199,12 @@ const useStyles = makeStyles((colors) => ({
     marginBottom: 10,
     color: colors.ink,
   },
-  sub: { fontSize: font.sizes.xl, color: colors.ink2, lineHeight: 22 },
+  sub: { gap: 2 },
+  subText: { fontSize: font.sizes.xl, color: colors.ink2, lineHeight: 22 },
+  phoneRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  phone: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold, lineHeight: 22 },
+  phoneSeparator: { fontSize: font.sizes.xl, color: colors.ink2, lineHeight: 22 },
+  edit: { color: colors.accent, fontSize: font.sizes.xl, fontWeight: font.weights.semibold, lineHeight: 22 },
   boxes: { flexDirection: 'row', gap: 10, justifyContent: 'center', paddingVertical: 32 },
   box: {
     width: 48,
@@ -189,5 +220,8 @@ const useStyles = makeStyles((colors) => ({
   boxActive: { borderColor: colors.accent },
   boxDigit: { fontSize: font.sizes['5xl'], fontWeight: font.weights.bold, color: colors.ink },
   hiddenInput: { position: 'absolute', opacity: 0, width: 1, height: 1 },
-  resend: { textAlign: 'center', fontSize: font.sizes.base, color: colors.ink2, paddingHorizontal: 24 },
+  resendRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: 4, paddingHorizontal: 24 },
+  resend: { fontSize: font.sizes.base, color: colors.ink2 },
+  resendAction: { color: colors.accent, fontSize: font.sizes.base, fontWeight: font.weights.bold },
+  resendActionDisabled: { color: colors.ink2 },
 }));

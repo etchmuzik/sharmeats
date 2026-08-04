@@ -1,4 +1,4 @@
-import { Pressable, Text, ViewStyle, StyleProp } from 'react-native';
+import { ActivityIndicator, Pressable, Text, ViewStyle, StyleProp } from 'react-native';
 import { radius, font } from '../theme';
 import { makeStyles, useThemeColors } from '../themeProvider';
 import { press } from '../haptics';
@@ -8,6 +8,7 @@ type Props = {
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'ghost';
   disabled?: boolean;
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
@@ -17,17 +18,20 @@ export function PrimaryButton({
   onPress,
   variant = 'primary',
   disabled,
+  loading = false,
   style,
   testID,
 }: Props) {
   const colors = useThemeColors();
   const styles = useStyles();
+  const isDisabled = Boolean(disabled || loading);
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
-      disabled={disabled}
+      disabled={isDisabled}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={() => {
         press();
         onPress();
@@ -37,10 +41,11 @@ export function PrimaryButton({
         variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         variant === 'ghost' && styles.ghost,
-        disabled && { opacity: 0.4 },
-        pressed && !disabled && { opacity: 0.9, transform: [{ scale: 0.985 }] },
+        isDisabled && { opacity: 0.4 },
+        pressed && !isDisabled && { opacity: 0.9, transform: [{ scale: 0.985 }] },
         style,
       ]}>
+      {loading ? <ActivityIndicator size="small" color={variant === 'primary' ? colors.onAccent : colors.ink} /> : null}
       <Text
         style={[
           styles.label,
@@ -56,6 +61,8 @@ export function PrimaryButton({
 
 const useStyles = makeStyles((colors) => ({
   base: {
+    flexDirection: 'row',
+    gap: 8,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: radius.lg,

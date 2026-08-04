@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 // expo-crypto is imported lazily inside makeIdempotencyKey so a native-module
 // failure can never throw at module-eval / checkout render. See the helper below.
@@ -186,11 +186,23 @@ export default function Checkout() {
     });
   }, [selectedAddressId]);
 
-  useEffect(() => {
-    db.user.listPaymentMethods().then((pms) => {
-      setPayment(pms.find((p) => p.isDefault) ?? pms[0] ?? null);
-    });
-  }, []);
+  // On FOCUS, not mount: the payment picker is pushed on top of this screen
+  // and pops back with router.back(), so checkout stays mounted the whole
+  // time. A mount-only load meant "Save" in the picker changed the stored
+  // default but this screen kept charging the OLD method — cash orders for a
+  // card choice and vice versa. (Addresses never had this bug: they propagate
+  // through useSession.selectedAddressId.)
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      db.user.listPaymentMethods().then((pms) => {
+        if (!cancelled) setPayment(pms.find((p) => p.isDefault) ?? pms[0] ?? null);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -424,7 +436,9 @@ export default function Checkout() {
           : '';
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemedStatusBar />
       <View style={[styles.head, { paddingTop: insets.top + 12 }]}>
         <BackButton />
@@ -433,7 +447,10 @@ export default function Checkout() {
       </View>
       <CheckoutStepper />
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 200 }}>
+      <ScrollView
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 16, paddingBottom: 200 }}>
         {/* [App v2] Honest-ETA promise card — the design's signature checkout header. */}
         {promisedTime && <CheckoutPromiseCard promisedTime={promisedTime} />}
 
@@ -840,7 +857,7 @@ export default function Checkout() {
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
         {paymentError && (
-          <View style={styles.payErr}>
+          <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.payErr}>
             <Text style={styles.payErrText}>{paymentError}</Text>
           </View>
         )}
@@ -864,7 +881,7 @@ export default function Checkout() {
             error maps to, so the customer reads one consistent explanation
             whichever path surfaces it — and it is already in all five locales. */}
         {address && quoteState === 'ok' && outOfRange && (
-          <View style={styles.payErr}>
+          <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.payErr}>
             <Text style={styles.payErrText}>{t('error.outOfRange')}</Text>
           </View>
         )}
@@ -918,13 +935,16 @@ export default function Checkout() {
         )}
         <PrimaryButton
           label={
-            isCard
+            placing
+              ? t('checkout.placing')
+              : isCard
               ? t('checkout.payCard', { amount: formatEgp(total) }) !== 'checkout.payCard'
                 ? t('checkout.payCard', { amount: formatEgp(total) })
                 : `Pay ${formatEgp(total)}`
               : t('checkout.place', { amount: formatEgp(total) })
           }
           onPress={place}
+          loading={placing}
           disabled={
             placing ||
             !address ||
@@ -938,7 +958,7 @@ export default function Checkout() {
           }
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -2,6 +2,8 @@ import { Text, View } from 'react-native';
 import { font, radius } from '../theme';
 import { makeStyles, useThemeColors } from '../themeProvider';
 import { formatEgp } from '../lib/format';
+import { useDirection } from '../lib/direction';
+import { useT } from '../i18n';
 import type { Modifier } from '../data/types';
 import { PressableScale } from './PressableScale';
 
@@ -20,17 +22,19 @@ interface Props {
  */
 export function ModifierGroup({ modifier: m, selected, onToggle }: Props) {
   const s = useSStyles();
+  const t = useT();
+  const dir = useDirection();
   const style = m.style ?? 'list';
   return (
     <View style={s.group}>
-      <View style={s.head}>
-        <Text style={s.title}>{m.name}</Text>
-        <Text style={s.req}>
-          {m.required ? 'Required' : 'Optional'}
-          {m.maxSelect > 1 && style !== 'ingredients' ? ` · up to ${m.maxSelect}` : ''}
+      <View style={[s.head, dir.row]}>
+        <Text style={[s.title, dir.text]}>{m.name}</Text>
+        <Text style={[s.req, dir.text]}>
+          {m.required ? t('modifier.required') : t('modifier.optional')}
+          {m.maxSelect > 1 && style !== 'ingredients' ? ` · ${t('modifier.upTo', { count: m.maxSelect })}` : ''}
         </Text>
       </View>
-      {m.subtitle ? <Text style={s.sub}>{m.subtitle}</Text> : null}
+      {m.subtitle ? <Text style={[s.sub, dir.text]}>{m.subtitle}</Text> : null}
 
       {style === 'size' && <SizeRow m={m} selected={selected} onToggle={onToggle} />}
       {style === 'ingredients' && <IngredientChips m={m} selected={selected} onToggle={onToggle} />}
@@ -44,16 +48,27 @@ export function ModifierGroup({ modifier: m, selected, onToggle }: Props) {
 
 function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
   const s = useSStyles();
+  const t = useT();
+  const dir = useDirection();
+  const single = m.maxSelect === 1;
   return (
-    <View style={s.sizeRow}>
+    <View style={[s.sizeRow, dir.row]}>
       {m.options.map((o) => {
         const on = selected.has(o.id);
         return (
-          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={[s.sizePill, on && s.sizePillOn]}>
-            <Text style={[s.sizeName, on && s.sizeNameOn]}>{o.name}</Text>
-            {o.subtitle ? <Text style={[s.sizeSub, on && s.sizeSubOn]}>{o.subtitle}</Text> : null}
+          <PressableScale
+            key={o.id}
+            haptic="selection"
+            onPress={() => onToggle(o.id)}
+            accessibilityRole={single ? 'radio' : 'checkbox'}
+            accessibilityState={single ? { selected: on } : { checked: on }}
+            accessibilityLabel={`${m.name}: ${o.name}`}
+            accessibilityHint={on ? t('modifier.remove') : t('modifier.add')}
+            style={[s.sizePill, on && s.sizePillOn]}>
+            <Text style={[s.sizeName, on && s.sizeNameOn, dir.text]}>{o.name}</Text>
+            {o.subtitle ? <Text style={[s.sizeSub, on && s.sizeSubOn, dir.text]}>{o.subtitle}</Text> : null}
             {o.priceDeltaEgp !== 0 && (
-              <Text style={[s.sizeDelta, on && s.sizeSubOn]}>
+              <Text style={[s.sizeDelta, on && s.sizeSubOn, dir.text]}>
                 {o.priceDeltaEgp > 0 ? '+' : ''}
                 {formatEgp(o.priceDeltaEgp)}
               </Text>
@@ -67,14 +82,23 @@ function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>
 
 function IngredientChips({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
   const s = useSStyles();
+  const t = useT();
   return (
     <View style={s.chipWrap}>
       {m.options.map((o) => {
         const included = selected.has(o.id);
         return (
-          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={[s.chip, included ? s.chipOn : s.chipOff]}>
+          <PressableScale
+            key={o.id}
+            haptic="selection"
+            onPress={() => onToggle(o.id)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: included }}
+            accessibilityLabel={`${m.name}: ${included ? o.name : `${t('modifier.no')} ${o.name}`}`}
+            accessibilityHint={included ? t('modifier.remove') : t('modifier.add')}
+            style={[s.chip, included ? s.chipOn : s.chipOff]}>
             <Text style={[s.chipText, !included && s.chipTextOff]}>
-              {included ? '' : 'No '}
+              {included ? '' : `${t('modifier.no')} `}
               {o.name}
             </Text>
             <Text style={[s.chipX, included ? s.chipXOn : s.chipXOff]}>{included ? '×' : '+'}</Text>
@@ -87,32 +111,42 @@ function IngredientChips({ m, selected, onToggle }: { m: Modifier; selected: Set
 
 function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
   const s = useSStyles();
+  const t = useT();
+  const dir = useDirection();
   return (
     <View style={s.cardWrap}>
       {m.options.map((o) => {
         const on = selected.has(o.id);
         return (
-          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={[s.card, on && s.cardOn]}>
+          <PressableScale
+            key={o.id}
+            haptic="selection"
+            onPress={() => onToggle(o.id)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: on }}
+            accessibilityLabel={`${m.name}: ${o.name}`}
+            accessibilityHint={on ? t('modifier.remove') : t('modifier.add')}
+            style={[s.card, dir.row, on && s.cardOn]}>
             {o.icon ? <Text style={s.cardIcon}>{o.icon}</Text> : null}
             <View style={{ flex: 1 }}>
-              <View style={s.cardNameRow}>
-                <Text style={s.cardName} numberOfLines={1}>
+              <View style={[s.cardNameRow, dir.row]}>
+                <Text style={[s.cardName, dir.text]} numberOfLines={1}>
                   {o.name}
                 </Text>
                 {o.popular ? (
                   <View style={s.popular}>
-                    <Text style={s.popularText}>★ Popular</Text>
+                    <Text style={s.popularText}>★ {t('modifier.popular')}</Text>
                   </View>
                 ) : null}
               </View>
-              {o.subtitle ? <Text style={s.cardSub}>{o.subtitle}</Text> : null}
+              {o.subtitle ? <Text style={[s.cardSub, dir.text]}>{o.subtitle}</Text> : null}
               {o.priceDeltaEgp !== 0 ? (
-                <Text style={s.cardPrice}>
+                <Text style={[s.cardPrice, dir.text]}>
                   {o.priceDeltaEgp > 0 ? '+' : ''}
                   {formatEgp(o.priceDeltaEgp)}
                 </Text>
               ) : (
-                <Text style={s.cardFree}>Free</Text>
+                <Text style={[s.cardFree, dir.text]}>{t('modifier.free')}</Text>
               )}
             </View>
             <View style={[s.cardCheck, on && s.cardCheckOn]}>
@@ -128,19 +162,29 @@ function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<stri
 function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string>; onToggle: (id: string) => void }) {
   const colors = useThemeColors();
   const s = useSStyles();
+  const t = useT();
+  const dir = useDirection();
   const single = m.maxSelect === 1;
   return (
     <View>
       {m.options.map((o) => {
         const on = selected.has(o.id);
         return (
-          <PressableScale key={o.id} haptic="selection" onPress={() => onToggle(o.id)} style={s.row}>
+          <PressableScale
+            key={o.id}
+            haptic="selection"
+            onPress={() => onToggle(o.id)}
+            accessibilityRole={single ? 'radio' : 'checkbox'}
+            accessibilityState={single ? { selected: on } : { checked: on }}
+            accessibilityLabel={`${m.name}: ${o.name}`}
+            accessibilityHint={on ? t('modifier.remove') : t('modifier.add')}
+            style={[s.row, dir.row]}>
             <View style={[single ? s.radio : s.check, on && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
               {on && (single ? <View style={s.radioDot} /> : <Text style={s.checkMark}>✓</Text>)}
             </View>
-            <Text style={s.rowLabel}>{o.name}</Text>
+            <Text style={[s.rowLabel, dir.text]}>{o.name}</Text>
             {o.priceDeltaEgp !== 0 && (
-              <Text style={s.rowPrice}>
+              <Text style={[s.rowPrice, dir.text]}>
                 {o.priceDeltaEgp > 0 ? '+' : ''}
                 {formatEgp(o.priceDeltaEgp)}
               </Text>

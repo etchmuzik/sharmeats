@@ -3,6 +3,7 @@ import { radius, font } from '../theme';
 import { makeStyles } from '../themeProvider';
 import { PressableScale } from './PressableScale';
 import { tap } from '../haptics';
+import { useT } from '../i18n';
 
 type Props = {
   value: number;
@@ -14,7 +15,10 @@ type Props = {
 
 export function QuantityStepper({ value, onChange, min = 0, max = 99, size = 'md' }: Props) {
   const styles = useStyles();
+  const t = useT();
   const sm = size === 'sm';
+  const canDecrease = value > min;
+  const canIncrease = value < max;
   // Visuals stay 26-36pt; hitSlop pads each +/- button to a >=44pt effective
   // tap target (HIG minimum). Slops of adjacent controls stay non-overlapping
   // because the value label between them is >=24pt wide.
@@ -32,26 +36,38 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, size = 'md
       <PressableScale
         haptic="none"
         hitSlop={btnHitSlop}
+        disabled={!canDecrease}
+        accessibilityRole="button"
+        accessibilityLabel={t('quantity.decrease')}
+        accessibilityState={{ disabled: !canDecrease }}
         onPress={() => {
-          if (value > min) {
+          if (canDecrease) {
             tap();
             onChange(value - 1);
           }
         }}
-        style={[styles.btn, { width: btnWidth }]}>
+        style={[styles.btn, { width: btnWidth }, !canDecrease && styles.btnDisabled]}>
         <Text style={styles.sym}>−</Text>
       </PressableScale>
-      <Text style={[styles.v, { fontSize: sm ? font.sizes.lg : font.sizes['3xl'] }]}>{value}</Text>
+      <Text
+        accessibilityLabel={t('quantity.value', { value })}
+        style={[styles.v, { fontSize: sm ? font.sizes.lg : font.sizes['3xl'] }]}>
+        {value}
+      </Text>
       <PressableScale
         haptic="none"
         hitSlop={btnHitSlop}
+        disabled={!canIncrease}
+        accessibilityRole="button"
+        accessibilityLabel={t('quantity.increase')}
+        accessibilityState={{ disabled: !canIncrease }}
         onPress={() => {
-          if (value < max) {
+          if (canIncrease) {
             tap();
             onChange(value + 1);
           }
         }}
-        style={[styles.btn, { width: btnWidth }]}>
+        style={[styles.btn, { width: btnWidth }, !canIncrease && styles.btnDisabled]}>
         <Text style={styles.sym}>+</Text>
       </PressableScale>
     </View>
@@ -68,6 +84,7 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.line,
   },
   btn: { alignItems: 'center', justifyContent: 'center', height: '100%' },
+  btnDisabled: { opacity: 0.35 },
   sym: { fontSize: 18, color: colors.ink, lineHeight: 20 },
   v: { minWidth: 24, textAlign: 'center', fontWeight: font.weights.bold, color: colors.ink },
 }));

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import MapView, { Marker } from 'react-native-maps';
 import { BackButton } from '../../src/components/BackButton';
+import { GlassSurface } from '../../src/components/GlassSurface';
 import { Icon } from '../../src/components/Icon';
 import { shareUrlFor } from '../../src/lib/shareLink';
 import { OrderCelebration, shouldCelebrate } from '../../src/components/OrderCelebration';
@@ -428,15 +429,15 @@ export default function OrderTracking() {
           )}
         </MapView>
         {driverLoc && (
-          <View style={styles.liveBadge}>
+          <GlassSurface tone="light" style={styles.liveBadge}>
             <View style={[styles.liveDot, driverIsStale && { backgroundColor: colors.amber }]} />
             <Text style={styles.liveText}>
               {driverIsStale ? t('order.trackingReconnecting') : 'LIVE'}
             </Text>
-          </View>
+          </GlassSurface>
         )}
         <View style={[styles.mapNav, { top: insets.top + 6 }]}>
-          <BackButton tint="light" onPress={() => router.replace('/(tabs)/orders')} />
+          <BackButton tint="light" material="glass" onPress={() => router.replace('/(tabs)/orders')} />
         </View>
       </View>
 
@@ -966,13 +967,12 @@ const useStyles = makeStyles((colors) => ({
     alignItems: 'center',
     gap: 4,
     marginTop: 4,
-    backgroundColor: colors.ink,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderRadius: 999,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green },
-  liveText: { color: colors.onInk, fontSize: font.sizes.xs, fontWeight: '800', letterSpacing: 0.5 },
+  liveText: { color: colors.ink, fontSize: font.sizes.xs, fontWeight: '800', letterSpacing: 0.5 },
   mapNav: { position: 'absolute', left: 14 },
 
   sheet: {

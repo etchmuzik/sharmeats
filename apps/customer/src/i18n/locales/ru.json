@@ -555,5 +555,20 @@
   "order.shareStop": "Прекратить делиться",
   "order.shareSubtitle": "Любой, у кого есть ссылка, видит доставку, но не ваш адрес",
   "order.shareMessage": "Следите за моей доставкой Sharm Eats: {url}",
-  "order.shareFailed": "Не удалось создать ссылку. Попробуйте снова."
+  "order.shareFailed": "Не удалось создать ссылку. Попробуйте снова.",
+  "checkout.placing": "Оформляем заказ…",
+  "modifier.required": "Обязательно",
+  "modifier.optional": "Необязательно",
+  "modifier.upTo": "до {count}",
+  "modifier.no": "Без",
+  "modifier.popular": "Популярное",
+  "modifier.free": "Бесплатно",
+  "modifier.add": "Добавить",
+  "modifier.remove": "Убрать",
+  "otp.codeInput": "Код подтверждения",
+  "otp.codeHint": "Введите шестизначный код, который мы отправили.",
+  "quantity.decrease": "Уменьшить количество",
+  "quantity.increase": "Увеличить количество",
+  "quantity.value": "Количество: {value}",
+  "allergy.conflictHint": "В этом блюде есть этот аллерген."
 }

@@ -555,5 +555,20 @@
   "order.shareStop": "Teilen beenden",
   "order.shareSubtitle": "Wer den Link hat, sieht die Lieferung – nie deine Adresse",
   "order.shareMessage": "Verfolge meine Sharm-Eats-Lieferung: {url}",
-  "order.shareFailed": "Link konnte nicht erstellt werden. Bitte erneut versuchen."
+  "order.shareFailed": "Link konnte nicht erstellt werden. Bitte erneut versuchen.",
+  "checkout.placing": "Bestellung wird aufgegeben…",
+  "modifier.required": "Erforderlich",
+  "modifier.optional": "Optional",
+  "modifier.upTo": "bis zu {count}",
+  "modifier.no": "Ohne",
+  "modifier.popular": "Beliebt",
+  "modifier.free": "Kostenlos",
+  "modifier.add": "Hinzufügen",
+  "modifier.remove": "Entfernen",
+  "otp.codeInput": "Bestätigungscode",
+  "otp.codeHint": "Gib den sechsstelligen Code ein, den wir dir gesendet haben.",
+  "quantity.decrease": "Menge verringern",
+  "quantity.increase": "Menge erhöhen",
+  "quantity.value": "Menge: {value}",
+  "allergy.conflictHint": "Dieses Gericht enthält dieses Allergen."
 }

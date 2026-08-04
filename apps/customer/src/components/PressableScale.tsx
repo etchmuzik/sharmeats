@@ -3,7 +3,7 @@ import { Pressable, PressableProps, AccessibilityInfo } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { tap, press, selection } from '../haptics';
 
-type HapticKind = 'tap' | 'press' | 'selection' | 'none';
+export type HapticKind = 'tap' | 'press' | 'selection' | 'none';
 
 export function resolvePressHaptic(kind: HapticKind): (() => void) | null {
   switch (kind) {
