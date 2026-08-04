@@ -6073,6 +6073,7 @@ export type Database = {
       place_order: {
         Args: {
           p_address_id: string
+          p_aggregate_allergens?: Database["public"]["Enums"]["allergy_key_type"][]
           p_cart: Json
           p_customer_phone?: string
           p_dropoff_note?: string
