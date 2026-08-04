@@ -39,6 +39,7 @@ function startIdleHeartbeat(): void {
   if (heartbeat) return;
   heartbeat = setInterval(() => {
     if (streaming) return;
+    // [215] Deliberately NO status argument — see the contract test below.
     pingOnce();
   }, IDLE_HEARTBEAT_MS);
 }
@@ -116,5 +117,21 @@ describe('driver idle heartbeat', () => {
 
   it('is safe to stop when never started', () => {
     expect(() => stopIdleHeartbeat()).not.toThrow();
+  });
+
+  it('pings with NO status argument — presence only, never a status claim', () => {
+    // [215] The heartbeat runs whenever the driver is not offline, which
+    // includes on_job. After an app restart mid-delivery isStreaming() is
+    // false (in-memory flag), so a beat that stamped 'online' put a busy
+    // driver back into the dispatch pool. Status transitions belong to
+    // toggleOnline and advance_order_status; the heartbeat only proves the
+    // phone is alive. Mig 215 clamps on_job -> online server-side too, but
+    // the client must not claim it in the first place.
+    startIdleHeartbeat();
+    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS * 2);
+    expect(pingOnce).toHaveBeenCalledTimes(2);
+    for (const call of pingOnce.mock.calls) {
+      expect(call).toHaveLength(0);
+    }
   });
 });

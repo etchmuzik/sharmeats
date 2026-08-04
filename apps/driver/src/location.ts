@@ -185,7 +185,14 @@ export function startIdleHeartbeat(): void {
     // While streaming, the location task's throttled ping is the fresher
     // signal — beating on top of it would be redundant GPS work.
     if (isStreaming()) return;
-    pingOnce('online').catch(() => {
+    // [215] NO status argument — presence only, server preserves status. The
+    // heartbeat runs whenever the driver is not offline, which INCLUDES
+    // on_job; after an app restart mid-delivery isStreaming() is false (the
+    // flag lives in memory), so a status-stamping beat here put busy drivers
+    // back in the dispatch pool. Status transitions belong to toggleOnline
+    // and advance_order_status, never to a heartbeat. Mig 215 also clamps
+    // this server-side.
+    pingOnce().catch(() => {
       /* fire-and-forget: a missed beat costs slack, not the shift */
     });
   }, IDLE_HEARTBEAT_MS);
