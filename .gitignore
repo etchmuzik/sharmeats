@@ -52,9 +52,11 @@ new style/
 # project number and an API key — publishing them invites nuisance abuse of the
 # FCM quota for no benefit. Supplied to builds as the file-type EAS environment
 # variable GOOGLE_SERVICES_JSON instead; see docs/ANDROID-PUSH-FCM.md.
-# The * covers browser-renamed duplicates: "google-services (1).json" etc. —
-# the exact-name pattern alone left those trackable.
-google-services*.json
+# The leading AND trailing * cover renamed duplicates in both directions:
+# "google-services (1).json" (browser suffix) and "customer-google-services.json"
+# (per-app prefix). The suffix-only pattern left the prefixed copies trackable —
+# `git check-ignore customer-google-services.json` failed until 2026-08-05.
+*google-services*.json
 GoogleService-Info.plist
 
 .superpowers/
@@ -75,3 +77,6 @@ sharmeats-backups/
 # dirty the tree on every build, which then fails the script's own strict check.
 landing/public/version.json
 apps/*/public/version.json
+
+# Serena (MCP code-tooling) local scratch
+.serena/

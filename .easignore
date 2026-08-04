@@ -54,6 +54,15 @@ apps/*/android/
 **/credentials/
 *.p8
 *service-account*.json
+# The FCM signing key — Firebase names it "<project>-firebase-adminsdk-<id>.json",
+# so the service-account pattern above does NOT catch it. Was missing here until
+# 2026-08-05: .easignore takes precedence over .gitignore, so the key sitting at
+# the repo root was uploadable to EAS Build despite being git-ignored.
+*firebase-adminsdk*.json
+# Firebase Android/iOS config. Builds get these via the file-type EAS env vars
+# (GOOGLE_SERVICES_JSON — see docs/ANDROID-PUSH-FCM.md), never from the archive.
+*google-services*.json
+GoogleService-Info.plist
 
 # ---- Local binaries -------------------------------------------------------
 *.ipa

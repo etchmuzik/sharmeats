@@ -7,12 +7,13 @@
   "workspaces": [
     "packages/*"
   ],
+  "comment:scripts": "The app shortcuts cd because the apps are NOT workspaces (see comment:workspaces) — `--workspace apps/...` fails with ENOWORKSPACES.",
   "scripts": {
-    "customer": "npm run start --workspace apps/customer",
-    "driver": "npm run start --workspace apps/driver",
-    "merchant": "npm run dev --workspace apps/merchant-web",
-    "admin": "npm run dev --workspace apps/admin-web",
-    "landing": "npm run dev --workspace landing",
+    "customer": "cd apps/customer && npm run start",
+    "driver": "cd apps/driver && npm run start",
+    "merchant": "cd apps/merchant-web && npm run dev",
+    "admin": "cd apps/admin-web && npm run dev",
+    "landing": "cd landing && npm run dev",
     "db:types": "supabase gen types typescript --project-id ${SUPABASE_PROJECT_REF:-ilqpsebcfbaoaogimhud} --schema public > packages/db-types/database.types.ts",
     "db:diff": "supabase db diff",
     "db:push": "supabase db push"
