@@ -31,5 +31,30 @@ module.exports = () => {
     expo.android = { ...expo.android, googleServicesFile };
   }
 
+  // Google Maps on Android. react-native-maps needs an API key baked into the
+  // Android manifest; without it every MapView renders a blank grey tile —
+  // which is exactly what the first Play internal tester hit on 2026-08-03 in
+  // the address pin picker and the live order-tracking map. iOS is unaffected
+  // (Apple Maps, no key), which is why this shipped unnoticed: MapPinPicker's
+  // own comment said "Android would need a Google Maps key" and nothing
+  // enforced it. Same conditional pattern as the FCM file above, and for the
+  // same reason: absent env var leaves the config byte-identical to app.json,
+  // so this sits harmlessly in main until the key exists on EAS.
+  //
+  // The key is restricted (Android apps, this package + SHA-1) in the Google
+  // console; a Maps key ships inside every APK by design, so restriction, not
+  // secrecy, is what protects it.
+  const mapsApiKey = process.env.GOOGLE_MAPS_API_KEY_ANDROID;
+
+  if (mapsApiKey) {
+    expo.android = {
+      ...expo.android,
+      config: {
+        ...(expo.android || {}).config,
+        googleMaps: { apiKey: mapsApiKey },
+      },
+    };
+  }
+
   return { ...appJson, expo };
 };
