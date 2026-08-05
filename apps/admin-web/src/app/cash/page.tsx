@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { toCsv } from '@/lib/csv';
 import type { DriverCashBalance } from '@/lib/types';
 import { SignOutButton } from '../SignOutButton';
@@ -31,7 +32,7 @@ export default function CashPage() {
       .select('*')
       .order('balance_egp', { ascending: false });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load cash collections. Please try again.' }), 'error');
       return;
     }
     setRows((data ?? []) as DriverCashBalance[]);
@@ -79,7 +80,7 @@ export default function CashPage() {
       p_reason: 'hand_in',
     });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not confirm this collection. Please try again.' }), 'error');
       return;
     }
     toast(`Hand-in recorded · new balance ${money(data as number)}`, 'success');
@@ -104,7 +105,7 @@ export default function CashPage() {
       p_reason: 'adjustment',
     });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not flag this collection. Please try again.' }), 'error');
       return;
     }
     toast(`Adjustment recorded · new balance ${money(data as number)}`, 'success');

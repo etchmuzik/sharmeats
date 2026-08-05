@@ -15,7 +15,7 @@ import { useT } from '../../src/i18n';
 import { db } from '../../src/data';
 import { SavedOrdersCapError } from '../../src/data/repositories/savedOrders';
 import type { Order, OrderStatus, Restaurant } from '../../src/data/types';
-import { formatEgp, formatTime } from '../../src/lib/format';
+import { formatEgp, formatNumber, formatTime } from '../../src/lib/format';
 import { tap, success } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
 import { PushPrimer } from '../../src/components/PushPrimer';
@@ -32,6 +32,7 @@ import {
   vehicleIconName,
 } from '../../src/lib/tracking';
 import { slaCreditEgp } from '../../src/lib/slaCredit';
+import { dialerUrl, normalizeDialString } from '../../src/lib/dial';
 
 // Expo Router renders this instead of crashing if anything throws while the
 // tracking screen renders — the user gets a retry screen and we report the error.
@@ -60,6 +61,7 @@ export default function OrderTracking() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const locale = useSession((s) => s.locale);
   const [order, setOrder] = useState<Order | null>(null);
   // 'loading' until the first fetch resolves; 'not-found' when the order is not
   // visible to this session (signed-out, guest, or a different account — RLS
@@ -328,14 +330,16 @@ export default function OrderTracking() {
                 setReloadKey((k) => k + 1);
               }}
               style={{ paddingVertical: 12, paddingHorizontal: 24 }}
-            >
+              accessibilityRole="button"
+              accessibilityLabel={t('common.retry')}>
               <Text style={{ color: colors.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
             </Pressable>
           ) : (
             <Pressable
               onPress={() => router.replace('/(tabs)/orders')}
               style={{ paddingVertical: 12, paddingHorizontal: 24 }}
-            >
+              accessibilityRole="button"
+              accessibilityLabel={t('order.backToOrders')}>
               <Text style={{ color: colors.accent, fontWeight: '700' }}>{t('order.backToOrders')}</Text>
             </Pressable>
           )}
@@ -361,12 +365,14 @@ export default function OrderTracking() {
   const remainingMin = Math.max(0, Math.ceil(remainingMs / 60_000));
   // What the engine actually credits (mig 062): 10% of SUBTOTAL, floored, 100 cap.
   const lateCreditEgp = slaCreditEgp(order.subtotalEgp);
-  const latestArrivalTime = formatTime(new Date(latestArrivalAt(order.etaAt)));
+  const latestArrivalTime = formatTime(new Date(latestArrivalAt(order.etaAt)), locale);
   const isCancelled = order.status === 'cancelled' || order.status === 'rejected';
   // Customers may only cancel before the restaurant accepts; once a card order
   // is paid, cancellation implies a refund flow we don't have yet — hide it.
   const canCancel = order.status === 'placed' && order.paymentStatus !== 'paid';
   const driverIsStale = driverLoc ? isDriverLocationStale(driverLoc.at, now) : false;
+  const riderPhone = normalizeDialString(order.rider?.phone);
+  const restaurantDialUrl = dialerUrl(restaurant?.phone);
 
   const confirmCancel = () => {
     tap();
@@ -393,7 +399,7 @@ export default function OrderTracking() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View testID="order-tracking-screen" style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemedStatusBar />
 
       <View style={styles.map}>
@@ -415,7 +421,12 @@ export default function OrderTracking() {
             coordinate={{ latitude: destination.lat, longitude: destination.lng }}
             anchor={{ x: 0.5, y: 0.5 }}>
             <View style={styles.destMarker}>
-              <Icon name="location" size={20} color={colors.onAccent} accessibilityLabel="Your delivery location" />
+              <Icon
+                name="location"
+                size={20}
+                color={colors.onAccent}
+                accessibilityLabel={t('order.deliveryLocation')}
+              />
             </View>
           </Marker>
           {driverLoc && order.rider && (
@@ -423,7 +434,12 @@ export default function OrderTracking() {
               coordinate={{ latitude: driverLoc.lat, longitude: driverLoc.lng }}
               anchor={{ x: 0.5, y: 0.5 }}>
               <View style={[styles.riderMarker, driverIsStale && styles.riderMarkerStale]}>
-                <Icon name={vehicleIconName(order.rider.vehicle)} size={18} color={colors.onAccent} accessibilityLabel="Your driver" />
+                <Icon
+                  name={vehicleIconName(order.rider.vehicle)}
+                  size={18}
+                  color={colors.onAccent}
+                  accessibilityLabel={t('order.driverLocation')}
+                />
               </View>
             </Marker>
           )}
@@ -432,7 +448,7 @@ export default function OrderTracking() {
           <GlassSurface tone="light" style={styles.liveBadge}>
             <View style={[styles.liveDot, driverIsStale && { backgroundColor: colors.amber }]} />
             <Text style={styles.liveText}>
-              {driverIsStale ? t('order.trackingReconnecting') : 'LIVE'}
+              {driverIsStale ? t('order.trackingReconnecting') : t('order.live')}
             </Text>
           </GlassSurface>
         )}
@@ -459,14 +475,14 @@ export default function OrderTracking() {
               <>
                 <Text style={styles.etaLbl}>{t('order.scheduledFor')}</Text>
                 <Text style={styles.etaBig}>
-                  {formatTime(new Date(order.scheduledFor))}
+                  {formatTime(new Date(order.scheduledFor), locale)}
                 </Text>
               </>
             ) : (
               <>
                 <Text style={styles.etaLbl}>{t('order.arriving')}</Text>
                 <Text style={styles.etaBig}>
-                  {order.status === 'delivered' ? '✓' : remainingMin}{' '}
+                  {order.status === 'delivered' ? '✓' : formatNumber(remainingMin, locale)}{' '}
                   <Text style={styles.etaMin}>
                     {order.status === 'delivered' ? t('order.delivered') : t('order.min')}
                   </Text>
@@ -480,7 +496,11 @@ export default function OrderTracking() {
                 <Text style={styles.slaText}>{t('order.slaChip')}</Text>
               </View>
             )}
-            <Pressable onPress={() => copyShortCode(order.shortCode)} hitSlop={8}>
+            <Pressable
+              onPress={() => copyShortCode(order.shortCode)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('order.copy')} ${order.shortCode}`}>
               <Text style={styles.orderRef}>
                 #{order.shortCode}{' '}
                 <Text style={{ color: copied ? colors.green : colors.sea, fontWeight: '700' }}>
@@ -494,9 +514,9 @@ export default function OrderTracking() {
         {!isCancelled && (
           <Text style={styles.slaLine}>
             {t('order.slaLine', {
-              time: formatTime(new Date(order.etaAt)),
+              time: formatTime(new Date(order.etaAt), locale),
               latest: latestArrivalTime,
-              credit: formatEgp(lateCreditEgp),
+              credit: formatEgp(lateCreditEgp, locale),
             })}
           </Text>
         )}
@@ -540,10 +560,10 @@ export default function OrderTracking() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.stTitle, status === 'pending' && { color: colors.ink3, fontWeight: font.weights.medium }]}>
                     {isOnTheWay
-                      ? t('order.statusOnTheWay', { rider: order.rider?.name ?? 'Rider' })
+                      ? t('order.statusOnTheWay', { rider: order.rider?.name ?? t('order.unknownRider') })
                       : t(s.tKey)}
                   </Text>
-                  {histEntry && <Text style={styles.stTime}>{formatTime(new Date(histEntry.at))}{histEntry.note ? ` · ${histEntry.note}` : ''}</Text>}
+                  {histEntry && <Text style={styles.stTime}>{formatTime(new Date(histEntry.at), locale)}{histEntry.note ? ` · ${histEntry.note}` : ''}</Text>}
                 </View>
               </View>
             );
@@ -564,6 +584,7 @@ export default function OrderTracking() {
                     setSaveDismissed(true);
                   }}
                   hitSlop={12}
+                  accessibilityRole="button"
                   accessibilityLabel={t('common.cancel')}>
                   <Text style={styles.saveClose}>✕</Text>
                 </Pressable>
@@ -600,7 +621,10 @@ export default function OrderTracking() {
                     setSaving(false);
                   }
                 }}
-                style={[styles.saveBtn, (saving || saveName.trim().length === 0) && { opacity: 0.5 }]}>
+                style={[styles.saveBtn, (saving || saveName.trim().length === 0) && { opacity: 0.5 }]}
+                accessibilityRole="button"
+                accessibilityLabel={t('order.saveOrderCta')}
+                accessibilityState={{ disabled: saving || saveName.trim().length === 0, busy: saving }}>
                 <Text style={styles.saveBtnText}>{t('order.saveOrderCta')}</Text>
               </Pressable>
             </View>
@@ -697,7 +721,7 @@ export default function OrderTracking() {
                 </View>
                 <Text style={styles.riderMetaText}>·</Text>
                 <Text style={styles.riderMetaText}>
-                  ★ {(order.rider.rating ?? 5).toFixed(1)}
+                  ★ {formatNumber(order.rider.rating ?? 5, locale)}
                 </Text>
               </View>
             </View>
@@ -712,13 +736,15 @@ export default function OrderTracking() {
                 style={[styles.actBtn, { backgroundColor: colors.accent }]}>
                 <Icon name="chat" size={20} color={colors.onAccent} />
               </Pressable>
-              <Pressable
-                onPress={() => contactRider('call', order.rider?.phone)}
-                accessibilityRole="button"
-                accessibilityLabel={t('order.callDriver')}
-                style={[styles.actBtn, { backgroundColor: colors.green }]}>
-                <Icon name="phone" size={20} color={colors.onAccent} />
-              </Pressable>
+              {riderPhone && (
+                <Pressable
+                  onPress={() => contactRider('call', riderPhone)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('order.callDriver')}
+                  style={[styles.actBtn, { backgroundColor: colors.green }]}>
+                  <Icon name="phone" size={20} color={colors.onAccent} />
+                </Pressable>
+              )}
             </View>
           </View>
         )}
@@ -728,7 +754,7 @@ export default function OrderTracking() {
           <Text style={styles.summaryTitle}>{order.restaurantName}</Text>
           {order.items.map((it) => (
             <View key={it.lineId} style={styles.summaryLine}>
-              <Text style={styles.summaryQ}>{it.quantity}×</Text>
+              <Text style={styles.summaryQ}>{formatNumber(it.quantity, locale)}×</Text>
               <Text style={{ flex: 1, fontSize: font.sizes.lg, color: colors.ink }}>{it.name}</Text>
             </View>
           ))}
@@ -737,7 +763,7 @@ export default function OrderTracking() {
           {order.serviceFeeEgp > 0 && (
             <View style={styles.summaryFeeRow}>
               <Text style={styles.summaryFeeLabel}>{t('checkout.serviceFee')}</Text>
-              <Text style={styles.summaryFeeVal}>{formatEgp(order.serviceFeeEgp)}</Text>
+              <Text style={styles.summaryFeeVal}>{formatEgp(order.serviceFeeEgp, locale)}</Text>
             </View>
           )}
           <View style={styles.summaryTotal}>
@@ -745,7 +771,7 @@ export default function OrderTracking() {
               {t('checkout.total')}
             </Text>
             <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.ink }}>
-              {formatEgp(order.totalEgp)}
+              {formatEgp(order.totalEgp, locale)}
             </Text>
           </View>
           <Text style={styles.summarySub}>
@@ -776,11 +802,11 @@ export default function OrderTracking() {
                 <Icon name="chat" size={18} color={colors.ink} />
                 <Text style={styles.contactBtnText}>{t('order.messageRestaurant')}</Text>
               </Pressable>
-              {restaurant.phone && (
+              {restaurantDialUrl && (
                 <Pressable
                   onPress={() => {
                     tap();
-                    Linking.openURL(`tel:${restaurant.phone}`).catch(() => {});
+                    Linking.openURL(restaurantDialUrl).catch(() => {});
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={t('restaurant.callRestaurant')}
@@ -850,7 +876,9 @@ export default function OrderTracking() {
               const o = await db.orders.forceDelivered(order.id);
               if (o) setOrder(o);
             }}
-            style={styles.debugBtn}>
+            style={styles.debugBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('order.markDelivered')}>
             <Text style={styles.debugText}>{t('order.markDelivered')}</Text>
           </Pressable>
         )}
@@ -858,7 +886,8 @@ export default function OrderTracking() {
 
       <OrderCelebration
         visible={showCelebration}
-        etaText={order?.etaAt ? formatTime(new Date(order.etaAt)) : undefined}
+        etaText={order?.etaAt ? formatTime(new Date(order.etaAt), locale) : undefined}
+        paymentMethodKind={order?.paymentMethodKind}
         onDone={() => {
           setShowCelebration(false);
           router.setParams({ celebrate: undefined });
@@ -893,7 +922,7 @@ export default function OrderTracking() {
  */
 async function contactRider(mode: 'call' | 'whatsapp', phone?: string): Promise<void> {
   tap();
-  const num = (phone ?? '').replace(/[^\d+]/g, '');
+  const num = normalizeDialString(phone);
   if (!num) return;
   const candidates =
     mode === 'call'

@@ -9,6 +9,30 @@ import type { PaymentMethod } from '../data/types';
  */
 export const CARD_PAYMENTS_ENABLED = process.env.EXPO_PUBLIC_PAYMENTS_CARD_ENABLED === 'true';
 
+// The payment edge function constructs this exact hosted Paymob checkout URL.
+// Treat an edge-function response as network input anyway: opening a URL hands
+// the customer to a different security boundary, so only the known HTTPS origin
+// and checkout path are allowed through.
+const PAYMOB_CHECKOUT_ORIGIN = 'https://accept.paymob.com';
+const PAYMOB_CHECKOUT_PATH = '/unifiedcheckout/';
+
+export function isTrustedPaymobCheckoutUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      url.origin === PAYMOB_CHECKOUT_ORIGIN &&
+      url.pathname === PAYMOB_CHECKOUT_PATH &&
+      url.searchParams.has('publicKey') &&
+      url.searchParams.has('clientSecret') &&
+      !url.hash
+    );
+  } catch {
+    return false;
+  }
+}
+
 const GATED_KINDS: ReadonlySet<PaymentMethod['kind']> = new Set(['card', 'apple_pay']);
 
 /** True if this payment method should be offered to the customer right now. */

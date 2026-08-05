@@ -181,10 +181,10 @@ describe('common property enrichment', () => {
 });
 
 describe('normaliseError', () => {
-  // The bug this guards against: Sentry serialises non-Error values as
-  // "Object captured as exception with keys: code, details, hint, message",
-  // discarding the message and grouping unrelated failures together.
-  it('turns a Supabase PostgrestError into an Error carrying its message', () => {
+  // A database failure can echo a value from a violated constraint. Telemetry is
+  // a third-party boundary, so it may keep a bounded failure code for grouping
+  // but must never ship the error text/details themselves.
+  it('keeps a safe PostgREST grouping code without forwarding PII-bearing details', () => {
     const pg = {
       code: '23505',
       details: 'Key (phone)=(+201234567890) already exists.',
@@ -194,11 +194,13 @@ describe('normaliseError', () => {
     const { error, extra } = normaliseError(pg);
 
     expect(error).toBeInstanceOf(Error);
-    expect(error.message).toBe('duplicate key value violates unique constraint');
+    expect(error.message).toBe('Operation failed');
     // Grouping key: distinct Postgres codes must not share one issue.
     expect(error.name).toBe('PostgrestError 23505');
-    // Nothing is lost — details/hint survive as context.
-    expect(extra).toEqual(pg);
+    expect(extra).toEqual({ code: '23505' });
+    const sent = JSON.stringify({ message: error.message, stack: error.stack, extra });
+    expect(sent).not.toContain('+201234567890');
+    expect(sent).not.toContain('duplicate key value');
   });
 
   it('gives different Postgres codes different grouping names', () => {
@@ -207,24 +209,29 @@ describe('normaliseError', () => {
     expect(normaliseError(mk('PGRST202')).error.name).toBe('PostgrestError PGRST202');
   });
 
-  it('passes real Errors through untouched so their stack survives', () => {
-    const original = new TypeError('nope');
+  it('redacts a real Error message because SDK errors may echo customer input', () => {
+    const original = new TypeError('Could not deliver to +201234567890; token=secret-value');
     const { error, extra } = normaliseError(original);
-    expect(error).toBe(original);
+
+    expect(error).not.toBe(original);
     expect(error.name).toBe('TypeError');
+    expect(error.message).toBe('Operation failed');
     expect(extra).toBeUndefined();
+    const sent = JSON.stringify({ message: error.message, stack: error.stack, extra });
+    expect(sent).not.toContain('+201234567890');
+    expect(sent).not.toContain('secret-value');
   });
 
-  it('does not mislabel an unrelated object that happens to have a code', () => {
+  it('keeps a bounded code on an unrelated object without keeping its message', () => {
     const { error, extra } = normaliseError({ code: 'X1', message: 'not postgrest' });
-    expect(error.message).toBe('not postgrest');
+    expect(error.message).toBe('Operation failed');
     expect(error.name).toBe('Error');
-    expect(extra).toEqual({ code: 'X1', message: 'not postgrest' });
+    expect(extra).toEqual({ code: 'X1' });
   });
 
-  it('handles a message-less object by serialising it', () => {
+  it('does not serialize arbitrary objects into telemetry', () => {
     const { error } = normaliseError({ a: 1 });
-    expect(error.message).toBe('{"a":1}');
+    expect(error.message).toBe('Operation failed');
   });
 
   it('survives a circular object rather than throwing', () => {
@@ -235,13 +242,13 @@ describe('normaliseError', () => {
   });
 
   it.each([
-    ['string', 'plain failure', 'plain failure'],
-    ['null', null, 'null'],
-    ['undefined', undefined, 'undefined'],
-    ['number', 42, '42'],
-  ])('wraps a bare %s', (_label, input, expected) => {
+    ['string', 'plain failure'],
+    ['null', null],
+    ['undefined', undefined],
+    ['number', 42],
+  ])('redacts a bare %s', (_label, input) => {
     const { error } = normaliseError(input);
     expect(error).toBeInstanceOf(Error);
-    expect(error.message).toBe(expected);
+    expect(error.message).toBe('Operation failed');
   });
 });

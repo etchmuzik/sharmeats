@@ -1,13 +1,15 @@
 import { Text, View } from 'react-native';
 import { font } from '../theme';
 import { makeStyles } from '../themeProvider';
+import { useT } from '../i18n';
 
 export function TouristSafeBadge() {
   const styles = useStyles();
+  const t = useT();
   return (
     <View style={styles.b}>
       <Text style={styles.star}>★</Text>
-      <Text style={styles.t}>Tourist-safe</Text>
+      <Text style={styles.t}>{t('home.featuredEyebrowTouristSafe')}</Text>
     </View>
   );
 }

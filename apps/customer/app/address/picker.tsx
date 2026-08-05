@@ -12,6 +12,7 @@ import { useSession } from '../../src/store/session';
 import { db } from '../../src/data';
 import type { Address } from '../../src/data/types';
 import { tap, selection } from '../../src/haptics';
+import { radioAccessibilityState } from '../../src/lib/accessibility';
 import { useGoBack } from '../../src/lib/navigation';
 
 export default function AddressPicker() {
@@ -78,6 +79,7 @@ export default function AddressPicker() {
         {(['hotel', 'street', 'beach_pin'] as const).map((k) => (
           <Pressable
             key={k}
+            testID={`address-kind-${k}`}
             onPress={() => {
               selection();
               setActive(k);
@@ -102,35 +104,39 @@ export default function AddressPicker() {
         {filtered.map((a) => {
           const isSel = a.id === selectedAddressId;
           return (
-            <Pressable
-              key={a.id}
-              onPress={() => {
-                tap();
-                setSelectedAddressId(a.id);
-              }}
-              onLongPress={() => removeAddress(a.id)}
-              accessibilityRole="radio"
-              accessibilityLabel={`${a.label}. ${a.kind === 'hotel' ? `${a.hotelName}, ${t('address.room')} ${a.roomNumber}` : a.kind === 'street' ? `${a.streetText}, ${a.building ?? ''} ${a.apartment ?? ''}`.trim() : a.beachName ?? t('address.beachPin')}`}
-              accessibilityHint={t('address.delete')}
-              accessibilityState={{ selected: isSel }}
-              style={[styles.card, isSel && styles.cardActive]}>
-              <View style={styles.cardLeft}>
-                <Icon
-                  name={a.kind === 'hotel' ? 'hotel' : a.kind === 'street' ? 'home' : 'beach'}
-                  size={22}
-                  color={colors.sea}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{a.label}</Text>
-                <Text style={styles.cardSub}>
-                  {a.kind === 'hotel'
-                    ? `${a.hotelName} · ${t('address.room')} ${a.roomNumber}`
-                    : a.kind === 'street'
-                      ? `${a.streetText} · ${a.building ?? ''} ${a.apartment ?? ''}`.trim()
-                      : `${a.beachName ?? t('address.beachPin')}`}
-                </Text>
-              </View>
+            <View key={a.id} style={[styles.card, isSel && styles.cardActive]}>
+              <Pressable
+                testID={`address-option-${a.id}`}
+                onPress={() => {
+                  tap();
+                  setSelectedAddressId(a.id);
+                }}
+                accessibilityRole="radio"
+                accessibilityLabel={`${a.label}. ${a.kind === 'hotel' ? `${a.hotelName}, ${t('address.room')} ${a.roomNumber}` : a.kind === 'street' ? `${a.streetText}, ${a.building ?? ''} ${a.apartment ?? ''}`.trim() : a.beachName ?? t('address.beachPin')}`}
+                accessibilityState={radioAccessibilityState(isSel)}
+                style={styles.cardBody}>
+                <View style={styles.cardLeft}>
+                  <Icon
+                    name={a.kind === 'hotel' ? 'hotel' : a.kind === 'street' ? 'home' : 'beach'}
+                    size={22}
+                    color={colors.sea}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{a.label}</Text>
+                  <Text style={styles.cardSub}>
+                    {a.kind === 'hotel'
+                      ? `${a.hotelName} · ${t('address.room')} ${a.roomNumber}`
+                      : a.kind === 'street'
+                        ? `${a.streetText} · ${a.building ?? ''} ${a.apartment ?? ''}`.trim()
+                        : `${a.beachName ?? t('address.beachPin')}`}
+                  </Text>
+                </View>
+                <View
+                  style={[styles.radio, isSel && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
+                  {isSel && <View style={styles.radioDot} />}
+                </View>
+              </Pressable>
               <Pressable
                 onPress={() => removeAddress(a.id)}
                 hitSlop={10}
@@ -139,11 +145,7 @@ export default function AddressPicker() {
                 style={styles.deleteBtn}>
                 <Icon name="trash" size={18} color={colors.ink3} />
               </Pressable>
-              <View
-                style={[styles.radio, isSel && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
-                {isSel && <View style={styles.radioDot} />}
-              </View>
-            </Pressable>
+            </View>
           );
         })}
 
@@ -155,7 +157,7 @@ export default function AddressPicker() {
       </ScrollView>
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
-        <PrimaryButton label={t('address.useThis')} onPress={goBack} />
+        <PrimaryButton testID="address-picker-use-this" label={t('address.useThis')} onPress={goBack} />
       </View>
     </View>
   );
@@ -180,11 +182,16 @@ const useStyles = makeStyles((colors) => ({
     borderWidth: 1.5,
     borderColor: colors.line,
     borderRadius: radius.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...shadow.soft,
+  },
+  cardBody: {
+    flex: 1,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    ...shadow.soft,
   },
   cardActive: { borderColor: colors.accent },
   cardLeft: { width: 36, alignItems: 'center' },
@@ -202,7 +209,7 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.surface,
   },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.onAccent },
-  deleteBtn: { padding: 6, marginRight: 4 },
+  deleteBtn: { padding: 6, marginEnd: 4 },
   addNew: {
     borderRadius: radius.xl,
     borderWidth: 1.5,

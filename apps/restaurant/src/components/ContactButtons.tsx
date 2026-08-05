@@ -5,6 +5,7 @@ import { useToast } from './Toast';
 import { font, radius, spacing } from '../theme';
 import { useLocale } from '../locale';
 import { useThemeColors } from '../themeProvider';
+import { dialablePhone } from '../dialablePhone';
 
 /**
  * [H-REST2] Customer-contact actions for an order. The restaurant previously had
@@ -24,9 +25,9 @@ export function ContactButtons({
   const router = useRouter();
   const { toast } = useToast();
   const { direction, t } = useLocale();
+  const phone = dialablePhone(customerPhone);
 
   const call = async () => {
-    const phone = customerPhone?.trim();
     if (!phone) return;
     try {
       await Linking.openURL(`tel:${phone}`);
@@ -37,7 +38,7 @@ export function ContactButtons({
 
   return (
     <View style={{ flexDirection: 'row', gap: spacing.sm, direction }}>
-      {customerPhone?.trim() ? (
+      {phone ? (
         <Pressable
           onPress={call}
           accessibilityRole="button"

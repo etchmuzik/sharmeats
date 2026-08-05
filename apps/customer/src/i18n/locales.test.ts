@@ -21,9 +21,43 @@ const UI_KEYS = [
   'quantity.increase',
   'quantity.value',
   'allergy.conflictHint',
+  'address.hotelSearchPlaceholder',
+  'address.verified',
+  'address.streetPlaceholder',
+  'address.landmarkPlaceholder',
+  'address.beachNamePlaceholder',
+  'celebration.confirmed',
+  'celebration.confirmedEta',
+  'profile.email',
+  'profile.emailPlaceholder',
+  'profile.guest',
+  'profile.unread',
+  'order.deliveryLocation',
+  'order.driverLocation',
+  'order.live',
+  'order.unknownRider',
+  'help.whatsAppOrderMessage',
+  'help.whatsAppMessage',
+  'restaurant.ratings',
+  'checkout.feeRetry',
+  'checkout.cardHint',
+  'checkout.codHint',
+  'checkout.payCard',
+  'review.ratingValue',
+  'tabBar.unreadOrders',
+  'tabBar.unreadSupport',
 ] as const;
 
 describe('customer UI translations', () => {
+  it.each([
+    ['Arabic', ar],
+    ['Russian', ru],
+    ['Italian', itLocale],
+    ['German', de],
+  ])('%s has the same translation keys as English', (_locale, dictionary) => {
+    expect(Object.keys(dictionary).sort()).toEqual(Object.keys(en).sort());
+  });
+
   it.each([
     ['English', en],
     ['Arabic', ar],

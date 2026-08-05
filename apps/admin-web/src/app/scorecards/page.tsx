@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -43,7 +44,7 @@ export default function ScorecardsPage() {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase.rpc('all_restaurant_scorecards', { p_days: days });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load scorecards. Please try again.' }), 'error');
       return;
     }
     setRows((data as Scorecard[]) ?? []);

@@ -60,6 +60,7 @@ test_files=(
   "supabase/tests/203_audit_p2_fixes.test.sql"
   "supabase/tests/204_app_review_demo_financials.test.sql"
   "supabase/tests/205_promo_release_and_remainder.test.sql"
+  "supabase/tests/216_realtime_driver_location_authorization.test.sql"
 )
 
 # Guard against silent orphaning.

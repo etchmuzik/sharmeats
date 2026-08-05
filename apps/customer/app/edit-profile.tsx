@@ -84,18 +84,18 @@ export default function EditProfileScreen() {
             />
           </View>
           <View>
-            <Text style={[styles.label, dir.text]}>Email</Text>
+            <Text style={[styles.label, dir.text]}>{t('profile.email')}</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
-              placeholder="you@example.com"
+              placeholder={t('profile.emailPlaceholder')}
               placeholderTextColor={colors.ink3}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
               style={[styles.input, dir.text]}
               maxLength={120}
-              accessibilityLabel="Email"
+              accessibilityLabel={t('profile.email')}
             />
           </View>
           <PrimaryButton label={t('profile.editNameSave')} onPress={save} disabled={saving} />

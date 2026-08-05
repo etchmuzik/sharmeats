@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -59,7 +60,7 @@ export default function SupportInboxPage() {
       .select('id, user_id, from_support, body, created_at, read_at')
       .order('created_at', { ascending: false });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load support conversations. Please try again.' }), 'error');
       return;
     }
     const rows = (data ?? []) as Msg[];
@@ -203,7 +204,7 @@ export default function SupportInboxPage() {
       setDraft('');
       await openThread(openUser);
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Reply failed', 'error');
+      toast(safeDisplayError(e, { fallback: 'Could not send the reply. Please try again.' }), 'error');
     } finally {
       setSending(false);
     }

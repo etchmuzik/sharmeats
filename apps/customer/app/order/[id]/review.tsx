@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as StoreReview from 'expo-store-review';
 import { recordReviewPrompt, reviewPromptEligibility } from '../../../src/lib/reviewPrompt';
 import { BackButton } from '../../../src/components/BackButton';
+import { Icon } from '../../../src/components/Icon';
 import { PrimaryButton } from '../../../src/components/PrimaryButton';
 import { font, radius } from '../../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../../src/themeProvider';
@@ -23,16 +24,25 @@ import { track } from '../../../src/lib/analytics';
 function Stars({
   value,
   onChange,
+  label,
 }: {
   value: number;
   onChange: (n: number) => void;
+  label: string;
 }) {
   const colors = useThemeColors();
   const stylesStar = useStylesStar();
+  const t = useT();
   return (
     <View style={{ flexDirection: 'row', gap: 6 }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Pressable key={n} onPress={() => onChange(n)} hitSlop={6}>
+        <Pressable
+          key={n}
+          onPress={() => onChange(n)}
+          hitSlop={6}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: value === n }}
+          accessibilityLabel={t('review.ratingValue', { label, value: n })}>
           <Text style={[stylesStar.star, value >= n && { color: colors.star }]}>★</Text>
         </Pressable>
       ))}
@@ -100,7 +110,9 @@ export default function Review() {
     return (
       <View style={[styles.wrap, { paddingTop: insets.top + 40 }]}>
         <ThemedStatusBar />
-        <Text style={{ fontSize: 64 }}>✨</Text>
+        <View style={styles.successMark} accessible={false}>
+          <Icon name="check" size={34} color={colors.onAccent} />
+        </View>
         <Text style={styles.thanks}>{t('review.thanks')}</Text>
       </View>
     );
@@ -120,11 +132,11 @@ export default function Review() {
       <View style={{ padding: 20, gap: 18 }}>
         <View style={styles.block}>
           <Text style={styles.label}>{t('review.food')}</Text>
-          <Stars value={food} onChange={setFood} />
+          <Stars value={food} onChange={setFood} label={t('review.food')} />
         </View>
         <View style={styles.block}>
           <Text style={styles.label}>{t('review.delivery')}</Text>
-          <Stars value={delivery} onChange={setDelivery} />
+          <Stars value={delivery} onChange={setDelivery} label={t('review.delivery')} />
         </View>
         <TextInput
           value={comment}
@@ -132,6 +144,7 @@ export default function Review() {
           multiline
           placeholder={t('review.placeholder')}
           placeholderTextColor={colors.ink3}
+          accessibilityLabel={t('review.placeholder')}
           style={styles.input}
         />
       </View>
@@ -146,6 +159,14 @@ export default function Review() {
 
 const useStyles = makeStyles((colors) => ({
   wrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center' },
+  successMark: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   thanks: { marginTop: 14, fontSize: font.sizes['7xl'], fontWeight: font.weights.extrabold, color: colors.ink },
   head: {
     paddingHorizontal: 16,

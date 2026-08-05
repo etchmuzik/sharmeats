@@ -7,10 +7,10 @@ import { font, radius, shadow } from '../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { QuantityStepper } from '../../src/components/QuantityStepper';
-import { Mascot } from '../../src/components/Mascot/Mascot';
+import { Icon } from '../../src/components/Icon';
 import { useCart } from '../../src/store/cart';
 import { useT } from '../../src/i18n';
-import { formatEgp } from '../../src/lib/format';
+import { formatEgp, formatNumber } from '../../src/lib/format';
 import { isCrossSellEligible } from '../../src/lib/crossSell';
 import { CartConflictSheet } from '../../src/components/CartConflictSheet';
 import { decideRestore } from '../../src/lib/cartSync';
@@ -21,6 +21,8 @@ import { success, tap } from '../../src/haptics';
 import { db } from '../../src/data';
 import type { CartItem, MenuItem, Restaurant } from '../../src/data/types';
 import { track } from '../../src/lib/analytics';
+import { useSession, type Locale } from '../../src/store/session';
+import { useDirection } from '../../src/lib/direction';
 
 export default function CartTab() {
   const colors = useThemeColors();
@@ -28,6 +30,8 @@ export default function CartTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const locale = useSession((s) => s.locale);
+  const dir = useDirection();
   const lines = useCart((s) => s.lines);
   const restaurantId = useCart((s) => s.restaurantId);
   const restaurantName = useCart((s) => s.restaurantName);
@@ -247,12 +251,14 @@ export default function CartTab() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         contentContainerStyle={[styles.emptyWrap, { paddingTop: insets.top + 40 }]}>
         <ThemedStatusBar />
-        <Mascot pose="shrug" size={120} />
-        <Text style={styles.emptyTitle}>{t('empty.cart.title')}</Text>
-        <Text style={styles.emptySub}>{t('empty.cart.body')}</Text>
+        <View style={styles.emptyVisual} accessible={false}>
+          <Icon name="cart" size={38} color={colors.sea} />
+        </View>
+        <Text style={[styles.emptyTitle, dir.text]}>{t('empty.cart.title')}</Text>
+        <Text style={[styles.emptySub, dir.text]}>{t('empty.cart.body')}</Text>
         {nearby.length > 0 && (
           <View style={{ width: '100%', marginTop: 24, paddingHorizontal: 16 }}>
-            <Text style={styles.nearbyTitle}>{t('cart.nearbyTitle')}</Text>
+            <Text style={[styles.nearbyTitle, dir.text]}>{t('cart.nearbyTitle')}</Text>
             <View style={{ gap: 10, marginTop: 10 }}>
               {nearby.map((r) => (
                 <Pressable
@@ -261,14 +267,16 @@ export default function CartTab() {
                     tap();
                     router.push(`/restaurant/${r.id}` as never);
                   }}
-                  style={styles.nearbyRow}>
+                  accessibilityRole="button"
+                  accessibilityLabel={`${r.name}, ${r.cuisineLabel}`}
+                  style={[styles.nearbyRow, dir.row]}>
                   <Image source={{ uri: r.coverImage }} style={styles.nearbyImg} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.nearbyName} numberOfLines={1}>
+                    <Text style={[styles.nearbyName, dir.text]} numberOfLines={1}>
                       {r.name}
                     </Text>
-                    <Text style={styles.nearbySub} numberOfLines={1}>
-                      ★ {r.rating} · {r.cuisineLabel}
+                    <Text style={[styles.nearbySub, dir.text]} numberOfLines={1}>
+                      ★ {formatNumber(r.rating, locale)} · {r.cuisineLabel}
                     </Text>
                   </View>
                 </Pressable>
@@ -297,20 +305,22 @@ export default function CartTab() {
         onKeepLocal={keepLocalCart}
         onUseSaved={useSavedCart}
       />
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.title}>{t('cart.title')}</Text>
+      <View style={[styles.header, dir.row, { paddingTop: insets.top + 12 }]}>
+        <Text style={[styles.title, dir.text]}>{t('cart.title')}</Text>
         <Pressable
           onPress={() => void clearEverywhere()}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel={t('cart.clear')}>
-          <Text style={styles.clear}>{t('cart.clear')}</Text>
+          <Text style={[styles.clear, dir.text]}>{t('cart.clear')}</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 180 }}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('cart.from', { name: restaurantName ?? '' })}</Text>
+          <Text style={[styles.cardTitle, dir.text]}>
+            {t('cart.from', { name: restaurantName ?? '' })}
+          </Text>
           <View style={{ marginTop: 6 }}>
             {lines.map((l) => (
               <CartLineRow
@@ -329,6 +339,7 @@ export default function CartTab() {
                 allergensPrefix={t('cart.allergensPrefix')}
                 allergyLabels={(l.allergens ?? []).map((a) => t(`allergy.${a}`))}
                 removeLabel={t('cart.remove')}
+                locale={locale}
               />
             ))}
           </View>
@@ -336,7 +347,7 @@ export default function CartTab() {
 
         {suggestions.length > 0 && (
           <View style={{ marginTop: 16 }}>
-            <Text style={styles.nearbyTitle}>{t('cart.alsoAdd')}</Text>
+            <Text style={[styles.nearbyTitle, dir.text]}>{t('cart.alsoAdd')}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -353,7 +364,7 @@ export default function CartTab() {
                     {item.name}
                   </Text>
                   <View style={styles.suggestRow}>
-                    <Text style={styles.suggestPrice}>{formatEgp(item.priceEgp)}</Text>
+                    <Text style={styles.suggestPrice}>{formatEgp(item.priceEgp, locale)}</Text>
                     <View style={styles.suggestPlus}>
                       <Text style={styles.suggestPlusText}>+</Text>
                     </View>
@@ -368,13 +379,14 @@ export default function CartTab() {
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
         {belowMin && (
           <View style={styles.minBanner}>
-            <Text style={styles.minText}>
-              ⚠ {t('checkout.minOrderShort', { amount: formatEgp(shortBy) })}
+            <Text style={[styles.minText, dir.text]}>
+              ⚠ {t('checkout.minOrderShort', { amount: formatEgp(shortBy, locale) })}
             </Text>
           </View>
         )}
         <PrimaryButton
-          label={t('cart.checkout', { amount: formatEgp(subtotal) })}
+          testID="cart-checkout"
+          label={t('cart.checkout', { amount: formatEgp(subtotal, locale) })}
           onPress={() => router.push('/checkout')}
           disabled={belowMin}
         />
@@ -392,6 +404,7 @@ interface RowProps {
   allergensPrefix: string;
   allergyLabels: string[];
   removeLabel: string;
+  locale: Locale;
 }
 
 function CartLineRow({
@@ -403,8 +416,11 @@ function CartLineRow({
   allergensPrefix,
   allergyLabels,
   removeLabel,
+  locale,
 }: RowProps) {
   const styles = useStyles();
+  const colors = useThemeColors();
+  const dir = useDirection();
   const swipeRef = useRef<Swipeable>(null);
 
   const renderRightActions = () => (
@@ -413,69 +429,77 @@ function CartLineRow({
         swipeRef.current?.close();
         onRemove();
       }}
+      accessibilityRole="button"
+      accessibilityLabel={removeLabel}
       style={styles.swipeAction}>
-      <Text style={styles.swipeIcon}>🗑</Text>
+      <Icon name="trash" size={24} color={colors.onAccent} />
       <Text style={styles.swipeLabel}>{removeLabel}</Text>
     </Pressable>
   );
 
   return (
     <Swipeable ref={swipeRef} renderRightActions={renderRightActions} overshootRight={false}>
-      <Pressable onPress={onTapEdit} style={({ pressed }) => [styles.line, pressed && { opacity: 0.85 }]}>
-        <Image source={{ uri: line.image }} style={styles.ph} />
-        <View style={{ flex: 1 }}>
-          <View style={styles.lineHead}>
-            <Text style={styles.lineName} numberOfLines={1}>
+      <View style={styles.line}>
+        <Pressable
+          onPress={onTapEdit}
+          accessibilityRole="button"
+          accessibilityLabel={line.name}
+          style={({ pressed }) => [styles.lineEditBody, dir.row, pressed && { opacity: 0.85 }]}>
+          <Image source={{ uri: line.image }} style={styles.ph} />
+          <View style={styles.lineContent}>
+            <Text style={[styles.lineName, dir.text]} numberOfLines={1}>
               {line.name}
             </Text>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              hitSlop={10}
-              style={styles.trashBtn}
-              accessibilityLabel={removeLabel}>
-              <Text style={styles.trashIco}>🗑</Text>
-            </Pressable>
+            {line.modifierChoices.length > 0 && (
+              <Text style={[styles.mods, dir.text]}>
+                {line.modifierChoices.map((c) => c.optionName).join(' · ')}
+              </Text>
+            )}
+            {line.notes && (
+              <Text style={[styles.notes, dir.text]}>
+                {noteLabel}: {line.notes}
+              </Text>
+            )}
+            {allergyLabels.length > 0 && (
+              <Text style={[styles.allergens, dir.text]}>
+                ⚠ {allergensPrefix}: {allergyLabels.join(', ')}
+              </Text>
+            )}
           </View>
-          {line.modifierChoices.length > 0 && (
-            <Text style={styles.mods}>
-              {line.modifierChoices.map((c) => c.optionName).join(' · ')}
-            </Text>
-          )}
-          {line.notes && (
-            <Text style={styles.notes}>
-              {noteLabel}: {line.notes}
-            </Text>
-          )}
-          {allergyLabels.length > 0 && (
-            <Text style={styles.allergens}>
-              ⚠ {allergensPrefix}: {allergyLabels.join(', ')}
-            </Text>
-          )}
-          <View style={styles.row}>
-            <QuantityStepper
-              value={line.quantity}
-              onChange={onChangeQty}
-              min={1}
-              size="sm"
-            />
-            <Text style={styles.linePrice}>
-              {formatEgp(
-                (line.basePriceEgp + line.modifierChoices.reduce((a, c) => a + c.priceDeltaEgp, 0)) *
-                  line.quantity,
-              )}
-            </Text>
-          </View>
+        </Pressable>
+        <Pressable
+          onPress={onRemove}
+          hitSlop={10}
+          style={[styles.trashBtn, dir.isRtl ? styles.trashBtnRtl : styles.trashBtnLtr]}
+          accessibilityRole="button"
+          accessibilityLabel={removeLabel}>
+          <Icon name="trash" size={19} color={colors.red} />
+        </Pressable>
+        <View style={[styles.row, dir.row]}>
+          <QuantityStepper value={line.quantity} onChange={onChangeQty} min={1} size="sm" />
+          <Text style={styles.linePrice}>
+            {formatEgp(
+              (line.basePriceEgp + line.modifierChoices.reduce((a, c) => a + c.priceDeltaEgp, 0)) *
+                line.quantity,
+              locale,
+            )}
+          </Text>
         </View>
-      </Pressable>
+      </View>
     </Swipeable>
   );
 }
 
 const useStyles = makeStyles((colors) => ({
   emptyWrap: { alignItems: 'center', paddingHorizontal: 24, paddingBottom: 60 },
+  emptyVisual: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.xl,
+    backgroundColor: colors.seaSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   nearbyTitle: {
     fontSize: font.sizes.sm,
     color: colors.ink2,
@@ -525,23 +549,25 @@ const useStyles = makeStyles((colors) => ({
   },
   cardTitle: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
   line: {
-    flexDirection: 'row',
-    gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
     backgroundColor: colors.surface,
   },
-  lineHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  lineEditBody: { flex: 1, flexDirection: 'row', gap: 12, alignItems: 'flex-start', paddingEnd: 38 },
+  lineContent: { flex: 1 },
   ph: { width: 54, height: 54, borderRadius: radius.md, backgroundColor: colors.bgSoft },
   lineName: { flex: 1, fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
   trashBtn: {
+    position: 'absolute',
+    top: 12,
     width: 30,
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trashIco: { fontSize: 16, opacity: 0.6 },
+  trashBtnLtr: { right: 0 },
+  trashBtnRtl: { left: 0 },
   mods: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 3 },
   notes: { fontSize: font.sizes.sm, color: colors.ink3, marginTop: 2, fontStyle: 'italic' },
   allergens: {
@@ -559,7 +585,6 @@ const useStyles = makeStyles((colors) => ({
     width: 90,
     gap: 4,
   },
-  swipeIcon: { fontSize: 22 },
   swipeLabel: { color: colors.onAccent, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
   suggestCard: {
     width: 132,

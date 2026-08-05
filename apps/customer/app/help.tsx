@@ -45,8 +45,8 @@ export default function Help() {
   const openWhatsApp = async () => {
     tap();
     const msg = orderCode
-      ? `Hi sharmeats, I need help with order #${orderCode}.`
-      : 'Hi sharmeats, I need help with my order.';
+      ? t('help.whatsAppOrderMessage', { orderCode })
+      : t('help.whatsAppMessage');
     const url = `whatsapp://send?phone=${SUPPORT_PHONE}&text=${encodeURIComponent(msg)}`;
     const supported = await Linking.canOpenURL(url);
     if (supported) {

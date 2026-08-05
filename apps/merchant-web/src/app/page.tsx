@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -212,7 +214,9 @@ export default function DashboardPage() {
       .select('id');
     if (error || deniedByNoRows(error, data)) {
       setIsOpen(!next); // rollback
-      alert(permissionDeniedCopy(error) ?? (error ? `Could not update status: ${error.message}` : PERMISSION_DENIED_COPY));
+      alert(permissionDeniedCopy(error) ?? (error
+        ? safeDisplayError(error, { fallback: 'Could not update the order status. Please try again.' })
+        : PERMISSION_DENIED_COPY));
     }
     setTogglingOpen(false);
   };

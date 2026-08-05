@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 import { useCallback, useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { ITEM_FLAGS, type ItemFlag, type MenuItem, type MenuSection } from '@/lib/types';
@@ -75,7 +77,7 @@ export function MenuManager({
       p_restaurant_id: restaurantId,
       p_name: 'New section',
     });
-    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await load();
   };
 
@@ -153,7 +155,7 @@ function SectionBlock({
       .from('menu_sections')
       .update({ name: name.trim() || 'Section' })
       .eq('id', section.id);
-    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await onChanged();
   };
 
@@ -161,7 +163,7 @@ function SectionBlock({
     if (!confirm(`Delete section "${section.name}" and all its items?`)) return;
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from('menu_sections').delete().eq('id', section.id);
-    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await onChanged();
   };
 
@@ -251,7 +253,7 @@ function ItemRow({
       .from('menu_items')
       .update({ is_available: !item.is_available })
       .eq('id', item.id);
-    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await onChanged();
   };
 
@@ -346,7 +348,7 @@ function ItemEditor({
           p_is_available: payload.is_available,
         });
     setSaving(false);
-    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     toast(item ? 'Item updated' : 'Item added', 'success');
     await onSaved();
   };
@@ -356,7 +358,7 @@ function ItemEditor({
     if (!confirm(`Delete "${item.name}"?`)) return;
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from('menu_items').delete().eq('id', item.id);
-    if (error) return toast(permissionDeniedCopy(error) ?? error.message, 'error');
+    if (error) return toast(permissionDeniedCopy(error) ?? safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     toast('Item deleted', 'success');
     await onSaved();
   };

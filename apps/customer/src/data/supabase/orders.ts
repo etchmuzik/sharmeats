@@ -19,6 +19,7 @@
 import { getSupabase } from './client';
 import { rowToOrder } from './mappers';
 import { t } from '../../i18n';
+import { isTrustedPaymobCheckoutUrl } from '../../lib/payments';
 import type {
   CartItem,
   Order,
@@ -110,7 +111,10 @@ export const ordersRepoSupabase = {
     });
     if (error) throw error;
     if (!data?.checkoutUrl) return null;
-    return { checkoutUrl: data.checkoutUrl as string };
+    if (!isTrustedPaymobCheckoutUrl(data.checkoutUrl)) {
+      throw new Error('Payment checkout URL was not trusted');
+    }
+    return { checkoutUrl: data.checkoutUrl };
   },
 
   /**
@@ -335,7 +339,10 @@ export const ordersRepoSupabase = {
       if (existing.topic === `realtime:${name}`) sb.removeChannel(existing);
     }
     const channel = sb
-      .channel(name, { config: { broadcast: { self: false } } })
+      // Live GPS is personal location data. Its `orderId` topic is an
+      // identifier, not a bearer secret; migration 216 authorizes this private
+      // channel against the current customer/order relationship.
+      .channel(name, { config: { private: true, broadcast: { self: false } } })
       .on('broadcast', { event: 'loc' }, (msg) => {
         const p = msg.payload as DriverLocation;
         if (p && typeof p.lat === 'number' && typeof p.lng === 'number') cb(p);

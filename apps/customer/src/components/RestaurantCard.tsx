@@ -4,13 +4,15 @@ import { radius, font, shadow } from '../theme';
 import { makeStyles, useThemeColors } from '../themeProvider';
 import { selection } from '../haptics';
 import { PressableScale } from './PressableScale';
-import { formatEgp, formatKm, formatPrepTime } from '../lib/format';
+import { formatEgp, formatKm, formatNumber, formatPrepTime } from '../lib/format';
 import { closedReasonKey, effectiveIsOpen } from '../lib/openHours';
 import { useFavorite } from '../lib/favorites';
 import type { Restaurant } from '../data/types';
 import { TouristSafeBadge } from './TouristSafeBadge';
 import { OwnBrandBadge } from './OwnBrandBadge';
 import { useT } from '../i18n';
+import { useSession } from '../store/session';
+import { useDirection } from '../lib/direction';
 
 export function RestaurantCard({
   restaurant,
@@ -28,90 +30,99 @@ export function RestaurantCard({
   const styles = useStyles();
   const router = useRouter();
   const t = useT();
+  const locale = useSession((s) => s.locale);
+  const dir = useDirection();
   const open = effectiveIsOpen(restaurant);
   const closedReason = closedReasonKey(restaurant);
   const { isFav, toggle } = useFavorite(restaurant.id);
   return (
-    <PressableScale
-      haptic="tap"
-      onPress={() => {
-        onOpen?.();
-        router.push(`/restaurant/${restaurant.id}` as never);
-      }}
-      style={styles.card}>
-      <Image source={{ uri: restaurant.coverImage }} style={styles.ph} />
-      <View style={styles.body}>
-        <View style={styles.topRow}>
-          <Text style={styles.name} numberOfLines={1}>
-            {restaurant.name}
-          </Text>
-          {!open && (
-            <View style={styles.closedPill}>
-              <Text style={styles.closedText}>
-                {closedReason === 'fridayPrayer' ? t('restaurant.fridayPrayer') : t('restaurant.closed')}
-              </Text>
-            </View>
-          )}
-          <Pressable
-            onPress={() => {
-              selection();
-              toggle();
-            }}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isFav }}
-            accessibilityLabel={isFav ? t('fav.remove') : t('fav.add')}
-            style={styles.heartBtn}>
-            <Text style={[styles.heart, isFav && { color: colors.accent }]}>
-              {isFav ? '♥' : '♡'}
+    <View style={[styles.card, dir.row]}>
+      <PressableScale
+        haptic="tap"
+        onPress={() => {
+          onOpen?.();
+          router.push(`/restaurant/${restaurant.id}` as never);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={`${restaurant.name}, ${restaurant.cuisineLabel}, ${t('restaurant.ratings', { count: restaurant.ratingCount })}`}
+        style={[styles.cardBody, dir.row]}>
+        <Image source={{ uri: restaurant.coverImage }} style={styles.ph} />
+        <View style={styles.body}>
+          <View style={[styles.topRow, dir.row]}>
+            <Text style={[styles.name, dir.text, styles.nameWithHeart]} numberOfLines={1}>
+              {restaurant.name}
             </Text>
-          </Pressable>
+            {!open && (
+              <View style={styles.closedPill}>
+                <Text style={[styles.closedText, dir.text]}>
+                  {closedReason === 'fridayPrayer' ? t('restaurant.fridayPrayer') : t('restaurant.closed')}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.cuisine, dir.text]}>{restaurant.cuisineLabel}</Text>
+          <View style={[styles.badgeRow, dir.row]}>
+            {restaurant.isOpen24h && (
+              <View style={styles.open24Pill}>
+                <Text style={styles.open24Text}>{t('restaurant.open24h')}</Text>
+              </View>
+            )}
+            {restaurant.touristSafe && <TouristSafeBadge />}
+            {restaurant.isOwnBrand && <OwnBrandBadge />}
+            {restaurant.promo && (
+              <View style={styles.promoPill}>
+                <Text style={styles.promoText}>{restaurant.promo}</Text>
+              </View>
+            )}
+          </View>
+          <View style={[styles.metrics, dir.row]}>
+            <Text style={[styles.rating, dir.text]}>★ {formatNumber(restaurant.rating, locale)}</Text>
+            <Text style={[styles.metric, dir.text]}>({formatNumber(restaurant.ratingCount, locale)})</Text>
+            <View style={styles.dot} />
+            <Text style={[styles.metric, dir.text]}>{formatPrepTime(restaurant.prepTimeLow, restaurant.prepTimeHigh, locale)}</Text>
+            <View style={styles.dot} />
+            <Text style={[styles.metric, dir.text]}>{formatEgp(restaurant.deliveryFeeEgp, locale)}</Text>
+            <View style={styles.dot} />
+            <Text style={[styles.metric, dir.text]}>{formatKm(restaurant.distanceMeters, locale)}</Text>
+          </View>
         </View>
-        <Text style={styles.cuisine}>{restaurant.cuisineLabel}</Text>
-        <View style={styles.badgeRow}>
-          {restaurant.isOpen24h && (
-            <View style={styles.open24Pill}>
-              <Text style={styles.open24Text}>{t('restaurant.open24h')}</Text>
-            </View>
-          )}
-          {restaurant.touristSafe && <TouristSafeBadge />}
-          {restaurant.isOwnBrand && <OwnBrandBadge />}
-          {restaurant.promo && (
-            <View style={styles.promoPill}>
-              <Text style={styles.promoText}>{restaurant.promo}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.metrics}>
-          <Text style={styles.rating}>★ {restaurant.rating.toFixed(1)}</Text>
-          <Text style={styles.metric}>({restaurant.ratingCount})</Text>
-          <View style={styles.dot} />
-          <Text style={styles.metric}>{formatPrepTime(restaurant.prepTimeLow, restaurant.prepTimeHigh)}</Text>
-          <View style={styles.dot} />
-          <Text style={styles.metric}>{formatEgp(restaurant.deliveryFeeEgp)}</Text>
-          <View style={styles.dot} />
-          <Text style={styles.metric}>{formatKm(restaurant.distanceMeters)}</Text>
-        </View>
-      </View>
-    </PressableScale>
+      </PressableScale>
+      <Pressable
+        onPress={() => {
+          selection();
+          toggle();
+        }}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isFav }}
+        accessibilityLabel={isFav ? t('fav.remove') : t('fav.add')}
+        style={[styles.heartBtn, dir.isRtl ? styles.heartBtnRtl : styles.heartBtnLtr]}>
+        <Text style={[styles.heart, isFav && { color: colors.accent }]}>
+          {isFav ? '♥' : '♡'}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
 const useStyles = makeStyles((colors) => ({
   card: {
-    flexDirection: 'row',
-    gap: 12,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.xl,
-    padding: 10,
     ...shadow.soft,
+  },
+  cardBody: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 10,
   },
   ph: { width: 96, height: 96, borderRadius: radius.md, backgroundColor: colors.bgSoft },
   body: { flex: 1, gap: 4 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   name: { fontSize: font.sizes['3xl'], fontWeight: font.weights.bold, color: colors.ink, flex: 1 },
+  nameWithHeart: { paddingEnd: 28 },
   cuisine: { fontSize: font.sizes.md, color: colors.ink2 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 2 },
   metrics: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 'auto', flexWrap: 'wrap' },
@@ -125,7 +136,9 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.sm,
   },
   closedText: { fontSize: font.sizes.xs, color: colors.ink2, fontWeight: font.weights.bold },
-  heartBtn: { paddingLeft: 6 },
+  heartBtn: { position: 'absolute', top: 10, padding: 6 },
+  heartBtnLtr: { right: 10 },
+  heartBtnRtl: { left: 10 },
   heart: { fontSize: 19, color: colors.ink3, lineHeight: 21 },
   promoPill: {
     backgroundColor: colors.accentSoft,

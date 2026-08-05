@@ -7,6 +7,7 @@ import type { Order } from '../data/types';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
 import { formatTime } from '../lib/format';
+import { useSession } from '../store/session';
 import { font, radius, shadow } from '../theme';
 import { makeStyles } from '../themeProvider';
 import { PressableScale } from './PressableScale';
@@ -28,6 +29,7 @@ export function ActiveOrderBanner() {
   const router = useRouter();
   const pathname = usePathname();
   const t = useT();
+  const locale = useSession((s) => s.locale);
   const dir = useDirection();
   const insets = useSafeAreaInsets();
   const [order, setOrder] = useState<Order | null>(null);
@@ -82,7 +84,7 @@ export function ActiveOrderBanner() {
 
   const remainingMin = Math.max(0, Math.ceil((order.etaAt - now) / 60_000));
   const etaText = order.scheduledFor
-    ? formatTime(new Date(order.scheduledFor))
+    ? formatTime(new Date(order.scheduledFor), locale)
     : t('banner.etaMin', { n: remainingMin });
 
   return (

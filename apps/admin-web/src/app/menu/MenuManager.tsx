@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { ITEM_FLAGS, type ItemFlag, type MenuItem, type MenuSection } from '@/lib/types';
 import { Icon } from '../Icon';
 import { useToast } from '../Toast';
@@ -50,7 +51,7 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
       name: 'New section',
       sort_order: sections.length,
     });
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await load();
   };
 
@@ -108,7 +109,7 @@ function SectionBlock({
       .from('menu_sections')
       .update({ name: name.trim() || 'Section' })
       .eq('id', section.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await onChanged();
   };
 
@@ -116,7 +117,7 @@ function SectionBlock({
     if (!confirm(`Delete section "${section.name}" and all its items?`)) return;
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from('menu_sections').delete().eq('id', section.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await onChanged();
   };
 
@@ -187,7 +188,7 @@ function ItemRow({
       .from('menu_items')
       .update({ is_available: !item.is_available })
       .eq('id', item.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     await onChanged();
   };
 
@@ -273,7 +274,7 @@ function ItemEditor({
       ? await supabase.from('menu_items').update(payload).eq('id', item.id)
       : await supabase.from('menu_items').insert({ ...payload, sort_order: sortOrder });
     setSaving(false);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     toast(item ? 'Item updated' : 'Item added', 'success');
     await onSaved();
   };
@@ -283,7 +284,7 @@ function ItemEditor({
     if (!confirm(`Delete "${item.name}"?`)) return;
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.from('menu_items').delete().eq('id', item.id);
-    if (error) return toast(error.message, 'error');
+    if (error) return toast(safeDisplayError(error, { fallback: 'Could not update the menu. Please try again.' }), 'error');
     toast('Item deleted', 'success');
     await onSaved();
   };

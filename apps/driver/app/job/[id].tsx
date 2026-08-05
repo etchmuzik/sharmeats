@@ -16,6 +16,7 @@ import { isProofRequired, recordProof } from '../../src/proofOfDelivery';
 import { startStreaming, stopStreaming } from '../../src/location';
 import { parseWkbPoint } from '../../src/geo';
 import { openDirections } from '../../src/navigation';
+import { dialablePhone } from '../../src/dialablePhone';
 import { font, radius, spacing } from '../../src/theme';
 import { useThemeColors } from '../../src/themeProvider';
 import { Icon } from '../../src/components/Icon';
@@ -345,6 +346,7 @@ export default function JobScreen() {
         : addr?.kind === 'beach_pin'
           ? `${t('job.beachPin')} · ${addr.beachName ?? ''}`
           : (addr?.label ?? t('job.address'));
+  const customerDialPhone = dialablePhone(job.customer_phone);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, direction: direction.direction }}>
@@ -460,11 +462,15 @@ export default function JobScreen() {
             unsurfaced — the #1 buried feature. */}
         {!['delivered', 'cancelled', 'rejected'].includes(job.status) && (
           <View style={{ marginTop: spacing.md, flexDirection: 'row', gap: spacing.md }}>
-            {job.customer_phone && !beforePickup(job.status) && (
+            {customerDialPhone && !beforePickup(job.status) && (
               <ContactButton
                 icon="phone"
                 label={t('job.callCustomer')}
-                onPress={() => Linking.openURL(`tel:${job.customer_phone}`)}
+                onPress={() => {
+                  Linking.openURL(`tel:${customerDialPhone}`).catch(() => {
+                    toast(t('job.generalError'), 'error');
+                  });
+                }}
               />
             )}
             <ContactButton

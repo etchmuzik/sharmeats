@@ -1,94 +1,80 @@
-# Data layer
+# Customer data layer
 
-Everything the app reads or writes flows through **`src/data/index.ts`**:
+Every customer screen reads or writes through the `db` facade exported by
+`src/data/index.ts`:
 
 ```ts
-import { db } from '@/data';
+import { db } from '../data';
+
 const restaurants = await db.restaurants.list();
 ```
 
-The app **never** imports from `data/mock/*` or `data/repositories/*` directly. This is the seam where Supabase swaps in later — see "Swap to Supabase" below.
+`index.ts` selects the adapter once when the app bundle starts:
 
-## Structure
+| Mode | Selection | Intended use |
+| --- | --- | --- |
+| Mock | `EXPO_PUBLIC_USE_SUPABASE` is absent or not `true` | Local UI work and deterministic manual smoke tests |
+| Supabase | `EXPO_PUBLIC_USE_SUPABASE=true` with both public Supabase values | Staging and production builds |
+
+The rest of the app should not care which mode is active. `isBackendLive` is
+available only for behaviour that genuinely differs between local and live
+data, such as server reconciliation or push registration.
+
+## Layout
 
 ```
 src/data/
-├── types.ts                    Restaurant, MenuItem, Hotel, Order, etc.
-├── index.ts                    exports `db` — the single entrypoint
-├── mock/                       in-memory seed data + simulated order progression
-│   ├── restaurants.ts
-│   ├── hotels.ts
-│   ├── menus.ts
-│   ├── user.ts
-│   └── riders.ts
-└── repositories/               each implements one slice of `db.*`
-    ├── restaurants.ts          list / get / getBySlug / listFeatured
-    ├── menus.ts                forRestaurant / getItem
-    ├── hotels.ts               list / search / get
-    ├── user.ts                 getMe / update / addresses + payment methods
-    └── orders.ts               create / get / list / subscribe / forceDelivered / submitReview
+├── index.ts            Selects and exports the single `db` facade
+├── types.ts            Shared domain types
+├── mock/               Deterministic seed data
+├── repositories/       Mock-mode repository implementations
+└── supabase/           Live Supabase implementations and mappers
 ```
 
-## Mock realism
+Both implementations cover the same customer-facing slices: authentication,
+catalog and menus, hotels, user profile and addresses, cart, orders, rewards,
+saved orders, messages, support, FX, and acquisition.
 
-When you place an order through the UI, the `orders` repo schedules a chain of `setTimeout` callbacks that walk the status through `placed → accepted → preparing → ready → out_for_delivery → delivered` over ~90 seconds. The tracking screen subscribes via `db.orders.subscribe(orderId, cb)` and re-renders.
+## Supabase configuration
 
-The cart is persisted to AsyncStorage so it survives app reload.
-Sessions (signed-in state, locale, currency, selected address) are also persisted to AsyncStorage.
+The live client requires these public build-time values:
 
-## Swap to Supabase
+```sh
+EXPO_PUBLIC_USE_SUPABASE=true
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-When the schema is ready:
+`getSupabase()` fails clearly if live mode is accessed without the URL or anon
+key. Set all three together in the intended EAS environment rather than
+changing imports by hand. The Expo public anon key is expected to ship in a
+client application and must be protected with Row Level Security; a Supabase
+service-role key must never be placed in the app or in any `EXPO_PUBLIC_*`
+variable.
 
-1. Add `supabase` adapters next to `mock/`:
-   ```
-   src/data/supabase/
-   ├── client.ts          createClient(URL, KEY)
-   ├── restaurants.ts     same shape as repositories/restaurants
-   ├── menus.ts
-   ├── hotels.ts
-   ├── user.ts
-   └── orders.ts          uses Supabase Realtime for subscribe()
-   ```
+The live client persists its Supabase auth session in AsyncStorage and refreshes
+it while the app is active. The root layout ensures an anonymous session is
+available before live data is requested; phone verification upgrades that
+identity through the auth adapter.
 
-2. In `src/data/index.ts`, swap the imports:
+## Working safely with the facade
 
-   ```ts
-   // Before (mock)
-   import { restaurantsRepo } from './repositories/restaurants';
+1. Add or change a domain shape in `types.ts` first.
+2. Keep the mock repository and the Supabase adapter compatible with the same
+   `db.<slice>.<method>` call shape.
+3. Preserve the distinction between a missing record (`null` where the method
+   contract permits it) and a real failure (a rejected promise).
+4. Keep customer-facing error mapping at the UI/service boundary; adapters may
+   return typed failures but must not dictate raw backend text to customers.
+5. Add focused tests next to the adapter or mapper you change, then run the
+   customer test suite and adapter contract check.
 
-   // After (Supabase)
-   import { restaurantsRepo } from './supabase/restaurants';
-   ```
+```sh
+cd /Users/etch/Downloads/sharmeats-new/apps/customer
+npm test
+npm run test:adapters
+```
 
-3. The UI is untouched. Each `supabase/*` module exports the same shape — `list()`, `get()`, etc. — so consumers don't care.
-
-4. Realtime in `orders.ts` becomes:
-   ```ts
-   subscribe(orderId, cb) {
-     const channel = supabase
-       .channel(`order:${orderId}`)
-       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, (p) => cb(p.new as Order))
-       .subscribe();
-     return () => { channel.unsubscribe(); };
-   }
-   ```
-
-5. RLS policies live in `/Users/etch/Projects/apps/sharmeats/supabase/migrations/`. The schema for app tables is in plan §5 — add as `002_app_schema.sql` when ready.
-
-6. `.env`:
-   ```
-   EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=...
-   ```
-
-7. Auth swap is in `src/store/session.ts` — replace the mock `signIn()` with `supabase.auth.signInWithOtp({ phone })` and `verifyOtp`.
-
-## Contract
-
-Every repository function:
-- Returns `Promise<T>` (async even in mock — keeps the call sites unchanged).
-- Throws on hard failures (not implemented in mock yet — add in adapter).
-- Never throws on "not found" — returns `null` instead.
-
-If you add a new repository function, add it to **both** `mock/` and (eventually) `supabase/`. Keep the interface in sync via TypeScript — the type of `db` is exported as `DB`.
+The mock mode is deliberately useful, but it is not a future migration plan:
+the Supabase adapters are already part of the runtime switch. New work must
+maintain both paths unless the feature is explicitly live-only.

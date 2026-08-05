@@ -3,6 +3,7 @@ import { font, radius, shadow } from '../theme';
 import { makeStyles, useThemeColors } from '../themeProvider';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
+import { radioAccessibilityState } from '../lib/accessibility';
 import { selection } from '../haptics';
 import type { AddressKind, DropoffPreference } from '../data/types';
 import { Icon, type IconName } from './Icon';
@@ -67,7 +68,7 @@ export function DropoffPreferenceCard({ addressKind, value, onChange }: Props) {
                 onChange(active ? null : chip.value);
               }}
               accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
+              accessibilityState={radioAccessibilityState(active)}
               accessibilityLabel={t(chip.labelKey)}
               style={[styles.chip, active && styles.chipActive]}>
               <Icon name={chip.icon} size={17} color={active ? colors.onInk : colors.ink2} />

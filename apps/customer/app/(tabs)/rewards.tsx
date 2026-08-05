@@ -11,6 +11,7 @@ import { db } from '../../src/data';
 import { formatEgp } from '../../src/lib/format';
 import { starterFloorPct } from '../../src/lib/rewards';
 import type { RewardsHistoryEntry, RewardsStatus } from '../../src/data/types';
+import { useSession } from '../../src/store/session';
 
 type ViewState =
   | { kind: 'loading' }
@@ -43,6 +44,7 @@ export default function RewardsTab() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const dir = useDirection();
+  const locale = useSession((s) => s.locale);
   const [state, setState] = useState<ViewState>({ kind: 'loading' });
   const [redeeming, setRedeeming] = useState(false);
 
@@ -108,7 +110,11 @@ export default function RewardsTab() {
     return (
       <View style={[styles.center, { backgroundColor: colors.bg, padding: 24 }]}>
         <Text style={{ color: colors.ink2, fontSize: font.sizes.lg }}>{t('rewards.title')}</Text>
-        <Pressable onPress={() => void load()} style={{ marginTop: 12 }} accessibilityRole="button">
+        <Pressable
+          onPress={() => void load()}
+          style={{ marginTop: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.retry')}>
           <Text style={{ color: colors.accent, fontWeight: font.weights.bold }}>{t('common.retry')}</Text>
         </Pressable>
       </View>
@@ -146,7 +152,7 @@ export default function RewardsTab() {
               <Icon name="wallet" size={26} color={colors.onAccent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.walletBalance}>{t('wallet.balance', { amount: formatEgp(creditEgp) })}</Text>
+              <Text style={styles.walletBalance}>{t('wallet.balance', { amount: formatEgp(creditEgp, locale) })}</Text>
               <Text style={[styles.walletSub, dir.text]}>{t('wallet.subtitle')}</Text>
             </View>
           </View>
@@ -156,7 +162,7 @@ export default function RewardsTab() {
               onPress={() =>
                 Alert.alert(
                   t('wallet.title'),
-                  t('wallet.redeemConfirm', { amount: formatEgp(creditEgp) }),
+                  t('wallet.redeemConfirm', { amount: formatEgp(creditEgp, locale) }),
                   [
                     { text: t('common.cancel'), style: 'cancel' },
                     { text: t('wallet.redeemButton'), onPress: () => void redeemCredit(creditEgp) },

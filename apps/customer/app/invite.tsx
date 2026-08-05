@@ -100,7 +100,11 @@ export default function Invite() {
         )}
 
         {state.kind === 'error' && (
-          <Pressable style={styles.codeCard} onPress={load} accessibilityRole="button">
+          <Pressable
+            style={styles.codeCard}
+            onPress={load}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.retry')}>
             <Text style={styles.errorText}>{t('invite.loadError')}</Text>
             <Text style={styles.retry}>{t('common.retry')}</Text>
           </Pressable>
@@ -123,7 +127,11 @@ export default function Invite() {
               </View>
             </Pressable>
 
-            <Pressable style={styles.shareBtn} onPress={share} accessibilityRole="button">
+            <Pressable
+              style={styles.shareBtn}
+              onPress={share}
+              accessibilityRole="button"
+              accessibilityLabel={t('invite.shareCta')}>
               <Icon name="share" size={20} color={colors.onAccent} />
               <Text style={styles.shareBtnText}>{t('invite.shareCta')}</Text>
             </Pressable>

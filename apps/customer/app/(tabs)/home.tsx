@@ -27,7 +27,7 @@ import { useSession } from '../../src/store/session';
 import { useCart } from '../../src/store/cart';
 import { describeReorderChanges } from '../../src/lib/reorderCheck';
 import { prepareReorder, isVerticalDenial } from '../../src/lib/prepareCart';
-import { formatEgp } from '../../src/lib/format';
+import { formatEgp, formatNumber, formatPrepTime } from '../../src/lib/format';
 import { tap } from '../../src/haptics';
 import { track } from '../../src/lib/analytics';
 
@@ -93,6 +93,7 @@ export default function HomeTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const locale = useSession((s) => s.locale);
   const dir = useDirection();
   const phone = useSession((s) => s.phone);
   const selectedAddressId = useSession((s) => s.selectedAddressId);
@@ -257,10 +258,14 @@ export default function HomeTab() {
         return;
       }
 
-      Alert.alert(t('orders.reorderChangesTitle'), describeReorderChanges(changes, t, formatEgp), [
+      Alert.alert(
+        t('orders.reorderChangesTitle'),
+        describeReorderChanges(changes, t, (amount) => formatEgp(amount, locale)),
+        [
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('orders.reorderContinue'), onPress: proceed },
-      ]);
+        ],
+      );
     } catch (e) {
       // A VERTICAL DENIAL IS NOT AN OUTAGE. Swallowing it would load the hidden
       // merchant's basket from the SAVED PRESET, reintroducing the leak the
@@ -485,7 +490,9 @@ export default function HomeTab() {
                     style={styles.savedCard}>
                     <Text style={styles.savedName} numberOfLines={1}>{s.name}</Text>
                     <Text style={styles.savedSub} numberOfLines={1}>{s.restaurantName}</Text>
-                    <Text style={styles.savedMeta}>{t('orders.itemsCount', { n: s.items.length })}</Text>
+                    <Text style={styles.savedMeta}>
+                      {t('orders.itemsCount', { n: formatNumber(s.items.length, locale) })}
+                    </Text>
                   </Pressable>
                 ) : (
                   <Pressable
@@ -532,7 +539,7 @@ export default function HomeTab() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.reorderName} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.reorderSub} numberOfLines={1}>
-                      ★ {item.rating} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')}
+                      ★ {formatNumber(item.rating, locale)} · {formatPrepTime(item.prepTimeLow, item.prepTimeHigh, locale)}
                     </Text>
                   </View>
                 </Pressable>
@@ -563,7 +570,7 @@ export default function HomeTab() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.reorderName} numberOfLines={1}>♥ {item.name}</Text>
                     <Text style={styles.reorderSub} numberOfLines={1}>
-                      ★ {item.rating} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')}
+                      ★ {formatNumber(item.rating, locale)} · {formatPrepTime(item.prepTimeLow, item.prepTimeHigh, locale)}
                     </Text>
                   </View>
                 </Pressable>
@@ -597,7 +604,7 @@ export default function HomeTab() {
                     <Text style={styles.offerPromo} numberOfLines={1}>🏷 {item.promo}</Text>
                     <Text style={styles.reorderName} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.reorderSub} numberOfLines={1}>
-                      ★ {item.rating} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')}
+                      ★ {formatNumber(item.rating, locale)} · {formatPrepTime(item.prepTimeLow, item.prepTimeHigh, locale)}
                     </Text>
                   </View>
                 </Pressable>
@@ -633,7 +640,7 @@ export default function HomeTab() {
                     </Text>
                     <Text style={styles.featName}>{item.name}</Text>
                     <Text style={styles.featSub}>
-                      {item.cuisineLabel} · {item.prepTimeLow}–{item.prepTimeHigh} {t('common.minShort')} · ★ {item.rating}
+                      {item.cuisineLabel} · {formatPrepTime(item.prepTimeLow, item.prepTimeHigh, locale)} · ★ {formatNumber(item.rating, locale)}
                     </Text>
                   </View>
                 </Pressable>

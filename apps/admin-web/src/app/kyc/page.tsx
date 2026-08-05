@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -51,7 +52,7 @@ export default function KycReviewPage() {
     if (filter === 'pending') query = query.eq('status', 'pending');
     const { data, error } = await query;
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load KYC documents. Please try again.' }), 'error');
       return;
     }
     // Resolve subject name + a short-lived signed URL for each file.
@@ -107,7 +108,7 @@ export default function KycReviewPage() {
       p_note: note,
     });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not review this document. Please try again.' }), 'error');
       return;
     }
     toast(approve ? 'Approved' : 'Rejected', 'success');

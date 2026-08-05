@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -125,7 +126,7 @@ export default function CampaignsPage() {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase.rpc('recent_push_campaigns', { p_limit: 20 });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load campaigns. Please try again.' }), 'error');
       return;
     }
     setHistory((data as Campaign[]) ?? []);
@@ -176,7 +177,7 @@ export default function CampaignsPage() {
       const r = (Array.isArray(data) ? data[0] : data) as CampaignResult | undefined;
       setAudience(r ?? null);
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Preview failed', 'error');
+      toast(safeDisplayError(e, { fallback: 'Could not preview this campaign. Please try again.' }), 'error');
     } finally {
       setSending(false);
     }
@@ -224,7 +225,7 @@ export default function CampaignsPage() {
       setIdempotencyKey(crypto.randomUUID());
       await loadHistory();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Send failed', 'error');
+      toast(safeDisplayError(e, { fallback: 'Could not send this campaign. Please try again.' }), 'error');
     } finally {
       setSending(false);
     }

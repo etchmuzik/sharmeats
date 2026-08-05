@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { toCsv } from '@/lib/csv';
 import type { RestaurantSettlement } from '@/lib/types';
 import { SignOutButton } from '../SignOutButton';
@@ -79,7 +80,7 @@ export default function FinancePage() {
       .eq('period_end', end)
       .order('net_payable_egp', { ascending: false });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load settlements. Please try again.' }), 'error');
       return;
     }
     const mapped = (data ?? []).map((r) => {
@@ -156,7 +157,7 @@ export default function FinancePage() {
       setCreditAmount('');
       setCreditNote('');
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Credit failed', 'error');
+      toast(safeDisplayError(e, { fallback: 'Could not add the credit. Please try again.' }), 'error');
     } finally {
       setCreditBusy(false);
     }
@@ -198,7 +199,7 @@ export default function FinancePage() {
       toast(`Generated ${data ?? 0} statement(s) for ${start} → ${end}`, 'success');
       await loadRows();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Generate failed', 'error');
+      toast(safeDisplayError(e, { fallback: 'Could not generate settlements. Please try again.' }), 'error');
     } finally {
       setBusy(false);
     }
@@ -208,7 +209,7 @@ export default function FinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('finalize_settlement', { p_settlement_id: id });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not finalize this settlement. Please try again.' }), 'error');
       return;
     }
     toast('Statement finalized', 'success');
@@ -221,7 +222,7 @@ export default function FinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('mark_settlement_paid', { p_settlement_id: id, p_reference: ref });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not mark this settlement as paid. Please try again.' }), 'error');
       return;
     }
     toast('Marked paid', 'success');

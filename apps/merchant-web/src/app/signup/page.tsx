@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,7 +25,7 @@ export default function SignupPage() {
       password,
     });
     setBusy(false);
-    if (error) return setError(error.message);
+    if (error) return setError(safeDisplayError(error, { fallback: 'Could not create your account. Please try again.' }));
     // With email confirmation ON, no session exists yet — tell them to confirm.
     if (!data.session) {
       setNotice('Check your inbox to confirm your email, then log in to continue your application.');

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Image,
   Pressable,
@@ -35,6 +36,8 @@ import { success, tap } from '../../src/haptics';
 import { useGoBack } from '../../src/lib/navigation';
 import { track } from '../../src/lib/analytics';
 import { useFavoriteItem } from '../../src/lib/favorites';
+import { itemSubmissionFeedback } from '../../src/lib/itemSubmissionFeedback';
+import { useSession } from '../../src/store/session';
 
 interface SelectionMap {
   // modifierId → Set of optionIds
@@ -48,6 +51,7 @@ export default function ItemModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const locale = useSession((s) => s.locale);
   const addToCart = useCart((s) => s.add);
   const updateLine = useCart((s) => s.updateLine);
   const editingLine = useCart((s) =>
@@ -78,6 +82,15 @@ export default function ItemModal() {
   const [profileAllergies, setProfileAllergies] = useState<AllergyKey[]>([]);
   const [bypassConflict, setBypassConflict] = useState(false);
   const [allergyOpen, setAllergyOpen] = useState(false);
+  const [isConfirmingAdd, setIsConfirmingAdd] = useState(false);
+  const submitLock = useRef(false);
+  const confirmationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (confirmationTimer.current !== null) clearTimeout(confirmationTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     db.user.getMe()
@@ -247,6 +260,9 @@ export default function ItemModal() {
   };
 
   const onSubmit = () => {
+    if (submitLock.current) return;
+    submitLock.current = true;
+
     const payload = {
       quantity: qty,
       modifierChoices: choices,
@@ -273,7 +289,16 @@ export default function ItemModal() {
       });
     }
     success();
-    goBack();
+
+    const feedback = itemSubmissionFeedback(isEditing);
+    if (!feedback.showsConfirmation) {
+      goBack();
+      return;
+    }
+
+    setIsConfirmingAdd(true);
+    void AccessibilityInfo.announceForAccessibility(t('item.added'));
+    confirmationTimer.current = setTimeout(goBack, feedback.navigationDelayMs);
   };
 
   return (
@@ -304,7 +329,7 @@ export default function ItemModal() {
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.desc}>{item.description}</Text>
           <View style={styles.metaRow}>
-            <Text style={styles.price}>{formatEgp(item.priceEgp)}</Text>
+            <Text style={styles.price}>{formatEgp(item.priceEgp, locale)}</Text>
             {item.unit && <Text style={styles.unit}>/ {item.unit}</Text>}
             {item.flags.map((f) => (
               <FlagBadge key={f} flag={f} />
@@ -337,6 +362,9 @@ export default function ItemModal() {
                 tap();
                 setAllergyOpen((o) => !o);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={t('item.allergiesTitle')}
+              accessibilityState={{ expanded: allergyOpen }}
               style={styles.allergySummary}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modTitle}>{t('item.allergiesTitle')}</Text>
@@ -366,6 +394,8 @@ export default function ItemModal() {
                     router.push('/settings/allergies');
                   }}
                   hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('item.editAllergiesInSettings')}
                   style={{ marginTop: 10 }}>
                   <Text style={styles.editLink}>{t('item.editAllergiesInSettings')} →</Text>
                 </Pressable>
@@ -379,7 +409,11 @@ export default function ItemModal() {
                   })}
                 </Text>
                 {!bypassConflict && (
-                  <Pressable onPress={() => setBypassConflict(true)} hitSlop={6}>
+                  <Pressable
+                    onPress={() => setBypassConflict(true)}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('item.addAnyway')}>
                     <Text style={styles.bypassLink}>{t('item.addAnyway')} →</Text>
                   </Pressable>
                 )}
@@ -394,6 +428,7 @@ export default function ItemModal() {
               onChangeText={setNotes}
               placeholder={t('item.notesPlaceholder')}
               placeholderTextColor={colors.ink3}
+              accessibilityLabel={t('item.specialInstructions')}
               multiline
               style={styles.notes}
             />
@@ -408,13 +443,17 @@ export default function ItemModal() {
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
         <PrimaryButton
+          testID={isEditing ? 'item-update-cart' : 'item-add-to-cart'}
           label={
-            isEditing
-              ? t('item.updateLine', { amount: formatEgp(linePrice) })
-              : t('item.addToCart', { amount: formatEgp(linePrice) })
+            isConfirmingAdd
+              ? `✓ ${t('item.added')}`
+              : isEditing
+              ? t('item.updateLine', { amount: formatEgp(linePrice, locale) })
+              : t('item.addToCart', { amount: formatEgp(linePrice, locale) })
           }
           onPress={onSubmit}
-          disabled={!requiredOk || blocked}
+          disabled={!requiredOk || blocked || isConfirmingAdd}
+          style={isConfirmingAdd ? styles.addConfirmation : undefined}
         />
       </View>
     </View>
@@ -596,4 +635,5 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: 16,
     paddingTop: 12,
   },
+  addConfirmation: { opacity: 1 },
 }));

@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -23,7 +25,7 @@ export default function LoginPage() {
       password,
     });
     setBusy(false);
-    if (error) return setError(error.message);
+    if (error) return setError(safeDisplayError(error, { fallback: 'Could not sign in. Please try again.' }));
     router.replace('/');
     router.refresh();
   }
@@ -44,7 +46,7 @@ export default function LoginPage() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setBusy(false);
-    if (error) return setError(error.message);
+    if (error) return setError(safeDisplayError(error, { fallback: 'Could not send the reset email. Please try again.' }));
     setNotice(`If an account exists for ${addr}, a reset link is on its way.`);
   }
 

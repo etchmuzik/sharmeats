@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, View, Text } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, View, Text } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { font, radius, shadow } from '../theme';
@@ -7,10 +7,25 @@ import { makeStyles, useThemeColors } from '../themeProvider';
 import { selection } from '../haptics';
 import { useCart } from '../store/cart';
 import { useUnreadBadges } from '../hooks/useUnreadBadges';
-import { useT } from '../i18n';
+import { formatLocalizedNumber, useT } from '../i18n';
 import { MAIN_TABS, mainTabKeyForPath } from '../navigation/mainNavigation';
 import { Icon } from './Icon';
 import { PressableScale } from './PressableScale';
+import { useSession } from '../store/session';
+
+export const CART_BADGE_FEEDBACK = {
+  peakScale: 1.08,
+  riseDurationMs: 80,
+  settleDurationMs: 120,
+} as const;
+
+export function shouldAnimateCartBadge(
+  previousCount: number,
+  currentCount: number,
+  reduceMotion: boolean,
+): boolean {
+  return currentCount > previousCount && !reduceMotion;
+}
 
 /**
  * App v2 floating pill nav: a dark rounded bar hovering above the bottom edge;
@@ -31,19 +46,59 @@ export function TabBar() {
   const cartCount = useCart((s) => s.count());
   const unread = useUnreadBadges();
   const t = useT();
+  const locale = useSession((s) => s.locale);
   const scale = useRef(new Animated.Value(1)).current;
   const prevCount = useRef(cartCount);
+  const [reduceMotion, setReduceMotion] = useState(true);
   const activeKey = mainTabKeyForPath(pathname);
 
   useEffect(() => {
-    if (cartCount > prevCount.current) {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        if (active) setReduceMotion(enabled);
+      })
+      .catch(() => {
+        if (active) setReduceMotion(false);
+      });
+
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      (enabled) => setReduceMotion(enabled),
+    );
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!reduceMotion) return;
+    scale.stopAnimation();
+    scale.setValue(1);
+  }, [reduceMotion, scale]);
+
+  useEffect(() => {
+    if (shouldAnimateCartBadge(prevCount.current, cartCount, reduceMotion)) {
+      scale.stopAnimation();
+      scale.setValue(1);
       Animated.sequence([
-        Animated.spring(scale, { toValue: 1.35, useNativeDriver: true, friction: 4 }),
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 4 }),
+        Animated.timing(scale, {
+          toValue: CART_BADGE_FEEDBACK.peakScale,
+          duration: CART_BADGE_FEEDBACK.riseDurationMs,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: CART_BADGE_FEEDBACK.settleDurationMs,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
       ]).start();
     }
     prevCount.current = cartCount;
-  }, [cartCount, scale]);
+  }, [cartCount, reduceMotion, scale]);
 
   return (
     <View style={[styles.wrap, { bottom: Math.max(insets.bottom, 14) }]}>
@@ -67,17 +122,21 @@ export function TabBar() {
               </View>
               {tab.key === 'cart' && cartCount > 0 && (
                 <Animated.View style={[styles.badge, { transform: [{ scale }] }]}>
-                  <Text style={styles.badgeText}>{cartCount}</Text>
+                  <Text style={styles.badgeText}>{formatLocalizedNumber(cartCount, locale)}</Text>
                 </Animated.View>
               )}
               {tab.key === 'orders' && unread.orders > 0 && (
-                <View style={styles.badge} accessibilityLabel={`${unread.orders} unread order messages`}>
-                  <Text style={styles.badgeText}>{unread.orders}</Text>
+                <View
+                  style={styles.badge}
+                  accessibilityLabel={t('tabBar.unreadOrders', { count: unread.orders })}>
+                  <Text style={styles.badgeText}>{formatLocalizedNumber(unread.orders, locale)}</Text>
                 </View>
               )}
               {tab.key === 'profile' && unread.support > 0 && (
-                <View style={styles.badge} accessibilityLabel={`${unread.support} unread support replies`}>
-                  <Text style={styles.badgeText}>{unread.support}</Text>
+                <View
+                  style={styles.badge}
+                  accessibilityLabel={t('tabBar.unreadSupport', { count: unread.support })}>
+                  <Text style={styles.badgeText}>{formatLocalizedNumber(unread.support, locale)}</Text>
                 </View>
               )}
             </View>

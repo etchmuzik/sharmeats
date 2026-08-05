@@ -22,13 +22,15 @@ import { font, radius, shadow } from '../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { db } from '../../src/data';
 import type { MenuItem, MenuSection, Restaurant, Review } from '../../src/data/types';
-import { formatEgp } from '../../src/lib/format';
+import { formatEgp, formatNumber, formatPrepTime } from '../../src/lib/format';
 import { useT } from '../../src/i18n';
+import { useDirection } from '../../src/lib/direction';
 import { useCart } from '../../src/store/cart';
 import { tap, selection } from '../../src/haptics';
 import { useFavorite } from '../../src/lib/favorites';
 import { effectiveIsOpen, closedReasonKey } from '../../src/lib/openHours';
 import { track } from '../../src/lib/analytics';
+import { useSession } from '../../src/store/session';
 
 export default function RestaurantDetail() {
   const colors = useThemeColors();
@@ -37,6 +39,8 @@ export default function RestaurantDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
+  const locale = useSession((s) => s.locale);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [sections, setSections] = useState<MenuSection[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -165,15 +169,17 @@ export default function RestaurantDetail() {
 
           <View style={styles.stats}>
             <View style={styles.stat}>
-              <Text style={styles.statV}>★ {restaurant.rating.toFixed(1)}</Text>
-              <Text style={styles.statL}>{restaurant.ratingCount} ratings</Text>
+              <Text style={styles.statV}>★ {formatNumber(restaurant.rating, locale)}</Text>
+              <Text style={styles.statL}>
+                {t('restaurant.ratings', { count: restaurant.ratingCount })}
+              </Text>
             </View>
             <View style={[styles.stat, styles.statDivider]}>
-              <Text style={styles.statV}>{restaurant.prepTimeLow}–{restaurant.prepTimeHigh} min</Text>
+              <Text style={styles.statV}>{formatPrepTime(restaurant.prepTimeLow, restaurant.prepTimeHigh, locale)}</Text>
               <Text style={styles.statL}>{t('restaurant.toYourHotel')}</Text>
             </View>
             <View style={[styles.stat, styles.statDivider]}>
-              <Text style={styles.statV}>{formatEgp(restaurant.deliveryFeeEgp)}</Text>
+              <Text style={styles.statV}>{formatEgp(restaurant.deliveryFeeEgp, locale)}</Text>
               <Text style={styles.statL}>{t('restaurant.delivery')}</Text>
             </View>
           </View>
@@ -223,7 +229,7 @@ export default function RestaurantDetail() {
                       </Text>
                     ) : (
                       <Text style={[styles.reviewBody, { color: colors.ink3 }]}>
-                        ★ {rv.ratingFood}/5
+                        ★ {formatNumber(rv.ratingFood, locale)}/{formatNumber(5, locale)}
                       </Text>
                     )}
                   </View>
@@ -284,7 +290,7 @@ export default function RestaurantDetail() {
                       {it.description}
                     </Text>
                     <View style={styles.itemMeta}>
-                      <Text style={styles.itemPrice}>{formatEgp(it.priceEgp)}</Text>
+                      <Text style={styles.itemPrice}>{formatEgp(it.priceEgp, locale)}</Text>
                       {/* Sold-by unit. Meaningless for a burger, essential for
                           groceries: 48 EGP tells you nothing until you know
                           whether it buys 1 L or a 6-pack. */}
@@ -333,25 +339,29 @@ export default function RestaurantDetail() {
         const shortBy = Math.max(0, (restaurant?.minOrderEgp ?? 0) - cartSubtotal);
         const belowMin = shortBy > 0;
         const cartLabel = belowMin
-          ? t('checkout.minOrderShort', { amount: formatEgp(shortBy) })
+          ? t('checkout.minOrderShort', { amount: formatEgp(shortBy, locale) })
           : t('restaurant.viewCart');
         const cartContent = (
-          <View style={styles.ctaContent}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={[styles.ctaContent, dir.row]}>
+            <View style={[styles.ctaPrimary, dir.row]}>
               <View style={[styles.ctaCount, belowMin ? styles.ctaCountWarning : styles.ctaCountGlass]}>
-                <Text style={[styles.ctaCountText, !belowMin && styles.ctaGlassText]}>{cartCount}</Text>
+                <Text style={[styles.ctaCountText, !belowMin && styles.ctaGlassText]}>
+                  {formatNumber(cartCount, locale)}
+                </Text>
               </View>
-              <Text style={[styles.ctaLabel, !belowMin && styles.ctaGlassText]}>{cartLabel}</Text>
+              <Text style={[styles.ctaLabel, !belowMin && styles.ctaGlassText, dir.text]}>{cartLabel}</Text>
             </View>
-            <Text style={[styles.ctaPrice, !belowMin && styles.ctaGlassText]}>{formatEgp(cartSubtotal)}</Text>
+            <Text style={[styles.ctaPrice, !belowMin && styles.ctaGlassText, dir.text]}>{formatEgp(cartSubtotal, locale)}</Text>
           </View>
         );
 
         if (!belowMin) {
           return (
             <GlassActionDock
+              testID="restaurant-view-cart"
               onPress={() => router.push('/(tabs)/cart')}
-              accessibilityLabel={`${cartLabel}, ${formatEgp(cartSubtotal)}`}
+              accessibilityLabel={`${cartLabel}, ${formatEgp(cartSubtotal, locale)}`}
+              accessibilityValue={{ text: `${formatNumber(cartCount, locale)} · ${formatEgp(cartSubtotal, locale)}` }}
               style={[styles.cta, { bottom: 24 + insets.bottom }]}>
               {cartContent}
             </GlassActionDock>
@@ -360,9 +370,11 @@ export default function RestaurantDetail() {
 
         return (
           <Pressable
+            testID="restaurant-view-cart"
             onPress={() => router.push('/(tabs)/cart')}
             accessibilityRole="button"
-            accessibilityLabel={`${cartLabel}, ${formatEgp(cartSubtotal)}`}
+            accessibilityLabel={`${cartLabel}, ${formatEgp(cartSubtotal, locale)}`}
+            accessibilityValue={{ text: `${formatNumber(cartCount, locale)} · ${formatEgp(cartSubtotal, locale)}` }}
             style={[styles.cta, styles.ctaWarn, { bottom: 24 + insets.bottom }]}>
             {cartContent}
           </Pressable>
@@ -513,6 +525,7 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  ctaPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   ctaWarn: { backgroundColor: colors.amber },
   ctaCount: {
     width: 26,
@@ -524,7 +537,7 @@ const useStyles = makeStyles((colors) => ({
   ctaCountWarning: { backgroundColor: colors.onInkOverlay },
   ctaCountGlass: { backgroundColor: 'rgba(255,253,250,0.18)' },
   ctaCountText: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.base },
-  ctaLabel: { color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
+  ctaLabel: { flexShrink: 1, color: colors.onInk, fontWeight: font.weights.bold, fontSize: font.sizes.xl },
   ctaPrice: { color: colors.onInk, fontWeight: font.weights.extrabold, fontSize: font.sizes['2xl'] },
   ctaGlassText: { color: colors.white },
 }));

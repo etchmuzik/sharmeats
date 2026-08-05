@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { toCsv } from '@/lib/csv';
 import type { DriverSettlement } from '@/lib/types';
 import { SignOutButton } from '../SignOutButton';
@@ -54,7 +55,7 @@ export default function DriverFinancePage() {
       .eq('period_end', end)
       .order('net_payable_egp', { ascending: false });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load driver statements. Please try again.' }), 'error');
       return;
     }
     const mapped = (data ?? []).map((r) => {
@@ -100,7 +101,7 @@ export default function DriverFinancePage() {
       toast(`Generated ${data ?? 0} driver statement(s) for ${start} → ${end}`, 'success');
       await loadRows();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Generate failed', 'error');
+      toast(safeDisplayError(e, { fallback: 'Could not generate driver statements. Please try again.' }), 'error');
     } finally {
       setBusy(false);
     }
@@ -110,7 +111,7 @@ export default function DriverFinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('finalize_driver_settlement', { p_settlement_id: id });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not finalize this statement. Please try again.' }), 'error');
       return;
     }
     toast('Statement finalized', 'success');
@@ -123,7 +124,7 @@ export default function DriverFinancePage() {
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.rpc('mark_driver_settlement_paid', { p_settlement_id: id, p_reference: ref });
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not mark this statement as paid. Please try again.' }), 'error');
       return;
     }
     toast('Marked paid', 'success');

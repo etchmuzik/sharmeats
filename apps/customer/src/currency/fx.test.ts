@@ -18,7 +18,9 @@ import {
   asSupportedCurrency,
   convertFromEgp,
   formatCurrency,
+  formatCurrencyAtRate,
   fxRateLine,
+  fxRateLineAtRate,
 } from './fx';
 
 describe('asSupportedCurrency (the boundary guard)', () => {
@@ -75,5 +77,26 @@ describe('display conversion', () => {
     for (const c of ALL_CURRENCIES.filter((x) => x !== 'EGP')) {
       expect(fxRateLine(c)).toMatch(new RegExp(`^1 ${c} = \\d+(\\.\\d+)? EGP$`));
     }
+  });
+});
+
+describe('locale-aware FX display', () => {
+  it('keeps every existing English conversion string when no locale is supplied', () => {
+    expect(formatCurrencyAtRate(100, 'USD', 50)).toBe('$2.00');
+    expect(fxRateLineAtRate('USD', 50)).toBe('1 USD = 50.00 EGP');
+  });
+
+  it('uses Egyptian Arabic digits and EGP notation for converted money', () => {
+    expect(formatCurrencyAtRate(1_250, 'USD', 50, 'ar')).toBe('\u200F٢٥٫٠٠\u00A0US$');
+    expect(formatCurrency(1_234.4, 'EGP', 'ar')).toBe('\u200F١٬٢٣٤\u00A0ج.م.\u200F');
+  });
+
+  it('uses Egyptian Arabic numbers and EGP notation in the rate disclosure', () => {
+    expect(fxRateLineAtRate('EUR', 52.85, 'ar')).toBe('\u200F١\u00A0EUR = \u200F٥٢٫٨٥\u00A0ج.م.\u200F');
+  });
+
+  it('uses each supported locale’s regional number formatting outside English', () => {
+    expect(formatCurrencyAtRate(1_234, 'EUR', 50, 'de')).toBe('24,68\u00A0€');
+    expect(fxRateLineAtRate('EUR', 52.85, 'de')).toBe('1\u00A0EUR = 52,85\u00A0EGP');
   });
 });

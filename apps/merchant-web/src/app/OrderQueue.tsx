@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { MerchantContext, MerchantOrder, OrderStatus } from '@/lib/types';
@@ -202,7 +204,7 @@ export function OrderQueue({
         // arrive to reconcile. Applying the optimistic update here would
         // silently drop the order from the queue (or jump it backward) while
         // it's still live in the DB. Surface the error and leave state alone.
-        toast(`Could not update order: ${error.message}`, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not update this order. Please try again.' }), 'error');
         return;
       }
       // Optimistic (success path only): the Realtime event will also arrive and

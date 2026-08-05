@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import {
   CUISINES,
   ZONES,
@@ -85,7 +86,7 @@ export function RestaurantEditor({
     });
     setSaving(false);
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not save this restaurant. Please try again.' }), 'error');
       return;
     }
     toast('Saved — live in the app now', 'success');
@@ -103,7 +104,7 @@ export function RestaurantEditor({
     const { error } = await supabase.rpc('admin_delete_restaurant', { p_id: form.id });
     setDeleting(false);
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not update this restaurant. Please try again.' }), 'error');
       return;
     }
     toast('Restaurant deleted', 'success');

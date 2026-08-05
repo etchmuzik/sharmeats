@@ -16,7 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PrimaryButton } from '../src/components/PrimaryButton';
-import { Mascot } from '../src/components/Mascot/Mascot';
+import { Icon, type IconName } from '../src/components/Icon';
 import { font } from '../src/theme';
 import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { useT, LOCALE_LABELS, ALL_LOCALES } from '../src/i18n';
@@ -24,11 +24,12 @@ import { useSession, type Locale } from '../src/store/session';
 import { useDirection } from '../src/lib/direction';
 import { syncLocaleToProfile } from '../src/lib/localeSync';
 import { selection } from '../src/haptics';
+import { radioAccessibilityState } from '../src/lib/accessibility';
 import { onboardingHeroHeight } from '../src/lib/onboardingLayout';
 
 type Slide = {
-  kind: 'mascot' | 'image';
-  pose?: 'wave' | 'cheer';
+  kind: 'brand' | 'icon' | 'image';
+  icon?: IconName;
   img?: ImageSourcePropType;
   titleKey: string;
   accentKey: string;
@@ -37,15 +38,14 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   {
-    kind: 'mascot',
-    pose: 'wave',
+    kind: 'brand',
     titleKey: 'onboarding.title1',
     accentKey: 'onboarding.accent1',
     descKey: 'onboarding.desc1',
   },
   {
-    kind: 'mascot',
-    pose: 'cheer',
+    kind: 'icon',
+    icon: 'cash',
     titleKey: 'onboarding.codTitle',
     accentKey: 'onboarding.codAccent',
     descKey: 'onboarding.codDesc',
@@ -119,12 +119,20 @@ export default function Onboarding() {
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled>
             <View style={[styles.imageWrap, { height: heroHeight }]}>
-              {s.kind === 'mascot' ? (
-                <View style={styles.mascotWrap}>
-                  <Mascot pose={s.pose} size={220} />
-                </View>
-              ) : (
+              {s.kind === 'image' ? (
                 <Image source={s.img} style={styles.image} />
+              ) : (
+                <View style={styles.heroVisual} accessible={false}>
+                  {s.kind === 'brand' ? (
+                    <View style={styles.brandMark}>
+                      <Text style={styles.brandMarkText}>s</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.heroIconMark}>
+                      <Icon name={s.icon ?? 'cash'} size={58} color={colors.sea} />
+                    </View>
+                  )}
+                </View>
               )}
               <LinearGradient
                 colors={['transparent', 'transparent', colors.bg]}
@@ -133,6 +141,7 @@ export default function Onboarding() {
               />
               {i < SLIDES.length - 1 && (
                 <Pressable
+                  testID="onboarding-skip"
                   onPress={startAsGuest}
                   accessibilityRole="button"
                   accessibilityLabel={t('common.skip')}
@@ -146,6 +155,7 @@ export default function Onboarding() {
                 </Pressable>
               )}
               <Pressable
+                testID="onboarding-locale-picker"
                 onPress={() => setPickerOpen((o) => !o)}
                 accessibilityRole="button"
                 accessibilityLabel={LOCALE_LABELS[locale]}
@@ -155,7 +165,8 @@ export default function Onboarding() {
                   { top: insets.top + 16 },
                   dir.isRtl ? { right: 20 } : { left: 20 },
                 ]}>
-                <Text style={styles.langText}>🌐 {LOCALE_LABELS[locale]}</Text>
+                <Icon name="globe" size={16} color={colors.ink} />
+                <Text style={styles.langText}>{LOCALE_LABELS[locale]}</Text>
               </Pressable>
               {pickerOpen && (
                 <View
@@ -178,7 +189,7 @@ export default function Onboarding() {
                         setPickerOpen(false);
                       }}
                       accessibilityRole="radio"
-                      accessibilityState={{ selected: l === locale }}
+                      accessibilityState={radioAccessibilityState(l === locale)}
                       style={[styles.langOpt, l === locale && styles.langOptActive]}>
                       <Text style={[styles.langOptText, l === locale && { color: colors.accent }]}>
                         {LOCALE_LABELS[l]}
@@ -204,11 +215,17 @@ export default function Onboarding() {
                   ))}
                 </View>
                 <PrimaryButton
+                  testID={i === SLIDES.length - 1 ? 'onboarding-get-started' : 'onboarding-next'}
                   label={i === SLIDES.length - 1 ? t('onboarding.getStarted') : t('common.continue')}
                   onPress={() => next(i)}
                 />
                 {i === SLIDES.length - 1 && (
-                  <Pressable onPress={() => router.replace('/signin')} style={styles.haveAccount}>
+                  <Pressable
+                    testID="onboarding-signin"
+                    onPress={() => router.replace('/signin')}
+                    style={styles.haveAccount}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('onboarding.haveAccount')}>
                     <Text style={styles.haveAccountText}>{t('onboarding.haveAccount')}</Text>
                   </Pressable>
                 )}
@@ -225,7 +242,32 @@ const useStyles = makeStyles((colors) => ({
   slideContent: { flexGrow: 1 },
   imageWrap: { position: 'relative' },
   image: { width: '100%', height: '100%' },
-  mascotWrap: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  heroVisual: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.sand,
+  },
+  brandMark: {
+    width: 112,
+    height: 112,
+    borderRadius: 32,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandMarkText: { color: colors.onAccent, fontSize: 64, fontWeight: font.weights.black, marginTop: -6 },
+  heroIconMark: {
+    width: 112,
+    height: 112,
+    borderRadius: 32,
+    backgroundColor: colors.seaSoft,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // NOTE: horizontal pinning (left/right 20) is applied inline per direction — see useDirection().
   skip: {
     position: 'absolute',
@@ -241,6 +283,9 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   langText: { fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.ink },
   langSheet: {

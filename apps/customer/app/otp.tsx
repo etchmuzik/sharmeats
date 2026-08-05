@@ -13,13 +13,14 @@ import { BackButton } from '../src/components/BackButton';
 import { StatusBarSpacer } from '../src/components/StatusBarSpacer';
 import { font, radius } from '../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvider';
-import { useT } from '../src/i18n';
+import { formatLocalizedNumber, useT } from '../src/i18n';
 import { useSession } from '../src/store/session';
 import { success } from '../src/haptics';
 import { registerForPush } from '../src/lib/push';
 import { syncFavoritesFromServer } from '../src/lib/favorites';
 import { db } from '../src/data';
 import { captureError } from '../src/lib/analytics';
+import { customerErrorKey } from '../src/lib/customerError';
 
 const LEN = 6;
 
@@ -28,6 +29,7 @@ export default function Otp() {
   const styles = useStyles();
   const router = useRouter();
   const t = useT();
+  const locale = useSession((s) => s.locale);
   const params = useLocalSearchParams<{ phone?: string }>();
   const signIn = useSession((s) => s.signIn);
   const phoneDisplay = params.phone ?? '+20 100 123 4567';
@@ -46,6 +48,12 @@ export default function Otp() {
 
   const focusedIdx = code.length;
   const digits = Array.from({ length: LEN }, (_, i) => code[i] ?? '');
+  const resendLabel =
+    seconds > 0
+      ? t('otp.resendCountdown', {
+          seconds: formatLocalizedNumber(seconds, locale, { minimumIntegerDigits: 2 }),
+        })
+      : t('otp.resendNow');
 
   // `submitted` must be passed explicitly by the auto-submit path: the timeout
   // fires against THIS render's closure, whose `code` still holds the value
@@ -73,7 +81,7 @@ export default function Otp() {
       router.replace('/(tabs)/home');
     } catch (e) {
       captureError(e, { where: 'otp.verify' });
-      setError(e instanceof Error ? e.message : t('error.otpInvalid'));
+      setError(t(customerErrorKey(e, 'verifyOtp')));
       setCode('');
     } finally {
       setVerifying(false);
@@ -88,7 +96,7 @@ export default function Otp() {
       setSeconds(42);
     } catch (e) {
       captureError(e, { where: 'otp.resend' });
-      setError(e instanceof Error ? e.message : t('error.otpResendFailed'));
+      setError(t(customerErrorKey(e, 'resendOtp')));
     }
   };
 
@@ -126,7 +134,9 @@ export default function Otp() {
           <View
             key={i}
             style={[styles.box, d ? styles.boxFilled : null, i === focusedIdx ? styles.boxActive : null]}>
-            <Text style={styles.boxDigit}>{d}</Text>
+            <Text style={styles.boxDigit} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {d}
+            </Text>
           </View>
         ))}
         <TextInput
@@ -155,15 +165,9 @@ export default function Otp() {
           disabled={seconds > 0}
           accessibilityRole="button"
           accessibilityState={{ disabled: seconds > 0 }}
-          accessibilityLabel={
-            seconds > 0
-              ? t('otp.resendCountdown', { seconds: seconds.toString().padStart(2, '0') })
-              : t('otp.resendNow')
-          }>
+          accessibilityLabel={resendLabel}>
           <Text style={[styles.resendAction, seconds > 0 && styles.resendActionDisabled]}>
-            {seconds > 0
-              ? t('otp.resendCountdown', { seconds: seconds.toString().padStart(2, '0') })
-              : t('otp.resendNow')}
+            {resendLabel}
           </Text>
         </Pressable>
       </View>
@@ -205,9 +209,17 @@ const useStyles = makeStyles((colors) => ({
   phone: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold, lineHeight: 22 },
   phoneSeparator: { fontSize: font.sizes.xl, color: colors.ink2, lineHeight: 22 },
   edit: { color: colors.accent, fontSize: font.sizes.xl, fontWeight: font.weights.semibold, lineHeight: 22 },
-  boxes: { flexDirection: 'row', gap: 10, justifyContent: 'center', paddingVertical: 32 },
+  boxes: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
   box: {
-    width: 48,
+    flex: 1,
+    maxWidth: 48,
+    minWidth: 32,
     height: 56,
     borderWidth: 1.5,
     borderColor: colors.line,

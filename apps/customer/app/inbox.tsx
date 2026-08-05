@@ -107,7 +107,7 @@ export default function Inbox() {
           <ActivityIndicator color={colors.accent} />
         </View>
       ) : items.length === 0 ? (
-        <EmptyState title={t('inbox.empty')} body={t('inbox.emptyDesc')} />
+        <EmptyState icon="bell" title={t('inbox.empty')} body={t('inbox.emptyDesc')} />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
           {items.map((m) => {

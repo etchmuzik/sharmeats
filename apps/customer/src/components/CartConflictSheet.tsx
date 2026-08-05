@@ -20,9 +20,10 @@
  */
 import { Modal, Pressable, Text, View } from 'react-native';
 import { font, radius, shadow } from '../theme';
-import { makeStyles } from '../themeProvider';
+import { makeStyles, useThemeColors } from '../themeProvider';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
+import { Icon } from './Icon';
 
 export interface CartConflictSheetProps {
   visible: boolean;
@@ -54,6 +55,7 @@ export function CartConflictSheet({
   const t = useT();
   const dir = useDirection();
   const styles = useStyles();
+  const colors = useThemeColors();
 
   return (
     <Modal
@@ -64,7 +66,9 @@ export function CartConflictSheet({
       onRequestClose={onKeepLocal}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.emoji}>🛒</Text>
+          <View style={styles.iconWrap} accessible={false}>
+            <Icon name="cart" size={26} color={colors.sea} />
+          </View>
           <Text style={[styles.title, dir.text, styles.center]}>{t('cart.conflictTitle')}</Text>
 
           <Text style={[styles.body, dir.text, styles.center]}>
@@ -116,7 +120,15 @@ const useStyles = makeStyles((colors) => ({
     alignItems: 'center',
     ...shadow.card,
   },
-  emoji: { fontSize: 44, marginBottom: 8 },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.pill,
+    backgroundColor: colors.seaSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   // dir.text supplies writingDirection (correct for mixed Arabic/Latin strings);
   // this sheet's copy is centred, so textAlign is overridden AFTER it.
   center: { textAlign: 'center' },

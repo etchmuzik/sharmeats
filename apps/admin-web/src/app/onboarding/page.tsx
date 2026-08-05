@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { hasErrorMarker, safeDisplayError } from '@/lib/displayError';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -157,13 +158,13 @@ export default function OnboardingQueuePage() {
     });
     setBusyId(null);
     if (error) {
-      const m = error.message;
+      const m = safeDisplayError(error, { fallback: 'Could not update this application. Please try again.' });
       toast(
-        m.includes('KYC_INCOMPLETE')
+        hasErrorMarker(error, 'KYC_INCOMPLETE')
           ? 'Blocked: 3 approved KYC docs required.'
-          : m.includes('MENU_EMPTY')
+          : hasErrorMarker(error, 'MENU_EMPTY')
             ? 'Blocked: seed the menu first.'
-            : m.includes('REASON_REQUIRED')
+            : hasErrorMarker(error, 'REASON_REQUIRED')
               ? 'A rejection reason is required.'
               : `Failed: ${m}`,
         'error',
@@ -188,7 +189,7 @@ export default function OnboardingQueuePage() {
       p_pct: pct,
     });
     if (error) {
-      toast(`Failed: ${error.message}`, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load applications. Please try again.' }), 'error');
       return;
     }
     toast('Commission updated', 'success');

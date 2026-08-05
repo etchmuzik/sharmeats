@@ -1,3 +1,5 @@
+import type { Locale } from '../store/session';
+
 export type Currency = 'EGP' | 'EUR' | 'USD' | 'GBP' | 'RUB';
 
 /**
@@ -35,19 +37,66 @@ const SYMBOLS: Record<Currency, string> = {
   RUB: '₽',
 };
 
+// Keep this module independent from the session store at runtime: callers pass
+// their display language explicitly, and the type-only import above is erased.
+const INTL_LOCALES: Record<Locale, string> = {
+  en: 'en-US',
+  ar: 'ar-EG',
+  ru: 'ru-RU',
+  it: 'it-IT',
+  de: 'de-DE',
+};
+
+function isLegacyEnglish(locale: Locale | undefined): boolean {
+  return locale === undefined || locale === 'en';
+}
+
+function localeIdentifier(locale: Locale | undefined): string {
+  return INTL_LOCALES[locale ?? 'en'];
+}
+
+function formatLocalizedCurrency(
+  value: number,
+  currency: Currency,
+  locale: Locale | undefined,
+  fractionDigits: number,
+  currencyDisplay: Intl.NumberFormatOptions['currencyDisplay'] = 'symbol',
+): string {
+  return new Intl.NumberFormat(localeIdentifier(locale), {
+    style: 'currency',
+    currency,
+    currencyDisplay,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
+function formatLocalizedRateLine(currency: Currency, rate: number, locale: Locale | undefined): string {
+  const sourceUnit = formatLocalizedCurrency(1, currency, locale, 0, 'code');
+  const egpRate = formatLocalizedCurrency(rate, 'EGP', locale, 2);
+  return `${sourceUnit} = ${egpRate}`;
+}
+
 export function convertFromEgp(amountEgp: number, target: Currency): number {
   if (target === 'EGP') return amountEgp;
   return amountEgp / RATES_PER_UNIT[target];
 }
 
-export function formatCurrency(amountEgp: number, currency: Currency): string {
-  if (currency === 'EGP') return `EGP ${Math.round(amountEgp).toLocaleString('en-US')}`;
+export function formatCurrency(amountEgp: number, currency: Currency, locale?: Locale): string {
+  if (isLegacyEnglish(locale)) {
+    if (currency === 'EGP') return `EGP ${Math.round(amountEgp).toLocaleString('en-US')}`;
+    const converted = convertFromEgp(amountEgp, currency);
+    return `${SYMBOLS[currency]}${converted.toFixed(2)}`;
+  }
+
+  if (currency === 'EGP') return formatLocalizedCurrency(Math.round(amountEgp), currency, locale, 0);
   const converted = convertFromEgp(amountEgp, currency);
-  return `${SYMBOLS[currency]}${converted.toFixed(2)}`;
+  return formatLocalizedCurrency(converted, currency, locale, 2);
 }
 
-export function fxRateLine(currency: Currency): string | null {
+export function fxRateLine(currency: Currency, locale?: Locale): string | null {
   if (currency === 'EGP') return null;
+  if (!isLegacyEnglish(locale)) return formatLocalizedRateLine(currency, RATES_PER_UNIT[currency], locale);
   return `1 ${currency} = ${RATES_PER_UNIT[currency].toFixed(2)} EGP`;
 }
 
@@ -57,13 +106,24 @@ export function fxRateLine(currency: Currency): string | null {
  * functions above remain for the static-fallback path and existing tests;
  * render surfaces should prefer these with `resolveRate()`.
  */
-export function formatCurrencyAtRate(amountEgp: number, currency: Currency, rate: number): string {
-  if (currency === 'EGP') return `EGP ${Math.round(amountEgp).toLocaleString('en-US')}`;
-  return `${SYMBOLS[currency]}${(amountEgp / rate).toFixed(2)}`;
+export function formatCurrencyAtRate(
+  amountEgp: number,
+  currency: Currency,
+  rate: number,
+  locale?: Locale,
+): string {
+  if (isLegacyEnglish(locale)) {
+    if (currency === 'EGP') return `EGP ${Math.round(amountEgp).toLocaleString('en-US')}`;
+    return `${SYMBOLS[currency]}${(amountEgp / rate).toFixed(2)}`;
+  }
+
+  if (currency === 'EGP') return formatLocalizedCurrency(Math.round(amountEgp), currency, locale, 0);
+  return formatLocalizedCurrency(amountEgp / rate, currency, locale, 2);
 }
 
-export function fxRateLineAtRate(currency: Currency, rate: number): string | null {
+export function fxRateLineAtRate(currency: Currency, rate: number, locale?: Locale): string | null {
   if (currency === 'EGP') return null;
+  if (!isLegacyEnglish(locale)) return formatLocalizedRateLine(currency, rate, locale);
   return `1 ${currency} = ${rate.toFixed(2)} EGP`;
 }
 

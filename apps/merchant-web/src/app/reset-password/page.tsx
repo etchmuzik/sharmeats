@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -51,7 +53,7 @@ export default function ResetPasswordPage() {
     setError(null);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
-    if (error) return setError(error.message);
+    if (error) return setError(safeDisplayError(error, { fallback: 'Could not update your password. Please try again.' }));
     setDone(true);
     setTimeout(() => router.replace('/'), 1500);
   }

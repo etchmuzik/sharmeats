@@ -2,10 +2,12 @@ import { Text, View } from 'react-native';
 import { font, radius } from '../theme';
 import { makeStyles, useThemeColors } from '../themeProvider';
 import { formatEgp } from '../lib/format';
+import { radioAccessibilityState } from '../lib/accessibility';
 import { useDirection } from '../lib/direction';
 import { useT } from '../i18n';
 import type { Modifier } from '../data/types';
 import { PressableScale } from './PressableScale';
+import { useSession } from '../store/session';
 
 interface Props {
   modifier: Modifier;
@@ -50,6 +52,7 @@ function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>
   const s = useSStyles();
   const t = useT();
   const dir = useDirection();
+  const locale = useSession((state) => state.locale);
   const single = m.maxSelect === 1;
   return (
     <View style={[s.sizeRow, dir.row]}>
@@ -61,7 +64,7 @@ function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>
             haptic="selection"
             onPress={() => onToggle(o.id)}
             accessibilityRole={single ? 'radio' : 'checkbox'}
-            accessibilityState={single ? { selected: on } : { checked: on }}
+            accessibilityState={single ? radioAccessibilityState(on) : { checked: on }}
             accessibilityLabel={`${m.name}: ${o.name}`}
             accessibilityHint={on ? t('modifier.remove') : t('modifier.add')}
             style={[s.sizePill, on && s.sizePillOn]}>
@@ -70,7 +73,7 @@ function SizeRow({ m, selected, onToggle }: { m: Modifier; selected: Set<string>
             {o.priceDeltaEgp !== 0 && (
               <Text style={[s.sizeDelta, on && s.sizeSubOn, dir.text]}>
                 {o.priceDeltaEgp > 0 ? '+' : ''}
-                {formatEgp(o.priceDeltaEgp)}
+                {formatEgp(o.priceDeltaEgp, locale)}
               </Text>
             )}
           </PressableScale>
@@ -113,6 +116,7 @@ function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<stri
   const s = useSStyles();
   const t = useT();
   const dir = useDirection();
+  const locale = useSession((state) => state.locale);
   return (
     <View style={s.cardWrap}>
       {m.options.map((o) => {
@@ -143,7 +147,7 @@ function AddonCards({ m, selected, onToggle }: { m: Modifier; selected: Set<stri
               {o.priceDeltaEgp !== 0 ? (
                 <Text style={[s.cardPrice, dir.text]}>
                   {o.priceDeltaEgp > 0 ? '+' : ''}
-                  {formatEgp(o.priceDeltaEgp)}
+                  {formatEgp(o.priceDeltaEgp, locale)}
                 </Text>
               ) : (
                 <Text style={[s.cardFree, dir.text]}>{t('modifier.free')}</Text>
@@ -164,6 +168,7 @@ function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string
   const s = useSStyles();
   const t = useT();
   const dir = useDirection();
+  const locale = useSession((state) => state.locale);
   const single = m.maxSelect === 1;
   return (
     <View>
@@ -175,7 +180,7 @@ function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string
             haptic="selection"
             onPress={() => onToggle(o.id)}
             accessibilityRole={single ? 'radio' : 'checkbox'}
-            accessibilityState={single ? { selected: on } : { checked: on }}
+            accessibilityState={single ? radioAccessibilityState(on) : { checked: on }}
             accessibilityLabel={`${m.name}: ${o.name}`}
             accessibilityHint={on ? t('modifier.remove') : t('modifier.add')}
             style={[s.row, dir.row]}>
@@ -186,7 +191,7 @@ function ListRows({ m, selected, onToggle }: { m: Modifier; selected: Set<string
             {o.priceDeltaEgp !== 0 && (
               <Text style={[s.rowPrice, dir.text]}>
                 {o.priceDeltaEgp > 0 ? '+' : ''}
-                {formatEgp(o.priceDeltaEgp)}
+                {formatEgp(o.priceDeltaEgp, locale)}
               </Text>
             )}
           </PressableScale>

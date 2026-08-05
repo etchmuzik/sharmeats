@@ -77,4 +77,9 @@ describe('formatQuietWindow', () => {
     expect(formatQuietWindow(prefs({ quietHoursStart: 8, quietHoursEnd: 9 }))).toBe('08:00 – 09:00');
     expect(formatQuietWindow(prefs({ quietHoursStart: 22, quietHoursEnd: 8 }))).toBe('22:00 – 08:00');
   });
+  it('uses the selected locale for clock digits', () => {
+    expect(formatQuietWindow(prefs({ quietHoursStart: 22, quietHoursEnd: 8 }), 'ar')).toBe(
+      '٢٢:٠٠ – ٠٨:٠٠',
+    );
+  });
 });

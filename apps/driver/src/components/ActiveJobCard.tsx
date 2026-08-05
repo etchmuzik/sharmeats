@@ -3,9 +3,11 @@
  * screen that is *live* — everything else is a list or a number, this is a
  * commitment the driver is currently inside.
  *
- * The unread-message affordance is a nested Pressable so a driver can jump
- * straight to the chat without landing on the job screen first; a customer
- * asking "which gate?" mid-ride is time-critical.
+ * The unread-message affordance is a sibling Pressable (not nested inside the
+ * card's own Pressable — that breaks screen-reader navigation and ambiguous
+ * hit-testing) so a driver can still jump straight to the chat without landing
+ * on the job screen first; a customer asking "which gate?" mid-ride is
+ * time-critical.
  */
 import { Pressable, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -45,17 +47,8 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
 
   return (
     <Animated.View entering={cardEnter} layout={listReflow}>
-      <Pressable
-        onPress={() => {
-          tapLight();
-          onOpen();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={t('job.continueA11y', {
-          code: job.short_code,
-          restaurant: job.restaurant_name,
-        })}
-        style={({ pressed }) => ({
+      <View
+        style={{
           marginHorizontal: spacing.xl,
           marginBottom: spacing.lg,
           backgroundColor: colors.ink,
@@ -64,50 +57,65 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
           padding: spacing.xl,
           gap: 4,
           direction: direction.direction,
-          opacity: pressed ? 0.9 : 1,
           boxShadow: '0 4px 16px rgba(10, 10, 12, 0.22)',
-        })}
+        }}
       >
-        <Text
-          style={{
-            color: colors.accentSoft,
-            fontSize: font.sizes.xs,
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: 0.6,
+        <Pressable
+          onPress={() => {
+            tapLight();
+            onOpen();
           }}
+          accessibilityRole="button"
+          accessibilityLabel={t('job.continueA11y', {
+            code: job.short_code,
+            restaurant: job.restaurant_name,
+          })}
+          style={({ pressed }) => ({
+            gap: 4,
+            opacity: pressed ? 0.9 : 1,
+          })}
         >
-          {t('job.active')}
-        </Text>
-        {/* onInk*, not white/hardcoded greys: this slab is filled with `ink`,
-            which is near-white on the dark theme — a fixed light label would
-            vanish on it. The two greys below were literal hexes for the same
-            reason and are now tokens that invert with the slab. */}
-        <Text
-          style={{
-            color: colors.onInk,
-            fontSize: font.sizes.xl,
-            fontWeight: '700',
-            textAlign: direction.textAlign,
-          }}
-          selectable
-        >
-          <Text style={{ writingDirection: 'ltr' }}>{job.short_code}</Text> ·{' '}
-          {job.restaurant_name}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ color: colors.onInkMuted, fontSize: font.sizes.sm }}>
-            {t(statusKey(job.status))}
+          <Text
+            style={{
+              color: colors.accentSoft,
+              fontSize: font.sizes.xs,
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: 0.6,
+            }}
+          >
+            {t('job.active')}
           </Text>
-          <Text style={{ color: colors.onInkFaint, fontSize: font.sizes.sm }}>
-            · {t('job.continue')}
+          {/* onInk*, not white/hardcoded greys: this slab is filled with `ink`,
+              which is near-white on the dark theme — a fixed light label would
+              vanish on it. The two greys below were literal hexes for the same
+              reason and are now tokens that invert with the slab. */}
+          <Text
+            style={{
+              color: colors.onInk,
+              fontSize: font.sizes.xl,
+              fontWeight: '700',
+              textAlign: direction.textAlign,
+            }}
+            selectable
+          >
+            <Text style={{ writingDirection: 'ltr' }}>{job.short_code}</Text> ·{' '}
+            {job.restaurant_name}
           </Text>
-          <Icon
-            name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'}
-            size={13}
-            color={colors.onInkFaint}
-          />
-        </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ color: colors.onInkMuted, fontSize: font.sizes.sm }}>
+              {t(statusKey(job.status))}
+            </Text>
+            <Text style={{ color: colors.onInkFaint, fontSize: font.sizes.sm }}>
+              · {t('job.continue')}
+            </Text>
+            <Icon
+              name={direction.direction === 'rtl' ? 'chevronBack' : 'chevronForward'}
+              size={13}
+              color={colors.onInkFaint}
+            />
+          </View>
+        </Pressable>
 
         {unreadMsgs > 0 && (
           <Pressable
@@ -142,7 +150,7 @@ export function ActiveJobCard({ job, unreadMsgs, onOpen, onOpenChat }: Props) {
             </Text>
           </Pressable>
         )}
-      </Pressable>
+      </View>
     </Animated.View>
   );
 }

@@ -116,6 +116,7 @@ export default function BrowseTab() {
   const rememberSearch = useSession((s) => s.rememberSearch);
   const forgetSearch = useSession((s) => s.forgetSearch);
   const clearRecentSearches = useSession((s) => s.clearRecentSearches);
+  const locale = useSession((s) => s.locale);
 
   // Sorted+joined so the effect re-runs when the flag SET CHANGES, not merely
   // when its size does: swapping vegetarian for gluten-free keeps size at 1, and
@@ -411,8 +412,8 @@ export default function BrowseTab() {
           <View>
             {showRecents && (
               <View style={styles.recentWrap}>
-                <View style={styles.recentHead}>
-                  <Text style={styles.sectionTitle}>{t('browse.recent')}</Text>
+                <View style={[styles.recentHead, dir.row]}>
+                  <Text style={[styles.sectionTitle, dir.text]}>{t('browse.recent')}</Text>
                   <Pressable
                     onPress={() => {
                       tap();
@@ -421,35 +422,42 @@ export default function BrowseTab() {
                     }}
                     hitSlop={8}
                     accessibilityRole="button">
-                    <Text style={styles.recentClear}>{t('browse.clearAll')}</Text>
+                    <Text style={[styles.recentClear, dir.text]}>{t('browse.clearAll')}</Text>
                   </Pressable>
                 </View>
                 {recentSearches.map((q) => (
-                  <Pressable
+                  <View
                     key={q.toLowerCase()}
-                    onPress={() => runRecentSearch(q)}
-                    style={({ pressed }) => [
+                    style={[
                       styles.recentRow,
                       { flexDirection: dir.isRtl ? 'row-reverse' : 'row' },
-                      pressed && { opacity: 0.85 },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('browse.searchAgain', { query: q })}>
-                    <Icon name="history" size={16} color={colors.ink3} />
-                    <Text style={styles.recentText} numberOfLines={1}>
-                      {q}
-                    </Text>
+                    ]}>
+                    <Pressable
+                      onPress={() => runRecentSearch(q)}
+                      style={({ pressed }) => [
+                        styles.recentSearchHit,
+                        { flexDirection: dir.isRtl ? 'row-reverse' : 'row' },
+                        pressed && { opacity: 0.85 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('browse.searchAgain', { query: q })}>
+                      <Icon name="history" size={16} color={colors.ink3} />
+                      <Text style={[styles.recentText, dir.text]} numberOfLines={1}>
+                        {q}
+                      </Text>
+                    </Pressable>
                     <Pressable
                       onPress={() => {
                         tap();
                         forgetSearch(q);
                       }}
-                      hitSlop={12}
+                      style={styles.forgetSearchButton}
+                      hitSlop={8}
                       accessibilityRole="button"
                       accessibilityLabel={t('browse.forgetSearch', { query: q })}>
                       <Icon name="close" size={15} color={colors.ink3} />
                     </Pressable>
-                  </Pressable>
+                  </View>
                 ))}
               </View>
             )}
@@ -494,7 +502,7 @@ export default function BrowseTab() {
                         {m.restaurant.name}
                       </Text>
                     </View>
-                    <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp)}</Text>
+                    <Text style={styles.menuPrice}>{formatEgp(m.item.priceEgp, locale)}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -633,11 +641,17 @@ const useStyles = makeStyles((colors) => ({
   },
   recentRow: {
     alignItems: 'center',
+    gap: 2,
+  },
+  recentSearchHit: {
+    flex: 1,
+    alignItems: 'center',
     gap: 12,
     paddingVertical: 11,
     paddingHorizontal: 8,
     borderRadius: radius.md,
   },
+  forgetSearchButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   recentText: { flex: 1, fontSize: font.sizes.lg, color: colors.ink },
   emptyWrap: { paddingTop: 48, alignItems: 'center', gap: 10, paddingHorizontal: 24 },
   emptyTitle: {

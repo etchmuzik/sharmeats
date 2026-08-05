@@ -21,6 +21,7 @@ import { syncLocaleToProfile } from '../src/lib/localeSync';
 import { getReleaseInfo, formatReleaseLine } from '../src/lib/release';
 import { getPermissionDecision } from '../src/lib/push';
 import type { PermissionDecision } from '../src/lib/pushPermission';
+import { radioAccessibilityState } from '../src/lib/accessibility';
 
 // 22:00–08:00 local. Sharm dines late, so a window starting much earlier would
 // suppress offers during real ordering hours.
@@ -160,6 +161,9 @@ export default function Settings() {
                     // Best-effort: never blocks the tap.
                     void syncLocaleToProfile(l as Locale);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityState={radioAccessibilityState(isSel)}
+                  accessibilityLabel={LOCALE_LABELS[l]}
                   style={[styles.row, isSel && styles.rowActive]}>
                   <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
                     {LOCALE_LABELS[l]}
@@ -183,6 +187,9 @@ export default function Settings() {
                     selection();
                     setCurrency(c as Currency);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityState={radioAccessibilityState(isSel)}
+                  accessibilityLabel={c}
                   style={[styles.row, isSel && styles.rowActive]}>
                   <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
                     {c}
@@ -207,7 +214,7 @@ export default function Settings() {
                     setThemeMode(m.key);
                   }}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: isSel }}
+                  accessibilityState={radioAccessibilityState(isSel)}
                   accessibilityLabel={t(m.tKey)}
                   style={[styles.row, isSel && styles.rowActive]}>
                   <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
@@ -226,6 +233,8 @@ export default function Settings() {
             tap();
             router.push('/settings/allergies');
           }}
+          accessibilityRole="button"
+          accessibilityLabel={t('profile.allergies')}
           style={styles.card}>
           <View style={styles.allergyRow}>
             <Text style={styles.cardTitle}>{t('profile.allergies')}</Text>
@@ -310,8 +319,8 @@ export default function Settings() {
             </View>
           ) : null}
 
-          {prefs.marketing && formatQuietWindow(prefs) ? (
-            <Text style={styles.quietWindow}>{formatQuietWindow(prefs)}</Text>
+          {prefs.marketing && formatQuietWindow(prefs, locale) ? (
+            <Text style={styles.quietWindow}>{formatQuietWindow(prefs, locale)}</Text>
           ) : null}
         </View>
 

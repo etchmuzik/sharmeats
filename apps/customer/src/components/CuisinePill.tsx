@@ -16,6 +16,9 @@ export function CuisinePill({ label, emoji, active, onPress }: Props) {
     <PressableScale
       haptic="selection"
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: Boolean(active) }}
       style={[styles.pill, active && styles.active]}>
       <Text style={[styles.label, active && styles.labelActive]}>
         {emoji ? `${emoji} ${label}` : label}
@@ -26,12 +29,14 @@ export function CuisinePill({ label, emoji, active, onPress }: Props) {
 
 const useStyles = makeStyles((colors) => ({
   pill: {
+    minHeight: 44,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: radius.pill,
+    justifyContent: 'center',
   },
   active: { backgroundColor: colors.ink, borderColor: colors.ink },
   label: { fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.ink },

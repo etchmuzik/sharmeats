@@ -21,6 +21,7 @@ import { font, radius, shadow } from '../theme';
 import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 import { useDirection } from '../lib/direction';
+import { Icon } from './Icon';
 
 export interface PushPrimerProps {
   visible: boolean;
@@ -39,7 +40,9 @@ export function PushPrimer({ visible, context, onAllow, onDismiss }: PushPrimerP
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.emoji}>🔔</Text>
+          <View style={styles.iconWrap} accessible={false}>
+            <Icon name="bell" size={24} color={styles.icon.color} />
+          </View>
           <Text style={[styles.title, dir.text, styles.center]}>
             {context === 'first_order'
               ? t('push.primerOrderTitle')
@@ -54,10 +57,20 @@ export function PushPrimer({ visible, context, onAllow, onDismiss }: PushPrimerP
             {t('push.primerOffersBody')}
           </Text>
 
-          <Pressable style={styles.allow} onPress={onAllow} accessibilityRole="button">
+          <Pressable
+            testID="push-primer-allow"
+            style={styles.allow}
+            onPress={onAllow}
+            accessibilityRole="button"
+            accessibilityLabel={t('push.primerAllow')}>
             <Text style={styles.allowText}>{t('push.primerAllow')}</Text>
           </Pressable>
-          <Pressable style={styles.later} onPress={onDismiss} accessibilityRole="button">
+          <Pressable
+            testID="push-primer-dismiss"
+            style={styles.later}
+            onPress={onDismiss}
+            accessibilityRole="button"
+            accessibilityLabel={t('push.primerNotNow')}>
             <Text style={styles.laterText}>{t('push.primerNotNow')}</Text>
           </Pressable>
         </View>
@@ -80,7 +93,16 @@ const useStyles = makeStyles((colors) => ({
     alignItems: 'center',
     ...shadow.card,
   },
-  emoji: { fontSize: 44, marginBottom: 8 },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.seaSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  icon: { color: colors.sea },
   // dir.text supplies writingDirection (correct for mixed Arabic/Latin
   // strings); this modal's copy is centred, so textAlign is overridden after it.
   center: { textAlign: 'center' },

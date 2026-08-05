@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 /**
  * The merchant's home while their application is under review (submitted) or
  * after a rejection. Checklist: submitted ✓ → 3 KYC docs → menu (ops-seeded) →
@@ -62,7 +64,7 @@ export function ApplicationStatus({
       await uploadKycDocument(supabase, staff.restaurant_id, docType, file);
       await refresh();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Upload failed — try again.');
+      setError(safeDisplayError(e, { fallback: 'Upload failed — try again.' }));
     } finally {
       setUploading(null);
     }

@@ -11,6 +11,8 @@
  * wins and the UI is the thing that is lying.
  */
 import type { NotificationPrefs } from '../data/types';
+import { formatLocalizedNumber } from '../i18n/interpolation';
+import type { Locale } from '../store/session';
 
 /** Server-side defaults from mig 138: transactional on, marketing OPT-IN. */
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -45,8 +47,9 @@ export function marketingSuppressed(prefs: NotificationPrefs, hour: number): boo
 }
 
 /** "22:00 – 08:00", or null when no window is set. */
-export function formatQuietWindow(prefs: NotificationPrefs): string | null {
+export function formatQuietWindow(prefs: NotificationPrefs, locale: Locale = 'en'): string | null {
   if (prefs.quietHoursStart === null || prefs.quietHoursEnd === null) return null;
-  const pad = (h: number) => String(h).padStart(2, '0');
-  return `${pad(prefs.quietHoursStart)}:00 – ${pad(prefs.quietHoursEnd)}:00`;
+  const pad = (hour: number) => formatLocalizedNumber(hour, locale, { minimumIntegerDigits: 2 });
+  const minutes = formatLocalizedNumber(0, locale, { minimumIntegerDigits: 2 });
+  return `${pad(prefs.quietHoursStart)}:${minutes} – ${pad(prefs.quietHoursEnd)}:${minutes}`;
 }

@@ -66,6 +66,23 @@ jobs:
         working-directory: ${{ matrix.surface }}
         run: npm test --if-present
 
+      # The customer app's Supabase adapter uses an RPC-backed order path.
+      # Its contract script is deliberately separate from Vitest because it
+      # stubs the Supabase query builder at its public boundary; a unit-only
+      # run cannot catch drift between the adapter and the RPC payload.
+      - name: Customer Supabase adapter contracts
+        if: matrix.surface == 'apps/customer'
+        working-directory: apps/customer
+        run: npm run test:adapters
+
+      # TypeScript and unit tests do not execute Metro's production module
+      # graph. Export catches a missing native/package export or route-level
+      # bundle failure before it reaches an EAS build.
+      - name: Customer iOS production export
+        if: matrix.surface == 'apps/customer'
+        working-directory: apps/customer
+        run: npm run export
+
       - name: Lint
         working-directory: ${{ matrix.surface }}
         run: npm run lint --if-present

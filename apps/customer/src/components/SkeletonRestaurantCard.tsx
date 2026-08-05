@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
 import { radius, shadow } from '../theme';
 import { makeStyles } from '../themeProvider';
 
@@ -8,11 +8,42 @@ import { makeStyles } from '../themeProvider';
  * RestaurantCard's layout (96px cover + text lines) so the list doesn't
  * jump when real cards arrive. Pure presentation: no data, no navigation.
  */
+export function shouldAnimateSkeleton(reduceMotion: boolean | null): boolean {
+  return reduceMotion === false;
+}
+
 export function SkeletonRestaurantCard() {
   const styles = useStyles();
   const opacity = useRef(new Animated.Value(0.55)).current;
+  // Start still until the system setting has resolved. This avoids a brief
+  // shimmer flash for people who have explicitly asked for reduced motion.
+  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        if (mounted) setReduceMotion(enabled);
+      })
+      // If the accessibility service is unavailable, retain the ordinary
+      // loading affordance rather than leaving a permanent static skeleton.
+      .catch(() => {
+        if (mounted) setReduceMotion(false);
+      });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!shouldAnimateSkeleton(reduceMotion)) {
+      opacity.setValue(0.72);
+      return;
+    }
+
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -31,7 +62,7 @@ export function SkeletonRestaurantCard() {
     );
     loop.start();
     return () => loop.stop();
-  }, [opacity]);
+  }, [opacity, reduceMotion]);
 
   return (
     <View

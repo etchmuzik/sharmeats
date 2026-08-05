@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { hasErrorMarker, safeDisplayError } from '@/lib/displayError';
 import { toCsv } from '@/lib/csv';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -83,7 +84,7 @@ export default function FoundingRatesPage() {
     const supabase = createSupabaseBrowserClient();
     const { data, error } = await supabase.rpc('founding_rate_report');
     if (error) {
-      toast(error.message, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not load founding rates. Please try again.' }), 'error');
       return false;
     }
     setRows((data as ReportRow[]) ?? []);
@@ -144,9 +145,9 @@ export default function FoundingRatesPage() {
     setBusyId(null);
     if (error) {
       toast(
-        error.message.includes('INVALID_DATE')
+        hasErrorMarker(error, 'INVALID_DATE')
           ? 'That date is too far in the future — check the year.'
-          : `Failed: ${error.message}`,
+          : safeDisplayError(error, { fallback: 'Could not update the founding rate. Please try again.' }),
         'error',
       );
       return;
@@ -180,7 +181,7 @@ export default function FoundingRatesPage() {
     }
     setBusyId(null);
     if (error) {
-      toast(`Failed: ${error.message}`, 'error');
+      toast(safeDisplayError(error, { fallback: 'Could not move this restaurant to the standard rate. Please try again.' }), 'error');
       return;
     }
     toast(`${row.name} is now on ${STANDARD_PCT}%`, 'success');

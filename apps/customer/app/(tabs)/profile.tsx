@@ -111,7 +111,7 @@ export default function ProfileTab() {
               <Icon name="person" size={40} color={colors.sea} />
             )}
           </View>
-          <Text style={styles.name}>{me?.displayName ?? 'Guest'}</Text>
+          <Text style={styles.name}>{me?.displayName ?? t('profile.guest')}</Text>
           <Text style={styles.phone}>{phone ?? me?.phone}</Text>
         </View>
 
@@ -139,7 +139,7 @@ export default function ProfileTab() {
               </Text>
               {r.value && <Text style={styles.rowValue}>{r.value}</Text>}
               {r.badge != null && r.badge > 0 && (
-                <View style={styles.rowBadge} accessibilityLabel={`${r.badge} unread`}>
+                <View style={styles.rowBadge} accessibilityLabel={t('profile.unread', { count: r.badge })}>
                   <Text style={styles.rowBadgeText}>{r.badge}</Text>
                 </View>
               )}

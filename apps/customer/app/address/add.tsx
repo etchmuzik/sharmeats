@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../src/components/BackButton';
+import { Icon } from '../../src/components/Icon';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { MapPinPicker, type LatLng } from '../../src/components/MapPinPicker';
 import { font, radius } from '../../src/theme';
@@ -20,6 +21,7 @@ import { db } from '../../src/data';
 import type { Address, AddressKind, Hotel } from '../../src/data/types';
 import { useSession } from '../../src/store/session';
 import { selection, success } from '../../src/haptics';
+import { radioAccessibilityState } from '../../src/lib/accessibility';
 import { useGoBack } from '../../src/lib/navigation';
 
 export default function AddAddress() {
@@ -160,9 +162,10 @@ export default function AddAddress() {
           <>
             <Text style={styles.label}>{t('address.searchHotel')}</Text>
             <TextInput
+              testID="address-add-hotel-search"
               value={hotelQuery}
               onChangeText={setHotelQuery}
-              placeholder="Hilton, Marriott, …"
+              placeholder={t('address.hotelSearchPlaceholder')}
               placeholderTextColor={colors.ink3}
               accessibilityLabel={t('address.searchHotel')}
               style={styles.input}
@@ -171,18 +174,19 @@ export default function AddAddress() {
               {hotels.map((h) => (
                 <Pressable
                   key={h.id}
+                  testID={`address-add-hotel-${h.id}`}
                   onPress={() => {
                     selection();
                     setPickedHotel(h);
                   }}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: pickedHotel?.id === h.id }}
+                  accessibilityState={radioAccessibilityState(pickedHotel?.id === h.id)}
                   accessibilityLabel={`${h.name}, ${h.brand}, ${h.zone.replace('_', ' ')}`}
                   style={[
                     styles.hotelRow,
                     pickedHotel?.id === h.id && { borderColor: colors.accent, backgroundColor: colors.accentSoft },
                   ]}>
-                  <Text style={styles.hotelIcon}>🏨</Text>
+                  <Icon name="hotel" size={20} color={colors.sea} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.hotelName}>{h.name}</Text>
                     <Text style={styles.hotelMeta}>
@@ -191,7 +195,7 @@ export default function AddAddress() {
                   </View>
                   {h.verified && (
                     <View style={styles.verifiedTag}>
-                      <Text style={styles.verifiedText}>✓ Verified</Text>
+                      <Text style={styles.verifiedText}>✓ {t('address.verified')}</Text>
                     </View>
                   )}
                 </Pressable>
@@ -200,6 +204,7 @@ export default function AddAddress() {
 
             <Text style={styles.label}>{t('address.roomNumber')}</Text>
             <TextInput
+              testID="address-add-room-number"
               value={room}
               onChangeText={setRoom}
               placeholder="412"
@@ -219,7 +224,7 @@ export default function AddAddress() {
                     setHandoff(h);
                   }}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: handoff === h }}
+                  accessibilityState={radioAccessibilityState(handoff === h)}
                   accessibilityLabel={h === 'lobby' ? t('address.lobby') : h === 'reception' ? t('address.reception') : t('address.poolside')}
                   style={[styles.segBtn, handoff === h && styles.segBtnActive]}>
                   <Text style={[styles.segText, handoff === h && { color: colors.onInk }]}>
@@ -234,7 +239,7 @@ export default function AddAddress() {
         {kind === 'street' && (
           <>
             <Text style={styles.label}>{t('address.streetText')}</Text>
-            <TextInput value={street} onChangeText={setStreet} style={styles.input} placeholder="السلام، شارع الإمام علي" placeholderTextColor={colors.ink3} accessibilityLabel={t('address.streetText')} />
+            <TextInput value={street} onChangeText={setStreet} style={styles.input} placeholder={t('address.streetPlaceholder')} placeholderTextColor={colors.ink3} accessibilityLabel={t('address.streetText')} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1, gap: 6 }}>
                 <Text style={styles.label}>{t('address.block')}</Text>
@@ -250,7 +255,7 @@ export default function AddAddress() {
               </View>
             </View>
             <Text style={styles.label}>{t('address.landmark')}</Text>
-            <TextInput value={landmark} onChangeText={setLandmark} style={styles.input} placeholder="جنب مسجد الرحمة" placeholderTextColor={colors.ink3} accessibilityLabel={t('address.landmark')} />
+            <TextInput value={landmark} onChangeText={setLandmark} style={styles.input} placeholder={t('address.landmarkPlaceholder')} placeholderTextColor={colors.ink3} accessibilityLabel={t('address.landmark')} />
           </>
         )}
 
@@ -261,7 +266,7 @@ export default function AddAddress() {
               value={beachName}
               onChangeText={setBeachName}
               style={styles.input}
-              placeholder="Sharks Bay Beach Club"
+              placeholder={t('address.beachNamePlaceholder')}
               placeholderTextColor={colors.ink3}
               accessibilityLabel={t('address.beachName')}
             />
@@ -286,6 +291,7 @@ export default function AddAddress() {
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
         {saveError && <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.saveError}>{saveError}</Text>}
         <PrimaryButton
+          testID="address-add-save"
           label={saving ? t('address.saving') : t('common.save')}
           onPress={save}
           loading={saving}
@@ -327,7 +333,6 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
-  hotelIcon: { fontSize: 20 },
   hotelName: { fontSize: font.sizes.xl, color: colors.ink, fontWeight: font.weights.bold },
   hotelMeta: { fontSize: font.sizes.md, color: colors.ink2, marginTop: 2 },
   verifiedTag: { backgroundColor: colors.seaSoft, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },

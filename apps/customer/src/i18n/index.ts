@@ -4,6 +4,9 @@ import ar from './locales/ar.json';
 import ru from './locales/ru.json';
 import it from './locales/it.json';
 import de from './locales/de.json';
+import { interpolateTranslation } from './interpolation';
+
+export { formatLocalizedNumber } from './interpolation';
 
 type Dict = Record<string, string>;
 
@@ -17,13 +20,8 @@ const DICTS: Partial<Record<Locale, Dict>> = {
 
 function lookup(locale: Locale, key: string, vars?: Record<string, string | number>): string {
   const dict = DICTS[locale] ?? DICTS.en!;
-  let out = dict[key] ?? (DICTS.en as Dict)[key] ?? key;
-  if (vars) {
-    for (const [k, v] of Object.entries(vars)) {
-      out = out.replace(`{${k}}`, String(v));
-    }
-  }
-  return out;
+  const template = dict[key] ?? (DICTS.en as Dict)[key] ?? key;
+  return interpolateTranslation(template, locale, vars);
 }
 
 /**

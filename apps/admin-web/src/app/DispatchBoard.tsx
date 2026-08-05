@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import type { OpsDriver, OpsOrder } from '@/lib/types';
 import {
   DEFAULT_MAX_PING_AGE_SECONDS,
@@ -179,7 +180,7 @@ export function DispatchBoard({
       });
       setBusy(false);
       if (error) {
-        toast(`Assign failed: ${error.message}`, 'error');
+        toast(safeDisplayError(error, { fallback: 'Could not assign this driver. Please try again.' }), 'error');
         return;
       }
       toast('Driver assigned', 'success');
@@ -205,7 +206,7 @@ export function DispatchBoard({
       });
       setCancelBusy(false);
       if (error) {
-        toast(`Cancel failed: ${error.message}`, 'error');
+        toast(safeDisplayError(error, { fallback: 'Could not cancel this order. Please try again.' }), 'error');
         return;
       }
       toast('Order cancelled', 'success');

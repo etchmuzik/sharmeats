@@ -128,6 +128,7 @@ function SavedItemRow({ item }: { item: SavedItem }) {
   const styles = useStyles();
   const router = useRouter();
   const t = useT();
+  const locale = useSession((s) => s.locale);
   const { toggle } = useFavoriteItem(item.menuItemId, item.restaurantId);
   // "Can I order this right now?" is item availability AND the restaurant being
   // open and active. Any of those false means we show it, dimmed, with the
@@ -140,40 +141,43 @@ function SavedItemRow({ item }: { item: SavedItem }) {
       : null;
 
   return (
-    <Pressable
-      onPress={() => {
-        tap();
-        router.push(`/item/${item.menuItemId}`);
-      }}
-      style={[styles.row, !orderable && styles.rowDim]}>
-      {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.thumb} />
-      ) : (
-        <View style={[styles.thumb, styles.thumbEmpty]} />
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.itemName} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.itemMeta} numberOfLines={1}>
-          {item.restaurantName}
-        </Text>
-        {reason ? <Text style={styles.itemReason}>{reason}</Text> : null}
-      </View>
-      <View style={styles.rowRight}>
-        <Text style={styles.itemPrice}>{formatEgp(item.priceEgp)}</Text>
-        <Pressable
-          onPress={() => {
-            tap();
-            toggle();
-          }}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel={t('saved.removeItem')}>
-          <Text style={styles.heart}>♥</Text>
-        </Pressable>
-      </View>
-    </Pressable>
+    <View style={[styles.row, !orderable && styles.rowDim]}>
+      <Pressable
+        onPress={() => {
+          tap();
+          router.push(`/item/${item.menuItemId}`);
+        }}
+        style={styles.rowBody}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.thumb} />
+        ) : (
+          <View style={[styles.thumb, styles.thumbEmpty]} />
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.itemName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.itemMeta} numberOfLines={1}>
+            {item.restaurantName}
+          </Text>
+          {reason ? <Text style={styles.itemReason}>{reason}</Text> : null}
+        </View>
+        <View style={styles.rowRight}>
+          <Text style={styles.itemPrice}>{formatEgp(item.priceEgp, locale)}</Text>
+        </View>
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          tap();
+          toggle();
+        }}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel={t('saved.removeItem')}
+        style={styles.heartBtn}>
+        <Text style={styles.heart}>♥</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -216,15 +220,18 @@ const useStyles = makeStyles((colors) => ({
   },
   browseText: { color: colors.onAccent, fontWeight: font.weights.bold, fontSize: font.sizes.lg },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 12,
     ...shadow.soft,
+  },
+  rowBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    paddingEnd: 40,
   },
   // Dimmed, not hidden: the dish is still saved, just not orderable now.
   rowDim: { opacity: 0.55 },
@@ -235,5 +242,6 @@ const useStyles = makeStyles((colors) => ({
   itemReason: { fontSize: font.sizes.md, color: colors.accent, marginTop: 4, fontWeight: font.weights.bold },
   rowRight: { alignItems: 'flex-end', gap: 8 },
   itemPrice: { fontSize: font.sizes.lg, fontWeight: font.weights.extrabold, color: colors.ink },
+  heartBtn: { position: 'absolute', top: 12, end: 12, padding: 6 },
   heart: { fontSize: 20, color: colors.accent },
 }));

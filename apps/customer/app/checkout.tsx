@@ -20,13 +20,15 @@ import { useCart } from '../src/store/cart';
 import { useSession, type Currency } from '../src/store/session';
 import { db } from '../src/data';
 import type { Address, AllergyKey, DropoffPreference, PaymentMethod, Restaurant } from '../src/data/types';
-import { formatEgp, formatTime } from '../src/lib/format';
+import { formatEgp, formatNumber, formatTime } from '../src/lib/format';
 import { serviceFeeEgp } from '../src/lib/serviceFee';
 import { formatCurrencyAtRate, fxRateLineAtRate, ALL_CURRENCIES } from '../src/currency/fx';
 import { resolveRate } from '../src/currency/rates';
 import { success, selection } from '../src/haptics';
-import { localizedPayment } from '../src/lib/payments';
+import { isTrustedPaymobCheckoutUrl, localizedPayment } from '../src/lib/payments';
 import { captureError, track } from '../src/lib/analytics';
+import { customerErrorKey } from '../src/lib/customerError';
+import { radioAccessibilityState } from '../src/lib/accessibility';
 import { LEGAL_URLS, openLegal } from '../src/legal';
 import { scheduledOrdersEnabled } from '../src/lib/scheduledOrders';
 import {
@@ -280,11 +282,11 @@ export default function Checkout() {
   // user picked one, else now + the restaurant's high prep estimate + a 5-min
   // dispatch buffer (mirrors dispatch_buffer_minutes default in mig 079).
   const promisedTime = useMemo<string | null>(() => {
-    if (effectiveScheduledFor) return formatTime(new Date(effectiveScheduledFor));
+    if (effectiveScheduledFor) return formatTime(new Date(effectiveScheduledFor), locale);
     if (!restaurant) return null;
     const mins = (restaurant.prepTimeHigh || 30) + 5;
-    return formatTime(new Date(Date.now() + mins * 60_000));
-  }, [effectiveScheduledFor, restaurant]);
+    return formatTime(new Date(Date.now() + mins * 60_000), locale);
+  }, [effectiveScheduledFor, locale, restaurant]);
 
   const applyPromo = async () => {
     const code = promoInput.trim();
@@ -384,6 +386,12 @@ export default function Checkout() {
       if (isCard) {
         const intent = await db.orders.startCardPayment(order.id);
         if (intent?.checkoutUrl) {
+          // Keep the final external-navigation sink fail-closed as well as the
+          // repository boundary: mocks or a future repository must not turn a
+          // payment response into an arbitrary browser navigation.
+          if (!isTrustedPaymobCheckoutUrl(intent.checkoutUrl)) {
+            throw new Error('Payment checkout URL was not trusted');
+          }
           // Opens the secure hosted checkout; card data never touches the app.
           await WebBrowser.openBrowserAsync(intent.checkoutUrl);
           // On return we route to tracking; the webhook confirms payment
@@ -406,7 +414,7 @@ export default function Checkout() {
         void clearEverywhere();
         router.replace(`/order/${placedOrderId}`);
       } else {
-        setPaymentError(e instanceof Error ? e.message : 'Could not place your order.');
+        setPaymentError(t(customerErrorKey(e, 'placeOrder')));
       }
     } finally {
       setPlacing(false);
@@ -545,7 +553,7 @@ export default function Checkout() {
             {lines.map((l) => (
               <View key={l.lineId} style={styles.cartLine}>
                 <View style={styles.cartQty}>
-                  <Text style={styles.cartQtyText}>{l.quantity}×</Text>
+                  <Text style={styles.cartQtyText}>{formatNumber(l.quantity, locale)}×</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cartName}>{l.name}</Text>
@@ -559,6 +567,7 @@ export default function Checkout() {
                   {formatEgp(
                     (l.basePriceEgp + l.modifierChoices.reduce((a, c) => a + c.priceDeltaEgp, 0)) *
                       l.quantity,
+                    locale,
                   )}
                 </Text>
               </View>
@@ -581,7 +590,7 @@ export default function Checkout() {
                 }}
                 accessibilityRole="radio"
                 accessibilityLabel={t('checkout.timingAsap')}
-                accessibilityState={{ selected: scheduledFor === null }}
+                accessibilityState={radioAccessibilityState(scheduledFor === null)}
                 style={[styles.timingChipAsap, scheduledFor === null && styles.timingChipActive]}>
                 <Icon name="bolt" size={14} color={scheduledFor === null ? colors.onInk : colors.accent} />
                 <Text style={[styles.timingChipText, scheduledFor === null && { color: colors.onInk }]}>
@@ -598,11 +607,11 @@ export default function Checkout() {
                       setScheduledFor(slot);
                     }}
                     accessibilityRole="radio"
-                    accessibilityLabel={formatTime(new Date(slot))}
-                    accessibilityState={{ selected: isSel }}
+                    accessibilityLabel={formatTime(new Date(slot), locale)}
+                    accessibilityState={radioAccessibilityState(isSel)}
                     style={[styles.timingChip, isSel && styles.timingChipActive]}>
                     <Text style={[styles.timingChipText, isSel && { color: colors.onInk }]}>
-                      {formatTime(new Date(slot))}
+                      {formatTime(new Date(slot), locale)}
                     </Text>
                   </Pressable>
                 );
@@ -612,7 +621,7 @@ export default function Checkout() {
               <View style={styles.scheduledLineRow}>
                 <Icon name="calendar" size={15} color={colors.sea} />
                 <Text style={styles.scheduledLine}>
-                  {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor)) })}
+                  {t('checkout.scheduledFor', { time: formatTime(new Date(scheduledFor), locale) })}
                 </Text>
               </View>
             )}
@@ -656,7 +665,7 @@ export default function Checkout() {
                   }}
                   accessibilityRole="radio"
                   accessibilityLabel={c}
-                  accessibilityState={{ selected: currency === c }}
+                  accessibilityState={radioAccessibilityState(currency === c)}
                   style={[styles.curBtn, currency === c && styles.curBtnActive]}>
                   <Text style={[styles.curBtnText, currency === c && { color: colors.onInk }]}>{c}</Text>
                 </Pressable>
@@ -664,6 +673,7 @@ export default function Checkout() {
             </View>
           )}
           <Pressable
+            testID="checkout-payment"
             onPress={() => router.push('/payment/picker')}
             accessibilityRole="button"
             accessibilityLabel={`${t('checkout.payWith')}: ${payment ? localizedPayment(t, payment).label : t('checkout.choosePayment')}`}
@@ -699,7 +709,7 @@ export default function Checkout() {
                 accessibilityLiveRegion="polite"
                 style={[styles.cashChangeHint, cashTenderInvalid && styles.cashChangeError, dir.text]}>
                 {cashTenderInvalid
-                  ? t('checkout.cashChangeInvalid', { amount: formatEgp(total) })
+                  ? t('checkout.cashChangeInvalid', { amount: formatEgp(total, locale) })
                   : t('checkout.cashChangeHint')}
               </Text>
             </View>
@@ -718,11 +728,11 @@ export default function Checkout() {
                   setTipEgp(amt);
                 }}
                 accessibilityRole="radio"
-                accessibilityLabel={amt === 0 ? t('checkout.tipNone') : formatEgp(amt)}
-                accessibilityState={{ selected: tipEgp === amt }}
+                accessibilityLabel={amt === 0 ? t('checkout.tipNone') : formatEgp(amt, locale)}
+                accessibilityState={radioAccessibilityState(tipEgp === amt)}
                 style={[styles.tipBtn, tipEgp === amt && styles.tipBtnActive]}>
                 <Text style={[styles.tipText, tipEgp === amt && { color: colors.onInk }]}>
-                  {amt === 0 ? t('checkout.tipNone') : formatEgp(amt)}
+                  {amt === 0 ? t('checkout.tipNone') : formatEgp(amt, locale)}
                 </Text>
               </Pressable>
             ))}
@@ -735,7 +745,7 @@ export default function Checkout() {
           {promoApplied ? (
             <View style={[styles.promoApplied, dir.row]}>
               <Text style={styles.promoAppliedText}>
-                ✓ {promoApplied.code} · −{formatEgp(promoApplied.discount)}
+                ✓ {promoApplied.code} · −{formatEgp(promoApplied.discount, locale)}
               </Text>
               <Pressable
                 onPress={() => {
@@ -790,24 +800,24 @@ export default function Checkout() {
         <View style={styles.card}>
           <View style={[styles.totRow, dir.row]}>
             <Text style={styles.totLabel}>{t('checkout.subtotal')}</Text>
-            <Text style={styles.totVal}>{formatEgp(subtotal)}</Text>
+            <Text style={styles.totVal}>{formatEgp(subtotal, locale)}</Text>
           </View>
           <View style={[styles.totRow, dir.row]}>
             <Text style={styles.totLabel}>{t('checkout.delivery')}</Text>
             <Text style={[styles.totVal, deliveryFee === 0 && { color: colors.green }]}>
-              {deliveryFee === 0 ? t('checkout.deliveryFree') : formatEgp(deliveryFee)}
+              {deliveryFee === 0 ? t('checkout.deliveryFree') : formatEgp(deliveryFee, locale)}
             </Text>
           </View>
           {tax > 0 && (
             <View style={[styles.totRow, dir.row]}>
               <Text style={styles.totLabel}>{t('checkout.tax')}</Text>
-              <Text style={styles.totVal}>{formatEgp(tax)}</Text>
+              <Text style={styles.totVal}>{formatEgp(tax, locale)}</Text>
             </View>
           )}
           {serviceFee > 0 && (
             <View style={[styles.totRow, dir.row]}>
               <Text style={styles.totLabel}>{t('checkout.serviceFee')}</Text>
-              <Text style={styles.totVal}>{formatEgp(serviceFee)}</Text>
+              <Text style={styles.totVal}>{formatEgp(serviceFee, locale)}</Text>
             </View>
           )}
           {discount > 0 && (
@@ -815,18 +825,18 @@ export default function Checkout() {
               <Text style={[styles.totLabel, { color: colors.green }]}>
                 {t('checkout.discount', { code: promoApplied?.code ?? '' })}
               </Text>
-              <Text style={[styles.totVal, { color: colors.green }]}>−{formatEgp(discount)}</Text>
+              <Text style={[styles.totVal, { color: colors.green }]}>−{formatEgp(discount, locale)}</Text>
             </View>
           )}
           {tipEgp > 0 && (
             <View style={[styles.totRow, dir.row]}>
               <Text style={styles.totLabel}>{t('checkout.tip')}</Text>
-              <Text style={styles.totVal}>{formatEgp(tipEgp)}</Text>
+              <Text style={styles.totVal}>{formatEgp(tipEgp, locale)}</Text>
             </View>
           )}
           <View style={[styles.totRow, styles.totTotal, dir.row]}>
             <Text style={styles.totTotalLabel}>{t('checkout.total')}</Text>
-            <Text style={styles.totTotalVal}>{formatEgp(total)}</Text>
+            <Text style={styles.totTotalVal}>{formatEgp(total, locale)}</Text>
           </View>
           {currency !== 'EGP' &&
             (() => {
@@ -837,15 +847,15 @@ export default function Checkout() {
               // must never present itself as current.
               const resolved = resolveRate(currency as Currency);
               if (!resolved) return null;
-              const amount = formatCurrencyAtRate(total, currency as Currency, resolved.rate);
-              const rate = fxRateLineAtRate(currency as Currency, resolved.rate) ?? '';
+              const amount = formatCurrencyAtRate(total, currency as Currency, resolved.rate, locale);
+              const rate = fxRateLineAtRate(currency as Currency, resolved.rate, locale) ?? '';
               return (
                 <Text style={styles.conv}>
                   {resolved.stale
                     ? t('checkout.conversionStale', {
                         amount,
                         date: resolved.effectiveAt
-                          ? new Date(resolved.effectiveAt).toLocaleDateString()
+                          ? new Date(resolved.effectiveAt).toLocaleDateString(locale === 'ar' ? 'ar-EG' : locale)
                           : '—',
                       })
                     : t('checkout.conversion', { amount, rate })}
@@ -868,12 +878,11 @@ export default function Checkout() {
         {/* Block placement until the delivery fee is confirmed, so the button total
             always equals what the server charges at the door. */}
         {address && quoteState === 'failed' && (
-          <Pressable onPress={() => setAddress((a) => (a ? { ...a } : a))}>
-            <Text style={styles.cardHint}>
-              {t('checkout.feeRetry') !== 'checkout.feeRetry'
-                ? t('checkout.feeRetry')
-                : "Couldn't confirm the delivery fee. Tap to retry."}
-            </Text>
+          <Pressable
+            onPress={() => setAddress((a) => (a ? { ...a } : a))}
+            accessibilityRole="button"
+            accessibilityLabel={t('checkout.feeRetry')}>
+            <Text style={styles.cardHint}>{t('checkout.feeRetry')}</Text>
           </Pressable>
         )}
         {/* Out of range: say so HERE rather than letting place_order raise
@@ -886,19 +895,11 @@ export default function Checkout() {
           </View>
         )}
         {isCard && (
-          <Text style={styles.cardHint}>
-            {t('checkout.cardHint') !== 'checkout.cardHint'
-              ? t('checkout.cardHint')
-              : "You'll complete payment securely on the next screen."}
-          </Text>
+          <Text style={styles.cardHint}>{t('checkout.cardHint')}</Text>
         )}
         {/* COD reassurance — the cash mirror of the card hint above. */}
         {payment?.kind === 'cash' && (
-          <Text style={styles.cardHint}>
-            {t('checkout.codHint') !== 'checkout.codHint'
-              ? t('checkout.codHint')
-              : 'Pay cash when your order arrives — no card needed.'}
-          </Text>
+          <Text style={styles.cardHint}>{t('checkout.codHint')}</Text>
         )}
         {isGuest && (
           <Pressable
@@ -934,14 +935,13 @@ export default function Checkout() {
           </Pressable>
         )}
         <PrimaryButton
+          testID="checkout-place-order"
           label={
             placing
               ? t('checkout.placing')
               : isCard
-              ? t('checkout.payCard', { amount: formatEgp(total) }) !== 'checkout.payCard'
-                ? t('checkout.payCard', { amount: formatEgp(total) })
-                : `Pay ${formatEgp(total)}`
-              : t('checkout.place', { amount: formatEgp(total) })
+              ? t('checkout.payCard', { amount: formatEgp(total, locale) })
+              : t('checkout.place', { amount: formatEgp(total, locale) })
           }
           onPress={place}
           loading={placing}

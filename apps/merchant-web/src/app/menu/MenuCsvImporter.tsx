@@ -1,5 +1,7 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 import { useEffect, useRef, useState } from 'react';
 import {
   MENU_CSV_TEMPLATE,
@@ -12,6 +14,20 @@ import { permissionDeniedCopy } from '@/lib/capabilities';
 import { useToast } from '../Toast';
 
 const TEMPLATE_URL = `data:text/csv;charset=utf-8,${encodeURIComponent(MENU_CSV_TEMPLATE)}`;
+
+// import_merchant_menu raises `CSV_IMPORT_INVALID: <reason>` with a
+// pre-written, staff-safe reason (never SQL detail or customer data) — unlike
+// other backend errors, that text is meant to be shown verbatim.
+const CSV_IMPORT_INVALID_PREFIX = 'CSV_IMPORT_INVALID:';
+
+function csvImportInvalidDetail(error: unknown): string | null {
+  const message =
+    error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : null;
+  if (!message?.startsWith(CSV_IMPORT_INVALID_PREFIX)) return null;
+  return message.slice(0, 512);
+}
 
 export function MenuCsvImporter({
   restaurantId,
@@ -101,7 +117,9 @@ export function MenuCsvImporter({
     });
 
     if (error) {
-      const detail = permissionDeniedCopy(error) ?? error.message;
+      const detail = permissionDeniedCopy(error)
+        ?? csvImportInvalidDetail(error)
+        ?? safeDisplayError(error, { fallback: 'Could not import the menu. Please try again.' });
       let refreshed = false;
       try {
         refreshed = (await onImported()) !== false;

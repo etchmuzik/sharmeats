@@ -275,58 +275,65 @@ export function resetAnalyticsUser(): void {
  * most of what reached Sentry. Observed in production 2026-07-31: one issue,
  * no message, unrelated causes merged together.
  *
- * Errors pass through untouched, so a real stack and type survive. Everything
- * else is wrapped in an Error carrying the message, and the original fields
- * ride along as `extra` rather than being dropped on the floor.
+ * Telemetry is a third-party boundary, not an error console. A database error
+ * can echo a value from a violated constraint (phone, address, notes), so raw
+ * messages, stacks, `details`, and `hint` must not cross it. We keep only a
+ * bounded error name/code for useful grouping.
  *
  * NOTE: four other surfaces have their own copy of captureError
  * (apps/{driver,restaurant}/src/lib/crash.ts, apps/{admin,merchant}-web/src/lib/sentry.ts).
- * They had the identical bug and carry the identical fix.
+ * They need the same privacy review before any raw backend payload is forwarded.
  */
 export function normaliseError(error: unknown): {
   error: Error;
   extra?: Record<string, unknown>;
 } {
-  if (error instanceof Error) return { error };
-  if (typeof error === 'string') return { error: new Error(error) };
+  const rec = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : null;
+  const code = safeErrorCode(rec?.code);
+  const isPostgrestError = !!rec && 'details' in rec && 'hint' in rec;
+  const name = isPostgrestError && code
+    ? `PostgrestError ${code}`
+    : error instanceof Error
+      ? safeErrorName(error.name)
+      : 'Error';
 
-  if (error !== null && typeof error === 'object') {
-    const rec = error as Record<string, unknown>;
-    const message =
-      typeof rec.message === 'string' && rec.message ? rec.message : safeStringify(error);
-    const wrapped = new Error(message);
-
-    // PostgrestError is {code, details, hint, message}. Postgres/PostgREST codes
-    // are a bounded set ('23505', 'PGRST202', ...), so folding the code into the
-    // name gives Sentry a stable grouping key per KIND of failure — which is the
-    // whole point, since the bug being fixed is everything sharing one bucket.
-    // Matched on shape rather than on `code` alone, so an unrelated object that
-    // happens to carry a `code` is not mislabelled.
-    if (typeof rec.code === 'string' && rec.code && 'details' in rec && 'hint' in rec) {
-      wrapped.name = `PostgrestError ${rec.code}`;
-    }
-    return { error: wrapped, extra: rec };
-  }
-
-  // null, undefined, numbers, booleans, symbols.
-  return { error: new Error(String(error)) };
+  const normalised = new Error('Operation failed');
+  normalised.name = name;
+  // Do not copy source.stack: its first line normally contains the raw message.
+  // A fresh error gives Sentry the capture site without reproducing user input.
+  return code ? { error: normalised, extra: { code } } : { error: normalised };
 }
 
-/** JSON.stringify throws on circular references; a logger must never throw. */
-function safeStringify(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
+const SAFE_ERROR_CODE = /^[A-Za-z0-9_.:-]{1,64}$/;
+const SAFE_ERROR_NAME = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
+
+function safeErrorCode(value: unknown): string | null {
+  return typeof value === 'string' && SAFE_ERROR_CODE.test(value) ? value : null;
+}
+
+function safeErrorName(value: unknown): string {
+  return typeof value === 'string' && SAFE_ERROR_NAME.test(value) ? value : 'Error';
+}
+
+/** Context is curated at call sites, but keep future additions primitive + non-PII by default. */
+function telemetryContext(context?: Record<string, unknown>): Record<string, string | number | boolean | null> {
+  const clean: Record<string, string | number | boolean | null> = {};
+  for (const [key, value] of Object.entries(context ?? {})) {
+    if (isBannedProperty(key) && !isExemptAttributionId(key, value)) continue;
+    if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      clean[key] = value;
+    }
   }
+  return clean;
 }
 
 export function captureError(error: unknown, context?: Record<string, unknown>): void {
   const { error: normalised, extra } = normaliseError(error);
-  // context wins on collision: the call site knows more than the payload does.
-  const merged = { ...extra, ...context };
+  // Context wins on collision, but raw error payloads have already been reduced
+  // to a safe code and context has the same PII boundary as product analytics.
+  const merged = { ...extra, ...telemetryContext(context) };
   const hasExtra = Object.keys(merged).length > 0;
 
   if (SENTRY_DSN) Sentry.captureException(normalised, hasExtra ? { extra: merged } : undefined);
-  else if (__DEV__) console.warn('[analytics] error (Sentry off):', normalised.message, merged);
+  else if (isDev()) console.warn('[analytics] error (Sentry off):', normalised.message, merged);
 }

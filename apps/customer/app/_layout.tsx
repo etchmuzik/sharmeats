@@ -7,7 +7,7 @@ import { useCart } from '../src/store/cart';
 import { useSession } from '../src/store/session';
 import { db, isBackendLive } from '../src/data';
 import { getSupabase, isSupabaseConfigured } from '../src/data/supabase/client';
-import { identifyUser, initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics';
+import { captureError, identifyUser, initAnalytics, track, setAnalyticsContext } from '../src/lib/analytics';
 import { hydrateFxRates, refreshFxRates } from '../src/currency/rates';
 import { claimAcquisition, initAcquisition } from '../src/lib/acquisition';
 import { configureNotificationHandler, registerForPush, useNotificationRouting } from '../src/lib/push';
@@ -94,7 +94,9 @@ export default function RootLayout() {
           registerForPush();
           syncFavoritesFromServer();
         })
-        .catch((e) => console.warn('[auth] ensureSession failed:', e?.message ?? e));
+        // Send a sanitised diagnostic rather than logging a provider message:
+        // auth/network errors can include customer or server-provided values.
+        .catch((e) => captureError(e, { where: 'auth.ensureSession' }));
     }
   }, [hydrateCart, hydrateSession]);
 

@@ -5,6 +5,8 @@ import { font, radius } from '../theme';
 import { makeStyles } from '../themeProvider';
 import { useT } from '../i18n';
 import { captureError } from '../lib/analytics';
+import { customerErrorKey } from '../lib/customerError';
+import { Icon } from './Icon';
 
 /**
  * Per-route error fallback for Expo Router. Export it as `ErrorBoundary` from a
@@ -21,16 +23,12 @@ export function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const router = useRouter();
   captureError(error, { where: 'ScreenErrorBoundary' });
 
-  // Surface the real error text on-screen. Sentry is disabled in prod, so this
-  // is the only way to read what actually threw on a TestFlight/device build.
-  // Cheap diagnostic; safe to keep (it only renders when an error was caught).
-  const detail = [error?.name, error?.message].filter(Boolean).join(': ');
-
   return (
     <View style={styles.wrap}>
-      <Text style={styles.emoji}>😕</Text>
-      <Text style={styles.msg}>{t('common.error')}</Text>
-      {detail ? <Text style={styles.detail}>{detail}</Text> : null}
+      <View style={styles.statusMark} accessible={false}>
+        <Icon name="warning" size={24} />
+      </View>
+      <Text style={styles.msg}>{t(customerErrorKey(error, 'screen'))}</Text>
       <View style={styles.row}>
         <Pressable
           onPress={retry}
@@ -53,9 +51,8 @@ export function ScreenErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 const useStyles = makeStyles((colors) => ({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, padding: 32, gap: 16 },
-  emoji: { fontSize: 40 },
+  statusMark: { width: 52, height: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand },
   msg: { fontSize: font.sizes.lg, color: colors.ink2, textAlign: 'center', lineHeight: 24 },
-  detail: { fontSize: font.sizes.sm, color: colors.ink2, textAlign: 'center', opacity: 0.6 },
   row: { flexDirection: 'row', gap: 12, marginTop: 8 },
   primary: { paddingHorizontal: 22, paddingVertical: 12, borderRadius: radius.pill, backgroundColor: colors.ink },
   primaryText: { color: colors.onInk, fontSize: font.sizes.lg, fontWeight: font.weights.bold },

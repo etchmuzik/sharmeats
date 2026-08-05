@@ -1,5 +1,7 @@
 'use client';
 
+import { hasErrorMarker } from '@/lib/displayError';
+
 import { useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -76,7 +78,7 @@ export function ScorecardCard({ restaurantId }: { restaurantId: string }) {
         // fault, they simply should not see the card. Anything else is a real
         // failure and is surfaced rather than swallowed.
         setCard(null);
-        setState(/NOT_AUTHORIZED/.test(error.message) ? 'hidden' : 'failed');
+        setState(hasErrorMarker(error, 'NOT_AUTHORIZED') ? 'hidden' : 'failed');
         return;
       }
 

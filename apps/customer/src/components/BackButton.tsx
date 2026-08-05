@@ -3,6 +3,7 @@ import type { Href } from 'expo-router';
 import { makeStyles, useThemeColors } from '../themeProvider';
 import { useGoBack } from '../lib/navigation';
 import { useDirection } from '../lib/direction';
+import { useT } from '../i18n';
 import { Icon } from './Icon';
 import { PressableScale } from './PressableScale';
 import { GlassControl } from './GlassSurface';
@@ -22,7 +23,7 @@ export function BackButton({
   size = 38,
   onPress,
   fallback,
-  accessibilityLabel = 'Go back',
+  accessibilityLabel,
   tint = 'dark',
   material = 'solid',
 }: Props) {
@@ -30,6 +31,8 @@ export function BackButton({
   const styles = useStyles();
   const goBack = useGoBack(fallback);
   const dir = useDirection();
+  const t = useT();
+  const resolvedAccessibilityLabel = accessibilityLabel ?? t('common.back');
   // Keep the visual circle at `size` but guarantee a >=44pt effective tap target (HIG minimum).
   const slop = Math.max(4, Math.ceil((44 - size) / 2));
   const handlePress = () => {
@@ -45,7 +48,7 @@ export function BackButton({
         hitSlop={slop}
         haptic="tap"
         onPress={handlePress}
-        accessibilityLabel={accessibilityLabel}>
+        accessibilityLabel={resolvedAccessibilityLabel}>
         <Icon name={dir.isRtl ? 'chevronForward' : 'chevronBack'} size={22} color={colors.ink} />
       </GlassControl>
     );
@@ -56,7 +59,7 @@ export function BackButton({
       haptic="tap"
       hitSlop={slop}
       onPress={handlePress}
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={resolvedAccessibilityLabel}
       accessibilityRole="button"
       style={[
         styles.btn,

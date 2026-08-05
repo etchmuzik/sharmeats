@@ -12,6 +12,7 @@ import { db } from '../../src/data';
 import type { PaymentMethod } from '../../src/data/types';
 import { selection } from '../../src/haptics';
 import { localizedPayment } from '../../src/lib/payments';
+import { radioAccessibilityState } from '../../src/lib/accessibility';
 import { useGoBack } from '../../src/lib/navigation';
 
 const ICON: Record<PaymentMethod['kind'], IconName> = {
@@ -56,12 +57,13 @@ export default function PaymentPicker() {
           return (
             <Pressable
               key={m.id}
+              testID={`payment-method-${m.kind}`}
               onPress={() => {
                 selection();
                 setChosen(m.id);
               }}
               accessibilityRole="radio"
-              accessibilityState={{ selected: isSel }}
+              accessibilityState={radioAccessibilityState(isSel)}
               accessibilityLabel={`${loc.label}${loc.subline ? `, ${loc.subline}` : ''}`}
               style={[styles.card, dir.row, isSel && styles.cardActive]}>
               <View style={styles.icon}>
@@ -85,6 +87,7 @@ export default function PaymentPicker() {
 
       <View style={[styles.bottom, { paddingBottom: 24 + insets.bottom }]}>
         <PrimaryButton
+          testID="payment-picker-save"
           label={t('common.save')}
           onPress={async () => {
             if (chosen) await db.user.setDefaultPaymentMethod(chosen);

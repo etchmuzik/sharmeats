@@ -1,0 +1,101 @@
+appId: eg.sharmeats.customer
+name: Customer cash-on-delivery order smoke
+tags:
+  - smoke
+  - customer
+  - authenticated
+  - checkout
+---
+# This is intentionally a staging-only, COD-only journey. It uses a dedicated
+# account and a known menu fixture so it never opens a card checkout or affects
+# a real customer. See .maestro/README.md for its required test-data contract.
+- launchApp:
+    clearState: true
+- openLink: sharmeats://signin
+- extendedWaitUntil:
+    visible:
+      id: customer-phone-input
+    timeout: 15000
+- tapOn:
+    id: customer-phone-input
+- eraseText
+- inputText: ${CUSTOMER_E2E_PHONE}
+- tapOn:
+    id: customer-send-otp
+- extendedWaitUntil:
+    visible:
+      id: customer-otp-input
+    timeout: 20000
+- tapOn:
+    id: customer-otp-input
+- inputText: ${CUSTOMER_E2E_OTP}
+- extendedWaitUntil:
+    notVisible:
+      id: customer-otp-input
+    timeout: 20000
+- openLink: sharmeats://address/picker
+- extendedWaitUntil:
+    visible:
+      id: address-kind-hotel
+    timeout: 15000
+- tapOn:
+    id: address-kind-hotel
+- extendedWaitUntil:
+    visible:
+      id: address-option-${CUSTOMER_E2E_ADDRESS_ID}
+    timeout: 15000
+- tapOn:
+    id: address-option-${CUSTOMER_E2E_ADDRESS_ID}
+- tapOn:
+    id: address-picker-use-this
+- extendedWaitUntil:
+    visible: ${CUSTOMER_E2E_RESTAURANT_NAME}
+    timeout: 20000
+- tapOn: ${CUSTOMER_E2E_RESTAURANT_NAME}
+- extendedWaitUntil:
+    visible: ${CUSTOMER_E2E_MENU_ITEM_NAME}
+    timeout: 20000
+- tapOn: ${CUSTOMER_E2E_MENU_ITEM_NAME}
+- extendedWaitUntil:
+    visible:
+      id: item-add-to-cart
+    timeout: 15000
+- tapOn:
+    id: item-add-to-cart
+- extendedWaitUntil:
+    visible:
+      id: restaurant-view-cart
+    timeout: 15000
+- tapOn:
+    id: restaurant-view-cart
+- extendedWaitUntil:
+    visible:
+      id: cart-checkout
+    timeout: 15000
+- tapOn:
+    id: cart-checkout
+- extendedWaitUntil:
+    visible:
+      id: checkout-payment
+    timeout: 20000
+- tapOn:
+    id: checkout-payment
+- extendedWaitUntil:
+    visible:
+      id: payment-method-cash
+    timeout: 15000
+- tapOn:
+    id: payment-method-cash
+- tapOn:
+    id: payment-picker-save
+- extendedWaitUntil:
+    visible:
+      id: checkout-place-order
+    timeout: 15000
+- tapOn:
+    id: checkout-place-order
+- extendedWaitUntil:
+    visible:
+      id: order-tracking-screen
+    timeout: 25000
+- takeScreenshot: .maestro/artifacts/customer-order-cod

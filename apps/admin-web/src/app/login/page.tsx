@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { safeDisplayError } from '@/lib/displayError';
 import { LegalLinks } from '../LegalLinks';
 import { describeMfaError, isCompleteTotpCode, mfaGate, normalizeTotpCode } from '@/lib/mfa';
 
@@ -27,7 +28,7 @@ export default function LoginPage() {
     });
     if (signInError) {
       setBusy(false);
-      return setError(signInError.message);
+      return setError(safeDisplayError(signInError, { fallback: 'Could not sign in. Please try again.' }));
     }
 
     // The password alone leaves the session at aal1. If a verified TOTP factor
@@ -108,7 +109,7 @@ export default function LoginPage() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setBusy(false);
-    if (error) return setError(error.message);
+    if (error) return setError(safeDisplayError(error, { fallback: 'Could not send the reset email. Please try again.' }));
     setNotice(`If an account exists for ${addr}, a reset link is on its way.`);
   }
 

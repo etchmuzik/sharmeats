@@ -1,87 +1,99 @@
-# sharmeats — customer app
+# Sharm Eats customer app
 
-Expo SDK 52 · React Native 0.76 · Expo Router 4 · TypeScript · Zustand · AsyncStorage.
+Tourist-first food delivery for Sharm El Sheikh, built with Expo SDK 57,
+React Native 0.86, Expo Router, TypeScript, Zustand, and AsyncStorage.
 
-Tourist-first food delivery for Sharm El Sheikh. **All data is currently mocked in memory** — the Supabase swap is documented in `src/data/README.md` and is a one-file change.
+The customer app has two supported data modes behind one `db` interface:
 
-## Quick start
+- **Mock mode** is the local-development default. It uses deterministic seed
+  data and simulated order progression, so the full UI can be explored without
+  backend credentials.
+- **Supabase mode** is enabled only when `EXPO_PUBLIC_USE_SUPABASE=true` and
+  the public Supabase URL and anon key are provided. The UI then uses the live
+  adapters in `src/data/supabase/`.
 
-```bash
-cd /Users/etch/Projects/apps/sharmeats/apps/customer
-npm install              # or pnpm install / yarn
-npx expo start           # press i for iOS sim, a for Android
-npx expo start --tunnel  # if you want to test on a physical device behind NAT
+See [the data-layer guide](src/data/README.md) for the adapter contract and
+runtime configuration.
+
+## Start locally
+
+```sh
+cd /Users/etch/Downloads/sharmeats-new/apps/customer
+npm install
+npx expo start
 ```
 
-The app boots on a splash → routes to onboarding (first launch) or home.
+Use `i` for an iOS simulator, `a` for Android, or `npx expo start --tunnel`
+for a physical device behind NAT. With no backend variables set, this starts
+in mock mode.
 
-## What works today
+### Run against Supabase
 
-| Feature | Status |
-|---|---|
-| Splash + onboarding (3 slides + 5-language picker) | ✓ |
-| Phone signin + OTP (mock accept any code) | ✓ |
-| 5-tab bottom bar (Home / Browse / Cart / Orders / Profile) | ✓ |
-| Cart badge with live count | ✓ |
-| Home: address bar, greeting, cuisine pills, featured carousel, restaurant list | ✓ |
-| Browse: search + cuisine filter | ✓ |
-| Restaurant detail: hero, info bar, sticky menu nav, items with flags | ✓ |
-| Item modal: modifiers (single + multi-select), notes, qty, add-to-cart | ✓ |
-| Cart tab: line edits, qty steppers, checkout CTA | ✓ |
-| Checkout: address, payment, tip, EGP+home-currency totals, place order | ✓ |
-| Address picker: hotel / street / beach-pin tabs, add new | ✓ |
-| Payment picker: card / Apple Pay / Fawry / cash | ✓ |
-| Order tracking: map, timeline auto-advance, rider card, debug "mark delivered" | ✓ |
-| Review: two-star + comment + submit | ✓ |
-| Orders history: active + past with pull-to-refresh | ✓ |
-| Profile: avatar, rows, sign out | ✓ |
-| Settings: language + currency + notification toggles | ✓ |
-| Help: contact + FAQ | ✓ |
-| English + Arabic translations | ✓ |
-| Cart + session persisted to AsyncStorage | ✓ |
+Set these values in your local environment or the appropriate EAS environment
+before starting or building:
 
-## What's intentionally NOT here yet
+```sh
+EXPO_PUBLIC_USE_SUPABASE=true
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-- Real Supabase backend (mock layer is wired with the same interface)
-- Real payments (Paymob / Stripe / Apple Pay SDKs)
-- Real maps (Mapbox) — order tracking uses a stylized SVG map
-- Real GPS (`expo-location`)
-- Real push notifications
-- RU / IT / DE translations (fallback to EN)
-- Background location for beach-pin drop
+The anon key is a client identifier protected by Supabase RLS; never put a
+service-role key or another privileged secret in an `EXPO_PUBLIC_*` variable.
+Use a dedicated staging project and test accounts for development and mobile
+automation.
 
-See `SMOKE.md` for a 70-step manual test plan.
+## Current product surface
+
+- Onboarding, phone/OTP sign-in, address capture, restaurant discovery,
+  modifiers, cart, checkout, payment selection, order tracking, review, saved
+  orders, rewards, inbox, support, profile, and settings.
+- English, Arabic (including RTL), Russian, Italian, and German UI
+  dictionaries are shipped. The locale setting persists with the session.
+- Cart, selected address, and local session preferences persist in
+  AsyncStorage. In live mode, the data adapters also reconcile the supported
+  server-backed customer records.
+- The local mock adapter accepts any six-digit OTP strictly for mock-mode
+  development. Staging and production must use configured Supabase test or
+  real OTP credentials.
 
 ## Architecture
 
 ```
-app/                    Expo Router file-based routes
-├── _layout.tsx         root Stack
-├── index.tsx           splash → routes
-├── onboarding.tsx
-├── signin.tsx
-├── otp.tsx
-├── (tabs)/             5 tab screens
-├── restaurant/[id].tsx
-├── item/[id].tsx       (modal)
-├── checkout.tsx
-├── address/{picker,add}.tsx
-├── payment/picker.tsx
-├── order/[id].tsx      + /[id]/review.tsx
-├── settings.tsx
-└── help.tsx
-
+app/                    Expo Router routes and screens
 src/
-├── theme.ts            colors / spacing / radius / font / shadow tokens
-├── haptics.ts          tap / press / success / selection wrappers
-├── components/         PrimaryButton, BackButton, TabBar, RestaurantCard, FlagBadge, ...
-├── data/               see src/data/README.md — the seam for Supabase
-├── store/              cart + session (Zustand + AsyncStorage)
-├── i18n/               t() hook + en/ar JSON
-├── currency/fx.ts      EGP → EUR/USD/GBP/RUB conversion
-└── lib/format.ts       price / time / distance formatters
+├── components/         Reusable native UI and accessibility primitives
+├── currency/           EGP conversion and rate hydration
+├── data/               Runtime-selected mock or Supabase adapters
+├── i18n/               Translation lookup and five locale dictionaries
+├── lib/                Formatting, analytics, push, navigation, and helpers
+├── store/              Persisted Zustand cart and session state
+└── theme*.ts           Tokens, theme provider, and direction helpers
 ```
 
-## Swap to Supabase
+All product code should import data through `src/data/index.ts`:
 
-See `src/data/README.md`. One-file change in `src/data/index.ts`.
+```ts
+import { db } from '../src/data';
+
+const restaurants = await db.restaurants.list();
+```
+
+Do not make UI screens depend directly on `mock/`, `repositories/`, or
+`supabase/` modules; that would bypass the runtime switch and make the two
+modes drift.
+
+## Verification
+
+Run from `apps/customer`:
+
+```sh
+npm run typecheck
+npm test
+npm run export
+npm run test:adapters
+```
+
+Use [SMOKE.md](SMOKE.md) for the focused manual release pass. The repository's
+staging-only mobile automation and its fixture contract live in
+[`.maestro/README.md`](../../.maestro/README.md).

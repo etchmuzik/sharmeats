@@ -1,12 +1,14 @@
 'use client';
 
+import { safeDisplayError } from '@/lib/displayError';
+
 /**
  * 4-step onboarding wizard. Draft lives in localStorage (survives refresh);
  * the DB is touched exactly once, at final submit (apply_as_restaurant).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { applyAsRestaurant, rpcErrorToCopy } from '@/lib/onboarding';
+import { applyAsRestaurant } from '@/lib/onboarding';
 import {
   type WizardDraft, emptyDraft, loadDraft, saveDraft, clearDraft, validateStep, draftToApplication,
 } from '@/lib/wizardDraft';
@@ -79,7 +81,13 @@ export function Wizard({ onSubmitted }: { onSubmitted: () => void }) {
       clearDraft(window.localStorage);
       onSubmitted();
     } catch (e: unknown) {
-      setError(rpcErrorToCopy(e instanceof Error ? e.message : String(e)));
+      setError(safeDisplayError(e, {
+        fallback: 'Could not submit your application. Please try again.',
+        known: {
+          RESTAURANT_EXISTS: 'This restaurant has already been registered.',
+          EMAIL_EXISTS: 'An account already exists for this email address.',
+        },
+      }));
     } finally {
       setBusy(false);
     }

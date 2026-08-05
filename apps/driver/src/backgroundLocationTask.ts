@@ -31,7 +31,9 @@ async function broadcastLocation(
 ): Promise<void> {
   const supabase = getSupabase();
   const channel = supabase.channel(`order:${orderId}:driver_loc`, {
-    config: { broadcast: { self: false } },
+    // Must match the customer channel. Migration 216 authorizes this private
+    // topic to the driver currently assigned to the order.
+    config: { private: true, broadcast: { self: false } },
   });
 
   try {

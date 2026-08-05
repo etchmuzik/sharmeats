@@ -99,6 +99,27 @@ jobs:
             exit 1
           fi
 
+      # Production customer builds enable the live Supabase adapter in
+      # eas.json. The URL is committed there, but the anon key intentionally
+      # lives in EAS environment storage; without it the binary builds and
+      # then fails on its first data call. Ask EAS before consuming a build
+      # credit, rather than discovering the missing runtime dependency on a
+      # customer's device.
+      - name: Require customer live-data environment
+        if: matrix.app == 'customer' && inputs.profile == 'production'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if ! environment_list=$(npx eas-cli@21.4.0 env:list --environment production 2>&1); then
+            echo "::error title=Could not inspect EAS environment::Unable to verify the production customer Supabase configuration. Check EXPO_TOKEN access and retry before starting a build."
+            exit 1
+          fi
+          if ! printf '%s\n' "$environment_list" | grep -q 'EXPO_PUBLIC_SUPABASE_ANON_KEY'; then
+            echo "::error title=Customer Supabase key missing::Production enables EXPO_PUBLIC_USE_SUPABASE=true but EXPO_PUBLIC_SUPABASE_ANON_KEY is absent from the EAS production environment. Add it with: eas env:set --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon-key> --visibility plaintext"
+            exit 1
+          fi
+          echo "Customer production Supabase environment is configured."
+
       # Fail in seconds rather than 20 minutes in.
       #
       # When a profile sets SENTRY_DISABLE_AUTO_UPLOAD=false, the build uploads

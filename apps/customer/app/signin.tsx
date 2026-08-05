@@ -15,6 +15,7 @@ import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvide
 import { useT } from '../src/i18n';
 import { db } from '../src/data';
 import { captureError } from '../src/lib/analytics';
+import { customerErrorKey } from '../src/lib/customerError';
 import { LEGAL_URLS, openLegal } from '../src/legal';
 
 /** Normalize a typed phone to E.164-ish: keep a leading +, strip everything else. */
@@ -43,7 +44,7 @@ export default function SignIn() {
       router.replace(`/otp?phone=${encodeURIComponent(e164)}`);
     } catch (e) {
       captureError(e, { where: 'signin.sendOtp' });
-      setError(e instanceof Error ? e.message : t('error.otpSendFailed'));
+      setError(t(customerErrorKey(e, 'sendOtp')));
     } finally {
       setSending(false);
     }
@@ -73,6 +74,7 @@ export default function SignIn() {
           autoFocus
           placeholder="+20 100 000 0000"
           placeholderTextColor={colors.ink3}
+          accessibilityLabel={t('signin.title')}
           style={styles.input}
         />
       </View>
@@ -99,7 +101,10 @@ export default function SignIn() {
       </Text>
 
       {error ? (
-        <Text style={{ paddingHorizontal: 24, marginTop: 12, color: colors.red, fontSize: font.sizes.md }}>
+        <Text
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+          style={{ paddingHorizontal: 24, marginTop: 12, color: colors.red, fontSize: font.sizes.md }}>
           {error}
         </Text>
       ) : null}
