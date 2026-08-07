@@ -8,6 +8,18 @@ tags:
 - launchApp:
     clearState: true
 - openLink: sharmeats://signin
+# iOS asks "Open in "Sharm Eats"?" for custom-scheme links opened from
+# outside the app; Android navigates directly. The dialog takes a beat to
+# animate in, so wait for it (optional — a no-show is fine), then confirm.
+- extendedWaitUntil:
+    visible: 'Open'
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - extendedWaitUntil:
     visible:
       id: customer-phone-input
