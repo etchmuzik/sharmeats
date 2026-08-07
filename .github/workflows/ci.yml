@@ -109,22 +109,81 @@ jobs:
       # 12:35 -> 20:18) with no commit in between touching a dependency.
       #
       # Blocking on it therefore gates merges on upstream release timing, not on
-      # anything about the diff under review. It still RUNS, and a failure is
-      # surfaced as a warning annotation plus a visibly failed step, so real
+      # anything about the diff under review. It still RUNS, and real drift is
+      # surfaced as a warning annotation plus a visibly failed step, so
       # incompatibilities are not silent — the job simply no longer fails.
       #
-      # `npx expo install --fix` in the affected app is the remedy when this
-      # fires. Everything that genuinely must hold — typecheck, tests, lint — is
-      # still a hard gate above.
+      # The step reads WHICH checks failed instead of trusting the exit code,
+      # because "Check Expo config for common issues" is a permanent false
+      # positive here: each Expo app pairs app.json with an app.config.js that
+      # spreads app.json's values and layers only EAS-supplied secrets on top
+      # (see any app.config.js header), and the doctor's static check cannot
+      # see through the require(). Warning on it drowned the drift signal
+      # (every run since 2026-08-05 carried the annotation with zero drift).
+      # So: only that check failing, for that reason → step passes clean; the
+      # dependency check failing → the drift warning below; any OTHER check
+      # failing, or the doctor crashing before it reports checks → a distinct
+      # loud warning, never a silent pass.
+      #
+      # Two sharp edges (both found by adversarial review, verified against
+      # the published 1.20.1 bundle) shape the ignore branch:
+      #   1. That check groups a SECOND, genuine issue under the same ✖ title:
+      #      an explicit expo.sdkVersion in the config ("It appears that
+      #      expo.sdkVersion is defined..."). Filtering on the title alone
+      #      would silence it forever, so the body text is checked too.
+      #   2. The warning is only false while app.config.js really does spread
+      #      app.json. If that require() ever disappears, app.json's fields
+      #      (bundle id, icons, plugins) silently stop applying — so the
+      #      ignore branch first confirms the require is still present.
+      # Check titles and body text are matched against expo-doctor 1.20.1
+      # exactly — the version is pinned, and a future bump that rewords them
+      # lands in the "unexpected check" branch, which is noisy, not silent.
+      #
+      # `npx expo install --fix` in the affected app is the remedy when the
+      # drift warning fires. Everything that genuinely must hold — typecheck,
+      # tests, lint — is still a hard gate above.
       - name: Expo compatibility (advisory)
         if: contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface)
         working-directory: ${{ matrix.surface }}
         continue-on-error: true
         run: |
-          npx --yes expo-doctor@1.20.1 || {
-            echo "::warning title=Expo SDK drift in ${{ matrix.surface }}::expo-doctor reported issues. This does not fail CI. Fix with: cd ${{ matrix.surface }} && npx expo install --fix"
+          if out="$(npx --yes expo-doctor@1.20.1 2>&1)"; then
+            printf '%s\n' "$out"
+            exit 0
+          fi
+          printf '%s\n' "$out"
+          failed="$(printf '%s\n' "$out" | grep -F '✖' || true)"
+          if [ -z "$failed" ]; then
+            echo "::warning title=expo-doctor did not run in ${{ matrix.surface }}::expo-doctor exited non-zero without reporting any failed check (crash or install failure). See the step log."
             exit 1
-          }
+          fi
+          config_ignorable=0
+          if printf '%s\n' "$failed" | grep -Fq 'Check Expo config for common issues'; then
+            if printf '%s\n' "$out" | grep -Fq 'expo.sdkVersion is defined'; then
+              config_ignorable=0
+            elif grep -Fq "require('./app.json')" app.config.js 2>/dev/null; then
+              config_ignorable=1
+            fi
+          fi
+          real="$(printf '%s\n' "$failed" | grep -Fv 'Check Expo config for common issues' || true)"
+          if [ -z "$real" ] && [ "$config_ignorable" -eq 1 ]; then
+            echo "Only the known app.json + app.config.js false positive failed — ignored (see the comment above this step)."
+            exit 0
+          fi
+          if printf '%s\n' "$real" | grep -Fq 'Check that packages match versions required by installed Expo SDK'; then
+            echo "::warning title=Expo SDK drift in ${{ matrix.surface }}::expo-doctor reported dependency drift. This does not fail CI. Fix with: cd ${{ matrix.surface }} && npx expo install --fix"
+          fi
+          unexpected=0
+          if printf '%s\n' "$real" | grep -Fv 'Check that packages match versions required by installed Expo SDK' | grep -q .; then
+            unexpected=1
+          fi
+          if printf '%s\n' "$failed" | grep -Fq 'Check Expo config for common issues' && [ "$config_ignorable" -eq 0 ]; then
+            unexpected=1
+          fi
+          if [ "$unexpected" -eq 1 ]; then
+            echo "::warning title=Unexpected expo-doctor failure in ${{ matrix.surface }}::a check other than dependency drift and the known app-config false positive failed. See the step log."
+          fi
+          exit 1
 
   # Edge functions run on Deno, not Node — test them separately.
   edge-functions:
