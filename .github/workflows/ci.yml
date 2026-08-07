@@ -31,9 +31,9 @@ jobs:
           - apps/merchant-web
           - landing
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -190,7 +190,7 @@ jobs:
     name: edge-functions (deno)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Pinned to a full commit SHA (supply-chain safety); v2.0.5.
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
         with:
@@ -206,7 +206,7 @@ jobs:
     name: database security migrations (postgres)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Verify PostgreSQL test runtime
         run: pg_config --version
       - name: Test security and governance migrations in isolated PostgreSQL
@@ -219,7 +219,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # fetch-depth 0 is not needed — both checks read the working tree only.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # 2026-08-01: two sessions both correctly read "highest is 201" and both
       # wrote a 202. The collision is a race between concurrent readers, which
