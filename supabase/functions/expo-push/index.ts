@@ -46,13 +46,18 @@ import {
   suppressMessage,
   type AttemptOutcome,
 } from './outbox.ts';
+import { parseRetryAttempts, sendRetryAttempts } from './retry.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_CHUNK_SIZE = 100; // hard cap per https://docs.expo.dev/push-notifications/sending-notifications/
 
 
 interface PushBody {
-  event: string;       // e.g. 'order_paid', 'order_accepted', 'order_out_for_delivery'
+  // SQL retry dispatcher contract. A retry carries exact attempt/token rows and
+  // never re-enters the recipient fan-out path below.
+  mode?: 'retry';
+  attempts?: unknown;
+  event?: string;       // e.g. 'order_paid', 'order_accepted', 'order_out_for_delivery'
   // The order this push is about. REQUIRED for order events; may be empty for
   // pushes that are not about an order (campaigns, wallet credit with no order).
   // See the orderId/route contract note below.
@@ -112,6 +117,74 @@ Deno.serve(async (req: Request) => {
     } catch {
       return new Response('bad json', { status: 400 });
     }
+    // Retry mode is deliberately handled before the fresh-send event contract.
+    // Each row came from claim_push_retries and identifies ONE failed token. It
+    // must not be converted back to recipientUserIds: doing that fans a retry
+    // out to every healthy device the recipient owns.
+    if (body.mode === 'retry') {
+      const attempts = parseRetryAttempts(body.attempts);
+      if (!attempts) return new Response('invalid retry attempts', { status: 400 });
+      if (attempts.length === 0) return new Response('ok (no retry attempts)', { status: 200 });
+
+      const admin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+
+      const recipientIds = [...new Set(
+        attempts
+          .map((attempt) => attempt.recipientUserId)
+          .filter((id): id is string => id !== null),
+      )];
+      const localeByUser = new Map<string, Locale>();
+      if (recipientIds.length > 0) {
+        const { data: userRows, error: localeErr } = await admin
+          .from('users')
+          .select('id, locale')
+          .in('id', recipientIds);
+        if (localeErr) {
+          console.error(`expo-push retry: locale lookup failed (using en): ${localeErr.message}`);
+        } else {
+          for (const user of (userRows ?? []) as { id: string; locale: string | null }[]) {
+            localeByUser.set(user.id, normalizeLocale(user.locale));
+          }
+        }
+      }
+
+      const summary = await sendRetryAttempts(attempts, {
+        localeByUser,
+        settleAttempt: async (outcome) => {
+          const { error } = await admin.rpc('settle_push_attempt', {
+            p_attempt_id: outcome.attemptId,
+            p_status: outcome.status,
+            p_ticket_id: outcome.ticketId,
+            p_error_code: outcome.errorCode,
+            p_error_detail: outcome.errorDetail,
+          });
+          if (error) {
+            throw new Error(`could not settle retry attempt ${outcome.attemptId}: ${error.message}`);
+          }
+        },
+      });
+
+      if (summary.deadTokens.length > 0) {
+        const { error: pruneErr } = await admin
+          .from('push_tokens')
+          .delete()
+          .in('token', [...new Set(summary.deadTokens)]);
+        if (pruneErr) {
+          console.error(`expo-push retry: failed to prune dead tokens: ${pruneErr.message}`);
+        }
+      }
+
+      return new Response(
+        `ok (retry accepted ${summary.accepted}/${summary.total}, failed ${summary.failed}` +
+          (summary.settleFailures > 0 ? `, unsettled ${summary.settleFailures}` : '') +
+          ')',
+        { status: 200 },
+      );
+    }
+
     // orderId/route contract (fixed 2026-07-27):
     //
     // This used to require a non-empty orderId for EVERY push, which had two
