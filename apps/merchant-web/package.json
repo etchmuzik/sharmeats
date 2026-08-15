@@ -2,12 +2,15 @@
   "name": "sharmeats-merchant-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev -p 3001",
     "prebuild": "node ../../scripts/write-version-manifest.mjs --surface merchant-web",
     "build": "next build",
     "build:export": "STATIC_EXPORT=1 next build && npm run sentry:sourcemaps",
-    "sentry:sourcemaps": "node scripts/upload-sourcemaps.mjs",
+    "sentry:sourcemaps": "node ../../scripts/finalize-web-sourcemaps.mjs --dir out",
     "start": "next start -p 3001",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -17,7 +20,7 @@
     "@sentry/nextjs": "^10.65.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
-    "next": "15.5.19",
+    "next": "15.5.23",
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
@@ -31,7 +34,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.14.0",
-    "eslint-config-next": "15.5.19",
+    "eslint-config-next": "15.5.23",
     "jsdom": "^29.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.14",

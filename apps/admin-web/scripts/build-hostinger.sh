@@ -10,8 +10,14 @@
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+echo "→ Writing version manifest…"
+node ../../scripts/write-version-manifest.mjs --surface admin-web
+
 echo "→ Building static SPA (STATIC_EXPORT=1)…"
 STATIC_EXPORT=1 npx next build
+
+echo "→ Uploading private source maps when configured, then removing them from out/ …"
+npm run sentry:sourcemaps
 
 echo "→ Copying .htaccess into out/ …"
 cp public/.htaccess out/.htaccess 2>/dev/null || echo "  (no public/.htaccess — skipping)"

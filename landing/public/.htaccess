@@ -26,11 +26,22 @@
 # Apple universal links: the AASA file has no extension and MUST be served as
 # application/json, or iOS ignores it.
 <IfModule mod_headers.c>
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://www.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+
   <Files "apple-app-site-association">
     ForceType application/json
     Header set Content-Type "application/json"
   </Files>
 </IfModule>
+
+<FilesMatch "\.map$">
+  Require all denied
+</FilesMatch>
 
 # Caching: hashed Next assets are immutable; HTML should revalidate.
 <IfModule mod_headers.c>
