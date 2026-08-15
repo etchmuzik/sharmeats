@@ -66,13 +66,18 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: landing/package-lock.json
 
-      - name: Install
+      # Lockfile-exact, same as ci.yml. The old `npm ci || npm install` fallback
+      # made the one workflow that actually SHIPS the laxest: a drifted lockfile
+      # failed the PR but silently rewrote package-lock.json here, and the
+      # deploy then aborted in write-version-manifest.mjs with "working tree is
+      # dirty" — pointing at the lockfile instead of naming the real problem.
+      - name: Install (lockfile exact)
         working-directory: landing
-        run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
+        run: npm ci
 
       # The zone check is landing's `npm test` and CI runs it on the PR, but a
       # deploy is the moment it must be true — cheap to re-assert here.

@@ -3,8 +3,9 @@ name: CI
 # Runs typecheck (all surfaces), tests, and lint (where present) on every PR and
 # push to main. Each app installs independently (its own lockfile), so we matrix
 # per surface. Mobile typecheck/test scripts are mandatory; Expo SDK
-# compatibility is reported but ADVISORY (see that step for why); optional checks
-# remain optional for other surfaces.
+# compatibility is reported but ADVISORY (see that step for why). Lockfile
+# installs and every expected surface script are mandatory; production web
+# builds exercise the same static-export path that is actually deployed.
 on:
   push:
     branches: [main]
@@ -35,36 +36,32 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: ${{ matrix.surface }}/package-lock.json
 
-      - name: Install mobile app (lockfile exact)
-        if: contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface)
+      - name: Install dependencies (lockfile exact)
         working-directory: ${{ matrix.surface }}
         run: npm ci
 
-      - name: Install non-mobile surface
-        if: ${{ !contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface) }}
-        working-directory: ${{ matrix.surface }}
-        # Prefer a clean, lockfile-exact install; fall back to `npm install` for
-        # any surface whose lockfile has drifted (keeps CI unblocking, not silent
-        # — the fallback is logged).
-        run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
-
-      - name: Require mobile quality scripts
-        if: contains(fromJSON('["apps/customer", "apps/driver", "apps/restaurant"]'), matrix.surface)
+      - name: Require baseline quality scripts
         working-directory: ${{ matrix.surface }}
         run: |
           node -e "const s=require('./package.json').scripts ?? {}; for (const n of ['typecheck','test']) if (!s[n]) throw new Error('Missing required script: '+n)"
 
+      - name: Require web production scripts
+        if: contains(fromJSON('["apps/admin-web", "apps/merchant-web", "landing"]'), matrix.surface)
+        working-directory: ${{ matrix.surface }}
+        run: |
+          node -e "const s=require('./package.json').scripts ?? {}; for (const n of ['lint','build']) if (!s[n]) throw new Error('Missing required script: '+n)"
+
       - name: Typecheck
         working-directory: ${{ matrix.surface }}
-        run: npm run typecheck --if-present
+        run: npm run typecheck
 
       - name: Test
         working-directory: ${{ matrix.surface }}
-        run: npm test --if-present
+        run: npm test
 
       # The customer app's Supabase adapter uses an RPC-backed order path.
       # Its contract script is deliberately separate from Vitest because it
@@ -84,8 +81,9 @@ jobs:
         run: npm run export
 
       - name: Lint
+        if: contains(fromJSON('["apps/admin-web", "apps/merchant-web", "landing"]'), matrix.surface)
         working-directory: ${{ matrix.surface }}
-        run: npm run lint --if-present
+        run: npm run lint
 
       # Web surfaces only: prove `next build` actually succeeds. Typecheck and
       # lint cannot see prerender failures — admin-web's /login could not
@@ -93,13 +91,23 @@ jobs:
       # (found 2026-07-30). Placeholder values are enough: prerendering only
       # needs the Supabase client to CONSTRUCT, never to connect. The mobile
       # apps are excluded because their build is an EAS concern, not a CI one.
-      - name: Build (web surfaces)
+      - name: Build production static artifact (web surfaces)
         if: contains(fromJSON('["apps/admin-web", "apps/merchant-web", "landing"]'), matrix.surface)
         working-directory: ${{ matrix.surface }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
-        run: npm run build
+        run: ./scripts/build-hostinger.sh
+
+      - name: Verify production static artifact (web surfaces)
+        if: contains(fromJSON('["apps/admin-web", "apps/merchant-web", "landing"]'), matrix.surface)
+        working-directory: ${{ matrix.surface }}
+        run: |
+          test -f out/.htaccess
+          if find out -type f -name '*.map' -print -quit | grep -q .; then
+            echo "::error::Public source map found in the production artifact"
+            exit 1
+          fi
 
       # ADVISORY, not a gate. expo-doctor's dependency-validation check compares
       # installed versions against the latest recommendations WITHIN the SDK
@@ -235,3 +243,13 @@ jobs:
       # later. This turns the archive's contents into a CI-time assertion.
       - name: EAS upload keeps the app source
         run: ./scripts/check-easignore.sh
+
+      - name: Web runtime, headers, and artifact contracts
+        run: node scripts/test-web-platform-contracts.mjs
+
+      # The backup scripts are the only recovery path for production, and they
+      # run unattended under launchd — nothing else exercises their pagination,
+      # retention pruning, path validation or the freshness dead-man's switch.
+      # The suite drives the REAL scripts against fixtures in a temp dir.
+      - name: Backup and restore-readiness operations
+        run: ./scripts/test-backup-operations.sh
