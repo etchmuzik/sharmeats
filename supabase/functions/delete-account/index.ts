@@ -23,6 +23,7 @@
 // SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { classifyAnonymizeFailure } from './logic.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -79,12 +80,13 @@ Deno.serve(async (req: Request) => {
     //    client may safely retry on transient failure.
     const { error: rpcErr } = await userClient.rpc('anonymize_my_account');
     if (rpcErr) {
-      // check_violation = our active-order guard (or no auth context).
-      if (rpcErr.code === '23514' || /ACTIVE_ORDER/i.test(rpcErr.message ?? '')) {
-        return json({ error: 'active_order' }, 409);
-      }
-      console.error('[delete-account] anonymize failed', { uid, code: rpcErr.code });
-      return json({ error: 'anonymize_failed' }, 500);
+      const failure = classifyAnonymizeFailure(rpcErr);
+      console.error('[delete-account] anonymize refused', {
+        uid,
+        code: rpcErr.code,
+        outcome: failure.error,
+      });
+      return json({ error: failure.error }, failure.status);
     }
 
     // 4. STAGE 2 — admin HARD-delete of the auth identity (cascades to the
