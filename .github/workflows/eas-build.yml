@@ -99,6 +99,22 @@ jobs:
             exit 1
           fi
 
+      # Only packages/* are npm workspaces; every app owns its own lockfile, so
+      # install from inside the app directory. (See CLAUDE.md.)
+      #
+      # This runs BEFORE the preflights, not after: `eas env:list` and the
+      # Sentry check both evaluate app.config.js, which resolves Expo config
+      # plugins (expo-router et al) from node_modules. Without them eas-cli
+      # exits 1 with "Failed to resolve plugin for module expo-router" and the
+      # preflight blames the environment it was checking.
+      #
+      # Lockfile-exact, matching ci.yml: an `npm ci || npm install` fallback
+      # would silently build a dependency tree nobody reviewed, and this is the
+      # workflow that produces the binary users install.
+      - name: Install
+        working-directory: apps/${{ matrix.app }}
+        run: npm ci
+
       # Production customer builds enable the live Supabase adapter in
       # eas.json. The URL is committed there, but the anon key intentionally
       # lives in EAS environment storage; without it the binary builds and
@@ -172,12 +188,6 @@ jobs:
           else
             echo "::warning title=Sentry source maps will not upload::SENTRY_AUTH_TOKEN is not set for the production environment of apps/${{ matrix.app }}, but eas.json sets SENTRY_DISABLE_AUTO_UPLOAD=false for profile '${{ inputs.profile }}'. sentry-cli will fail and, because SENTRY_ALLOW_FAILURE is not honoured in @sentry/react-native 7.11.0, that fails the Xcode build phase. Create it with: eas env:set --environment production --name SENTRY_AUTH_TOKEN --value <token> --visibility secret"
           fi
-
-      # Only packages/* are npm workspaces; every app owns its own lockfile, so
-      # install from inside the app directory. (See CLAUDE.md.)
-      - name: Install
-        working-directory: apps/${{ matrix.app }}
-        run: npm ci || (echo "::warning::npm ci failed, falling back to npm install" && npm install)
 
       - name: Build
         working-directory: apps/${{ matrix.app }}
