@@ -228,6 +228,14 @@ grant update (is_default)
   on table public.payment_methods to authenticated;
 grant update (rating_food, rating_delivery, rating_comment)
   on table public.orders to authenticated;
+-- The avatar columns are `photo` and `logo`, NOT photo_url/logo_url. Granting
+-- the _url names aborted this migration against production (42703) — and the
+-- reason they were written that way is a real, separate bug: the driver avatar
+-- (apps/driver/src/avatar.ts) and restaurant logo (apps/restaurant/src/logo.ts)
+-- uploads both .update() the _url names, so they have never written anything.
+-- Prod matches that story: 0 of 4 drivers have a photo. Grant the columns that
+-- EXIST; fixing the two client call sites is tracked separately, and this grant
+-- is what those fixed call sites will need.
 grant update (
   status,
   payout_method,
@@ -235,7 +243,7 @@ grant update (
   payout_iban,
   payout_wallet,
   payout_holder,
-  photo_url
+  photo
 ) on table public.drivers to authenticated;
 grant update (
   is_open,
@@ -244,7 +252,7 @@ grant update (
   payout_iban,
   payout_wallet,
   payout_holder,
-  logo_url
+  logo
 ) on table public.restaurants to authenticated;
 grant update (read_at)
   on table public.order_messages, public.support_messages to authenticated;
