@@ -1,5 +1,45 @@
 # Production database release runbook
 
+## APPLIED 2026-08-15 — the 2026-08-15 hardening tranche (6 migrations)
+
+Applied individually via the Supabase MCP `apply_migration` tool (NOT `db push`,
+which remains blocked — see below), each verified immediately after:
+
+| Repo file | Ledger version | What it does |
+|---|---|---|
+| `20260815044240_explicit_data_api_grants.sql` | `20260815113318` | explicit Data API relation/verb allow-list |
+| `20260815044234_enforce_order_modifier_invariants.sql` | `20260815113412` | `place_order` wrapper enforcing modifier rules |
+| `20260815050843_restrict_customer_account_deletion.sql` | `20260815113512` | customer-only `anonymize_my_account` |
+| `167_driver_photo_merchant_logo.sql` | `20260815114639` | **long-unapplied**; adds photo_url/logo_url + `avatars` bucket |
+| `217_grant_avatar_upload_columns_after_167.sql` | `20260815114739` | repoints the avatar column grants after 167 |
+| `20260815044230_repair_push_retry_state_machine.sql` | `20260815120607` | append-only push retry attempts |
+
+Edge Functions deployed the same day: **`delete-account` v5**, **`expo-push` v18**
+(with `--no-verify-jwt`; see `docs/DEPLOY-EXPO-PUSH.md` — a bare deploy resets it
+to `true` and every DB→function push then 401s silently).
+
+**Ordering that was load-bearing, and must be repeated on any other project:**
+`expo-push` v18 had to be deployed BEFORE the push-retry migration. The
+dispatcher posts `{mode:'retry'}`, which v17 rejected with `400 event required`;
+applying first would have stalled every retry for 10 minutes per cron cycle.
+
+**⚠️ The ledger versions above do NOT match the repo filenames.** `apply_migration`
+stamps its own timestamp, so a later `db push` or a reconciliation script will
+see these six files as unapplied and may try to replay them. Reconcile by NAME,
+not version. All six are idempotent, but replaying the modifier/deletion ones
+would attempt a second `ALTER FUNCTION ... SET SCHEMA` against an already-moved
+function and fail.
+
+**NOT APPLIED — `20260815044226_enforce_admin_mfa_authority.sql`.** Production
+has **zero verified MFA factors across two admin accounts**, and the migration
+makes `auth_role()` return `admin` only with a verified factor AND `aal2`.
+Applying it now locks both admins out with no in-app path back, because
+enrolment sits behind the authority it enforces. Gate: enrol TOTP for both, con-
+firm `select count(*) from auth.mfa_factors where status='verified'` returns 2,
+apply, then rotate the admin password `docs/GO-LIVE.md` still marks as burned.
+
+---
+
 ## Current release status
 
 Database deployment is intentionally blocked.
