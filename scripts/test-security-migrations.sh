@@ -61,6 +61,11 @@ test_files=(
   "supabase/tests/204_app_review_demo_financials.test.sql"
   "supabase/tests/205_promo_release_and_remainder.test.sql"
   "supabase/tests/216_realtime_driver_location_authorization.test.sql"
+  "supabase/tests/20260815044226_enforce_admin_mfa_authority.test.sql"
+  "supabase/tests/20260815044230_push_retry_state_machine.test.sql"
+  "supabase/tests/20260815044234_enforce_order_modifier_invariants.test.sql"
+  "supabase/tests/20260815044240_explicit_data_api_grants.test.sql"
+  "supabase/tests/20260815050843_restrict_customer_account_deletion.test.sql"
 )
 
 # Guard against silent orphaning.
