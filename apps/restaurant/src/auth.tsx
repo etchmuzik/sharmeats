@@ -59,7 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
     },
     async signOut() {
-      await getSupabase().auth.signOut();
+      const { error } = await getSupabase().auth.signOut();
+      if (error) throw error;
     },
   };
 

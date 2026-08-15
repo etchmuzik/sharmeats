@@ -15,6 +15,7 @@
  */
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -30,8 +31,10 @@ import {
 } from './pushPermission';
 import { routeForNotification, routeDestination } from './notificationRoute';
 import { openAttributionWindow } from './notificationAttribution';
+import { revokePushIdentity } from './pushTokenLifecycle';
 
 let lastToken: string | null = null;
+const PUSH_TOKEN_STORAGE_KEY = '@sharmeats/customer/push-token';
 
 function easProjectId(): string | undefined {
   const fromExtra = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)
@@ -99,6 +102,9 @@ async function registerToken(): Promise<void> {
   if (!token || token === lastToken) return;
   await db.user.registerPushToken(token, Platform.OS as 'ios' | 'android');
   lastToken = token;
+  await AsyncStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token).catch((storageError) => {
+    captureError(storageError, { where: 'registerForPush.persistToken' });
+  });
 }
 
 /**
@@ -246,14 +252,36 @@ export function useNotificationRouting(): void {
   }, [router]);
 }
 
-/** Best-effort token cleanup on sign-out. */
-export async function unregisterPush(): Promise<void> {
-  const token = lastToken;
+/** Revoke this device's push identity, including after a cold process restart. */
+export async function unregisterPush(): Promise<boolean> {
+  const inMemoryToken = lastToken;
+  // Drop the in-memory dedupe guard BEFORE revocation, unconditionally. If the
+  // revocation fails (offline, RLS error) the persisted key is kept so a later
+  // attempt still finds the token — but registerToken() must never skip the
+  // register_push_token transfer for the NEXT account because the token
+  // "looks the same": that leaves the device mapped to the departing user.
   lastToken = null;
-  if (!token || !isBackendLive) return;
-  try {
-    await db.user.unregisterPushToken(token);
-  } catch (e) {
-    captureError(e, { where: 'unregisterPush' });
-  }
+  return revokePushIdentity({
+    inMemoryToken,
+    readStoredToken: () => AsyncStorage.getItem(PUSH_TOKEN_STORAGE_KEY),
+    deleteServerToken: async (token) => {
+      // No server mapping exists in mock mode, so there is nothing to revoke.
+      if (!isBackendLive) return true;
+      try {
+        await db.user.unregisterPushToken(token);
+        return true;
+      } catch (error) {
+        captureError(error, { where: 'unregisterPush.delete' });
+        return false;
+      }
+    },
+    unregisterNative: async () => {
+      if (Platform.OS === 'web') return true;
+      await Notifications.unregisterForNotificationsAsync();
+      return true;
+    },
+    clearStoredToken: async () => {
+      await AsyncStorage.removeItem(PUSH_TOKEN_STORAGE_KEY);
+    },
+  });
 }

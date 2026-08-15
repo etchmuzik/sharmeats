@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from '../src/auth';
+import { AuthProvider, useAuth } from '../src/auth';
 import { ToastProvider } from '../src/components/Toast';
 import { ThemeProvider, ThemedStatusBar, useThemeColors } from '../src/themeProvider';
 import { initCrashReporting } from '../src/lib/crash';
@@ -69,6 +69,7 @@ export default function RootLayout() {
  */
 function RestaurantStack() {
   const colors = useThemeColors();
+  const { session } = useAuth();
   const { t } = useLocale();
 
   return (
@@ -84,14 +85,18 @@ function RestaurantStack() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="signin" options={{ headerShown: false }} />
-      <Stack.Screen name="home" options={{ headerShown: false }} />
-      <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
-      <Stack.Screen name="menu" options={{ title: t('nav.menu'), headerLargeTitle: true }} />
-      <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
-      <Stack.Screen name="order/[id]" options={{ title: t('nav.order') }} />
-      <Stack.Screen name="order/[id]/chat" options={{ title: t('nav.chat') }} />
+      <Stack.Protected guard={!session}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="signin" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={Boolean(session)}>
+        <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
+        <Stack.Screen name="menu" options={{ title: t('nav.menu'), headerLargeTitle: true }} />
+        <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
+        <Stack.Screen name="order/[id]" options={{ title: t('nav.order') }} />
+        <Stack.Screen name="order/[id]/chat" options={{ title: t('nav.chat') }} />
+      </Stack.Protected>
     </Stack>
   );
 }

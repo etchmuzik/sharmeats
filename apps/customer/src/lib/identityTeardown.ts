@@ -65,6 +65,13 @@ export const IDENTITY_SCOPED_KEYS = [
 
 /** What actually happened, so callers and tests can assert instead of trust. */
 export interface IdentityTransitionResult {
+  /**
+   * Backend mapping or native push registration was definitively revoked (or
+   * no token was ever bound to this device). Reported, not part of
+   * isolationComplete: it needs the network, and the next sign-in re-binds the
+   * token to the new account regardless.
+   */
+  pushRevoked: boolean;
   /** Supabase credentials were revoked. */
   authSignedOut: boolean;
   /** Keys removed from device storage. */
@@ -114,7 +121,12 @@ async function purgeScopedStorage(): Promise<string[]> {
 export async function transitionIdentity(): Promise<IdentityTransitionResult> {
   // 1. Stop this device receiving the departing account's pushes, while the
   //    token is still associated with them.
-  await unregisterPush().catch(() => {});
+  let pushRevoked = false;
+  try {
+    pushRevoked = await unregisterPush();
+  } catch {
+    // Keep the transition moving, but isolationComplete below fails closed.
+  }
 
   // 2. Revoke credentials BEFORE local state goes, so there is no window where
   //    the UI looks signed out while the SDK still holds working tokens.
@@ -183,6 +195,7 @@ export async function transitionIdentity(): Promise<IdentityTransitionResult> {
   // safer than browsing as the previous person.
 
   return {
+    pushRevoked,
     authSignedOut,
     removedKeys,
     anonymousSessionReady,
@@ -190,6 +203,15 @@ export async function transitionIdentity(): Promise<IdentityTransitionResult> {
     // Isolation is only COMPLETE when the credential is gone AND every scoped
     // key was actually removed. A storage failure leaves the previous person's
     // basket on the device, which is the leak this whole path exists to close.
-    isolationComplete: !residualCredential && removedKeys.length === IDENTITY_SCOPED_KEYS.length,
+    //
+    // pushRevoked is deliberately NOT part of this verdict. It depends on the
+    // network and (on Android) on FCM, so an offline sign-out would tell the
+    // customer "you're still signed in" after auth-js has already dropped the
+    // local session. The device IS isolated; the server-side mapping is
+    // repaired on the next sign-in, which always re-runs register_push_token
+    // (unregisterPush clears the dedupe guard even when revocation fails).
+    isolationComplete:
+      !residualCredential &&
+      removedKeys.length === IDENTITY_SCOPED_KEYS.length,
   };
 }

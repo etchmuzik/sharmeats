@@ -15,13 +15,16 @@
  *    not receive the previous account's offers.
  */
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { captureError } from './lib/crash';
+import { revokePushIdentity } from './pushTokenLifecycle';
 
 let lastToken: string | null = null;
+const PUSH_TOKEN_STORAGE_KEY = '@sharmeats/driver/push-token';
 
 function easProjectId(): string | undefined {
   const fromExtra = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)
@@ -90,19 +93,42 @@ export async function registerForPush(): Promise<void> {
       return;
     }
     lastToken = token;
+    await AsyncStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token).catch((storageError) => {
+      captureError(storageError, { where: 'driver.registerForPush.persistToken' });
+    });
   } catch {
     // Push is best-effort — never block the app on it.
   }
 }
 
-/** Best-effort token cleanup on sign-out. */
-export async function unregisterPush(): Promise<void> {
-  const token = lastToken;
+/** Revoke this device's push identity, including after a cold process restart. */
+export async function unregisterPush(): Promise<boolean> {
+  const inMemoryToken = lastToken;
+  // Drop the in-memory dedupe guard BEFORE revocation, unconditionally. If the
+  // revocation fails the persisted key is kept for a later attempt, but
+  // registerForPush() must never skip register_push_token for the NEXT driver
+  // because the token "looks the same" — that leaves the device mapped to the
+  // departing account.
   lastToken = null;
-  if (!token || !isSupabaseConfigured()) return;
-  try {
-    await getSupabase().from('push_tokens').delete().eq('token', token);
-  } catch {
-    // ignore — the registration RPC transfers it on the next authenticated launch
-  }
+  return revokePushIdentity({
+    inMemoryToken,
+    readStoredToken: () => AsyncStorage.getItem(PUSH_TOKEN_STORAGE_KEY),
+    deleteServerToken: async (token) => {
+      if (!isSupabaseConfigured()) return false;
+      const { error } = await getSupabase().from('push_tokens').delete().eq('token', token);
+      if (error) {
+        captureError(error, { where: 'driver.unregisterPush.delete', code: error.code });
+        return false;
+      }
+      return true;
+    },
+    unregisterNative: async () => {
+      if (Platform.OS === 'web') return true;
+      await Notifications.unregisterForNotificationsAsync();
+      return true;
+    },
+    clearStoredToken: async () => {
+      await AsyncStorage.removeItem(PUSH_TOKEN_STORAGE_KEY);
+    },
+  });
 }

@@ -46,6 +46,7 @@ import { notifyError, notifySuccess } from '../src/lib/haptics';
 import { useLocale } from '../src/locale';
 import { captureError } from '../src/lib/crash';
 import { operationalErrorKey } from '../src/operationalErrors';
+import { runRestaurantSignOut } from '../src/signOutFlow';
 
 // [H-REST3] Live data shows merchants miss ~2/3 of orders into the 180s
 // auto-accept timeout — a single missed chime = a late kitchen. Re-fire the
@@ -359,10 +360,21 @@ export default function Home() {
   }, [kitchen, isOpen, togglingOpen, toast, load, mayToggleOpen, t]);
 
   const handleSignOut = useCallback(async () => {
-    await unregisterPush();
-    await signOut();
+    const result = await runRestaurantSignOut({ unregisterPush, signOut });
+    if (!result.authSignedOut) {
+      captureError(result.authError, { where: 'restaurant.home.signOut' });
+      toast(t('home.updateFailed'), 'error');
+      return;
+    }
+    if (!result.pushRevoked || result.cleanupFailures.length > 0) {
+      captureError(new Error('Restaurant device cleanup was incomplete'), {
+        where: 'restaurant.home.signOut.cleanup',
+        failures: result.cleanupFailures,
+        pushRevoked: result.pushRevoked,
+      });
+    }
     router.replace('/signin');
-  }, [signOut, router]);
+  }, [signOut, router, t, toast]);
 
   // The brand filter FILTERS the one list; it never replaces it with per-brand
   // tabs. A ticket in an unselected tab is an invisible ticket.

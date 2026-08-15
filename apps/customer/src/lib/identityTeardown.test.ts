@@ -42,6 +42,9 @@ const authMocks = vi.hoisted(() => ({
   currentUserId: undefined as never,
   hasLocalCredential: undefined as never,
 }));
+const pushMocks = vi.hoisted(() => ({
+  unregisterPush: undefined as never,
+}));
 
 vi.mock('../data', () => {
   authMocks.signOut = vi.fn(async () => {
@@ -78,11 +81,15 @@ const hasLocalCredentialMock = () =>
 // Same stub the other store tests use.
 vi.mock('../lib/deviceLocale', () => ({ detectDeviceLanguage: () => 'en' }));
 
-vi.mock('./push', () => ({
-  unregisterPush: vi.fn(async () => {
+vi.mock('./push', () => {
+  pushMocks.unregisterPush = vi.fn(async () => {
     h.order.push('unregisterPush');
-  }),
-}));
+    return true;
+  }) as never;
+  return { unregisterPush: pushMocks.unregisterPush };
+});
+const unregisterPushMock = () =>
+  pushMocks.unregisterPush as unknown as ReturnType<typeof vi.fn>;
 
 vi.mock('./analytics', () => ({
   resetAnalyticsUser: vi.fn(() => {
@@ -122,6 +129,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   currentUserIdMock().mockImplementation(async () => null);
   hasLocalCredentialMock().mockImplementation(async () => false);
+  unregisterPushMock().mockImplementation(async () => {
+    h.order.push('unregisterPush');
+    return true;
+  });
   // Seed BOTH layers: bytes on disk and the live store, which is the state a
   // signed-in customer actually leaves behind.
   store[CART_KEY] = JSON.stringify(PRIOR_CART);
@@ -145,6 +156,21 @@ describe('transitionIdentity', () => {
     const result = await transitionIdentity();
 
     expect(signOutMock()).toHaveBeenCalledTimes(1);
+    expect(result.authSignedOut).toBe(true);
+    expect(result.pushRevoked).toBe(true);
+  });
+
+  it('reports an unproven push revocation without blocking local isolation', async () => {
+    // Offline sign-out: the backend mapping cannot be deleted and (on Android)
+    // FCM cannot be reached, but auth-js has already dropped the local session
+    // and every scoped key is gone. Telling the customer "you're still signed
+    // in" would be false; the token is re-bound on the next sign-in instead.
+    unregisterPushMock().mockResolvedValueOnce(false);
+
+    const result = await transitionIdentity();
+
+    expect(result.pushRevoked).toBe(false);
+    expect(result.isolationComplete).toBe(true);
     expect(result.authSignedOut).toBe(true);
   });
 
