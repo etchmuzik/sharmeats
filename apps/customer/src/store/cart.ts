@@ -103,8 +103,13 @@ const SYNC_DEBOUNCE_MS = 1200;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 /** True while a write is in flight, so a queued edit waits rather than races. */
 let syncInFlight = false;
+let syncInFlightPromise: Promise<void> | null = null;
 /** An edit arrived during a write; run one more pass when it finishes. */
 let syncDirty = false;
+/** Invalidates responses from writes that began before a destructive clear. */
+let syncEpoch = 0;
+/** Holds new writes until clear_my_cart has run after any older upsert. */
+let serverClearInFlight = false;
 
 function priceForLine(line: CartItem): number {
   const mods = line.modifierChoices.reduce((acc, c) => acc + c.priceDeltaEgp, 0);
@@ -284,15 +289,26 @@ export const useCart = create<CartState>((set, get) => ({
       syncTimer = null;
     }
     syncDirty = false;
+    syncEpoch += 1;
+    serverClearInFlight = true;
+    const pendingWrite = syncInFlightPromise;
     get().clear();
     set({ serverVersion: 0 });
-    if (!isBackendLive) return;
     try {
-      await db.cart.clear();
+      // An already-issued request cannot be cancelled. Wait for it, then clear
+      // so its late commit cannot recreate the row after checkout/empty-cart.
+      await pendingWrite?.catch(() => undefined);
+      if (isBackendLive) await db.cart.clear();
     } catch {
       // Best-effort. clear_my_cart is idempotent, so the next successful sync or
       // placement retires the row; failing here must not block the customer,
       // whose order has already been placed by this point.
+    } finally {
+      serverClearInFlight = false;
+      if (syncDirty) {
+        syncDirty = false;
+        get().syncToServer();
+      }
     }
   },
 
@@ -324,46 +340,56 @@ export const useCart = create<CartState>((set, get) => ({
   syncToServer: () => {
     if (!isBackendLive) return;
 
-    if (syncInFlight) {
+    if (syncInFlight || serverClearInFlight) {
       // Do not start a second write; note that state moved on and re-run after.
       syncDirty = true;
       return;
     }
     if (syncTimer) clearTimeout(syncTimer);
 
-    syncTimer = setTimeout(async () => {
+    syncTimer = setTimeout(() => {
       syncTimer = null;
       syncInFlight = true;
-      try {
-        const s = get();
-        const expected = s.serverVersion;
-        const res = await db.cart.upsert({
-          restaurantId: s.restaurantId,
-          lines: toServerLines(s.lines),
-          expectedVersion: expected,
-        });
-        if (res.ok) {
-          set({ serverVersion: res.version });
-          track('cart_synced', { lineCount: s.lines.length, version: res.version });
-        } else {
-          // Another DEVICE wrote first. Do not overwrite it and do not silently
-          // adopt it: the resolution belongs to the customer, and the sheet is
-          // driven from the cart screen where they can see both baskets. Mark the
-          // local version unknown so the next attempt re-reads rather than
-          // repeating a write that cannot succeed.
-          set({ serverVersion: -1 });
-          track('cart_conflict_shown', { reason: 'version' });
+      const writeEpoch = syncEpoch;
+      const operation = (async () => {
+        try {
+          const s = get();
+          const expected = s.serverVersion;
+          const res = await db.cart.upsert({
+            restaurantId: s.restaurantId,
+            lines: toServerLines(s.lines),
+            expectedVersion: expected,
+          });
+          // A clear invalidates this response even though the request itself may
+          // already have committed. clearEverywhere waits, then deletes it.
+          if (writeEpoch !== syncEpoch) return;
+          if (res.ok) {
+            set({ serverVersion: res.version });
+            track('cart_synced', { lineCount: s.lines.length, version: res.version });
+          } else {
+            // Another DEVICE wrote first. Do not overwrite it and do not silently
+            // adopt it: the resolution belongs to the customer, and the sheet is
+            // driven from the cart screen where they can see both baskets. Mark the
+            // local version unknown so the next attempt re-reads rather than
+            // repeating a write that cannot succeed.
+            set({ serverVersion: -1 });
+            track('cart_conflict_shown', { reason: 'version' });
+          }
+        } catch {
+          // Offline or transient. The basket is intact locally and AsyncStorage
+          // already holds it; the next mutation or app foreground retries.
+        } finally {
+          syncInFlight = false;
+          if (syncDirty && !serverClearInFlight) {
+            syncDirty = false;
+            get().syncToServer();
+          }
         }
-      } catch {
-        // Offline or transient. The basket is intact locally and AsyncStorage
-        // already holds it; the next mutation or app foreground retries.
-      } finally {
-        syncInFlight = false;
-        if (syncDirty) {
-          syncDirty = false;
-          get().syncToServer();
-        }
-      }
+      })();
+      syncInFlightPromise = operation;
+      void operation.then(() => {
+        if (syncInFlightPromise === operation) syncInFlightPromise = null;
+      });
     }, SYNC_DEBOUNCE_MS);
   },
 }));

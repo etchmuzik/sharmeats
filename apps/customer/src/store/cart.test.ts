@@ -248,6 +248,30 @@ describe('cart server sync', () => {
     expect(useCart.getState().lines).toEqual([]);
   });
 
+  it('waits for an in-flight upsert before clearing, so the old write cannot recreate the cart', async () => {
+    const { db } = await import('../data');
+    let finishUpsert!: (value: typeof h.upsertResult) => void;
+    const pendingUpsert = new Promise<typeof h.upsertResult>((resolve) => {
+      finishUpsert = resolve;
+    });
+    (db.cart.upsert as ReturnType<typeof vi.fn>).mockImplementationOnce(async () => {
+      h.calls.push('cart.upsert.pending');
+      return pendingUpsert;
+    });
+
+    useCart.getState().add(LINE);
+    await vi.advanceTimersByTimeAsync(1500);
+    const clearing = useCart.getState().clearEverywhere();
+
+    expect(h.calls).not.toContain('cart.clear');
+    finishUpsert({ ok: true, version: 9, updatedAt: '', expiresAt: '' });
+    await clearing;
+
+    expect(h.calls.indexOf('cart.upsert.pending')).toBeLessThan(h.calls.indexOf('cart.clear'));
+    expect(useCart.getState().serverVersion).toBe(0);
+    expect(useCart.getState().lines).toEqual([]);
+  });
+
   it('adoptPrepared replaces the basket and records the version', () => {
     useCart.getState().adoptPrepared({
       restaurantId: 'r9',
