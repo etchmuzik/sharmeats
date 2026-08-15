@@ -5,14 +5,15 @@ import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { OpsDriver, OpsOrder } from '@/lib/types';
 import { DispatchBoard } from './DispatchBoard';
-import { DEFAULT_MAX_PING_AGE_SECONDS } from '@/lib/dispatch';
 import { SignOutButton } from './SignOutButton';
 import { Skeleton, DispatchBoardSkeleton } from './Skeleton';
 import { LegalLinks } from './LegalLinks';
+import { resolveOpsAccess, resolveOpsDashboardData } from '@/lib/webState';
 
 type Phase =
   | { state: 'loading' }
   | { state: 'unauthorized' }
+  | { state: 'error' }
   | {
       state: 'ready';
       displayName: string;
@@ -31,6 +32,7 @@ type Phase =
 export default function OpsPage() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ state: 'loading' });
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -39,28 +41,38 @@ export default function OpsPage() {
     (async () => {
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (sessionError) {
+        setPhase({ state: 'error' });
+        return;
+      }
       if (!session) {
         router.replace('/login');
         return;
       }
 
       // Gate: only admin / dispatcher.
-      const { data: me } = await supabase
+      const { data: me, error: meError } = await supabase
         .from('users')
         .select('role, display_name')
         .eq('id', session.user.id)
         .single();
-      const role = me?.role as string | undefined;
-      if (role !== 'admin' && role !== 'dispatcher') {
-        if (!cancelled) setPhase({ state: 'unauthorized' });
+      if (cancelled) return;
+      const access = resolveOpsAccess({
+        data: me as { role: string | null; display_name: string | null } | null,
+        error: meError,
+      });
+      if (access.state !== 'allowed') {
+        setPhase({ state: access.state });
         return;
       }
 
       // Active orders + drivers (admin RLS = broad read), plus the dispatch
       // freshness window so this board applies the SAME rule nearest_drivers
       // does (migration 201) instead of a second hardcoded copy that can drift.
-      const [{ data: orders }, { data: drivers }, { data: pingSetting }] = await Promise.all([
+      const [ordersResult, driversResult, pingSettingResult] = await Promise.all([
         supabase
           .from('orders')
           .select(
@@ -85,22 +97,37 @@ export default function OpsPage() {
       ]);
 
       if (cancelled) return;
+      const dashboard = resolveOpsDashboardData<OpsOrder, OpsDriver>({
+        orders: {
+          data: ordersResult.data as OpsOrder[] | null,
+          error: ordersResult.error,
+        },
+        drivers: {
+          data: driversResult.data as OpsDriver[] | null,
+          error: driversResult.error,
+        },
+        pingSetting: {
+          data: pingSettingResult.data as { value: unknown } | null,
+          error: pingSettingResult.error,
+        },
+      });
+      if (dashboard.state === 'error') {
+        setPhase({ state: 'error' });
+        return;
+      }
       setPhase({
         state: 'ready',
-        displayName: me?.display_name ?? role,
-        orders: (orders as OpsOrder[]) ?? [],
-        drivers: (drivers as OpsDriver[]) ?? [],
-        maxPingAgeSeconds:
-          typeof pingSetting?.value === 'number' && pingSetting.value > 0
-            ? pingSetting.value
-            : DEFAULT_MAX_PING_AGE_SECONDS,
+        displayName: access.displayName,
+        orders: dashboard.orders,
+        drivers: dashboard.drivers,
+        maxPingAgeSeconds: dashboard.maxPingAgeSeconds,
       });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, reloadKey]);
 
   if (phase.state === 'loading') {
     return (
@@ -120,6 +147,32 @@ export default function OpsPage() {
           <h1 className="text-xl font-bold">Not authorized</h1>
           <p className="mt-2 text-ink2">This dashboard is for Sharm Eats operations staff only.</p>
           <div className="mt-6">
+            <SignOutButton />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (phase.state === 'error') {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg px-4 text-center">
+        <div className="max-w-md">
+          <h1 className="text-xl font-bold">Couldn&apos;t load dispatch</h1>
+          <p className="mt-2 text-ink2">
+            The live orders and driver list could not be verified. Check the connection and try again.
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setPhase({ state: 'loading' });
+                setReloadKey((key) => key + 1);
+              }}
+              className="rounded-lg bg-accent px-6 py-2 font-semibold text-white"
+            >
+              Retry
+            </button>
             <SignOutButton />
           </div>
         </div>

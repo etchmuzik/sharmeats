@@ -12,6 +12,7 @@ import {
 } from '@/lib/dispatch';
 import { Icon } from './Icon';
 import { useToast } from './Toast';
+import { realtimeStatusAction, uniqueRealtimeChannelName } from '@/lib/webState';
 
 /**
  * Fixed reasons for an admin cancellation. These land in `cancel_reason` on the
@@ -56,6 +57,10 @@ export function DispatchBoard({
   const { toast } = useToast();
   const [orders, setOrders] = useState<OpsOrder[]>(initialOrders);
   const [drivers, setDrivers] = useState<OpsDriver[]>(initialDrivers);
+  const [realtimeState, setRealtimeState] = useState<
+    'connecting' | 'connected' | 'reconnecting' | 'error'
+  >('connecting');
+  const [realtimeRetryKey, setRealtimeRetryKey] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Order pending cancellation confirmation (id), and whether the RPC is in flight.
@@ -72,21 +77,13 @@ export function DispatchBoard({
 
   // Realtime: orders + driver status.
   useEffect(() => {
-    // supabase-js returns an EXISTING channel if one with this topic is still
-    // registered, and removeChannel only splices it out after the async
-    // unsubscribe completes. On a fast unmount/remount (client-side nav away
-    // and back, or StrictMode's double-effect in dev) the effect would receive
-    // an already-subscribed channel and .on('postgres_changes') throws
-    // "cannot add postgres_changes callbacks ... after subscribe()" — inside an
-    // effect that takes the whole board to the error boundary. Every Expo-side
-    // subscriber guards this; the two dashboards did not.
-    const topic = 'realtime:ops:board';
-    for (const existing of supabase.getChannels()) {
-      if (existing.topic === topic) supabase.removeChannel(existing);
-    }
+    let active = true;
+    setRealtimeState('connecting');
+    const channelName = uniqueRealtimeChannelName('ops:board');
     const ch = supabase
-      .channel('ops:board')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (p) => {
+        if (!active) return;
         const row = p.new as OpsOrder;
         if (!row?.id) return;
         const terminal = ['delivered', 'cancelled', 'rejected'].includes(row.status);
@@ -96,6 +93,7 @@ export function DispatchBoard({
         });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, (p) => {
+        if (!active) return;
         const row = p.new as OpsDriver;
         if (!row?.id) return;
         setDrivers((prev) => {
@@ -104,6 +102,19 @@ export function DispatchBoard({
         });
       })
       .subscribe((status) => {
+        if (!active) return;
+        const action = realtimeStatusAction(status);
+        if (action === 'reconnecting') {
+          setRealtimeState('reconnecting');
+          return;
+        }
+        // Terminal: supabase-js will not rejoin a closed channel. Surface the
+        // error state so the Retry control (which builds a fresh channel) is
+        // reachable, instead of a "Reconnecting…" banner that never resolves.
+        if (action === 'closed') {
+          setRealtimeState('error');
+          return;
+        }
         // [202 F-16] On (re)connect, refetch the board. supabase-js rejoins the
         // channel after a network drop but never replays events emitted during
         // the outage — every other realtime consumer in the repo carries this
@@ -113,34 +124,39 @@ export function DispatchBoard({
         //
         // Both selects mirror the server-rendered queries in page.tsx exactly;
         // a narrower projection here would blank fields the cards render.
-        if (status !== 'SUBSCRIBED') return;
+        if (action !== 'resync') return;
 
-        supabase
-          .from('orders')
-          .select(
-            'id, short_code, restaurant_id, restaurant_name, status, payment_method, payment_status, fulfillment_type, total_egp, delivery_fee_egp, assigned_driver_id, zone, address_snapshot, placed_at, eta_at',
-          )
-          .not('status', 'in', '(delivered,cancelled,rejected)')
-          .order('placed_at', { ascending: true })
-          .then(({ data }) => {
-            if (data) setOrders(data as OpsOrder[]);
-          });
-
-        supabase
-          .from('drivers')
-          .select(
-            'id, name, phone, vehicle, status, is_verified, is_active, rating, home_zone, last_ping_at',
-          )
-          .eq('is_active', true)
-          .order('status', { ascending: true })
-          .then(({ data }) => {
-            if (data) setDrivers(data as OpsDriver[]);
-          });
+        void Promise.all([
+          supabase
+            .from('orders')
+            .select(
+              'id, short_code, restaurant_id, restaurant_name, status, payment_method, payment_status, fulfillment_type, total_egp, delivery_fee_egp, assigned_driver_id, zone, address_snapshot, placed_at, eta_at',
+            )
+            .not('status', 'in', '(delivered,cancelled,rejected)')
+            .order('placed_at', { ascending: true }),
+          supabase
+            .from('drivers')
+            .select(
+              'id, name, phone, vehicle, status, is_verified, is_active, rating, home_zone, last_ping_at',
+            )
+            .eq('is_active', true)
+            .order('status', { ascending: true }),
+        ]).then(([ordersResult, driversResult]) => {
+          if (!active) return;
+          if (ordersResult.error || driversResult.error) {
+            setRealtimeState('error');
+            return;
+          }
+          setOrders((ordersResult.data as OpsOrder[] | null) ?? []);
+          setDrivers((driversResult.data as OpsDriver[] | null) ?? []);
+          setRealtimeState('connected');
+        });
       });
     return () => {
-      supabase.removeChannel(ch);
+      active = false;
+      void supabase.removeChannel(ch);
     };
-  }, [supabase]);
+  }, [supabase, realtimeRetryKey]);
 
   const needsDispatch = useMemo(
     () =>
@@ -222,6 +238,31 @@ export function DispatchBoard({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
+      {realtimeState !== 'connected' && (
+        <div
+          role="status"
+          className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+            realtimeState === 'error'
+              ? 'border-red bg-redsoft text-red'
+              : 'border-amber/40 bg-amber/10 text-ink2'
+          }`}
+        >
+          <span>
+            {realtimeState === 'error'
+              ? 'Dispatch could not resync. Existing rows remain visible, but current orders and drivers are not verified.'
+              : 'Reconnecting live dispatch updates…'}
+          </span>
+          {realtimeState === 'error' && (
+            <button
+              type="button"
+              onClick={() => setRealtimeRetryKey((key) => key + 1)}
+              className="shrink-0 rounded-lg border border-red px-3 py-1.5 font-semibold"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
       {/* Stat strip */}
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Needs dispatch" value={needsDispatch.length} accent />

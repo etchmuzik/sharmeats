@@ -8,10 +8,16 @@ import { safeDisplayError } from '@/lib/displayError';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
+import {
+  realtimeStatusAction,
+  resolveAdminOnlyAccess,
+  uniqueRealtimeChannelName,
+} from '@/lib/webState';
 
 type Phase =
   | { state: 'loading' }
   | { state: 'unauthorized' }
+  | { state: 'error' }
   | { state: 'ready'; displayName: string };
 
 interface Msg {
@@ -43,6 +49,14 @@ export default function SupportInboxPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [openUser, setOpenUser] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [threadError, setThreadError] = useState(false);
+  const [threadListError, setThreadListError] = useState(false);
+  const [realtimeState, setRealtimeState] = useState<
+    'connecting' | 'connected' | 'reconnecting' | 'error'
+  >('connecting');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [realtimeRetryKey, setRealtimeRetryKey] = useState(0);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const listEnd = useRef<HTMLDivElement>(null);
@@ -52,7 +66,7 @@ export default function SupportInboxPage() {
   const openUserRef = useRef<string | null>(null);
   openUserRef.current = openUser;
 
-  const loadThreads = useCallback(async () => {
+  const loadThreads = useCallback(async (notifyOnError = true): Promise<boolean> => {
     const supabase = createSupabaseBrowserClient();
     // Admin RLS allows reading all support_messages; group into threads client-side.
     const { data, error } = await supabase
@@ -60,8 +74,11 @@ export default function SupportInboxPage() {
       .select('id, user_id, from_support, body, created_at, read_at')
       .order('created_at', { ascending: false });
     if (error) {
-      toast(safeDisplayError(error, { fallback: 'Could not load support conversations. Please try again.' }), 'error');
-      return;
+      setThreadListError(true);
+      if (notifyOnError) {
+        toast(safeDisplayError(error, { fallback: 'Could not load support conversations. Please try again.' }), 'error');
+      }
+      return false;
     }
     const rows = (data ?? []) as Msg[];
     const byUser = new Map<string, Thread>();
@@ -89,24 +106,42 @@ export default function SupportInboxPage() {
       }
     }
     setThreads([...byUser.values()].sort((a, b) => b.last_at.localeCompare(a.last_at)));
+    setThreadListError(false);
+    return true;
   }, [toast]);
 
   const openThread = useCallback(
-    async (userId: string) => {
+    // `silent` refreshes an already-open thread in place. Opening a thread
+    // should show a skeleton, but re-reading it after sending a reply must not
+    // unmount the message list and composer: that drops keyboard focus on the
+    // hot path, and a failed refresh would replace the composer with an error
+    // block even though the reply was delivered.
+    async (userId: string, opts?: { silent?: boolean }) => {
       setOpenUser(userId);
+      if (!opts?.silent) {
+        setMessagesLoading(true);
+        setThreadError(false);
+      }
       const supabase = createSupabaseBrowserClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('support_messages')
         .select('id, user_id, from_support, body, created_at, read_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: true });
+      if (error) {
+        if (!opts?.silent) setThreadError(true);
+        setMessagesLoading(false);
+        toast(safeDisplayError(error, { fallback: 'Could not load this conversation. Please try again.' }), 'error');
+        return;
+      }
       setMessages((data as Msg[]) ?? []);
+      setMessagesLoading(false);
       // Mark the user's inbound messages read (admin path).
       await supabase.rpc('mark_support_thread_read', { p_user_id: userId });
       await loadThreads();
       requestAnimationFrame(() => listEnd.current?.scrollIntoView());
     },
-    [loadThreads],
+    [loadThreads, toast],
   );
 
   useEffect(() => {
@@ -115,23 +150,40 @@ export default function SupportInboxPage() {
     (async () => {
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (sessionError) {
+        setPhase({ state: 'error' });
+        return;
+      }
       if (!session) {
         router.replace('/login');
         return;
       }
-      const { data: me } = await supabase.from('users').select('role, display_name').eq('id', session.user.id).single();
-      if ((me?.role as string | undefined) !== 'admin') {
-        if (!cancelled) setPhase({ state: 'unauthorized' });
+      const { data: me, error: meError } = await supabase
+        .from('users')
+        .select('role, display_name')
+        .eq('id', session.user.id)
+        .single();
+      if (cancelled) return;
+      const access = resolveAdminOnlyAccess({
+        data: me as { role: string | null; display_name: string | null } | null,
+        error: meError,
+      });
+      if (access.state !== 'allowed') {
+        setPhase({ state: access.state });
         return;
       }
-      await loadThreads();
-      if (!cancelled) setPhase({ state: 'ready', displayName: me?.display_name ?? 'Admin' });
+      const loaded = await loadThreads(false);
+      if (!cancelled) {
+        setPhase(loaded ? { state: 'ready', displayName: access.displayName } : { state: 'error' });
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [router, loadThreads]);
+  }, [router, loadThreads, reloadKey]);
 
   // Live inbound messages. support_messages is realtime-published with replica
   // identity full precisely for this (mig 069), but only the customer end
@@ -144,18 +196,16 @@ export default function SupportInboxPage() {
   useEffect(() => {
     if (phase.state !== 'ready') return;
     const supabase = createSupabaseBrowserClient();
-    const name = 'admin:support:inbox';
-    // Same stale-channel guard as the dispatch board — .on() throws if this
-    // topic is still registered from a previous mount.
-    for (const existing of supabase.getChannels()) {
-      if (existing.topic === `realtime:${name}`) supabase.removeChannel(existing);
-    }
+    let active = true;
+    setRealtimeState('connecting');
+    const name = uniqueRealtimeChannelName('admin:support:inbox');
     const channel = supabase
       .channel(name)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'support_messages' },
         (payload) => {
+          if (!active) return;
           const row = payload.new as Msg;
           if (!row?.id) return;
           // Not the thread on screen: just refresh the list (new thread, new
@@ -185,14 +235,32 @@ export default function SupportInboxPage() {
         },
       )
       .subscribe((status) => {
+        if (!active) return;
+        const action = realtimeStatusAction(status);
+        if (action === 'reconnecting') {
+          setRealtimeState('reconnecting');
+          return;
+        }
+        // Terminal: supabase-js will not rejoin a closed channel. Surface the
+        // error state so the Retry control (which builds a fresh channel) is
+        // reachable, instead of a "Reconnecting…" banner that never resolves.
+        if (action === 'closed') {
+          setRealtimeState('error');
+          return;
+        }
         // Resync on (re)connect: supabase-js rejoins after a drop but never
         // replays events emitted during the outage.
-        if (status === 'SUBSCRIBED') void loadThreads();
+        if (action === 'resync') {
+          void loadThreads(false).then((loaded) => {
+            if (active) setRealtimeState(loaded ? 'connected' : 'error');
+          });
+        }
       });
     return () => {
-      supabase.removeChannel(channel);
+      active = false;
+      void supabase.removeChannel(channel);
     };
-  }, [phase.state, loadThreads]);
+  }, [phase.state, loadThreads, realtimeRetryKey]);
 
   const reply = async () => {
     if (!openUser || !draft.trim() || sending) return;
@@ -202,7 +270,7 @@ export default function SupportInboxPage() {
       const { error } = await supabase.rpc('reply_support_message', { p_user_id: openUser, p_body: draft.trim() });
       if (error) throw error;
       setDraft('');
-      await openThread(openUser);
+      await openThread(openUser, { silent: true });
     } catch (e) {
       toast(safeDisplayError(e, { fallback: 'Could not send the reply. Please try again.' }), 'error');
     } finally {
@@ -242,6 +310,30 @@ export default function SupportInboxPage() {
     );
   }
 
+  if (phase.state === 'error') {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg px-4 text-center">
+        <div className="max-w-md">
+          <h1 className="text-xl font-bold">Couldn&apos;t load support</h1>
+          <p className="mt-2 text-ink2">Conversations could not be verified. Check the connection and try again.</p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setPhase({ state: 'loading' });
+                setReloadKey((key) => key + 1);
+              }}
+              className="rounded-lg bg-accent px-6 py-2 font-semibold text-white"
+            >
+              Retry
+            </button>
+            <SignOutButton />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-bg">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-white/90 px-6 py-4 backdrop-blur">
@@ -254,6 +346,31 @@ export default function SupportInboxPage() {
       </header>
 
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-6 md:grid-cols-[300px_1fr]">
+        {(realtimeState !== 'connected' || threadListError) && (
+          <div
+            role="status"
+            className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm md:col-span-2 ${
+              realtimeState === 'error' || threadListError
+                ? 'border-red bg-redsoft text-red'
+                : 'border-amber/40 bg-amber/10 text-ink2'
+            }`}
+          >
+            <span>
+              {realtimeState === 'error' || threadListError
+                ? 'Support conversations could not refresh. Existing messages may be out of date.'
+                : 'Reconnecting live support updates…'}
+            </span>
+            {(realtimeState === 'error' || threadListError) && (
+              <button
+                type="button"
+                onClick={() => setRealtimeRetryKey((key) => key + 1)}
+                className="shrink-0 rounded-lg border border-red px-3 py-1.5 font-semibold"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
         {/* Thread list */}
         <aside className="space-y-2">
           {threads.length === 0 ? (
@@ -285,6 +402,23 @@ export default function SupportInboxPage() {
         <section className="rounded-2xl border border-line bg-white p-4">
           {!openUser ? (
             <div className="flex h-64 items-center justify-center text-ink3">Select a conversation.</div>
+          ) : messagesLoading ? (
+            <div className="space-y-3" role="status" aria-busy="true" aria-label="Loading conversation">
+              <Skeleton className="h-10 w-2/3" />
+              <Skeleton className="ml-auto h-10 w-1/2" />
+              <Skeleton className="h-10 w-3/4" />
+            </div>
+          ) : threadError ? (
+            <div className="flex h-64 flex-col items-center justify-center gap-3 text-center text-red">
+              <p>Could not load this conversation.</p>
+              <button
+                type="button"
+                onClick={() => openThread(openUser)}
+                className="rounded-lg border border-red px-3 py-1.5 text-sm font-semibold"
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <>
               <div className="mb-3 max-h-[50vh] space-y-2 overflow-y-auto">

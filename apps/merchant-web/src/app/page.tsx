@@ -25,6 +25,7 @@ import {
   PERMISSION_DENIED_COPY,
 } from '@/lib/capabilities';
 import { ScorecardCard } from './ScorecardCard';
+import { resolveMerchantOrders } from '@/lib/webState';
 
 type Phase =
   | { state: 'loading' }
@@ -58,7 +59,13 @@ export default function DashboardPage() {
     (async () => {
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (sessionError) {
+        setPhase({ state: 'error' });
+        return;
+      }
       if (!session) {
         router.replace('/login');
         return;
@@ -122,7 +129,7 @@ export default function DashboardPage() {
       };
 
       // Initial active queue (card orders show once paid; COD shows immediately).
-      const { data: orders } = await supabase
+      const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
         .eq('restaurant_id', ctx.restaurantId)
@@ -131,8 +138,16 @@ export default function DashboardPage() {
         .order('placed_at', { ascending: true });
 
       if (cancelled) return;
+      const orderState = resolveMerchantOrders<MerchantOrder>({
+        data: orders as MerchantOrder[] | null,
+        error: ordersError,
+      });
+      if (orderState.state === 'error') {
+        setPhase({ state: 'error' });
+        return;
+      }
       setIsOpen(ctx.isOpen);
-      setPhase({ state: 'ready', ctx, initialOrders: (orders as MerchantOrder[]) ?? [] });
+      setPhase({ state: 'ready', ctx, initialOrders: orderState.orders });
     })();
 
     return () => {

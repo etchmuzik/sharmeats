@@ -14,6 +14,7 @@ import {
   notificationPermission,
   notifyNewOrder,
 } from './notify';
+import { realtimeStatusAction, uniqueRealtimeChannelName } from '@/lib/webState';
 
 /**
  * Live order queue. Server-rendered initial orders are hydrated here, then a
@@ -34,6 +35,10 @@ export function OrderQueue({
   const { toast } = useToast();
   const [orders, setOrders] = useState<MerchantOrder[]>(initialOrders);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [realtimeState, setRealtimeState] = useState<
+    'connecting' | 'connected' | 'reconnecting' | 'error'
+  >('connecting');
+  const [realtimeRetryKey, setRealtimeRetryKey] = useState(0);
   // Notification permission state, so the header can show an "Enable alerts"
   // button until the operator grants OS-level new-order notifications.
   const [notifyPerm, setNotifyPerm] = useState<NotificationPermission | 'unsupported'>('default');
@@ -61,17 +66,12 @@ export function OrderQueue({
   );
 
   useEffect(() => {
-    // supabase-js returns an EXISTING channel if one with this topic is still
-    // registered, and removeChannel only splices it out after the async
-    // unsubscribe completes. On a fast unmount/remount the effect would receive
-    // an already-subscribed channel and .on('postgres_changes') throws
-    // "cannot add postgres_changes callbacks ... after subscribe()" — inside an
-    // effect that means the kitchen stops seeing orders until reload. Every
-    // Expo-side subscriber guards this; the two dashboards did not.
-    const name = `merchant:${context.restaurantId}:orders`;
-    for (const existing of supabase.getChannels()) {
-      if (existing.topic === `realtime:${name}`) supabase.removeChannel(existing);
-    }
+    let active = true;
+    setRealtimeState('connecting');
+    // Cleanup is asynchronous in supabase-js. A fresh physical topic per mount
+    // makes StrictMode and fast route remounts race-free without waiting inside
+    // the effect (which React cannot do during cleanup).
+    const name = uniqueRealtimeChannelName(`merchant:${context.restaurantId}:orders`);
     const channel = supabase
       .channel(name)
       .on(
@@ -83,6 +83,7 @@ export function OrderQueue({
           filter: `restaurant_id=eq.${context.restaurantId}`,
         },
         (payload) => {
+          if (!active) return;
           const row = payload.new as MerchantOrder;
           if (!row?.id) return;
 
@@ -113,11 +114,24 @@ export function OrderQueue({
         },
       )
       .subscribe((status) => {
+        if (!active) return;
+        const action = realtimeStatusAction(status);
+        if (action === 'reconnecting') {
+          setRealtimeState('reconnecting');
+          return;
+        }
+        // Terminal: supabase-js will not rejoin a closed channel. Surface the
+        // error state so the Retry control (which builds a fresh channel) is
+        // reachable, instead of a "Reconnecting…" banner that never resolves.
+        if (action === 'closed') {
+          setRealtimeState('error');
+          return;
+        }
         // [H-CUST2] On (re)connect, refetch the active queue. supabase-js rejoins
         // the channel after a network drop but never replays events emitted during
         // the outage — an order placed while offline would otherwise never appear
         // or chime. Also covers the join-window gap after the initial SSR load.
-        if (status === 'SUBSCRIBED') {
+        if (action === 'resync') {
           supabase
             .from('orders')
             .select('*')
@@ -125,16 +139,23 @@ export function OrderQueue({
             .not('status', 'in', '(delivered,cancelled,rejected)')
             .or('payment_method.eq.cash_on_delivery,payment_status.eq.paid')
             .order('placed_at', { ascending: true })
-            .then(({ data }) => {
-              if (data) setOrders(data as MerchantOrder[]);
+            .then(({ data, error }) => {
+              if (!active) return;
+              if (error) {
+                setRealtimeState('error');
+                return;
+              }
+              setOrders((data as MerchantOrder[] | null) ?? []);
+              setRealtimeState('connected');
             });
         }
       });
 
     return () => {
-      supabase.removeChannel(channel);
+      active = false;
+      void supabase.removeChannel(channel);
     };
-  }, [context.restaurantId, supabase, isVisibleToMerchant, isActive]);
+  }, [context.restaurantId, supabase, isVisibleToMerchant, isActive, realtimeRetryKey]);
 
   // Register the notification service worker + read current permission on mount
   // so out-of-app new-order alerts can fire (B2). Registration is best-effort.
@@ -224,6 +245,31 @@ export function OrderQueue({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
+      {realtimeState !== 'connected' && (
+        <div
+          role="status"
+          className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+            realtimeState === 'error'
+              ? 'border-red bg-redsoft text-red'
+              : 'border-amber/40 bg-amber/10 text-ink2'
+          }`}
+        >
+          <span>
+            {realtimeState === 'error'
+              ? 'The live queue could not refresh. Existing orders are still shown, but new changes are not verified.'
+              : 'Reconnecting live order updates…'}
+          </span>
+          {realtimeState === 'error' && (
+            <button
+              type="button"
+              onClick={() => setRealtimeRetryKey((key) => key + 1)}
+              className="shrink-0 rounded-lg border border-red px-3 py-1.5 font-semibold"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
       {notifyPerm === 'default' && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3">
           <div className="text-sm text-ink2">
