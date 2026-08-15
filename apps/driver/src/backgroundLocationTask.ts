@@ -11,6 +11,7 @@ import { getSupabase } from './supabase';
 
 export const DRIVER_LOCATION_TASK = 'sharmeats-active-delivery-location';
 export const ACTIVE_ORDER_STORAGE_KEY = '@sharmeats/driver/active-order';
+export const DRIVER_ONLINE_STORAGE_KEY = '@sharmeats/driver/online-presence';
 const LAST_PING_STORAGE_KEY = '@sharmeats/driver/last-authoritative-ping';
 const REALTIME_CONNECT_TIMEOUT_MS = 5_000;
 
@@ -70,8 +71,14 @@ async function broadcastLocation(
 }
 
 async function handleLocationBatch(locations: LocationObject[]): Promise<void> {
-  const orderId = await AsyncStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
-  if (!orderId) return;
+  const [orderId, onlineMarker] = await Promise.all([
+    AsyncStorage.getItem(ACTIVE_ORDER_STORAGE_KEY),
+    AsyncStorage.getItem(DRIVER_ONLINE_STORAGE_KEY),
+  ]);
+  // A delivery uses the same OS task at high frequency. Between deliveries the
+  // persisted online marker keeps a low-frequency presence task useful even
+  // when React timers are suspended with the phone in a pocket.
+  if (!orderId && onlineMarker !== '1') return;
 
   const fix = latestValidFix(locations as RawLocationFix[]);
   if (!fix) return;
@@ -82,14 +89,15 @@ async function handleLocationBatch(locations: LocationObject[]): Promise<void> {
 
   const now = Date.now();
   const lastPingAt = await readLastPingAt();
-  const work: Promise<unknown>[] = [
+  const work: Promise<unknown>[] = [];
+
+  if (orderId) {
     // Realtime is best-effort in the background. The database position remains
     // authoritative even if the OS briefly suspends the socket.
-    broadcastLocation(orderId, toBroadcastPayload(fix)).catch(() => undefined),
-  ];
+    work.push(broadcastLocation(orderId, toBroadcastPayload(fix)).catch(() => undefined));
+  }
 
   if (authoritativePingDue(lastPingAt, now)) {
-    await AsyncStorage.setItem(LAST_PING_STORAGE_KEY, String(now));
     work.push(
       Promise.resolve(
         supabase.rpc('driver_ping', {
@@ -97,7 +105,13 @@ async function handleLocationBatch(locations: LocationObject[]): Promise<void> {
           p_lat: fix.coords.latitude,
           p_status: '',
         }),
-      ).catch(() => undefined),
+      )
+        .then(async ({ error }) => {
+          // A returned PostgREST error is not a fulfilled heartbeat. Only
+          // throttle after the server has actually accepted the evidence.
+          if (!error) await AsyncStorage.setItem(LAST_PING_STORAGE_KEY, String(now));
+        })
+        .catch(() => undefined),
     );
   }
 

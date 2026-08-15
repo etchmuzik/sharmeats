@@ -1,137 +1,136 @@
-/**
- * [202 F-02] The client half of migration 201.
- *
- * Mig 201 only dispatches to drivers whose last_ping_at is inside
- * dispatch_max_ping_age_seconds (default 300s). Nothing refreshed that while a
- * driver waited between jobs — driver_ping fired only on the online/offline
- * toggle, on a foreground transition, and from the background task, which
- * returns early unless a delivery is actively streaming. So an online driver
- * with a pocketed phone silently left the dispatch pool after 5 idle minutes,
- * and could not be woken: no candidate -> no offer -> no push.
- *
- * These tests pin the properties that make the heartbeat actually solve that:
- * it beats faster than the window, it does not stack, it stops on demand, and
- * it stays quiet while streaming (which pings on its own).
- */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const pingOnce = vi.fn(() => Promise.resolve());
-let streaming = false;
-
-vi.mock('./supabase', () => ({ getSupabase: () => ({ rpc: vi.fn() }) }));
-vi.mock('expo-location', () => ({
-  getCurrentPositionAsync: vi.fn(),
-  Accuracy: { Balanced: 3 },
+const h = vi.hoisted(() => ({
+  store: new Map<string, string>(),
+  taskStarted: false,
+  startLocation: vi.fn(),
+  stopLocation: vi.fn(),
+  rpc: vi.fn(),
 }));
 
-/**
- * The heartbeat's logic, mirrored from src/location.ts. Kept as a local copy
- * because location.ts pulls in expo-location, expo-task-manager and AsyncStorage
- * at module scope, none of which load under vitest. If the real implementation
- * changes shape, this test must change with it — the assertions below are about
- * the CONTRACT (interval, no stacking, streaming suppression), which is the part
- * that was missing and the part that matters.
- */
-const IDLE_HEARTBEAT_MS = 120_000;
-let heartbeat: ReturnType<typeof setInterval> | null = null;
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn(async (key: string) => h.store.get(key) ?? null),
+    setItem: vi.fn(async (key: string, value: string) => {
+      h.store.set(key, value);
+    }),
+    removeItem: vi.fn(async (key: string) => {
+      h.store.delete(key);
+    }),
+  },
+}));
 
-function startIdleHeartbeat(): void {
-  if (heartbeat) return;
-  heartbeat = setInterval(() => {
-    if (streaming) return;
-    // [215] Deliberately NO status argument — see the contract test below.
-    pingOnce();
-  }, IDLE_HEARTBEAT_MS);
-}
+vi.mock('expo-location', () => ({
+  Accuracy: { Balanced: 3, Low: 1 },
+  ActivityType: { AutomotiveNavigation: 1, OtherNavigation: 2 },
+  requestForegroundPermissionsAsync: vi.fn(async () => ({ status: 'granted' })),
+  requestBackgroundPermissionsAsync: vi.fn(async () => ({ status: 'granted' })),
+  getCurrentPositionAsync: vi.fn(async () => ({
+    coords: { longitude: 34.3, latitude: 27.9 },
+  })),
+  hasStartedLocationUpdatesAsync: vi.fn(async () => h.taskStarted),
+  startLocationUpdatesAsync: h.startLocation.mockImplementation(async () => {
+    h.taskStarted = true;
+  }),
+  stopLocationUpdatesAsync: h.stopLocation.mockImplementation(async () => {
+    h.taskStarted = false;
+  }),
+}));
 
-function stopIdleHeartbeat(): void {
-  if (!heartbeat) return;
-  clearInterval(heartbeat);
-  heartbeat = null;
-}
+vi.mock('./backgroundLocationTask', () => ({
+  ACTIVE_ORDER_STORAGE_KEY: '@test/active-order',
+  DRIVER_ONLINE_STORAGE_KEY: '@test/online',
+  DRIVER_LOCATION_TASK: 'test-driver-location',
+}));
 
-describe('driver idle heartbeat', () => {
+vi.mock('./supabase', () => ({
+  getSupabase: () => ({ rpc: h.rpc }),
+}));
+
+vi.mock('./i18n', () => ({
+  DRIVER_LOCALE_STORAGE_KEY: '@test/locale',
+  trackingNotificationCopy: () => ({ title: 'Delivery', body: 'Tracking' }),
+  presenceNotificationCopy: () => ({ title: 'Online', body: 'Ready for offers' }),
+}));
+
+import {
+  startIdleHeartbeat,
+  startStreaming,
+  stopIdleHeartbeat,
+  stopStreaming,
+} from './location';
+
+describe('driver idle presence', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    pingOnce.mockClear();
-    streaming = false;
+    h.store.clear();
+    h.taskStarted = false;
+    h.startLocation.mockClear();
+    h.stopLocation.mockClear();
+    h.rpc.mockReset().mockResolvedValue({ error: null });
   });
 
-  afterEach(() => {
-    stopIdleHeartbeat();
+  afterEach(async () => {
+    await stopIdleHeartbeat();
     vi.useRealTimers();
   });
 
-  it('beats well inside the 300s dispatch freshness window', () => {
-    // Two beats per window: one dropped request cannot cost the driver offers.
-    expect(IDLE_HEARTBEAT_MS).toBeLessThan(300_000 / 2);
+  it('persists online intent and starts an OS-backed task for a pocketed phone', async () => {
+    await startIdleHeartbeat();
+
+    expect(h.store.get('@test/online')).toBe('1');
+    expect(h.startLocation).toHaveBeenCalledWith(
+      'test-driver-location',
+      expect.objectContaining({
+        pausesUpdatesAutomatically: false,
+        distanceInterval: 0,
+        timeInterval: expect.any(Number),
+      }),
+    );
+    const options = h.startLocation.mock.calls[0]?.[1] as { timeInterval: number };
+    expect(options.timeInterval).toBeLessThan(300_000 / 2);
   });
 
-  it('pings repeatedly while online and idle', () => {
-    startIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS * 3);
-    expect(pingOnce).toHaveBeenCalledTimes(3);
+  it('does not stack background tasks when started twice', async () => {
+    await startIdleHeartbeat();
+    await startIdleHeartbeat();
+
+    expect(h.startLocation).toHaveBeenCalledTimes(1);
   });
 
-  it('does not ping before the first interval elapses', () => {
-    startIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS - 1);
-    expect(pingOnce).not.toHaveBeenCalled();
+  it('stops the OS task and clears online intent when going offline', async () => {
+    await startIdleHeartbeat();
+    await stopIdleHeartbeat();
+
+    expect(h.store.has('@test/online')).toBe(false);
+    expect(h.stopLocation).toHaveBeenCalledTimes(1);
   });
 
-  it('does not stack timers when started twice', () => {
-    // toggleOnline and the already-online mount effect can both fire; two
-    // stacked intervals would double the GPS work for no benefit.
-    startIdleHeartbeat();
-    startIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS);
-    expect(pingOnce).toHaveBeenCalledTimes(1);
+  it('switches to delivery tracking, then resumes idle presence after handoff', async () => {
+    await startIdleHeartbeat();
+    h.startLocation.mockClear();
+
+    await startStreaming('order-1');
+    expect(h.store.get('@test/active-order')).toBe('order-1');
+    expect(h.startLocation).toHaveBeenCalledTimes(1);
+
+    h.startLocation.mockClear();
+    await stopStreaming();
+    expect(h.store.has('@test/active-order')).toBe(false);
+    expect(h.store.get('@test/online')).toBe('1');
+    expect(h.startLocation).toHaveBeenCalledTimes(1);
   });
 
-  it('stops beating once the driver goes offline', () => {
-    startIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS);
-    stopIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS * 5);
-    expect(pingOnce).toHaveBeenCalledTimes(1);
-  });
+  it('keeps a foreground heartbeat as a supplement to the OS task', async () => {
+    await startIdleHeartbeat();
+    h.rpc.mockClear();
 
-  it('stays quiet while a delivery is streaming', () => {
-    // The location stream already pings on its own throttle; beating on top of
-    // it would be redundant GPS work on the battery-critical path.
-    streaming = true;
-    startIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS * 3);
-    expect(pingOnce).not.toHaveBeenCalled();
-  });
+    await vi.advanceTimersByTimeAsync(120_000);
 
-  it('resumes beating when the delivery ends', () => {
-    streaming = true;
-    startIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS * 2);
-    expect(pingOnce).not.toHaveBeenCalled();
-    streaming = false;
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS);
-    expect(pingOnce).toHaveBeenCalledTimes(1);
-  });
-
-  it('is safe to stop when never started', () => {
-    expect(() => stopIdleHeartbeat()).not.toThrow();
-  });
-
-  it('pings with NO status argument — presence only, never a status claim', () => {
-    // [215] The heartbeat runs whenever the driver is not offline, which
-    // includes on_job. After an app restart mid-delivery isStreaming() is
-    // false (in-memory flag), so a beat that stamped 'online' put a busy
-    // driver back into the dispatch pool. Status transitions belong to
-    // toggleOnline and advance_order_status; the heartbeat only proves the
-    // phone is alive. Mig 215 clamps on_job -> online server-side too, but
-    // the client must not claim it in the first place.
-    startIdleHeartbeat();
-    vi.advanceTimersByTime(IDLE_HEARTBEAT_MS * 2);
-    expect(pingOnce).toHaveBeenCalledTimes(2);
-    for (const call of pingOnce.mock.calls) {
-      expect(call).toHaveLength(0);
-    }
+    expect(h.rpc).toHaveBeenCalledWith('driver_ping', {
+      p_lng: 34.3,
+      p_lat: 27.9,
+      p_status: '',
+    });
   });
 });

@@ -1,29 +1,27 @@
 /**
- * Driver location streaming — the live-tracking engine.
+ * Driver location and presence.
  *
- * Two outputs per GPS fix, by design (see the plan's live-tracking section):
- *   1. Realtime BROADCAST on `order:{id}:driver_loc` — ephemeral, no DB writes;
- *      the customer's tracking map subscribes to this for the live dot.
- *   2. A THROTTLED driver_ping RPC (~every 25s) updating drivers.current_geo —
- *      the authoritative position for dispatch (nearest_drivers) + admin board.
- *
- * Battery discipline: Accuracy.Balanced + ~25m distance interval, and we only
- * stream while on an ACTIVE delivery. Expo Task Manager keeps the job alive in
- * the background; the active order id is persisted for an OS-launched task.
+ * Active deliveries use a high-frequency OS location task and publish both a
+ * private Realtime dot and an authoritative driver_ping. Online drivers between
+ * jobs use the same OS task at low frequency, so a suspended JavaScript timer
+ * cannot silently age them out of the dispatch pool.
  */
-import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import {
   ACTIVE_ORDER_STORAGE_KEY,
   DRIVER_LOCATION_TASK,
+  DRIVER_ONLINE_STORAGE_KEY,
 } from './backgroundLocationTask';
-import { getSupabase } from './supabase';
 import {
   DRIVER_LOCALE_STORAGE_KEY,
+  presenceNotificationCopy,
   trackingNotificationCopy,
 } from './i18n';
+import { getSupabase } from './supabase';
 
-const DISTANCE_INTERVAL_M = 25; // emit a fix roughly every 25 meters of movement
+const ACTIVE_DISTANCE_INTERVAL_M = 25;
+const IDLE_HEARTBEAT_MS = 120_000;
 
 interface ActiveStream {
   orderId: string;
@@ -31,18 +29,20 @@ interface ActiveStream {
 }
 
 let active: ActiveStream | null = null;
+let heartbeat: ReturnType<typeof setInterval> | null = null;
+let presenceStart: Promise<void> | null = null;
 
-/** Connection-health states the caller (UI) can react to. */
+/** Connection-health states the caller can surface. */
 export type StreamHealth = 'connected' | 'reconnecting' | 'disconnected';
-let healthListener: ((h: StreamHealth) => void) | null = null;
+let healthListener: ((health: StreamHealth) => void) | null = null;
 
-/** Subscribe to live-stream connection health so the UI can warn the driver. */
-export function onStreamHealth(cb: ((h: StreamHealth) => void) | null): void {
+export function onStreamHealth(cb: ((health: StreamHealth) => void) | null): void {
   healthListener = cb;
 }
-function emitHealth(h: StreamHealth): void {
-  if (active) active.connected = h === 'connected';
-  healthListener?.(h);
+
+function emitHealth(health: StreamHealth): void {
+  if (active) active.connected = health === 'connected';
+  healthListener?.(health);
 }
 
 export async function requestLocationPermission(): Promise<boolean> {
@@ -50,61 +50,88 @@ export async function requestLocationPermission(): Promise<boolean> {
   return status === 'granted';
 }
 
-/**
- * Start background-capable streaming for an active order. The task definition
- * is imported at bundle initialization, which is required when the OS launches
- * the app headlessly for a location update.
- */
-export async function startStreaming(orderId: string): Promise<void> {
-  const normalizedOrderId = orderId.trim();
-  if (!normalizedOrderId) throw new Error('Order id is required for live tracking');
-  if (
-    active?.orderId === normalizedOrderId &&
-    (await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK))
-  ) {
-    return;
+async function requireBackgroundLocation(): Promise<void> {
+  if (!(await requestLocationPermission())) {
+    throw new Error('Location permission denied');
   }
-  await stopStreaming(); // ensure only one active stream
-
-  const granted = await requestLocationPermission();
-  if (!granted) throw new Error('Location permission denied');
-
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== 'granted') {
     throw new Error(
-      'Background location is required during an active delivery. Allow location all the time in Settings.',
+      'Background location is required while online. Allow location all the time in Settings.',
     );
   }
+}
 
-  // This code can run while React is not mounted, so it deliberately reads the
-  // same persisted locale as LanguageProvider instead of using a hook. Falling
-  // back to English keeps Android's required foreground-service notification
-  // available even if storage is temporarily inaccessible.
+async function taskStarted(): Promise<boolean> {
+  return Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK).catch(() => false);
+}
+
+async function stopLocationTask(): Promise<void> {
+  if (await taskStarted()) {
+    await Location.stopLocationUpdatesAsync(DRIVER_LOCATION_TASK);
+  }
+}
+
+async function notificationCopy(mode: 'delivery' | 'presence') {
   const storedLocale = await AsyncStorage.getItem(DRIVER_LOCALE_STORAGE_KEY).catch(
     () => null,
   );
-  const notification = trackingNotificationCopy(storedLocale);
+  return mode === 'delivery'
+    ? trackingNotificationCopy(storedLocale)
+    : presenceNotificationCopy(storedLocale);
+}
 
+async function startLocationTask(mode: 'delivery' | 'presence'): Promise<void> {
+  const notification = await notificationCopy(mode);
+  const delivery = mode === 'delivery';
+  await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
+    accuracy: delivery ? Location.Accuracy.Balanced : Location.Accuracy.Low,
+    // A stationary driver still needs a fix. `0` plus deferred batching lets
+    // iOS keep the task alive without depending on movement; Android also uses
+    // the explicit time interval below.
+    distanceInterval: delivery ? ACTIVE_DISTANCE_INTERVAL_M : 0,
+    timeInterval: delivery ? 5_000 : IDLE_HEARTBEAT_MS,
+    deferredUpdatesDistance: delivery ? ACTIVE_DISTANCE_INTERVAL_M : 0,
+    deferredUpdatesInterval: delivery ? 5_000 : IDLE_HEARTBEAT_MS,
+    activityType: delivery
+      ? Location.ActivityType.AutomotiveNavigation
+      : Location.ActivityType.OtherNavigation,
+    pausesUpdatesAutomatically: false,
+    showsBackgroundLocationIndicator: true,
+    foregroundService: {
+      notificationTitle: notification.title,
+      notificationBody: notification.body,
+      notificationColor: '#0E7C91',
+      killServiceOnDestroy: false,
+    },
+  });
+}
+
+async function ensureIdleLocationTask(): Promise<void> {
+  if (await AsyncStorage.getItem(ACTIVE_ORDER_STORAGE_KEY)) return;
+  if (await taskStarted()) return;
+  await requireBackgroundLocation();
+  await startLocationTask('presence');
+}
+
+/** Start high-frequency, background-capable tracking for an active order. */
+export async function startStreaming(orderId: string): Promise<void> {
+  const normalizedOrderId = orderId.trim();
+  if (!normalizedOrderId) throw new Error('Order id is required for live tracking');
+  if (active?.orderId === normalizedOrderId && (await taskStarted())) return;
+
+  // Do not tear down working idle presence until permission is confirmed.
+  await requireBackgroundLocation();
+  await stopLocationTask();
   await AsyncStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, normalizedOrderId);
   try {
-    await Location.startLocationUpdatesAsync(DRIVER_LOCATION_TASK, {
-      accuracy: Location.Accuracy.Balanced,
-      distanceInterval: DISTANCE_INTERVAL_M,
-      timeInterval: 5_000,
-      deferredUpdatesDistance: DISTANCE_INTERVAL_M,
-      deferredUpdatesInterval: 5_000,
-      activityType: Location.ActivityType.AutomotiveNavigation,
-      pausesUpdatesAutomatically: false,
-      showsBackgroundLocationIndicator: true,
-      foregroundService: {
-        notificationTitle: notification.title,
-        notificationBody: notification.body,
-        notificationColor: '#0E7C91',
-        killServiceOnDestroy: false,
-      },
-    });
+    await startLocationTask('delivery');
   } catch (error) {
     await AsyncStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+    // Preserve availability if switching task modes failed.
+    if ((await AsyncStorage.getItem(DRIVER_ONLINE_STORAGE_KEY)) === '1') {
+      await ensureIdleLocationTask().catch(() => undefined);
+    }
     throw error;
   }
 
@@ -113,23 +140,24 @@ export async function startStreaming(orderId: string): Promise<void> {
   await pingOnce();
 }
 
-/** Stop streaming (on delivery handoff or going offline). */
+/** Stop delivery streaming and return to idle presence if the driver is online. */
 export async function stopStreaming(): Promise<void> {
-  const started = await Location.hasStartedLocationUpdatesAsync(DRIVER_LOCATION_TASK).catch(
-    () => false,
-  );
-  if (started) {
-    await Location.stopLocationUpdatesAsync(DRIVER_LOCATION_TASK);
-  }
+  await stopLocationTask();
   await AsyncStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
   active = null;
   emitHealth('disconnected');
+
+  if ((await AsyncStorage.getItem(DRIVER_ONLINE_STORAGE_KEY)) === '1') {
+    // Completing an order must not be reported as failed just because the
+    // lower-frequency task could not restart; the foreground timer still has
+    // retry slack and the next home load will retry the OS task.
+    await ensureIdleLocationTask().catch(() => undefined);
+  }
 }
 
-/** One-shot position push (e.g. when going online, to seed current_geo). */
+/** One-shot authoritative position update. */
 export async function pingOnce(status?: 'online' | 'offline' | 'on_job'): Promise<void> {
-  const granted = await requestLocationPermission();
-  if (!granted) return;
+  if (!(await requestLocationPermission())) return;
   const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   try {
     await getSupabase().rpc('driver_ping', {
@@ -138,7 +166,7 @@ export async function pingOnce(status?: 'online' | 'offline' | 'on_job'): Promis
       p_status: status ?? '',
     });
   } catch {
-    /* fire-and-forget */
+    // The next foreground or OS-backed beat retries within the freshness slack.
   }
 }
 
@@ -148,63 +176,51 @@ export function isStreaming(orderId?: string): boolean {
 }
 
 /**
- * IDLE HEARTBEAT — the client half of migration 201.
- *
- * Mig 201 made `nearest_drivers` require a ping newer than
- * platform_settings.dispatch_max_ping_age_seconds (default 300s): status is
- * intent and survives a force-quit, `last_ping_at` is evidence. That was the
- * right call — seed drivers marked online since June were being re-dispatched
- * thousands of times to phones that were not listening.
- *
- * But nothing ever sent that evidence while a driver was WAITING. driver_ping
- * fired only on the online/offline toggle, on a foreground transition, and from
- * the background task — which returns early unless an active delivery is
- * streaming. So an online driver between jobs, phone pocketed, stopped
- * satisfying the filter 5 minutes later and silently left the dispatch pool.
- *
- * That deadlocks: no candidate -> no offer row -> no push -> nothing wakes the
- * driver, who is waiting for exactly that push. The 2026-07-31 audit rated it
- * P0 for that reason.
- *
- * INTERVAL: 120s against a 300s window gives two missed beats of slack before a
- * driver drops out, so a single failed request or a brief radio gap does not
- * cost them offers. Cheap: one small RPC per two minutes per online driver.
- *
- * BATTERY: this is deliberately NOT a location subscription. It takes a single
- * Balanced-accuracy fix per beat — the same thing the foreground transition
- * already did — and does nothing at all while streaming, because an active
- * delivery is already pinging on its own.
+ * Keep a foreground beat for immediacy and an OS task for suspended/background
+ * execution. The persisted marker is also read by the headless task.
  */
-const IDLE_HEARTBEAT_MS = 120_000;
+async function startIdlePresence(): Promise<void> {
+  if (!heartbeat) {
+    heartbeat = setInterval(() => {
+      if (isStreaming()) return;
+      void pingOnce();
+    }, IDLE_HEARTBEAT_MS);
+  }
 
-let heartbeat: ReturnType<typeof setInterval> | null = null;
-
-export function startIdleHeartbeat(): void {
-  if (heartbeat) return;  // already beating; never stack two
-  heartbeat = setInterval(() => {
-    // While streaming, the location task's throttled ping is the fresher
-    // signal — beating on top of it would be redundant GPS work.
-    if (isStreaming()) return;
-    // [215] NO status argument — presence only, server preserves status. The
-    // heartbeat runs whenever the driver is not offline, which INCLUDES
-    // on_job; after an app restart mid-delivery isStreaming() is false (the
-    // flag lives in memory), so a status-stamping beat here put busy drivers
-    // back in the dispatch pool. Status transitions belong to toggleOnline
-    // and advance_order_status, never to a heartbeat. Mig 215 also clamps
-    // this server-side.
-    pingOnce().catch(() => {
-      /* fire-and-forget: a missed beat costs slack, not the shift */
-    });
-  }, IDLE_HEARTBEAT_MS);
+  await AsyncStorage.setItem(DRIVER_ONLINE_STORAGE_KEY, '1');
+  try {
+    await ensureIdleLocationTask();
+    if (!isStreaming()) await pingOnce();
+  } catch (error) {
+    if (heartbeat) clearInterval(heartbeat);
+    heartbeat = null;
+    await AsyncStorage.removeItem(DRIVER_ONLINE_STORAGE_KEY);
+    throw error;
+  }
 }
 
-export function stopIdleHeartbeat(): void {
-  if (!heartbeat) return;
-  clearInterval(heartbeat);
+export async function startIdleHeartbeat(): Promise<void> {
+  if (presenceStart) return presenceStart;
+  presenceStart = startIdlePresence();
+  try {
+    await presenceStart;
+  } finally {
+    presenceStart = null;
+  }
+}
+
+/** Clear online intent and stop idle tracking. Active delivery cleanup is separate. */
+export async function stopIdleHeartbeat(): Promise<void> {
+  if (presenceStart) await presenceStart.catch(() => undefined);
+  if (heartbeat) clearInterval(heartbeat);
   heartbeat = null;
+  await AsyncStorage.removeItem(DRIVER_ONLINE_STORAGE_KEY);
+  if (!(await AsyncStorage.getItem(ACTIVE_ORDER_STORAGE_KEY))) {
+    await stopLocationTask();
+  }
 }
 
-/** Test seam: is the heartbeat currently running? */
+/** Test/diagnostic seam. */
 export function isIdleHeartbeatRunning(): boolean {
   return heartbeat !== null;
 }

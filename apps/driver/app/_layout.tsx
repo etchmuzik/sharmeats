@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from '../src/auth';
+import { AuthProvider, useAuth } from '../src/auth';
 import { ToastProvider } from '../src/components/Toast';
 import { ThemeProvider, ThemedStatusBar, useThemeColors } from '../src/themeProvider';
 import { initCrashReporting } from '../src/lib/crash';
@@ -11,6 +11,7 @@ import { getSupabase, isSupabaseConfigured } from '../src/supabase';
 import { ScreenErrorBoundary } from '../src/components/ScreenErrorBoundary';
 import { LanguageProvider, useI18n } from '../src/i18n-context';
 import '../src/backgroundLocationTask';
+import { stopIdleHeartbeat, stopStreaming } from '../src/location';
 
 export { ScreenErrorBoundary as ErrorBoundary };
 
@@ -68,7 +69,17 @@ export default function RootLayout() {
  */
 function DriverStack() {
   const colors = useThemeColors();
+  const { session, loading } = useAuth();
   const { locale, t } = useI18n();
+
+  useEffect(() => {
+    if (loading || session) return;
+    // Covers expiry/revocation and cold-start logout, not only the Home button.
+    void (async () => {
+      await stopIdleHeartbeat().catch(() => undefined);
+      await stopStreaming().catch(() => undefined);
+    })();
+  }, [loading, session]);
 
   return (
     <Stack
@@ -87,24 +98,28 @@ function DriverStack() {
         headerBackButtonDisplayMode: 'minimal',
       }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="signin" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="home"
-        options={{
-          title: t('nav.deliveries'),
-          headerLargeTitle: true,
-          headerBackVisible: false,
-        }}
-      />
-      <Stack.Screen name="job/[id]" options={{ title: t('nav.delivery') }} />
-      <Stack.Screen name="job/[id]/chat" options={{ title: t('nav.chat') }} />
-      <Stack.Screen
-        name="history"
-        options={{ title: t('nav.history'), headerLargeTitle: true }}
-      />
-      <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
-      <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
+      <Stack.Protected guard={!session}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="signin" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={Boolean(session)}>
+        <Stack.Screen
+          name="home"
+          options={{
+            title: t('nav.deliveries'),
+            headerLargeTitle: true,
+            headerBackVisible: false,
+          }}
+        />
+        <Stack.Screen name="job/[id]" options={{ title: t('nav.delivery') }} />
+        <Stack.Screen name="job/[id]/chat" options={{ title: t('nav.chat') }} />
+        <Stack.Screen
+          name="history"
+          options={{ title: t('nav.history'), headerLargeTitle: true }}
+        />
+        <Stack.Screen name="tier" options={{ title: t('nav.tier') }} />
+        <Stack.Screen name="kyc" options={{ title: t('nav.verification') }} />
+      </Stack.Protected>
     </Stack>
   );
 }

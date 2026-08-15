@@ -171,6 +171,14 @@ const ENGLISH = {
   'tracking.notNow': 'Not now',
   'tracking.notificationTitle': 'Sharm Eats delivery in progress',
   'tracking.notificationBody': 'Sharing your live location for the active delivery.',
+  'presence.notificationTitle': 'Sharm Eats driver online',
+  'presence.notificationBody': 'Location keeps you available for nearby delivery offers.',
+  'presence.title': 'Location while you are online',
+  'presence.body':
+    'When you choose to go online, Sharm Eats uses your location in the background to keep you eligible for nearby delivery offers, even while your phone is locked. Android shows a persistent notification. Location presence stops when you go offline.',
+  'presence.notNow': 'Not now',
+  'presence.locationPermission':
+    'To go online, allow location "All the time" for Sharm Eats in Settings.',
   'countdown.pickupBy': 'Pick up by',
   'countdown.deliverBy': 'Deliver by',
   'countdown.pickupOverdue': 'Pickup overdue',
@@ -376,6 +384,14 @@ const ARABIC: Record<TranslationKey, string> = {
   'tracking.notNow': 'ليس الآن',
   'tracking.notificationTitle': 'توصيل شارم إيتس جارٍ',
   'tracking.notificationBody': 'تتم مشاركة موقعك المباشر أثناء التوصيل النشط.',
+  'presence.notificationTitle': 'سائق شارم إيتس متصل',
+  'presence.notificationBody': 'يساعد موقعك على إبقائك متاحًا لعروض التوصيل القريبة.',
+  'presence.title': 'الموقع أثناء اتصالك',
+  'presence.body':
+    'عندما تختار الاتصال، تستخدم شارم إيتس موقعك في الخلفية لإبقائك مؤهلًا لعروض التوصيل القريبة حتى عندما يكون هاتفك مقفلًا. يعرض أندرويد إشعارًا دائمًا. يتوقف استخدام الموقع عند إيقاف اتصالك.',
+  'presence.notNow': 'ليس الآن',
+  'presence.locationPermission':
+    'للاتصال، اسمح بالوصول إلى الموقع «طوال الوقت» لتطبيق شارم إيتس من الإعدادات.',
   'countdown.pickupBy': 'الاستلام قبل',
   'countdown.deliverBy': 'التوصيل قبل',
   'countdown.pickupOverdue': 'تأخر الاستلام',
@@ -579,6 +595,21 @@ export function operationalErrorKey(
     return failure === 'jobUpdate' ? 'job.updateError' : 'job.generalError';
   }
 
+  // Going online now requires an OS-backed presence task, so the most common
+  // failure is a missing "Allow all the time" grant. 'home.statusError'
+  // ("check your connection") sends the driver to the wrong fix entirely.
+  if (
+    failure === 'online' &&
+    containsAny(diagnostic, [
+      'background location',
+      'location permission',
+      'permission denied',
+      'allow location',
+    ])
+  ) {
+    return 'presence.locationPermission';
+  }
+
   return 'home.statusError';
 }
 
@@ -598,5 +629,16 @@ export function trackingNotificationCopy(storedLocale: unknown): {
   return {
     title: translate(locale, 'tracking.notificationTitle'),
     body: translate(locale, 'tracking.notificationBody'),
+  };
+}
+
+export function presenceNotificationCopy(storedLocale: unknown): {
+  title: string;
+  body: string;
+} {
+  const locale: Locale = isSupportedLocale(storedLocale) ? storedLocale : 'en';
+  return {
+    title: translate(locale, 'presence.notificationTitle'),
+    body: translate(locale, 'presence.notificationBody'),
   };
 }

@@ -19,7 +19,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Sharm Eats uses your location to assign nearby deliveries and share your live position with customers while you deliver.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "During an active delivery, Sharm Eats uses your location in the background to keep the customer informed and dispatch accurate."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "While you choose to stay online, Sharm Eats uses your location in the background to keep you eligible for nearby offers and to share live progress during active deliveries."
       }
     },
     "android": {
@@ -50,8 +50,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Sharm Eats uses your location to assign nearby deliveries.",
-          "locationAlwaysAndWhenInUsePermission": "During an active delivery, Sharm Eats shares your live location with the customer and dispatch even when the app is in the background.",
+          "locationWhenInUsePermission": "Sharm Eats uses your location while you are online to assign nearby deliveries.",
+          "locationAlwaysAndWhenInUsePermission": "While you choose to stay online, Sharm Eats uses your location in the background for nearby offers and active-delivery tracking.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true

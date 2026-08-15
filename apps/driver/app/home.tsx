@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   type AppStateStatus,
   Pressable,
@@ -49,6 +50,8 @@ import { notifyError, notifySuccess, tapLight, tapMedium } from '../src/lib/hapt
 import { LanguageToggle } from '../src/components/LanguageToggle';
 import { useI18n } from '../src/i18n-context';
 import { captureError } from '../src/lib/crash';
+import { runDriverSignOut } from '../src/signOutFlow';
+import { ensurePresenceDisclosure } from '../src/presenceDisclosure';
 
 export default function Home() {
   const colors = useThemeColors();
@@ -135,12 +138,23 @@ export default function Home() {
   // screen cannot leave a timer running.
   useEffect(() => {
     if (online) {
-      startIdleHeartbeat();
+      void startIdleHeartbeat().catch(async (error) => {
+        // An "online" badge without a background presence channel is a false
+        // promise: dispatch will age this driver out while the UI says ready.
+        await setOnline(false).catch(() => undefined);
+        onlineRef.current = false;
+        setOnlineState(false);
+        captureError(error, { where: 'driver.home.startPresence' });
+        toast(errorMessage('location', error), 'error');
+      });
     } else {
-      stopIdleHeartbeat();
+      void stopIdleHeartbeat().catch((error) => {
+        captureError(error, { where: 'driver.home.stopPresence' });
+      });
     }
-    return () => stopIdleHeartbeat();
-  }, [online]);
+    // Deliberately no unmount cleanup: navigating to history or an active job
+    // must not silently take an online driver out of the dispatch pool.
+  }, [errorMessage, online, toast]);
 
   // Live offer sync via Realtime (order_assignments), independent of push. Makes
   // a new offer appear the instant dispatch creates it even when the app is open
@@ -170,29 +184,48 @@ export default function Home() {
   }, [load]);
 
   async function toggleOnline(next: boolean) {
+    if (next) {
+      const disclosed = await ensurePresenceDisclosure(
+        () =>
+          new Promise<boolean>((resolve) => {
+            Alert.alert(
+              t('presence.title'),
+              t('presence.body'),
+              [
+                { text: t('presence.notNow'), style: 'cancel', onPress: () => resolve(false) },
+                { text: t('common.continue'), onPress: () => resolve(true) },
+              ],
+              { cancelable: true, onDismiss: () => resolve(false) },
+            );
+          }),
+      );
+      if (!disclosed) return;
+    }
     tapMedium();
     setOnlineState(next);
     onlineRef.current = next;
     try {
-      await setOnline(next);
       if (next) {
+        // Prove we can maintain presence before advertising availability.
+        await startIdleHeartbeat();
+        await setOnline(true);
         await pingOnce('online');
-        // [202 F-02] Keep proving we are here. Mig 201 only dispatches to
-        // drivers whose last_ping_at is inside dispatch_max_ping_age_seconds
-        // (300s), and nothing refreshed it while waiting between jobs — so an
-        // online driver silently left the dispatch pool after 5 idle minutes.
-        startIdleHeartbeat();
       } else {
-        // [H-DRV3] Going offline MUST stop any running location stream. Otherwise
-        // its throttled driver_ping keeps writing (and, before this fix, re-stamped
-        // status back to on_job), so the driver could never actually go offline.
-        stopIdleHeartbeat();
+        await stopIdleHeartbeat();
         await stopStreaming();
+        await setOnline(false);
         await pingOnce('offline');
       }
     } catch (e) {
       setOnlineState(!next); // revert on failure
       onlineRef.current = !next;
+      if (next) {
+        await stopIdleHeartbeat().catch(() => undefined);
+        await setOnline(false).catch(() => undefined);
+      } else {
+        await setOnline(true).catch(() => undefined);
+        await startIdleHeartbeat().catch(() => undefined);
+      }
       captureError(e, { where: 'driver.home.toggleOnline', next });
       notifyError();
       toast(errorMessage('online', e), 'error');
@@ -202,11 +235,25 @@ export default function Home() {
   // Unregister this device's push token before signing out so the next driver on
   // the same device doesn't receive the previous account's offers.
   async function handleSignOut() {
-    // [H-DRV3] Stop the stream first so a sign-out mid-delivery doesn't leave the
-    // GPS watcher + pings running for the signed-out account.
-    await stopStreaming();
-    await unregisterPush();
-    await signOut();
+    const result = await runDriverSignOut({
+      stopPresence: async () => stopIdleHeartbeat(),
+      stopStreaming,
+      unregisterPush,
+      signOut,
+    });
+    if (!result.authSignedOut) {
+      captureError(result.authError, { where: 'driver.home.signOut' });
+      toast(t('common.connectionRetry'), 'error');
+      return;
+    }
+    if (!result.pushRevoked || result.cleanupFailures.length > 0) {
+      captureError(new Error('Driver device cleanup was incomplete'), {
+        where: 'driver.home.signOut.cleanup',
+        failures: result.cleanupFailures,
+        pushRevoked: result.pushRevoked,
+      });
+    }
+    router.replace('/signin');
   }
 
   async function accept(a: Assignment) {
