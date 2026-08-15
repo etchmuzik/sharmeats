@@ -445,6 +445,10 @@ function mapPlaceOrderError(error: { message?: string }): Error {
     USER_BLOCKED: 'error.userBlocked',
     TOO_MANY_ACTIVE_ORDERS: 'error.tooManyActiveOrders',
     NEW_USER_ORDER_LIMIT: 'error.newUserOrderLimit',
+    INVALID_MODIFIER_OPTION: 'error.modifierInvalid',
+    DUPLICATE_MODIFIER_OPTION: 'error.modifierInvalid',
+    MODIFIER_MIN_SELECTION: 'error.modifierSelection',
+    MODIFIER_MAX_SELECTION: 'error.modifierSelection',
   };
   for (const key of Object.keys(map)) {
     if (msg.includes(key)) return new Error(t(map[key]));

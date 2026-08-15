@@ -537,6 +537,8 @@
   "error.addressNotFound": "Bitte wähle eine gültige Lieferadresse.",
   "error.itemNotFound": "Einer deiner Artikel ist nicht mehr verfügbar.",
   "error.itemUnavailable": "Einer deiner Artikel ist derzeit nicht verfügbar.",
+  "error.modifierInvalid": "Eine deiner Auswahlen für diesen Artikel ist nicht mehr verfügbar. Entferne den Artikel aus dem Warenkorb und füge ihn erneut hinzu.",
+  "error.modifierSelection": "Bei einem Artikel im Warenkorb fehlt eine erforderliche Auswahl. Entferne ihn und füge ihn erneut aus der Karte hinzu.",
   "error.belowMinOrder": "Deine Bestellung liegt unter dem Mindestbestellwert des Restaurants.",
   "error.invalidQty": "Ungültige Artikelmenge.",
   "error.authRequired": "Bitte melde dich an, um zu bestellen.",

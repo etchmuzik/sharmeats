@@ -537,6 +537,8 @@
   "error.addressNotFound": "من فضلك اختر عنوان توصيل صالح.",
   "error.itemNotFound": "أحد أصنافك لم يعد متاحًا.",
   "error.itemUnavailable": "أحد أصنافك غير متاح حاليًا.",
+  "error.modifierInvalid": "أحد خياراتك لهذا الصنف لم يعد متاحًا. احذف الصنف من السلة وأضفه من جديد.",
+  "error.modifierSelection": "أحد أصناف سلتك ينقصه اختيار مطلوب. احذفه وأضفه من جديد من القائمة.",
   "error.belowMinOrder": "طلبك أقل من الحد الأدنى للمطعم.",
   "error.invalidQty": "كمية غير صالحة.",
   "error.authRequired": "سجّل الدخول لإتمام طلبك.",

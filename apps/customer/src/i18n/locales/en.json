@@ -537,6 +537,8 @@
   "error.addressNotFound": "Please choose a valid delivery address.",
   "error.itemNotFound": "One of your items is no longer available.",
   "error.itemUnavailable": "One of your items is currently unavailable.",
+  "error.modifierInvalid": "One of your item choices is no longer available. Remove that item from your cart and add it again.",
+  "error.modifierSelection": "An item in your cart is missing a required choice. Remove it and add it again from the menu.",
   "error.belowMinOrder": "Your order is below the restaurant minimum.",
   "error.invalidQty": "Invalid item quantity.",
   "error.authRequired": "Please sign in to place your order.",

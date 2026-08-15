@@ -22,6 +22,8 @@ export type CustomerErrorKey =
   | 'error.newUserOrderLimit'
   | 'error.otpInvalid'
   | 'error.otpResendFailed'
+  | 'error.modifierInvalid'
+  | 'error.modifierSelection'
   | 'error.otpSendFailed'
   | 'error.outOfRange'
   | 'error.placeOrderFailed'
@@ -44,6 +46,13 @@ const checkoutErrorKeys: Record<string, CustomerErrorKey> = {
   USER_BLOCKED: 'error.userBlocked',
   TOO_MANY_ACTIVE_ORDERS: 'error.tooManyActiveOrders',
   NEW_USER_ORDER_LIMIT: 'error.newUserOrderLimit',
+  // place_order enforces modifier ownership and min/max selection since
+  // migration 20260815044234. Before it, a stale option id was silently
+  // dropped from the snapshot, so these never reached the client.
+  INVALID_MODIFIER_OPTION: 'error.modifierInvalid',
+  DUPLICATE_MODIFIER_OPTION: 'error.modifierInvalid',
+  MODIFIER_MIN_SELECTION: 'error.modifierSelection',
+  MODIFIER_MAX_SELECTION: 'error.modifierSelection',
 };
 
 function errorFields(error: unknown): string[] {

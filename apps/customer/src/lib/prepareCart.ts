@@ -83,12 +83,17 @@ function issueToChange(issue: PreparedCartIssue): LineChange | null {
       return { kind: 'unavailable', ...base };
     case 'MODIFIER_GONE':
       return { kind: 'modifier_gone', ...base };
-    // INVALID_QTY cannot come from a saved order (quantities are validated on
-    // the way in), and REQUIRED_MODIFIER_MISSING is non-blocking server-side —
-    // surfacing it as a scary "changed" dialog would misrepresent a cart that
-    // place_order will happily accept.
-    case 'INVALID_QTY':
+    // REQUIRED_MODIFIER_MISSING used to be non-blocking here, because
+    // place_order accepted it. Since migration 20260815044234 placement raises
+    // MODIFIER_MIN_SELECTION for exactly this shape, so a silently adopted line
+    // would fail at checkout with no indication of which item to fix.
+    // Preparation must not be laxer than placement: report it with the change
+    // vocabulary the UI already renders, and drop the line (see fromServer).
     case 'REQUIRED_MODIFIER_MISSING':
+      return { kind: 'modifier_gone', ...base };
+    // INVALID_QTY cannot come from a saved order — quantities are validated on
+    // the way in.
+    case 'INVALID_QTY':
       return null;
   }
 }
@@ -104,7 +109,19 @@ function fromServer(prepared: PreparedCart, past: CartItem[]): PreparedReorder {
     .map(issueToChange)
     .filter((c): c is LineChange => c !== null);
 
-  const lines: CartItem[] = prepared.lines.map((l) => {
+  // A line whose required group has nothing selected is reported by the server
+  // but still returned in `lines`. place_order rejects it (MODIFIER_MIN_SELECTION
+  // since mig 20260815044234), so adopting it would build a cart that cannot
+  // check out. Drop it here and let the reported change explain why.
+  const unsatisfiedIndexes = new Set(
+    prepared.issues
+      .filter((issue) => issue.code === 'REQUIRED_MODIFIER_MISSING')
+      .map((issue) => issue.index),
+  );
+
+  const lines: CartItem[] = prepared.lines
+    .filter((l) => !unsatisfiedIndexes.has(l.index))
+    .map((l) => {
     const before = pastById.get(l.itemId);
     const newUnit = l.unitPriceEgp + l.modifierChoices.reduce((a, c) => a + c.priceDeltaEgp, 0);
 

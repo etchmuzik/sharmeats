@@ -537,6 +537,8 @@
   "error.addressNotFound": "Scegli un indirizzo di consegna valido.",
   "error.itemNotFound": "Uno dei tuoi articoli non è più disponibile.",
   "error.itemUnavailable": "Uno dei tuoi articoli non è al momento disponibile.",
+  "error.modifierInvalid": "Una delle opzioni scelte per questo articolo non è più disponibile. Rimuovilo dal carrello e aggiungilo di nuovo.",
+  "error.modifierSelection": "A un articolo nel carrello manca una scelta obbligatoria. Rimuovilo e aggiungilo di nuovo dal menù.",
   "error.belowMinOrder": "L'ordine è sotto il minimo del ristorante.",
   "error.invalidQty": "Quantità non valida.",
   "error.authRequired": "Accedi per effettuare l'ordine.",

@@ -154,9 +154,12 @@ describe('server path', () => {
     expect(r.allGone).toBe(true);
   });
 
-  it('does NOT scare the user about a non-blocking required modifier', async () => {
-    // place_order accepts this cart, so reporting it as "changed" would
-    // misrepresent a basket that is going to work.
+  it('drops a line whose required modifier is unsatisfied, instead of failing at checkout', async () => {
+    // This used to be swallowed because place_order accepted such a cart. Since
+    // migration 20260815044234 placement raises MODIFIER_MIN_SELECTION, so
+    // adopting the line silently would build a basket that cannot check out and
+    // gives the customer no clue which item to fix. Preparation must not be
+    // laxer than placement.
     mockPrepareCart.mockResolvedValue(
       serverResponse({
         issues: [
@@ -165,7 +168,10 @@ describe('server path', () => {
       }),
     );
     const r = await prepareReorder('rest-1', past, menu);
-    expect(r.changes).toEqual([]);
+    expect(r.changes).toEqual([
+      { kind: 'modifier_gone', itemId: 'item-1', name: 'Koshary' },
+    ]);
+    expect(r.lines.map((l) => l.itemId)).not.toContain('item-1');
   });
 });
 
