@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { mfaGate, mfaRouteRedirect } from '@/lib/mfa';
 import {
   NAV_GROUPS,
   activeNavHref,
@@ -58,22 +59,48 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
         if (!cancelled) setRole(null);
         return;
       }
-      const { data: me } = await supabase
-        .from('users')
-        .select('role, display_name')
-        .eq('id', session.user.id)
-        .single();
+      const [{ data: me, error: roleError }, { data: aal, error: aalError }] = await Promise.all([
+        supabase
+          .from('users')
+          .select('role, display_name')
+          .eq('id', session.user.id)
+          .single(),
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      ]);
       if (cancelled) return;
+      if (roleError || aalError || !me?.role) {
+        setRole(null);
+        await supabase.auth.signOut();
+        if (!cancelled) router.replace('/login');
+        return;
+      }
+
+      const resolvedRole = me.role as string;
+      const gate = mfaGate(aal?.currentLevel, aal?.nextLevel, {
+        enrollmentRequired: resolvedRole === 'admin',
+      });
+      const redirect = mfaRouteRedirect(pathname ?? '', resolvedRole, gate);
+      if (redirect) {
+        setRole(null);
+        // A session that owes a challenge must not linger at aal1. Enrollment
+        // is different: keep that session so /security can create the factor.
+        if (redirect === '/login') await supabase.auth.signOut();
+        if (!cancelled) router.replace(redirect);
+        return;
+      }
+
       // A failed lookup leaves role null, and visibleNavItems fails closed on
       // it — no sidebar rather than a speculative one.
-      setRole((me?.role as string | undefined) ?? null);
+      // During mandatory enrollment the /security page remains usable, but the
+      // shell exposes no privileged navigation until the session reaches aal2.
+      setRole(gate === 'enrollment_required' ? null : resolvedRole);
       setName((me?.display_name as string | undefined) ?? '');
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [chromeless, pathname]);
+  }, [chromeless, pathname, router]);
 
   const items = visibleNavItems(role);
   const showNav = !chromeless && role !== undefined && items.length > 0;

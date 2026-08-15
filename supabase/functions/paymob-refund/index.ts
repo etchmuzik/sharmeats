@@ -6,7 +6,10 @@
 // the provider response and order status atomically.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { parseFullRefundRequest } from "./logic.ts";
+import {
+  hasAdminRefundAuthority,
+  parseFullRefundRequest,
+} from "./logic.ts";
 
 const PAYMOB_REFUND_URL =
   "https://accept.paymob.com/api/acceptance/void_refund/refund";
@@ -101,6 +104,18 @@ Deno.serve(async (req: Request) => {
     .single();
   if (actorError || actor?.role !== "admin") {
     return json(req, { error: "forbidden" }, 403);
+  }
+
+  // getUser() above validates the JWT identity. With that same token supplied,
+  // Supabase resolves the authenticator assurance level and verified factors;
+  // fail closed if the lookup is unavailable or the TOTP challenge is owed.
+  const { data: aal, error: aalError } = await userClient.auth.mfa
+    .getAuthenticatorAssuranceLevel(token);
+  if (
+    aalError ||
+    !hasAdminRefundAuthority(actor.role, aal?.currentLevel, aal?.nextLevel)
+  ) {
+    return json(req, { error: "mfa_required" }, 403);
   }
 
   const { data: order, error: orderError } = await admin

@@ -35,9 +35,36 @@ export default function LoginPage() {
     // exists, Supabase reports nextLevel 'aal2' and the session stays at aal1
     // until a code is verified — it does NOT block on its own, so if this app
     // simply navigated on, enrolling MFA would protect nothing.
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    const gate = mfaGate(aal?.currentLevel, aal?.nextLevel);
-    if (gate !== 'code_required') {
+    const [{ data: me, error: roleError }, { data: aal, error: aalError }] = await Promise.all([
+      supabase.from('users').select('role').single(),
+      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+    ]);
+    if (roleError || aalError || !me?.role) {
+      await supabase.auth.signOut();
+      setBusy(false);
+      return setError(
+        'Could not verify this account’s security requirements. Sign in again or contact the platform owner.',
+      );
+    }
+
+    const role = me.role as string;
+    const gate = mfaGate(aal?.currentLevel, aal?.nextLevel, {
+      enrollmentRequired: role === 'admin',
+    });
+    if (gate === 'indeterminate') {
+      await supabase.auth.signOut();
+      setBusy(false);
+      return setError(
+        'Could not verify this session’s security level. Sign in again or contact the platform owner.',
+      );
+    }
+    if (gate === 'enrollment_required') {
+      setBusy(false);
+      router.replace('/security');
+      router.refresh();
+      return;
+    }
+    if (gate === 'not_enrolled' || gate === 'satisfied') {
       setBusy(false);
       router.replace('/');
       router.refresh();

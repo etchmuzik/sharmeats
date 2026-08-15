@@ -2,11 +2,10 @@
  * TOTP multi-factor logic for the ops dashboard, kept pure and separate from the
  * React that calls it.
  *
- * WHY THIS EXISTS AT ALL: production has exactly one admin account, and that
- * account reaches dispatch, finance, commission and KYC approval. A password is
- * the only thing in front of all of it — and on 2026-07-30 that password was
- * found published in a public repository for eight weeks. TOTP is the cheapest
- * thing that makes a leaked admin password insufficient on its own.
+ * WHY THIS EXISTS AT ALL: admin accounts reach dispatch, finance, commission
+ * and KYC approval. One of their passwords was found published in a public
+ * repository for eight weeks. TOTP is the cheapest thing that makes a leaked
+ * admin password insufficient on its own.
  *
  * THE FAILURE MODE TO RESPECT: an MFA lockout is worse than a password lockout.
  * A forgotten password is recoverable by email; a lost authenticator app is not
@@ -17,9 +16,8 @@
  * That is documented in docs/GO-LIVE.md rather than left to be discovered
  * during an incident.
  *
- * `admin-web` has no test runner yet (see PR #98), so this file is written as
- * plain functions with no React or Supabase imports — it can be unit-tested
- * unchanged the day one is added, exactly like navItems.ts.
+ * This file stays pure—no React or Supabase imports—so the complete assurance
+ * truth table and route decision remain cheap unit tests.
  */
 
 /** Supabase's assurance levels. aal1 = password only, aal2 = password + TOTP. */
@@ -35,29 +33,55 @@ export type AssuranceLevel = 'aal1' | 'aal2';
  *                  exists on the account.
  *
  * So `aal1 + aal2` is the only state that means "a code is owed". A user with
- * no factor sits at `aal1 + aal1` forever and must not be prompted, and a user
- * who has just passed a challenge is at `aal2 + aal2`.
+ * no factor sits at `aal1 + aal1`; optional-MFA roles may continue, while an
+ * admin must enroll. A user who passed a challenge is at `aal2 + aal2`.
  */
 export type MfaGate =
   /** No verified factor on this account — nothing to prompt for. */
   | 'not_enrolled'
+  /** This role must enroll a factor before it receives any authority. */
+  | 'enrollment_required'
   /** A verified factor exists and this session has not satisfied it yet. */
   | 'code_required'
   /** Already at aal2 — let them through. */
-  | 'satisfied';
+  | 'satisfied'
+  /** Supabase did not return a trustworthy answer. Never grant on uncertainty. */
+  | 'indeterminate';
 
 export function mfaGate(
   currentLevel: string | null | undefined,
   nextLevel: string | null | undefined,
+  options: { enrollmentRequired?: boolean } = {},
 ): MfaGate {
-  if (currentLevel === 'aal2') return 'satisfied';
-  if (nextLevel === 'aal2') return 'code_required';
-  // Includes the null/undefined case. Fail OPEN deliberately: getAuthenticator-
-  // AssuranceLevel() returning nothing means we could not determine the state,
-  // and blocking sign-in on an indeterminate answer would lock the only admin
-  // out of production over a transient. The database is the real authority on
-  // what an aal1 session may do; this gate is a prompt, not a permission.
-  return 'not_enrolled';
+  if (currentLevel === 'aal2' && nextLevel === 'aal2') return 'satisfied';
+  if (currentLevel === 'aal2' && nextLevel === 'aal1') {
+    return options.enrollmentRequired ? 'enrollment_required' : 'not_enrolled';
+  }
+  if (currentLevel === 'aal1' && nextLevel === 'aal2') return 'code_required';
+  if (currentLevel === 'aal1' && nextLevel === 'aal1') {
+    return options.enrollmentRequired ? 'enrollment_required' : 'not_enrolled';
+  }
+  return 'indeterminate';
+}
+
+/**
+ * Route-level companion to the database authority gate.
+ *
+ * This does not grant access—the database does—but it prevents a password-only
+ * admin session from ever painting sensitive dashboard UI. An unenrolled admin
+ * gets exactly one usable destination, `/security`; a session that owes a code
+ * or whose assurance level is unknown must start the login challenge again.
+ */
+export function mfaRouteRedirect(
+  pathname: string,
+  role: string | null | undefined,
+  gate: MfaGate,
+): '/login' | '/security' | null {
+  if (gate === 'code_required' || gate === 'indeterminate') return '/login';
+  if (gate === 'enrollment_required' || (role === 'admin' && gate === 'not_enrolled')) {
+    return pathname === '/security' || pathname.startsWith('/security/') ? null : '/security';
+  }
+  return null;
 }
 
 /**

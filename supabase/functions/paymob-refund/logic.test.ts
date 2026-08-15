@@ -1,5 +1,14 @@
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
-import { parseFullRefundRequest } from "./logic.ts";
+import { hasAdminRefundAuthority, parseFullRefundRequest } from "./logic.ts";
+
+Deno.test("refund authority requires both the admin role and aal2", () => {
+  assertEquals(hasAdminRefundAuthority("admin", "aal1", "aal2"), false);
+  assertEquals(hasAdminRefundAuthority("admin", "aal2", "aal2"), true);
+  assertEquals(hasAdminRefundAuthority("dispatcher", "aal2", "aal2"), false);
+  assertEquals(hasAdminRefundAuthority("admin", null, null), false);
+  // Supabase reports aal2/aal1 when the JWT is stale after factor removal.
+  assertEquals(hasAdminRefundAuthority("admin", "aal2", "aal1"), false);
+});
 
 Deno.test("parseFullRefundRequest accepts a full-refund request", () => {
   assertEquals(

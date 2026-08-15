@@ -3,6 +3,7 @@ import {
   hasVerifiedFactor,
   isCompleteTotpCode,
   mfaGate,
+  mfaRouteRedirect,
   normalizeTotpCode,
   staleUnverifiedFactorIds,
   toFactorViews,
@@ -15,8 +16,14 @@ import {
  * regress because Supabase's currentLevel/nextLevel pair reads ambiguously.
  */
 describe('mfaGate — the truth table is the security contract', () => {
-  it('does not prompt an account with no factor (aal1/aal1)', () => {
+  it('allows an optional-MFA account with no factor (aal1/aal1)', () => {
     expect(mfaGate('aal1', 'aal1')).toBe('not_enrolled');
+  });
+
+  it('requires an admin with no factor to enroll before using ops authority', () => {
+    expect(mfaGate('aal1', 'aal1', { enrollmentRequired: true })).toBe(
+      'enrollment_required',
+    );
   });
 
   it('demands a code when a verified factor exists and is unsatisfied (aal1/aal2)', () => {
@@ -30,14 +37,42 @@ describe('mfaGate — the truth table is the security contract', () => {
     expect(mfaGate('aal2', 'aal2')).toBe('satisfied');
   });
 
-  it('treats current aal2 as satisfied regardless of nextLevel', () => {
-    expect(mfaGate('aal2', 'aal1')).toBe('satisfied');
+  it('treats aal2/aal1 as a stale token after factor removal', () => {
+    expect(mfaGate('aal2', 'aal1')).toBe('not_enrolled');
+    expect(mfaGate('aal2', 'aal1', { enrollmentRequired: true })).toBe(
+      'enrollment_required',
+    );
   });
 
-  it('fails OPEN on an indeterminate answer — a transient must not lock out the only admin', () => {
-    expect(mfaGate(null, null)).toBe('not_enrolled');
-    expect(mfaGate(undefined, undefined)).toBe('not_enrolled');
-    expect(mfaGate('', '')).toBe('not_enrolled');
+  it('fails closed when the assurance level cannot be determined', () => {
+    expect(mfaGate(null, null)).toBe('indeterminate');
+    expect(mfaGate(undefined, undefined)).toBe('indeterminate');
+    expect(mfaGate('', '')).toBe('indeterminate');
+  });
+});
+
+describe('mfaRouteRedirect — the shell cannot expose an aal1 admin session', () => {
+  it('sends an unenrolled admin only to the enrollment page', () => {
+    expect(mfaRouteRedirect('/', 'admin', 'enrollment_required')).toBe('/security');
+    expect(mfaRouteRedirect('/finance', 'admin', 'enrollment_required')).toBe('/security');
+    expect(mfaRouteRedirect('/security', 'admin', 'enrollment_required')).toBeNull();
+  });
+
+  it('sends a session that owes a code back through login', () => {
+    expect(mfaRouteRedirect('/finance', 'admin', 'code_required')).toBe('/login');
+    expect(mfaRouteRedirect('/', 'dispatcher', 'code_required')).toBe('/login');
+  });
+
+  it('fails closed on an indeterminate assurance result', () => {
+    expect(mfaRouteRedirect('/', 'admin', 'indeterminate')).toBe('/login');
+  });
+
+  it('preserves dispatcher access when MFA was never enrolled', () => {
+    expect(mfaRouteRedirect('/', 'dispatcher', 'not_enrolled')).toBeNull();
+  });
+
+  it('allows an aal2 admin session to use every dashboard route', () => {
+    expect(mfaRouteRedirect('/finance', 'admin', 'satisfied')).toBeNull();
   });
 });
 

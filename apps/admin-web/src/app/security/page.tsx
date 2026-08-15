@@ -100,8 +100,10 @@ export default function SecurityPage() {
     }
     setEnrolling(null);
     setCode('');
-    setNotice('Authenticator app enabled. From now on, signing in asks for a code.');
+    setNotice('Authenticator app enabled. This session now has admin authority.');
     await refresh();
+    router.replace('/');
+    router.refresh();
   }
 
   async function removeFactor(id: string) {
@@ -109,10 +111,21 @@ export default function SecurityPage() {
     setError(null);
     setNotice(null);
     const { error: unenrolError } = await supabase.auth.mfa.unenroll({ factorId: id });
-    setBusy(false);
-    if (unenrolError) return setError(unenrolError.message);
-    setNotice('Authenticator removed. This account is back to password-only.');
-    await refresh();
+    if (unenrolError) {
+      setBusy(false);
+      return setError(unenrolError.message);
+    }
+    // Supabase documents that an aal2 JWT can otherwise stay aal2 until its
+    // normal refresh interval after factor removal. Refresh immediately so the
+    // shell and database see the downgraded session without that grace period.
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      setBusy(false);
+      return setError('Authenticator removed, but the session could not be refreshed. Sign out now.');
+    }
+    // A full reload re-runs the root shell guard. router.refresh() can preserve
+    // this client layout and leave stale privileged navigation painted.
+    window.location.replace('/security');
   }
 
   const protectedNow = hasVerifiedFactor(factors);
