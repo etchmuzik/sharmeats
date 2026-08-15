@@ -107,11 +107,23 @@ jobs:
       # customer's device.
       - name: Require customer live-data environment
         if: matrix.app == 'customer' && inputs.profile == 'production'
+        # working-directory is load-bearing, and its absence broke this step on
+        # 2026-08-15: eas-cli resolves the EAS project from the CURRENT
+        # directory, so at the repo root it exits 1 with "EAS project not
+        # configured ... run 'eas init'". The preflight then reported a token
+        # problem and failed the run before a single byte was built. Every other
+        # eas-cli step here already sets this; this one was simply missed.
+        working-directory: apps/${{ matrix.app }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if ! environment_list=$(npx eas-cli@21.4.0 env:list --environment production 2>&1); then
-            echo "::error title=Could not inspect EAS environment::Unable to verify the production customer Supabase configuration. Check EXPO_TOKEN access and retry before starting a build."
+            # Echo what eas-cli actually said. Capturing stdout+stderr into a
+            # variable to grep it also HID the cause: the log showed only this
+            # step's own guess ("Check EXPO_TOKEN access"), which sent the
+            # investigation at the token rather than the missing directory.
+            printf '%s\n' "$environment_list" >&2
+            echo "::error title=Could not inspect EAS environment::Unable to verify the production customer Supabase configuration. eas-cli output is above. Nothing was built."
             exit 1
           fi
           if ! printf '%s\n' "$environment_list" | grep -q 'EXPO_PUBLIC_SUPABASE_ANON_KEY'; then
