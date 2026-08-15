@@ -40,12 +40,22 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=scripts/lib/backup-paths.sh
+source "${SCRIPT_DIR}/lib/backup-paths.sh"
+
 PROJECT_REF="${SUPABASE_PROJECT_REF:-ilqpsebcfbaoaogimhud}"
 SUPABASE_URL="${SUPABASE_URL:-https://${PROJECT_REF}.supabase.co}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/sharmeats-backups}"
 KEEP="${KEEP:-14}"
+KEEP_FAILED="${KEEP_FAILED:-5}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="${BACKUP_DIR}/storage-${STAMP}"
+
+[[ "${KEEP}" =~ ^[0-9]+$ && "${KEEP}" -ge 1 ]] || { echo "ERROR: KEEP must be a positive integer." >&2; exit 1; }
+[[ "${KEEP_FAILED}" =~ ^[0-9]+$ ]] || { echo "ERROR: KEEP_FAILED must be a non-negative integer." >&2; exit 1; }
+validate_backup_root "${BACKUP_DIR}" "${REPO_ROOT}" "${HOME}"
 
 # Buckets to capture.
 #
@@ -56,7 +66,7 @@ OUT="${BACKUP_DIR}/storage-${STAMP}"
 # cost nothing. Re-check this list against storage.buckets whenever a migration
 # adds one:
 #   select id, public from storage.buckets order by id;
-BUCKETS="${BUCKETS:-kyc delivery-proof}"
+BUCKETS="${BUCKETS:-kyc delivery-proof avatars}"
 
 # Same failure discipline as backup-prod.sh: a partial run must never leave a
 # directory that reads as a usable backup.
@@ -123,41 +133,47 @@ for bucket in ${BUCKETS}; do
   while [[ ${#prefixes[@]} -gt 0 ]]; do
     prefix="${prefixes[0]}"
     prefixes=("${prefixes[@]:1}")
-
-    body=$(python3 -c '
+    offset=0
+    while true; do
+      body=$(python3 -c '
 import json,sys
-print(json.dumps({"prefix": sys.argv[1], "limit": 1000,
-                  "sortBy": {"column": "name", "order": "asc"}}))' "${prefix}")
+print(json.dumps({"prefix": sys.argv[1], "limit": 1000, "offset": int(sys.argv[2]),
+                  "sortBy": {"column": "name", "order": "asc"}}))' "${prefix}" "${offset}")
 
-    listing=$(curl -fsS -X POST \
-      "${SUPABASE_URL}/storage/v1/object/list/${bucket}" \
-      -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-      -H "Content-Type: application/json" \
-      -d "${body}")
-
-    # Split the listing into files and sub-folders. An entry with a null id is a
-    # folder placeholder, not an object.
-    while IFS=$'\t' read -r kind name size; do
-      [[ -z "${name}" ]] && continue
-      path="${prefix:+${prefix}/}${name}"
-      if [[ "${kind}" == "dir" ]]; then
-        prefixes+=("${path}")
-        continue
-      fi
-      mkdir -p "${OUT}/${bucket}/$(dirname "${path}")"
-      curl -fsS \
-        "${SUPABASE_URL}/storage/v1/object/${bucket}/${path}" \
+      listing=$(curl -fsS -X POST \
+        "${SUPABASE_URL}/storage/v1/object/list/${bucket}" \
         -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-        -o "${OUT}/${bucket}/${path}"
-      total_objects=$((total_objects + 1))
-      total_bytes=$((total_bytes + ${size:-0}))
-      echo "      ${path} (${size:-?} bytes)"
-    done < <(python3 -c '
+        -H "Content-Type: application/json" \
+        -d "${body}")
+      page_count=$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' <<<"${listing}")
+
+      # Split the listing into files and sub-folders. An entry with a null id is a
+      # folder placeholder, not an object.
+      while IFS=$'\t' read -r kind name size; do
+        [[ -z "${name}" ]] && continue
+        path="${prefix:+${prefix}/}${name}"
+        if [[ "${kind}" == "dir" ]]; then
+          prefixes+=("${path}")
+          continue
+        fi
+        mkdir -p "${OUT}/${bucket}/$(dirname "${path}")"
+        curl -fsS \
+          "${SUPABASE_URL}/storage/v1/object/${bucket}/${path}" \
+          -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+          -o "${OUT}/${bucket}/${path}"
+        total_objects=$((total_objects + 1))
+        total_bytes=$((total_bytes + ${size:-0}))
+        echo "      ${path} (${size:-?} bytes)"
+      done < <(python3 -c '
 import json,sys
 for e in json.load(sys.stdin):
     meta = e.get("metadata") or {}
     kind = "file" if e.get("id") else "dir"
     print("\t".join([kind, e.get("name",""), str(meta.get("size",0))]))' <<<"${listing}")
+
+      [[ "${page_count}" -lt 1000 ]] && break
+      offset=$((offset + 1000))
+    done
   done
 done
 
@@ -211,6 +227,9 @@ if [[ -n "${MIRROR_DIR:-}" ]]; then
   elif [[ ! -d "${MIRROR_DIR}" ]]; then
     mirror_note="FAILED — ${MIRROR_DIR} is not mounted"
     echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not mounted." >&2
+  elif ! validate_backup_root "${MIRROR_DIR}" "${REPO_ROOT}" "${HOME}"; then
+    mirror_note="FAILED — ${MIRROR_DIR} is an unsafe retention root"
+    echo "  ⚠ off-site mirror SKIPPED: unsafe retention root ${MIRROR_DIR}." >&2
   elif ! mkdir -p "${MIRROR_DIR}/storage-${STAMP}" 2>/dev/null; then
     mirror_note="FAILED — ${MIRROR_DIR} is not writable"
     echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not writable." >&2
@@ -228,29 +247,37 @@ if [[ -n "${MIRROR_DIR:-}" ]]; then
         mirror_note="ok — ${MIRROR_DIR}/storage-${STAMP} (${a_n} files, ${a_b} bytes)"
         echo "  · mirrored to ${MIRROR_DIR}/storage-${STAMP} (${a_n} files verified)"
         chmod -R go-rwx "${MIRROR_DIR}/storage-${STAMP}" 2>/dev/null || true
-        ls -1d "${MIRROR_DIR}"/storage-*/ 2>/dev/null \
-          | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+        while read -r old; do
           echo "  · pruning mirror $(basename "${old}")"
-          rm -rf "${old}"
-        done
+          safe_remove_backup_dir "${MIRROR_DIR}" "${old}" storage-success 2>/dev/null || true
+        done < <(list_backup_dirs "${MIRROR_DIR}" storage-success | sort -r | tail -n +$((KEEP + 1)))
       else
         mirror_note="FAILED — verify mismatch (${a_n}/${a_b} here, ${b_n}/${b_b} there)"
         echo "  ⚠ mirror verify FAILED: ${a_n} files/${a_b} bytes here, ${b_n}/${b_b} there" >&2
-        rm -rf "${MIRROR_DIR}/storage-${STAMP}"
+        # `|| true` as in the copy-errored branch below: a failure to clean up
+        # the MIRROR must never abort the run and quarantine the good local
+        # backup (the helper returns non-zero if the mirror path is gone).
+        safe_remove_backup_dir "${MIRROR_DIR}" "${MIRROR_DIR}/storage-${STAMP}" storage-success 2>/dev/null || true
       fi
     else
       mirror_note="FAILED — copy errored"
-      rm -rf "${MIRROR_DIR}/storage-${STAMP}" 2>/dev/null || true
+      safe_remove_backup_dir "${MIRROR_DIR}" "${MIRROR_DIR}/storage-${STAMP}" storage-success 2>/dev/null || true
     fi
   fi
 fi
 printf 'off-site mirror: %s\n' "${mirror_note}" >> "${OUT}/MANIFEST.txt"
 
-# Retention, matching backup-prod.sh's policy.
-ls -1d "${BACKUP_DIR}"/storage-*/ 2>/dev/null | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+# Retention: successful and quarantined failed runs never count against each
+# other. Only exact storage-<UTC stamp> directory names are eligible.
+while read -r old; do
   echo "  · pruning $(basename "${old}")"
-  rm -rf "${old}"
-done
+  safe_remove_backup_dir "${BACKUP_DIR}" "${old}" storage-success
+done < <(list_backup_dirs "${BACKUP_DIR}" storage-success | sort -r | tail -n +$((KEEP + 1)))
+
+while read -r old; do
+  echo "  · pruning failed run $(basename "${old}")"
+  safe_remove_backup_dir "${BACKUP_DIR}" "${old}" storage-failed
+done < <(list_backup_dirs "${BACKUP_DIR}" storage-failed | sort -r | tail -n +$((KEEP_FAILED + 1)))
 
 cat <<'EOF'
 

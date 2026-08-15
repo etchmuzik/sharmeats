@@ -39,12 +39,21 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=scripts/lib/backup-paths.sh
+source "${SCRIPT_DIR}/lib/backup-paths.sh"
+
 PROJECT_REF="${SUPABASE_PROJECT_REF:-ilqpsebcfbaoaogimhud}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/sharmeats-backups}"
 KEEP="${KEEP:-14}"                      # how many SUCCESSFUL backups to retain
 KEEP_FAILED="${KEEP_FAILED:-5}"         # how many -FAILED quarantine dirs to retain
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="${BACKUP_DIR}/${STAMP}"
+
+[[ "${KEEP}" =~ ^[0-9]+$ && "${KEEP}" -ge 1 ]] || { echo "ERROR: KEEP must be a positive integer." >&2; exit 1; }
+[[ "${KEEP_FAILED}" =~ ^[0-9]+$ ]] || { echo "ERROR: KEEP_FAILED must be a non-negative integer." >&2; exit 1; }
+validate_backup_root "${BACKUP_DIR}" "${REPO_ROOT}" "${HOME}"
 
 # A failed run must never leave a directory that reads as a backup: tonight's
 # launchd history was full of dirs holding a single 0-byte roles.sql. On any
@@ -261,6 +270,9 @@ if [[ -n "${MIRROR_DIR:-}" ]]; then
     mirror_note="FAILED — ${MIRROR_DIR} is not mounted"
     echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not mounted." >&2
     echo "    The laptop copy is complete; this backup exists in ONE place." >&2
+  elif ! validate_backup_root "${MIRROR_DIR}" "${REPO_ROOT}" "${HOME}"; then
+    mirror_note="FAILED — ${MIRROR_DIR} is an unsafe retention root"
+    echo "  ⚠ off-site mirror SKIPPED: unsafe retention root ${MIRROR_DIR}." >&2
   elif ! mkdir -p "${MIRROR_DIR}/${STAMP}" 2>/dev/null; then
     mirror_note="FAILED — ${MIRROR_DIR} is not writable"
     echo "  ⚠ off-site mirror SKIPPED: ${MIRROR_DIR} is not writable (full? read-only?)." >&2
@@ -284,20 +296,24 @@ if [[ -n "${MIRROR_DIR:-}" ]]; then
         echo "  · mirrored to ${MIRROR_DIR}/${STAMP} (byte-verified)"
         # Same retention on the mirror, or the drive fills and starts failing
         # silently — which is how the mirror becomes the stale copy you trust.
-        ls -1d "${MIRROR_DIR}"/*/ 2>/dev/null \
-          | grep -v -- '-FAILED/$' \
-          | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+        while read -r old; do
           echo "  · pruning mirror $(basename "${old}")"
-          rm -rf "${old}"
-        done
+          safe_remove_backup_dir "${MIRROR_DIR}" "${old}" database-success 2>/dev/null || true
+        done < <(list_backup_dirs "${MIRROR_DIR}" database-success | sort -r | tail -n +$((KEEP + 1)))
       else
         mirror_note="FAILED — copy did not verify"
-        rm -rf "${MIRROR_DIR}/${STAMP}"
+        # `|| true` matches the copy-errored branch below: the EXIT trap that
+        # renames the PRIMARY backup to *-FAILED is still armed here, and unlike
+        # the old `rm -rf` this helper returns non-zero when the mirror path has
+        # vanished (drive unplugged / went read-only). Under `set -e` that would
+        # quarantine a good, byte-verified local backup because the MIRROR
+        # failed.
+        safe_remove_backup_dir "${MIRROR_DIR}" "${MIRROR_DIR}/${STAMP}" database-success 2>/dev/null || true
       fi
     else
       mirror_note="FAILED — copy errored"
       echo "  ⚠ off-site mirror SKIPPED: copy to ${MIRROR_DIR} failed." >&2
-      rm -rf "${MIRROR_DIR}/${STAMP}" 2>/dev/null || true
+      safe_remove_backup_dir "${MIRROR_DIR}" "${MIRROR_DIR}/${STAMP}" database-success 2>/dev/null || true
     fi
   fi
 fi
@@ -311,19 +327,16 @@ printf 'off-site mirror: %s\n' "${mirror_note}" >> "${OUT}/MANIFEST.txt"
 # effective retention was 6 real backups, not 14 — retention silently shrank
 # in exactly the circumstance where history matters most. Failures are now
 # counted and pruned separately.
-ls -1d "${BACKUP_DIR}"/*/ 2>/dev/null \
-  | grep -v -- '-FAILED/$' \
-  | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+while read -r old; do
   echo "  · pruning $(basename "${old}")"
-  rm -rf "${old}"
-done
+  safe_remove_backup_dir "${BACKUP_DIR}" "${old}" database-success
+done < <(list_backup_dirs "${BACKUP_DIR}" database-success | sort -r | tail -n +$((KEEP + 1)))
 
 # Quarantined failures are kept for diagnosis but must not accumulate forever.
-ls -1d "${BACKUP_DIR}"/*-FAILED/ 2>/dev/null \
-  | sort -r | tail -n +$((KEEP_FAILED + 1)) | while read -r old; do
+while read -r old; do
   echo "  · pruning failed run $(basename "${old}")"
-  rm -rf "${old}"
-done
+  safe_remove_backup_dir "${BACKUP_DIR}" "${old}" database-failed
+done < <(list_backup_dirs "${BACKUP_DIR}" database-failed | sort -r | tail -n +$((KEEP_FAILED + 1)))
 
 trap - EXIT
 echo "✓ backup complete: ${OUT}"
