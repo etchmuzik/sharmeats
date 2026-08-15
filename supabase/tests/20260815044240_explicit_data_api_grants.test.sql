@@ -59,7 +59,7 @@ create table public.restaurants (
   payout_iban text,
   payout_wallet text,
   payout_holder text,
-  logo text,
+  logo_url text,
   commission_pct numeric
 );
 create table public.drivers (
@@ -70,7 +70,7 @@ create table public.drivers (
   payout_iban text,
   payout_wallet text,
   payout_holder text,
-  photo text,
+  photo_url text,
   is_verified boolean
 );
 create table public.orders (
@@ -272,13 +272,13 @@ select pg_temp.assert_table_privilege('authenticated', 'restaurants', 'UPDATE', 
 select pg_temp.assert_table_privilege('authenticated', 'restaurants', 'DELETE', false);
 select pg_temp.assert_column_privilege('authenticated', 'restaurants', 'is_open', 'UPDATE', true);
 select pg_temp.assert_column_privilege('authenticated', 'restaurants', 'payout_iban', 'UPDATE', true);
-select pg_temp.assert_column_privilege('authenticated', 'restaurants', 'logo', 'UPDATE', true);
+select pg_temp.assert_column_privilege('authenticated', 'restaurants', 'logo_url', 'UPDATE', true);
 select pg_temp.assert_column_privilege('authenticated', 'restaurants', 'commission_pct', 'UPDATE', false);
 
 select pg_temp.assert_table_privilege('authenticated', 'drivers', 'UPDATE', false);
 select pg_temp.assert_column_privilege('authenticated', 'drivers', 'status', 'UPDATE', true);
 select pg_temp.assert_column_privilege('authenticated', 'drivers', 'payout_iban', 'UPDATE', true);
-select pg_temp.assert_column_privilege('authenticated', 'drivers', 'photo', 'UPDATE', true);
+select pg_temp.assert_column_privilege('authenticated', 'drivers', 'photo_url', 'UPDATE', true);
 select pg_temp.assert_column_privilege('authenticated', 'drivers', 'is_verified', 'UPDATE', false);
 
 select pg_temp.assert_table_privilege('authenticated', 'users', 'INSERT', false);

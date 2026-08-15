@@ -1597,6 +1597,7 @@ export type Database = {
           payout_wallet: string | null
           phone: string
           photo: string
+          photo_url: string | null
           plate: string
           profile_id: string | null
           rating: number
@@ -1620,6 +1621,7 @@ export type Database = {
           payout_wallet?: string | null
           phone?: string
           photo?: string
+          photo_url?: string | null
           plate?: string
           profile_id?: string | null
           rating?: number
@@ -1643,6 +1645,7 @@ export type Database = {
           payout_wallet?: string | null
           phone?: string
           photo?: string
+          photo_url?: string | null
           plate?: string
           profile_id?: string | null
           rating?: number
@@ -3936,6 +3939,7 @@ export type Database = {
           is_open_24h: boolean | null
           kitchen_id: string | null
           logo: string | null
+          logo_url: string | null
           merchant_type: Database["public"]["Enums"]["merchant_type"]
           min_order_egp: number
           name: string
@@ -3986,6 +3990,7 @@ export type Database = {
           is_open_24h?: boolean | null
           kitchen_id?: string | null
           logo?: string | null
+          logo_url?: string | null
           merchant_type?: Database["public"]["Enums"]["merchant_type"]
           min_order_egp?: number
           name: string
@@ -4036,6 +4041,7 @@ export type Database = {
           is_open_24h?: boolean | null
           kitchen_id?: string | null
           logo?: string | null
+          logo_url?: string | null
           merchant_type?: Database["public"]["Enums"]["merchant_type"]
           min_order_egp?: number
           name?: string

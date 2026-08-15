@@ -228,14 +228,17 @@ grant update (is_default)
   on table public.payment_methods to authenticated;
 grant update (rating_food, rating_delivery, rating_comment)
   on table public.orders to authenticated;
--- The avatar columns are `photo` and `logo`, NOT photo_url/logo_url. Granting
--- the _url names aborted this migration against production (42703) — and the
--- reason they were written that way is a real, separate bug: the driver avatar
--- (apps/driver/src/avatar.ts) and restaurant logo (apps/restaurant/src/logo.ts)
--- uploads both .update() the _url names, so they have never written anything.
--- Prod matches that story: 0 of 4 drivers have a photo. Grant the columns that
--- EXIST; fixing the two client call sites is tracked separately, and this grant
--- is what those fixed call sites will need.
+-- Avatar/logo upload targets are `photo_url` and `logo_url` (migration 167),
+-- NOT the older seed-data columns `photo` and `logo`, which hold external URLs
+-- from the catalog import and are not written by any client.
+--
+-- This migration originally granted photo_url/logo_url, aborted against
+-- production with 42703, and was "corrected" to photo/logo — which was the
+-- wrong direction. The real cause was that migration 167 had never been
+-- applied to production, so the columns and the `avatars` bucket it creates
+-- were simply absent. 167 is now applied (2026-08-15) and this list is back to
+-- the columns the clients actually write. See apps/driver/src/avatar.ts and
+-- apps/restaurant/src/logo.ts.
 grant update (
   status,
   payout_method,
@@ -243,7 +246,7 @@ grant update (
   payout_iban,
   payout_wallet,
   payout_holder,
-  photo
+  photo_url
 ) on table public.drivers to authenticated;
 grant update (
   is_open,
@@ -252,7 +255,7 @@ grant update (
   payout_iban,
   payout_wallet,
   payout_holder,
-  logo
+  logo_url
 ) on table public.restaurants to authenticated;
 grant update (read_at)
   on table public.order_messages, public.support_messages to authenticated;
