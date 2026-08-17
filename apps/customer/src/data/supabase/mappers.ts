@@ -91,7 +91,7 @@ function normalizeAddressSnapshot(raw: unknown): Address | undefined {
   };
 }
 
-interface RestaurantRow {
+export interface RestaurantRow {
   id: string;
   slug: string;
   name: string;
