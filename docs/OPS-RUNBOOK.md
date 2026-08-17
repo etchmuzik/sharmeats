@@ -155,8 +155,13 @@ Then, **once per quarter**:
    above — PostGIS first, then `session_replication_role = replica` for data).
 2. Run 4 smoke checks:
    - a recent order exists;
-   - `place_order` has exactly ONE overload (`select count(*) from pg_proc where
-     proname='place_order'`) — two means PGRST202 on every call;
+   - `place_order` has exactly ONE overload **in `public`** (`select count(*)
+     from pg_proc where proname='place_order' and
+     pronamespace='public'::regnamespace`) — two in `public` means PGRST202 on
+     every call. The schema filter is required, not tidiness: since migration
+     20260815044234 the real implementation lives in `private.place_order` and a
+     thin validating wrapper lives in `public`, so an unfiltered count is
+     legitimately 2 and the old query raises a false alarm on a healthy database;
    - RLS is enabled on `orders` / `order_financials` / `kyc_documents`;
    - row counts match the manifest for the largest few tables.
 3. Drop the database. Record the date + result below.

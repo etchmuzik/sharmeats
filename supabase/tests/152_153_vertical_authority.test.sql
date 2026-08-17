@@ -120,11 +120,20 @@ begin
 
   -- The replaced bodies must still contain the machinery my first draft lost.
   -- This is the regression guard for the "retyped body" trap.
+  --
+  -- Reads whichever schema currently holds the IMPLEMENTATION. Since migration
+  -- 20260815044234 that is private.place_order, with a thin validating wrapper
+  -- left in public; pinning this to `public` would have made every assertion
+  -- below fire on a perfectly healthy database, and "fix the test until it is
+  -- green" is exactly how a guard like this gets deleted. Preferring `private`
+  -- keeps it pointed at the real body before and after the move.
   declare v_def text;
   begin
     select pg_get_functiondef(p.oid) into v_def from pg_proc p
       join pg_namespace n on n.oid=p.pronamespace
-     where n.nspname='public' and p.proname='place_order';
+     where n.nspname in ('public','private') and p.proname='place_order'
+     order by (n.nspname = 'private') desc
+     limit 1;
     if position('order_status_events' in v_def) = 0 then
       v_fail := v_fail || 'place_order lost its order_status_events insert'::text;
     end if;
@@ -1117,8 +1126,14 @@ begin
   reset role;
 
   -- 8. (162) MISSING and HIDDEN look identical to an unauthorized caller.
+  --
+  -- Checks BOTH schemas since migration 20260815044234: the implementation moved
+  -- to private.place_order and public.place_order became a thin validating
+  -- wrapper. Looking only at `public` would now pass trivially — the wrapper has
+  -- almost no body — and would stop testing the property entirely rather than
+  -- reporting that it can no longer see it.
   if exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-              where n.nspname='public' and p.proname='place_order'
+              where n.nspname in ('public','private') and p.proname='place_order'
                 and p.prosrc like '%VERTICAL_NOT_AVAILABLE%') then
     v_fail := v_fail || 'place_order still distinguishes hidden from missing'::text;
   end if;

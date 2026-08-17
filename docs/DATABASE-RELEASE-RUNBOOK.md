@@ -30,6 +30,25 @@ not version. All six are idempotent, but replaying the modifier/deletion ones
 would attempt a second `ALTER FUNCTION ... SET SCHEMA` against an already-moved
 function and fail.
 
+**How to reconcile (when you choose to).** The safe repair is to tell the ledger
+that the repo filenames are already applied, without re-running their SQL:
+
+```bash
+# One per file. --status applied ONLY stamps the ledger; it executes nothing.
+supabase migration repair --status applied 20260815044240 --project-ref ilqpsebcfbaoaogimhud
+supabase migration repair --status applied 20260815044234 --project-ref ilqpsebcfbaoaogimhud
+supabase migration repair --status applied 20260815050843 --project-ref ilqpsebcfbaoaogimhud
+supabase migration repair --status applied 20260815044230 --project-ref ilqpsebcfbaoaogimhud
+supabase migration repair --status applied 167             --project-ref ilqpsebcfbaoaogimhud
+supabase migration repair --status applied 217             --project-ref ilqpsebcfbaoaogimhud
+```
+
+Do NOT do this while the wider 122-vs-81 history mismatch below is unresolved:
+stamping these six makes the tail look reconciled and makes `db push` feel safe
+when it still is not. It is recorded here so the option is understood, not
+because it is the next step. `scripts/staging-local-up.sh --plan-only` prints
+the order production actually used, which is the practical substitute.
+
 **NOT APPLIED — `20260815044226_enforce_admin_mfa_authority.sql`.** Production
 has **zero verified MFA factors across two admin accounts**, and the migration
 makes `auth_role()` return `admin` only with a verified factor AND `aal2`.
