@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
+import { useLocale } from '../src/locale';
 import { font, radius, spacing } from '../src/theme';
 import { makeStyles, useThemeColors } from '../src/themeProvider';
 import { LEGAL_URLS, openLegal } from '../src/legal';
@@ -24,6 +25,7 @@ export default function SignIn() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signInWithPassword } = useAuth();
+  const { t } = useLocale();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -57,13 +59,13 @@ export default function SignIn() {
       >
         <View style={{ paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxl }}>
           <Text style={{ color: colors.onAccent, fontSize: font.sizes.huge, fontWeight: '800' }}>
-            Sharm Eats
+            {t('signin.brand')}
           </Text>
           {/* onAccent, not accentSoft: this hero is filled with `accent`, identical in
               both themes, so its label must be too — accentSoft inverts to a
               near-black violet. Hierarchy comes from 36px/800 vs 16px/regular. */}
           <Text style={{ color: colors.onAccent, fontSize: font.sizes.lg, marginTop: 4 }}>
-            Restaurant
+            {t('signin.role')}
           </Text>
         </View>
 
@@ -78,12 +80,12 @@ export default function SignIn() {
           }}
         >
           <Text style={{ fontSize: font.sizes.xl, fontWeight: '700', color: colors.ink }}>
-            Sign in
+            {t('signin.title')}
           </Text>
           <Text style={{ color: colors.ink2 }}>
-            Use your restaurant email and password (same as the web dashboard).
+            {t('signin.subtitle')}
           </Text>
-          <Text style={styles.fieldLabel}>Restaurant email</Text>
+          <Text style={styles.fieldLabel}>{t('signin.emailLabel')}</Text>
           <TextInput
             testID="restaurant-email-input"
             value={email}
@@ -94,19 +96,19 @@ export default function SignIn() {
             textContentType="username"
             placeholder="owner@restaurant.com"
             placeholderTextColor={colors.ink3}
-            accessibilityLabel="Restaurant email"
+            accessibilityLabel={t('signin.emailLabel')}
             style={styles.input}
           />
-          <Text style={styles.fieldLabel}>Password</Text>
+          <Text style={styles.fieldLabel}>{t('signin.passwordLabel')}</Text>
           <TextInput
             testID="restaurant-password-input"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             textContentType="password"
-            placeholder="Password"
+            placeholder={t('signin.passwordPlaceholder')}
             placeholderTextColor={colors.ink3}
-            accessibilityLabel="Password"
+            accessibilityLabel={t('signin.passwordLabel')}
             style={styles.input}
             onSubmitEditing={() => email && password && submit()}
           />
@@ -115,11 +117,11 @@ export default function SignIn() {
             onPress={submit}
             disabled={busy || !email || !password}
             accessibilityRole="button"
-            accessibilityLabel="Sign in"
+            accessibilityLabel={t('signin.submit')}
             accessibilityState={{ disabled: busy || !email || !password, busy }}
             style={[styles.btn, (busy || !email || !password) && { opacity: 0.5 }]}
           >
-            {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.btnText}>Sign in</Text>}
+            {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.btnText}>{t('signin.submit')}</Text>}
           </Pressable>
 
           {error && (
@@ -131,10 +133,10 @@ export default function SignIn() {
           <Pressable
             onPress={() => Linking.openURL('https://merchant.sharmeats.online/login')}
             accessibilityRole="link"
-            accessibilityLabel="Reset your password on the merchant dashboard"
+            accessibilityLabel={t('signin.forgotA11y')}
             style={helpLink}
           >
-            <Text style={styles.helpLinkText}>Forgot your password? Reset it on the dashboard</Text>
+            <Text style={styles.helpLinkText}>{t('signin.forgotLink')}</Text>
           </Pressable>
 
           <Text style={{ marginTop: spacing.sm, fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center' }}>
@@ -143,18 +145,18 @@ export default function SignIn() {
               style={{ color: colors.accentText, fontWeight: '600' }}
               onPress={() => openLegal(LEGAL_URLS.terms)}
               accessibilityRole="link"
-              accessibilityLabel="Terms of Service"
+              accessibilityLabel={t('signin.terms')}
             >
-              Terms of Service
+              {t('signin.terms')}
             </Text>
             {' · '}
             <Text
               style={{ color: colors.accentText, fontWeight: '600' }}
               onPress={() => openLegal(LEGAL_URLS.privacy)}
               accessibilityRole="link"
-              accessibilityLabel="Privacy Policy"
+              accessibilityLabel={t('signin.privacy')}
             >
-              Privacy Policy
+              {t('signin.privacy')}
             </Text>
           </Text>
         </View>

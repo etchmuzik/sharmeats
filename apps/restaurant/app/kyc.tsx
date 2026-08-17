@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { RESTAURANT_DOC_TYPES, listMyKycDocuments, uploadKycDocument, type KycDocument } from '../src/kyc';
 import { font, radius, spacing, type Palette } from '../src/theme';
 import { useThemeColors } from '../src/themeProvider';
+import { useLocale } from '../src/locale';
 
 /**
  * Takes the palette rather than baking it in at import time. These are TEXT
@@ -31,6 +32,7 @@ const STATUS_LABEL: Record<KycDocument['status'], string> = {
  */
 export default function RestaurantKyc() {
   const colors = useThemeColors();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
   const [docs, setDocs] = useState<KycDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function RestaurantKyc() {
   const pickAndUpload = async (docType: string) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to upload your document.');
+      Alert.alert(t('kyc.permissionNeeded'), t('kyc.permissionBody'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -78,7 +80,7 @@ export default function RestaurantKyc() {
       );
       await load();
     } catch (e) {
-      Alert.alert('Upload failed', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('kyc.uploadFailed'), e instanceof Error ? e.message : t('kyc.uploadRetry'));
     } finally {
       setUploading(null);
     }

@@ -4,8 +4,16 @@ import { useFocusEffect } from 'expo-router';
 import { getMyRestaurantTier, type RestaurantTierInfo } from '../src/loyalty';
 import { font, radius, spacing } from '../src/theme';
 import { makeStyles, useThemeColors } from '../src/themeProvider';
+import { useLocale } from '../src/locale';
+import type { TranslationKey } from '../src/i18n';
 
-const TIER_LABEL: Record<RestaurantTierInfo['tier'], string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
+// Tier names resolve through the dictionary at render time so they follow the
+// staff member's locale like every other label on this screen.
+const TIER_LABEL_KEY = {
+  bronze: 'tier.nameBronze',
+  silver: 'tier.nameSilver',
+  gold: 'tier.nameGold',
+} as const satisfies Record<RestaurantTierInfo['tier'], TranslationKey>;
 
 // Rolling-90-day delivered-order-count thresholds to advance a tier. Verified
 // against the seeded platform_settings in supabase/migrations/042_loyalty_ledger.sql:
@@ -15,6 +23,7 @@ const TIER_FLOOR: Record<RestaurantTierInfo['tier'], number> = { bronze: 0, silv
 
 export default function Tier() {
   const colors = useThemeColors();
+  const { t } = useLocale();
   const styles = useStyles();
   const [tier, setTier] = useState<RestaurantTierInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,31 +73,33 @@ export default function Tier() {
       }
     >
       <Text style={styles.title}>
-        {tier ? TIER_LABEL[tier.tier] : 'Bronze'} tier
+        {t('tier.heading', { tier: t(TIER_LABEL_KEY[tier?.tier ?? 'bronze']) })}
       </Text>
       {tier?.featured && (
-        <Text style={{ color: colors.accentText, fontWeight: '600', marginTop: spacing.xs }}>Featured placement active</Text>
+        <Text style={{ color: colors.accentText, fontWeight: '600', marginTop: spacing.xs }}>{t('tier.featuredActive')}</Text>
       )}
       {nextThreshold ? (
-        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>{ordersToNext} more orders to next tier</Text>
+        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>{t('tier.ordersToNext', { count: ordersToNext })}</Text>
       ) : (
-        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>You&apos;ve reached the top tier.</Text>
+        <Text style={{ color: colors.ink2, marginTop: spacing.xs }}>{t('tier.topReached')}</Text>
       )}
 
       <View
         accessible
         accessibilityRole="progressbar"
-        accessibilityLabel="Delivered-order progress to the next restaurant tier"
+        accessibilityLabel={t('tier.progressA11y')}
         accessibilityValue={{
           min: floor,
           max: nextThreshold ?? Math.max(floor, tier?.ordersRolling90d ?? floor),
           now: tier?.ordersRolling90d ?? 0,
-          text: nextThreshold ? `${ordersToNext} more orders` : 'Top tier reached',
+          text: nextThreshold
+            ? t('tier.progressValueMore', { count: ordersToNext })
+            : t('tier.progressValueTop'),
         }}
         style={styles.progressSection}
       >
         <View style={styles.progressHeading}>
-          <Text style={styles.sectionTitle}>90-day delivery progress</Text>
+          <Text style={styles.sectionTitle}>{t('tier.progressTitle')}</Text>
           <Text style={styles.progressCount}>
             {tier?.ordersRolling90d ?? 0}{nextThreshold ? ` / ${nextThreshold}` : ''}
           </Text>
@@ -97,20 +108,28 @@ export default function Tier() {
           <View style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]} />
         </View>
         <Text style={styles.progressHint}>
-          {nextThreshold ? `${ordersToNext} delivered orders to the next tier` : 'You have every restaurant tier benefit.'}
+          {nextThreshold
+            ? t('tier.progressHint', { count: ordersToNext })
+            : t('tier.progressHintTop')}
         </Text>
       </View>
 
       <View style={styles.benefits}>
-        <Text style={styles.sectionTitle}>Your benefits</Text>
-        <Benefit label="Current commission" value={`${(tier?.commissionPct ?? 12).toFixed(1)}%`} />
+        <Text style={styles.sectionTitle}>{t('tier.benefitsTitle')}</Text>
+        <Benefit label={t('tier.currentCommission')} value={`${(tier?.commissionPct ?? 12).toFixed(1)}%`} />
         <Benefit
-          label="Featured placement"
-          value={tier?.featured ? 'Active' : tier?.tier === 'gold' ? 'Activating' : 'Unlocks at Gold'}
+          label={t('tier.featuredPlacement')}
+          value={
+            tier?.featured
+              ? t('tier.featuredActiveValue')
+              : tier?.tier === 'gold'
+                ? t('tier.featuredActivating')
+                : t('tier.featuredUnlocks')
+          }
         />
-        {tier?.tier === 'bronze' && <Benefit label="Next benefit" value="Silver: 1 point lower commission" />}
-        {tier?.tier === 'silver' && <Benefit label="Next benefit" value="Gold: 2 points lower commission and featured placement" />}
-        {tier?.tier === 'gold' && <Benefit label="Status" value="All restaurant benefits unlocked" />}
+        {tier?.tier === 'bronze' && <Benefit label={t('tier.nextBenefit')} value={t('tier.nextSilver')} />}
+        {tier?.tier === 'silver' && <Benefit label={t('tier.nextBenefit')} value={t('tier.nextGold')} />}
+        {tier?.tier === 'gold' && <Benefit label={t('tier.statusLabel')} value={t('tier.allUnlocked')} />}
       </View>
     </ScrollView>
   );

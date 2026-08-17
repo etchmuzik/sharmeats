@@ -24,6 +24,7 @@ import {
 } from '../../../src/messages';
 import { font, radius, spacing } from '../../../src/theme';
 import { useThemeColors } from '../../../src/themeProvider';
+import { useLocale } from '../../../src/locale';
 
 /** Friendly label for the OTHER party's role on a bubble. */
 function roleLabel(role: MessageRole): string {
@@ -39,6 +40,7 @@ function roleLabel(role: MessageRole): string {
  */
 export default function Chat() {
   const colors = useThemeColors();
+  const { t } = useLocale();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
@@ -140,10 +142,10 @@ export default function Chat() {
           >
             {messages.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl * 2, gap: spacing.sm }}>
-                <Icon name="chat" size={36} color={colors.ink3} accessibilityLabel="No messages" />
-                <Text style={{ fontSize: font.sizes.base, color: colors.ink2 }}>No messages yet</Text>
+                <Icon name="chat" size={36} color={colors.ink3} accessibilityLabel={t('chat.empty')} />
+                <Text style={{ fontSize: font.sizes.base, color: colors.ink2 }}>{t('chat.empty')}</Text>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.ink3, textAlign: 'center' }}>
-                  Send a message to the customer or driver about this order.
+                  {t('chat.emptyHint')}
                 </Text>
               </View>
             ) : (
@@ -201,7 +203,7 @@ export default function Chat() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Type a message…"
+            placeholder={t('chat.inputPlaceholder')}
             placeholderTextColor={colors.ink3}
             multiline
             style={{
@@ -221,7 +223,7 @@ export default function Chat() {
             onPress={send}
             disabled={sending || !draft.trim()}
             accessibilityRole="button"
-            accessibilityLabel="Send message"
+            accessibilityLabel={t('chat.sendA11y')}
             style={{
               width: 44,
               height: 44,
@@ -234,7 +236,7 @@ export default function Chat() {
             {sending ? (
               <ActivityIndicator color={colors.onAccent} />
             ) : (
-              <Icon name="send" size={20} color={colors.onAccent} accessibilityLabel="Send" />
+              <Icon name="send" size={20} color={colors.onAccent} accessibilityLabel={t('chat.send')} />
             )}
           </Pressable>
         </View>

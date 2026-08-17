@@ -68,4 +68,31 @@ describe('restaurant operational translations', () => {
     const key: TranslationKey = 'queue.new';
     expect(translate('ar', key)).toBe('جديد');
   });
+
+  it('localizes the tier screen labels rather than shipping English into Arabic', () => {
+    // These were hardcoded in app/tier.tsx until 2026-08-17 and silently
+    // rendered English inside an RTL screen. Assert a few of the values that
+    // interpolate, since those are the ones a naive translation breaks.
+    expect(translate('ar', 'tier.heading', { tier: translate('ar', 'tier.nameGold') })).toBe(
+      'المستوى ذهبي',
+    );
+    expect(translate('ar', 'tier.ordersToNext', { count: 7 })).toBe('7 طلبات إضافية للمستوى التالي');
+    expect(translate('en', 'tier.progressValueTop')).toBe('Top tier reached');
+  });
+
+  it('localizes sign-in, chat and boot copy', () => {
+    for (const key of [
+      'signin.title',
+      'signin.subtitle',
+      'signin.forgotLink',
+      'chat.inputPlaceholder',
+      'chat.emptyHint',
+      'boot.backendTitle',
+      'kyc.permissionBody',
+    ] as const) {
+      // Arabic must differ from English: an untranslated copy-paste is the
+      // failure this catches, and the parity test above cannot see it.
+      expect(translate('ar', key)).not.toBe(translate('en', key));
+    }
+  });
 });
