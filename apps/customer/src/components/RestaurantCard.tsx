@@ -114,6 +114,10 @@ const useStyles = makeStyles((colors) => ({
     ...shadow.soft,
   },
   cardBody: {
+    // The outer card is a flex row (dir.row); without flex: 1 this pressable
+    // shrinks to content, its flex:1 body collapses to zero width, and every
+    // text inside wraps letter-by-letter (broken since f859aa7).
+    flex: 1,
     flexDirection: 'row',
     gap: 12,
     padding: 10,
