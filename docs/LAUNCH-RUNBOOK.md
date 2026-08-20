@@ -182,14 +182,25 @@ https://ilqpsebcfbaoaogimhud.supabase.co/functions/v1/paymob-webhook
 
 ---
 
-## 4. Driver app → TestFlight
+## 4. Driver app → TestFlight — ✅ DONE (verified 2026-08-20 via ASC API)
 
-The driver app (`apps/driver`, bundle `eg.sharmeats.driver`) is now fully
+Everything below happened: credentials minted, ASC app record created (Apple
+ID `6777379638`, now in `apps/driver/eas.json`), and driver 1.1.0 build 29 is
+`IN_BETA_TESTING` in internal TestFlight (uploaded 2026-08-15). The steps are
+kept for the next app. The only live task is **adding the real drivers as
+TestFlight testers** (§4.4 for the test login).
+
+Note from the 2026-08-20 pass: `eas build:list` reported these builds as "not
+submitted" while they sat in TestFlight, and re-submitting failed with
+`EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE`. The ASC API (repo key
+`AuthKey_C4TFQQ5AAD.p8`) is the source of truth for what Apple has; EAS's
+submission list is not.
+
+The driver app (`apps/driver`, bundle `eg.sharmeats.driver`) is fully
 prepped: EAS project linked (`@etchmuzik/sharmeats-driver`), teal icon, fmt
 plugin + pinned Xcode 26.2, location purpose strings + background mode. It is
 code-complete (sign in → online → accept job → pickup → deliver → COD settle,
-all validated live). **Merchant + admin dashboards are already live; only the
-driver app still needs building/distributing.**
+all validated live).
 
 ### 4.1 First build — mint credentials (interactive, one time) — **YOU**
 The driver app has no signing credentials on EAS yet (the customer app already
@@ -255,7 +266,7 @@ accounts via the admin flow.
 | Functions deployed | ✅ written | ☐ YOU run (2.3) |
 | Secrets + callback set | — | ☐ YOU (2.4–2.5) |
 | Card flow tested | — | ☐ YOU (2.6) |
-| **Customer app** | ✅ build #10 (.ipa) | ☐ resubmit (TestFlight now) |
-| **Merchant dashboard** | ✅ | ✅ LIVE (Hostinger) |
-| **Admin dashboard** | ✅ | ✅ LIVE (Hostinger) |
-| **Driver app** | ✅ prepped + validated | ☐ YOU run 1st build (§4.1) |
+| **Customer app** | ✅ 1.1.0 build 60 | ✅ internal TestFlight; ☐ App Store resubmit (GO-LIVE §B) |
+| **Merchant dashboard** | ✅ | ✅ LIVE at `d9a2e7d` (2026-08-20) |
+| **Admin dashboard** | ✅ | ✅ LIVE at `d9a2e7d` (2026-08-20) |
+| **Driver app** | ✅ 1.1.0 build 29 | ✅ internal TestFlight; ☐ add drivers as testers |

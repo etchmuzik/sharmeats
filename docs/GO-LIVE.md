@@ -1,8 +1,10 @@
 # Sharm Eats — Go-Live Checklist
 
 Single source of truth for what's done and what's left. Verified 2026-07-30
-against the live project and the deployed site — not from memory. The remaining
-items are mostly **external** (accounts, Apple review, your device) — not code.
+against the live project and the deployed site — not from memory; re-verified
+2026-08-20 during the go-live pass (ASC API, prod DB, live version manifests —
+see "2026-08-20 go-live pass" below). The remaining items are mostly
+**external** (accounts, Apple review, your device) — not code.
 
 Re-verify before trusting this file. The 2026-06-05 pass went stale in ways
 that were invisible from the outside: it reported three edge functions as 404
@@ -19,21 +21,52 @@ Decision (2026-06-06): go live **cash-on-delivery only**; add card (Paymob) late
   (commit `6330143`) — card + Apple Pay don't appear, so no order can hit the
   undeployed Paymob path. COD + local wallets remain. Re-enable: flip the flag
   to `true` in `apps/customer/eas.json` (+ `.env`) and rebuild.
-- **Customer build #11** triggered → TestFlight (auto-submit). Carries
-  cash-only + location string + GO_BACK fix + fmt fix + full design pass. Real
-  users can take COD orders via TestFlight once it lands. (It does **not** carry
-  universal links — `ios.associatedDomains` was never added to `app.json`, so
-  the entitlement is not in the binary. See LAUNCH-RUNBOOK §1.4.)
-- **Web surfaces are already live** (landing + both dashboards on Hostinger);
+- **Customer 1.1.0 (build 60) is in internal TestFlight testing** — uploaded
+  2026-08-15, `internalBuildState=IN_BETA_TESTING` per the ASC API 2026-08-20.
+  (This file previously tracked "build #11"; the 1.0.0 train is history — the
+  App Store resubmission in section B should attach build 60.) Still does
+  **not** carry universal links — `ios.associatedDomains` remains absent from
+  `app.json`. See LAUNCH-RUNBOOK §1.4.
+- **Driver 1.1.0 (build 29) is in internal TestFlight testing too** — same
+  dates, same evidence. The old blockers are gone: the ASC app record exists
+  and its id `6777379638` is in `apps/driver/eas.json`. Remaining: ☐ **YOU**
+  add the actual drivers as TestFlight testers (they are not in the internal
+  group by magic), and get them to go online — all 4 seeded drivers last
+  pinged 2026-07-29.
+- **Web surfaces are live at current main** (redeployed 2026-08-20, see below);
   **backend live**; **COD pipeline verified end-to-end**.
 
-**Driver app → TestFlight (to dispatch the COD orders):** ☐ YOU
-1. Create the ASC app record "Sharm Eats Driver" (bundle `eg.sharmeats.driver`)
-   — App Store Connect web UI (the API key can't, 403). [LAUNCH-RUNBOOK §4.2]
-2. Put its Apple ID in `apps/driver/eas.json` (`REPLACE_WITH_DRIVER_ASC_APP_ID`).
-3. `cd apps/driver && eas build -p ios --profile production --auto-submit`
-   (build #3 — carries the driver design pass; first build minted credentials).
-4. Add drivers as TestFlight testers.
+Beware `eas build:list` claiming a build was never submitted: both builds above
+showed "not submitted" on EAS while sitting in TestFlight. An `eas submit` that
+fails with `EAS_UPLOAD_TO_ASC_VERSION_DUPLICATE` means the binary is ALREADY
+uploaded — ask the ASC API (the repo's AuthKey_C4TFQQ5AAD.p8), not EAS, before
+concluding a rebuild is needed.
+
+### 2026-08-20 go-live pass (what changed that night)
+
+- **Mig 216 (driver-GPS Realtime authorization) applied to prod** and properly
+  ledgered. The "coordinated release" it was waiting for had, in fact, already
+  happened: 1.1.0 clients (private channels) were in TestFlight since 08-15,
+  so the missing policies were the broken half. Applied in a zero-traffic
+  window; both policies verified in `pg_policies`.
+- **Customer OTA published** (branch `production`, runtime 1.1.0, update group
+  `72a12fcb`): ships commit `72efb7a`, which pins the storefront's restaurant
+  reads to 25 explicit columns.
+- **Mig 218 (payout-column revoke) is authored but NOT applied — deliberate.**
+  Gate: any 1.1.0 binary still on pre-OTA JS calls `select('*')` on
+  `restaurants`, and PostgREST fails the whole query once a column is revoked.
+  Apply 218 only after the OTA has adoption (phones fetch it on second
+  launch). Exposure meanwhile: `commission_pct` (12/15) — every `payout_*`
+  value was NULL on 2026-08-20.
+- **merchant-web + admin-web redeployed** at `d9a2e7d` (both had been ~3 weeks
+  stale on Aug 1 builds; verified via `/version.json` after deploy — Hostinger
+  deploys are async, "Request accepted" ≠ deployed, poll the manifest).
+- The Hostinger **MCP plugin token 401s** (the rotated token was never put in
+  the plugin config). Working path: `npx -y hostinger-api-mcp` over stdio with
+  the shell `HOSTINGER_API_TOKEN`. Dashboard builds need
+  `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` set inline —
+  neither app has a `.env.local`, and the /login prerender hard-fails without
+  them.
 
 **Operate cash-only:** customers order (COD) → merchant accepts on
 merchant.sharmeats.online → admin dispatches on admin.sharmeats.online → driver
@@ -55,12 +88,14 @@ App Review reply in
 | Item | Status |
 |---|---|
 | Landing site `sharmeats.online` | ✅ Live (Hostinger, valid SSL) |
-| Merchant dashboard `merchant.sharmeats.online` | ✅ Live (Hostinger, valid SSL) |
-| Admin dashboard `admin.sharmeats.online` | ✅ Live (Hostinger, valid SSL) |
-| Supabase backend (schema + seed) | ✅ Live, restaurants load |
+| Merchant dashboard `merchant.sharmeats.online` | ✅ Live at `d9a2e7d` (redeployed 2026-08-20) |
+| Admin dashboard `admin.sharmeats.online` | ✅ Live at `d9a2e7d` (redeployed 2026-08-20) |
+| Supabase backend (schema + seed) | ✅ Live, restaurants load (44 active/open) |
 | **COD order pipeline** (place → merchant → admin dispatch → driver → settle) | ✅ Verified live (place_order runs server-side; full flow validated) |
-| Customer app code + build #10 | ✅ On TestFlight |
-| Driver app code + build #2 (.ipa) | ✅ Built |
+| Customer 1.1.0 build 60 | ✅ Internal TestFlight (IN_BETA_TESTING since 2026-08-15) |
+| Driver 1.1.0 build 29 | ✅ Internal TestFlight (IN_BETA_TESTING since 2026-08-15) |
+| Mig 216 — driver-GPS Realtime authorization | ✅ Prod-applied 2026-08-20 |
+| Customer OTA `72a12fcb` (storefront column pinning) | ✅ Published 2026-08-20 |
 | iOS location purpose string, GO_BACK fix, clean screenshots | ✅ Committed |
 | Privacy pages (customer / driver / restaurant) | ✅ Live |
 | Universal links | ⚠️ **Not enabled.** The AASA file ships, but `ios.associatedDomains` is absent from `apps/customer/app.json`, so iOS never fetches it — links open Safari. See LAUNCH-RUNBOOK §1.4. |
@@ -94,13 +129,13 @@ Owner: **you** (KYC + keys) → then a couple of commands.
 
 ### B. Customer app → App Store (currently REJECTED, v1.0)
 Owner: **you** (device recording) + App Store Connect web UI.
-1. ☐ Record the order flow on a **physical iPhone** (install build #10 from TestFlight). Apple requires a real device.
-2. ☐ In App Store Connect (v1.0 is editable — Rejected): attach build #10, swap the 6.9"+6.5" clean screenshots from `apps/customer/store-screenshots-clean/`, paste the App Review notes, add phone `+971581232600`, re-uncheck "Sign-in required", **Submit for Review**. [APP-REVIEW-NOTES.md §D]
+1. ☐ Record the order flow on a **physical iPhone** (install 1.1.0 build 60 from TestFlight). Apple requires a real device.
+2. ☐ In App Store Connect (the rejected version is editable): bump the version string to 1.1.0, attach build 60, swap the 6.9"+6.5" clean screenshots from `apps/customer/store-screenshots-clean/`, paste the App Review notes, add phone `+971581232600`, re-uncheck "Sign-in required", **Submit for Review**. [APP-REVIEW-NOTES.md §D]
 
-### C. Driver app → TestFlight / App Store
-Owner: **you** (2 web-UI steps).
-1. ☐ Create the App Store Connect app record "Sharm Eats Driver" (bundle `eg.sharmeats.driver`). [LAUNCH-RUNBOOK §4.2]
-2. ☐ Paste its Apple ID into `apps/driver/eas.json` (replace `REPLACE_WITH_DRIVER_ASC_APP_ID`), then `eas submit -p ios --profile production --latest`. [§4.3]
+### C. Driver app → TestFlight — ✅ DONE (verified 2026-08-20)
+1. ✅ ASC app record "Sharm Eats Driver" exists (Apple ID `6777379638`).
+2. ✅ Its id is in `apps/driver/eas.json`; build 29 (1.1.0) is in internal
+   TestFlight. Remaining: add the real drivers as testers (see LAUNCHING NOW).
 
 ---
 
@@ -111,22 +146,26 @@ in plaintext at the line above, so that password must be treated as burned:
 redacting it does not undo the exposure, because git history keeps the old blob
 and GitHub's forks, API and code-search may already hold copies.
 
-- ☐ **Rotate the `beyondtech.eg@gmail.com` password** — it is an `admin` role
-      account reaching dispatch, finance, commission and KYC approval. Better
-      still, retire it as the admin identity in favour of `admin@sharmeats.online`
-      (a real mailbox, so it can receive a password reset; the gmail is personal).
+- ✅ **`beyondtech.eg@gmail.com` demoted to `customer`** (verified in prod
+      2026-08-20). The burned password no longer reaches dispatch, finance,
+      commission or KYC. The admins are now `admin@sharmeats.online` (active)
+      and `hesham@beyondmngmt.ae` (never signed in).
 - ☐ **Review Supabase auth logs** for sign-ins to that account you do not
-      recognise, going back to 2026-06-06 when the repo went public.
-- ☐ **Retire or repoint `ops@sharmeats.test`** — a second dormant `admin` account
-      (last sign-in 2026-06-04). `.test` is a reserved TLD that can never receive
-      mail, so it cannot be password-reset, only deleted or repointed.
-- ☐ **Rotate the Hostinger API token** that was pasted in chat (revoke in
-      hPanel → Account → API, generate fresh).
+      recognise, going back to 2026-06-06 when the repo went public. (Still
+      worth doing once — the exposure window predates the demotion.)
+- ✅ **`ops@sharmeats.test` demoted to `customer`** (verified 2026-08-20) —
+      no longer an admin, so the unreachable-mailbox problem is moot.
+- ✅ **Hostinger API token rotated** — evidenced by the MCP plugin's stored
+      token now returning 401. ☐ Put the fresh token in the plugin config too
+      (the shell `HOSTINGER_API_TOKEN` has it; the plugin still has the corpse).
 
 Rule going forward: no password, token or API key in this repo, in any file.
 Mailbox addresses are fine; the secrets that open them are not.
 
 ### Two-factor (TOTP) — and how to recover from a lost authenticator
+
+**Status 2026-08-20: still zero verified factors across both admin accounts.**
+This is the last security gate that needs a human with an authenticator.
 
 Enrol at **admin.sharmeats.online/security**. Once a factor is verified, signing
 in asks for a six-digit code after the password.
@@ -164,8 +203,13 @@ Two things that make this much less likely to matter:
 ---
 
 ## TL;DR
-- **Closed pilot (COD + TestFlight):** ready now.
-- **Public launch (card payments + App Store):** blocked on Paymob setup (A) and the two App Store submissions (B, C) — all external/yours; the code is done.
+- **Closed pilot (COD + TestFlight): LIVE** — both 1.1.0 apps in internal
+  TestFlight, backend + dashboards at current main (2026-08-20). Human steps
+  left: add drivers as testers, get drivers online, enrol admin MFA.
+- **Public launch (card payments + App Store):** blocked on Paymob setup (A)
+  and the customer App Store resubmission (B) — external/yours; the code is
+  done. C (driver TestFlight) is complete.
+- **DB follow-up:** apply mig 218 once OTA `72a12fcb` has adoption.
 
 ---
 
