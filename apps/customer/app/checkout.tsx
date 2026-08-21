@@ -1245,7 +1245,7 @@ const useStyles = makeStyles((colors) => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#eef9f1',
+    backgroundColor: colors.greenSoft,
     borderWidth: 1,
     borderColor: colors.green,
     borderRadius: radius.lg,

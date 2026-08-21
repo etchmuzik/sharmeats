@@ -80,8 +80,12 @@ export function RestaurantCard({
             <Text style={[styles.metric, dir.text]}>{formatPrepTime(restaurant.prepTimeLow, restaurant.prepTimeHigh, locale)}</Text>
             <View style={styles.dot} />
             <Text style={[styles.metric, dir.text]}>{formatEgp(restaurant.deliveryFeeEgp, locale)}</Text>
-            <View style={styles.dot} />
-            <Text style={[styles.metric, dir.text]}>{formatKm(restaurant.distanceMeters, locale)}</Text>
+            {restaurant.distanceMeters > 0 && (
+              <>
+                <View style={styles.dot} />
+                <Text style={[styles.metric, dir.text]}>{formatKm(restaurant.distanceMeters, locale)}</Text>
+              </>
+            )}
           </View>
         </View>
       </PressableScale>

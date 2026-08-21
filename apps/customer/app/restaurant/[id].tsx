@@ -450,7 +450,7 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: radius.lg,
-    backgroundColor: '#fff4ee',
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderColor: colors.accent,
   },

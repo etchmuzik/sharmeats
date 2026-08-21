@@ -602,9 +602,7 @@ export default function HomeTab() {
                   <Image source={{ uri: item.coverImage }} style={styles.featImg} />
                   <View style={styles.featOverlay} />
                   <View style={styles.featMeta}>
-                    <Text style={styles.featEyebrow}>
-                      {item.touristSafe ? `★ ${t('home.featuredEyebrowTouristSafe')}` : `★ ${t('home.featuredEyebrowLocal')}`}
-                    </Text>
+                    <Text style={styles.featEyebrow}>{`★ ${t('home.featuredEyebrowLocal')}`}</Text>
                     <Text style={styles.featName}>{item.name}</Text>
                     <Text style={styles.featSub}>
                       {item.cuisineLabel} · {formatPrepTime(item.prepTimeLow, item.prepTimeHigh, locale)} · ★ {formatNumber(item.rating, locale)}

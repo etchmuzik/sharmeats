@@ -479,7 +479,7 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.ink,
   },
   retryText: { color: colors.onInk, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
-  hero: { height: 280, backgroundColor: '#222', position: 'relative' },
+  hero: { height: 280, backgroundColor: colors.inkDeep, position: 'relative' },
   // Spans the hero so the back button stays left and the save heart sits right.
   navWrap: {
     position: 'absolute',
