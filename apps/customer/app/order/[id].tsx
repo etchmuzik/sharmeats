@@ -1035,8 +1035,8 @@ const useStyles = makeStyles((colors) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bulletCheck: { color: colors.onAccent, fontSize: 12, lineHeight: 12, fontWeight: '900' as const },
-  bulletNow: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.onAccent },
+  bulletCheck: { color: colors.onStatus, fontSize: 12, lineHeight: 12, fontWeight: '900' as const },
+  bulletNow: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.onStatus },
   stTitle: { fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.ink },
   stTime: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
 
@@ -1252,5 +1252,5 @@ const useStyles = makeStyles((colors) => ({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  saveBtnText: { color: colors.onAccent, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
+  saveBtnText: { color: colors.onStatus, fontSize: font.sizes.lg, fontWeight: font.weights.bold },
 }));

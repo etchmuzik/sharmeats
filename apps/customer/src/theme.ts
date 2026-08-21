@@ -93,6 +93,13 @@ export interface Palette {
   /** Label or icon on a filled accent control. Near-white in both themes. */
   onAccent: string;
   /**
+   * A label or glyph ON a filled status control (green/sea/red). Unlike
+   * `onAccent`, this inverts in dark mode: the status fills lighten there, so
+   * near-white text drops to ~2:1 against them — near-black is the readable
+   * pair. Use for text/icons on status-colored backgrounds.
+   */
+  onStatus: string;
+  /**
    * Label or icon on an `ink`-FILLED control (the selected chip / segmented
    * control / primary pill). This has to INVERT with `ink`, not track
    * `onAccent`: `ink` is near-black in light and near-white in dark, so a
@@ -135,6 +142,7 @@ export const lightColors: Palette = {
   black: '#141210',
   surface: '#FFFDFA',
   onAccent: '#FFFDFA',
+  onStatus: '#FFFDFA',
   onInk: '#FFFDFA',
   onInkMuted: 'rgba(255,255,255,0.75)',
   onInkOverlay: 'rgba(255,255,255,0.16)',
@@ -188,6 +196,7 @@ export const darkColors: Palette = {
   black: '#000000',
   surface: '#1A1817',
   onAccent: '#FFFDFA',
+  onStatus: '#17191A',
   onInk: '#100F0E',
   onInkMuted: 'rgba(16,15,14,0.72)',
   onInkOverlay: 'rgba(16,15,14,0.14)',

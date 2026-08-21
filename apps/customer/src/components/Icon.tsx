@@ -46,6 +46,7 @@ export type IconName =
   | 'bell'
   | 'help'
   | 'signout'
+  | 'dish' // menu-item photo placeholder
   | 'gift' // invite friends / referrals
   | 'share'
   | 'person'
@@ -57,6 +58,7 @@ export type IconName =
   | 'doc'; // legal documents (terms / privacy)
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
+  dish: 'restaurant-outline',
   location: 'location-outline',
   search: 'search-outline',
   history: 'time-outline',

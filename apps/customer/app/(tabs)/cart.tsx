@@ -432,7 +432,7 @@ function CartLineRow({
       accessibilityRole="button"
       accessibilityLabel={removeLabel}
       style={styles.swipeAction}>
-      <Icon name="trash" size={24} color={colors.onAccent} />
+      <Icon name="trash" size={24} color={colors.onStatus} />
       <Text style={styles.swipeLabel}>{removeLabel}</Text>
     </Pressable>
   );
@@ -585,7 +585,7 @@ const useStyles = makeStyles((colors) => ({
     width: 90,
     gap: 4,
   },
-  swipeLabel: { color: colors.onAccent, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
+  swipeLabel: { color: colors.onStatus, fontSize: font.sizes.sm, fontWeight: font.weights.bold },
   suggestCard: {
     width: 132,
     backgroundColor: colors.surface,

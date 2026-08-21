@@ -116,7 +116,8 @@ export const menusRepoSupabase = {
       'search_catalog',
       {
         p_query: escapeCatalogPattern(normalized),
-        p_vertical: null,
+        // Food-only until the vertical discovery UI ships (see restaurants.ts).
+        p_vertical: 'food',
         p_restaurant_id: null,
         p_limit: Math.min(limit, 100),
         p_after_name: null,

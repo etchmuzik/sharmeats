@@ -21,6 +21,8 @@ import { AllergyChipRow } from '../../src/components/AllergyChipRow';
 import { ModifierGroup } from '../../src/components/ModifierGroup';
 import { font, radius } from '../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
+import { Icon } from '../../src/components/Icon';
+import { LinearGradient } from 'expo-linear-gradient';
 import { db } from '../../src/data';
 import {
   ALLERGY_TO_FLAG,
@@ -306,7 +308,18 @@ export default function ItemModal() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={{ paddingBottom: 140 + insets.bottom }}>
         <View style={styles.hero}>
-          <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} />
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bgSoft }}>
+              <Icon name="dish" size={48} color={colors.ink3} />
+            </View>
+          )}
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
+            style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 110 }}
+          />
           <View style={[styles.navWrap, { top: insets.top + 6 }]}>
             <BackButton tint="light" onPress={goBack} />
             <Pressable

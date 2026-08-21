@@ -41,15 +41,18 @@ export function BackButton({
   };
 
   if (material === 'glass') {
+    // Over a photo or map the theme is irrelevant — the ground is the image.
+    // Fixed dark glass + near-white glyph stays legible on any photo in both
+    // themes; a theme-following glyph went invisible in light mode.
     return (
       <GlassControl
         size={size}
-        tone={tint === 'light' ? 'light' : 'dark'}
+        tone="dark"
         hitSlop={slop}
         haptic="tap"
         onPress={handlePress}
         accessibilityLabel={resolvedAccessibilityLabel}>
-        <Icon name={dir.isRtl ? 'chevronForward' : 'chevronBack'} size={22} color={colors.ink} />
+        <Icon name={dir.isRtl ? 'chevronForward' : 'chevronBack'} size={22} color={colors.onAccent} />
       </GlassControl>
     );
   }

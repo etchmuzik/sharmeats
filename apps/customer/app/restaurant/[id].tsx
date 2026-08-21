@@ -19,6 +19,8 @@ import { OwnBrandBadge } from '../../src/components/OwnBrandBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { font, radius, shadow } from '../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
+import { Icon } from '../../src/components/Icon';
+import { LinearGradient } from 'expo-linear-gradient';
 import { db } from '../../src/data';
 import type { MenuItem, MenuSection, Restaurant, Review } from '../../src/data/types';
 import { formatEgp, formatNumber, formatPrepTime } from '../../src/lib/format';
@@ -86,7 +88,9 @@ export default function RestaurantDetail() {
       .catch(() => setLoadError(true));
     db.restaurants
       .reviews(id, 10)
-      .then(setReviews)
+      // Body-less ratings feed the aggregate score, not the review rail — a
+      // starred card with no words reads as filler.
+      .then((rs) => setReviews(rs.filter((rv) => !!rv.comment?.trim())))
       .catch(() => setReviews([]));
   }, [id, reloadKey]);
 
@@ -155,7 +159,11 @@ export default function RestaurantDetail() {
         contentContainerStyle={{ paddingBottom: showCartBar ? 120 : 40 + insets.bottom }}>
         <View style={styles.hero}>
           <Image source={{ uri: restaurant.coverImage }} style={styles.heroImg} />
-          <View style={styles.heroFade} />
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
+            style={styles.heroFade}
+          />
         </View>
 
         <View style={styles.info}>
@@ -300,7 +308,13 @@ export default function RestaurantDetail() {
                     </View>
                   </View>
                   <View style={[styles.itemPh, !open && { opacity: 0.5 }]}>
-                    <Image source={{ uri: it.image }} style={{ width: '100%', height: '100%' }} />
+                    {it.image ? (
+                      <Image source={{ uri: it.image }} style={{ width: '100%', height: '100%' }} />
+                    ) : (
+                      <View style={styles.itemPhEmpty}>
+                        <Icon name="dish" size={26} color={colors.ink3} />
+                      </View>
+                    )}
                     {open && (
                       <View style={styles.addCircle}>
                         <Text style={styles.addPlus}>+</Text>
@@ -324,7 +338,7 @@ export default function RestaurantDetail() {
         }}
         haptic="none"
         size={38}
-        tone="light"
+        tone="dark"
         accessibilityState={{ selected: isFav }}
         accessibilityLabel={isFav ? t('fav.remove') : t('fav.add')}
         style={[styles.heroFav, { top: insets.top + 6 }]}>
@@ -403,11 +417,10 @@ const useStyles = makeStyles((colors) => ({
     right: 0,
     top: 0,
     height: 120,
-    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   heroNav: { position: 'absolute', left: 14, zIndex: 10 },
   heroFav: { position: 'absolute', right: 14, zIndex: 10 },
-  heroFavIcon: { fontSize: 20, color: colors.ink2, lineHeight: 22 },
+  heroFavIcon: { fontSize: 20, color: colors.onAccent, lineHeight: 22 },
   reviewsTitle: {
     fontSize: font.sizes.sm,
     color: colors.ink2,
@@ -492,6 +505,7 @@ const useStyles = makeStyles((colors) => ({
   itemPrice: { fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.ink },
   itemUnit: { fontSize: font.sizes.md, color: colors.ink3, marginLeft: -2 },
   itemPh: { width: 84, height: 84, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.bgSoft, position: 'relative' },
+  itemPhEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   addCircle: {
     position: 'absolute',
     bottom: 6,

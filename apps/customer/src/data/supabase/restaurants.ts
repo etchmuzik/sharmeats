@@ -34,7 +34,12 @@ export const restaurantsRepoSupabase = {
     if (filter?.query) q = q.ilike('name', `%${filter.query}%`);
     const { data, error } = await q.order('rating', { ascending: false });
     if (error) throw error;
-    return ((data ?? []) as unknown as RestaurantRow[]).map(rowToRestaurant);
+    // Food-only until the vertical discovery UI ships: a pilot-allowlisted
+    // account otherwise sees grocery/pharmacy merchants rendered as
+    // malformed restaurant cards. Server launch_stage still gates everyone else.
+    return ((data ?? []) as unknown as RestaurantRow[])
+      .map(rowToRestaurant)
+      .filter((r) => r.verticalId === 'food');
   },
 
   async listFeatured(): Promise<Restaurant[]> {
@@ -44,7 +49,12 @@ export const restaurantsRepoSupabase = {
       .eq('is_active', true)
       .eq('featured', true);
     if (error) throw error;
-    return ((data ?? []) as unknown as RestaurantRow[]).map(rowToRestaurant);
+    // Food-only until the vertical discovery UI ships: a pilot-allowlisted
+    // account otherwise sees grocery/pharmacy merchants rendered as
+    // malformed restaurant cards. Server launch_stage still gates everyone else.
+    return ((data ?? []) as unknown as RestaurantRow[])
+      .map(rowToRestaurant)
+      .filter((r) => r.verticalId === 'food');
   },
 
   async get(id: string): Promise<Restaurant | null> {

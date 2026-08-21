@@ -159,5 +159,5 @@ const useStyles = makeStyles((colors) => ({
     paddingVertical: 2.5,
     borderRadius: 5,
   },
-  open24Text: { fontSize: font.sizes.xs, color: colors.onAccent, fontWeight: font.weights.bold, letterSpacing: 0.3 },
+  open24Text: { fontSize: font.sizes.xs, color: colors.onStatus, fontWeight: font.weights.bold, letterSpacing: 0.3 },
 }));
