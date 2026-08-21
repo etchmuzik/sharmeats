@@ -48,7 +48,7 @@ export function RestaurantCard({
         <Image source={{ uri: restaurant.coverImage }} style={styles.ph} />
         <View style={styles.body}>
           <View style={[styles.topRow, dir.row]}>
-            <Text style={[styles.name, dir.text, styles.nameWithHeart]} numberOfLines={1}>
+            <Text style={[styles.name, dir.text, styles.nameWithHeart]} numberOfLines={2}>
               {restaurant.name}
             </Text>
             {!open && (

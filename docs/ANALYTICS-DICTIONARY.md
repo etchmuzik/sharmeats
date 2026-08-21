@@ -57,6 +57,8 @@ different JS; only `app_update_id` distinguishes them.
 | `order_placed` | `place_order` succeeds | `restaurantId`, totals | Ops | orders/day |
 | `order_delivered` | order screen observes `delivered`; **idempotent per order per mount** | `order_id`, `restaurantId` | Ops | funnel close; delivery rate |
 | `reorder_tapped` | "Order again" / saved preset tapped | `restaurantId` | Growth | repeat intent |
+| `featured_tapped` | Featured-carousel card tapped | `restaurantId` | Growth | merchandising CTR — prices future placement |
+| `offer_tapped` | Offers-rail chip tapped | `restaurantId` | Growth | offer engagement |
 | `reorder_prepared` | after the cart is reconciled against the live menu | `source` (`orders_tab` \| `saved_preset`), `prepared_by` (`server` \| `client`), `outcome` (`exact` \| `changed` \| `all_unavailable`), `change_count`, `line_count` | Growth | reorder quality |
 | `notification_opened` | push tapped, **before** routing | `notification_event`, `destination`, `campaign_id` | CRM | push → order attribution |
 | `cart_restored` | a server/local cart is restored (two call sites in the cart tab since Package 02 Slice D — this row previously said "no call site yet" long after they existed) | `source` | Growth | cross-device continuity |

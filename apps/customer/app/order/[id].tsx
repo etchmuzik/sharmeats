@@ -500,7 +500,7 @@ export default function OrderTracking() {
             )}
             <Pressable
               onPress={() => copyShortCode(order.shortCode)}
-              hitSlop={8}
+              hitSlop={14}
               accessibilityRole="button"
               accessibilityLabel={`${t('order.copy')} ${order.shortCode}`}>
               <Text style={[styles.orderRef, dir.text]}>
@@ -586,7 +586,7 @@ export default function OrderTracking() {
                     tap();
                     setSaveDismissed(true);
                   }}
-                  hitSlop={12}
+                  hitSlop={16}
                   accessibilityRole="button"
                   accessibilityLabel={t('common.cancel')}>
                   <Text style={styles.saveClose}>✕</Text>

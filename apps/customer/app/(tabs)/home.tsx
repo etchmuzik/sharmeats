@@ -390,7 +390,7 @@ export default function HomeTab() {
             </Pressable>
             <Pressable
               onPress={() => router.push('/(tabs)/profile')}
-              style={styles.avatar}
+              hitSlop={8} style={styles.avatar}
               accessibilityRole="button"
               accessibilityLabel={t('tabs.profile')}>
               {firstName ? (
@@ -568,6 +568,7 @@ export default function HomeTab() {
                 <Pressable
                   onPress={() => {
                     tap();
+                    track('offer_tapped', { restaurantId: item.id });
                     router.push(`/restaurant/${item.id}` as never);
                   }}
                   accessibilityRole="button"
@@ -612,6 +613,7 @@ export default function HomeTab() {
                 <Pressable
                   onPress={() => {
                     tap();
+                    track('featured_tapped', { restaurantId: item.id });
                     router.push(`/restaurant/${item.id}` as never);
                   }}
                   accessibilityRole="button"
@@ -746,7 +748,6 @@ const useStyles = makeStyles((colors) => ({
   featImg: { width: '100%', height: '100%' },
   featOverlay: {
     position: 'absolute',
-    inset: 0 as unknown as number,
     top: 0,
     left: 0,
     right: 0,

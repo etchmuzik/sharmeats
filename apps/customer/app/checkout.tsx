@@ -753,7 +753,7 @@ export default function Checkout() {
                   setPromoApplied(null);
                   setPromoInput('');
                 }}
-                hitSlop={8}
+                hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={t('checkout.promoRemove')}>
                 <Text style={styles.promoRemove}>{t('checkout.promoRemove')}</Text>

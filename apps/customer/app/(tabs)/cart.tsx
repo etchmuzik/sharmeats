@@ -308,6 +308,7 @@ export default function CartTab() {
       <View style={[styles.header, dir.row, { paddingTop: insets.top + 12 }]}>
         <Text style={[styles.title, dir.text]}>{t('cart.title')}</Text>
         <Pressable
+          style={{ minHeight: 44, justifyContent: 'center' }}
           onPress={() => void clearEverywhere()}
           hitSlop={10}
           accessibilityRole="button"

@@ -73,6 +73,8 @@ export type AnalyticsEvent =
   | 'promo_rejected'
   | 'favorite_toggled'
   | 'reorder_tapped'
+  | 'featured_tapped'
+  | 'offer_tapped'
   | 'cross_sell_added'
   | 'push_permission'
   | 'search_performed'
