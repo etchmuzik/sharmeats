@@ -97,9 +97,6 @@ export default function HomeTab() {
   const dir = useDirection();
   const phone = useSession((s) => s.phone);
   const selectedAddressId = useSession((s) => s.selectedAddressId);
-  const allergyNudgeDismissed = useSession((s) => s.allergyNudgeDismissed);
-  const dismissAllergyNudge = useSession((s) => s.dismissAllergyNudge);
-  const [showAllergyNudge, setShowAllergyNudge] = useState(false);
   const [firstName, setFirstName] = useState<string>('');
 
   useEffect(() => {
@@ -109,15 +106,10 @@ export default function HomeTab() {
         // First name for the greeting (skip the placeholder "Guest").
         const name = (u.displayName ?? '').trim().split(/\s+/)[0];
         setFirstName(name && name.toLowerCase() !== 'guest' ? name : '');
-        if (!allergyNudgeDismissed) {
-          setShowAllergyNudge((u.allergyProfile?.length ?? 0) === 0);
-        } else {
-          setShowAllergyNudge(false);
-        }
       })
-      // Greeting + nudge are decorative — degrade to the anonymous greeting.
+      // Greeting is decorative — degrade to the anonymous greeting.
       .catch(() => {});
-  }, [allergyNudgeDismissed]);
+  }, []);
 
   const [selectedCuisine, setSelectedCuisine] = useState<Cuisine | 'all'>('all');
   const [featured, setFeatured] = useState<Restaurant[]>([]);
@@ -427,31 +419,6 @@ export default function HomeTab() {
           </Pressable>
         </View>
 
-        {showAllergyNudge && (
-          <View style={styles.nudge}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nudgeTitle}>{t('home.allergyNudgeTitle')}</Text>
-              <Text style={styles.nudgeSub}>{t('home.allergyNudgeSub')}</Text>
-            </View>
-            <Pressable
-              onPress={() => {
-                tap();
-                router.push('/settings/allergies');
-              }}
-              style={styles.nudgeCta}>
-              <Text style={styles.nudgeCtaText}>{t('home.allergyNudgeCta')}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                tap();
-                dismissAllergyNudge();
-              }}
-              hitSlop={12}
-              style={styles.nudgeClose}>
-              <Text style={styles.nudgeCloseText}>✕</Text>
-            </Pressable>
-          </View>
-        )}
 
         <ScrollView
           horizontal
@@ -810,29 +777,6 @@ const useStyles = makeStyles((colors) => ({
     fontWeight: font.weights.extrabold,
     marginBottom: 2,
   },
-  nudge: {
-    marginHorizontal: 16,
-    marginTop: 14,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.seaSoft,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.sea,
-  },
-  nudgeTitle: { fontSize: font.sizes.lg, color: colors.sea, fontWeight: font.weights.bold },
-  nudgeSub: { fontSize: font.sizes.sm, color: colors.ink2, marginTop: 2 },
-  nudgeCta: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.sea,
-    borderRadius: radius.pill,
-  },
-  nudgeCtaText: { color: colors.onAccent, fontSize: font.sizes.md, fontWeight: font.weights.bold },
-  nudgeClose: { padding: 4 },
-  nudgeCloseText: { color: colors.ink3, fontSize: 16 },
   savedCard: {
     width: 168,
     backgroundColor: colors.surface,

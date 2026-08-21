@@ -8,7 +8,6 @@ import { formatEgp, formatKm, formatNumber, formatPrepTime } from '../lib/format
 import { closedReasonKey, effectiveIsOpen } from '../lib/openHours';
 import { useFavorite } from '../lib/favorites';
 import type { Restaurant } from '../data/types';
-import { TouristSafeBadge } from './TouristSafeBadge';
 import { OwnBrandBadge } from './OwnBrandBadge';
 import { useT } from '../i18n';
 import { useSession } from '../store/session';
@@ -67,7 +66,6 @@ export function RestaurantCard({
                 <Text style={styles.open24Text}>{t('restaurant.open24h')}</Text>
               </View>
             )}
-            {restaurant.touristSafe && <TouristSafeBadge />}
             {restaurant.isOwnBrand && <OwnBrandBadge />}
             {restaurant.promo && (
               <View style={styles.promoPill}>

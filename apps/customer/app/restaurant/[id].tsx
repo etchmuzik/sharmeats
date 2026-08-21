@@ -15,7 +15,6 @@ import { BackButton } from '../../src/components/BackButton';
 import { GlassActionDock, GlassControl } from '../../src/components/GlassSurface';
 import { FlagBadge } from '../../src/components/FlagBadge';
 import { RxBadge } from '../../src/components/RxBadge';
-import { TouristSafeBadge } from '../../src/components/TouristSafeBadge';
 import { OwnBrandBadge } from '../../src/components/OwnBrandBadge';
 import { PrimaryButton } from '../../src/components/PrimaryButton';
 import { font, radius, shadow } from '../../src/theme';
@@ -163,7 +162,6 @@ export default function RestaurantDetail() {
           <Text style={styles.name}>{restaurant.name}</Text>
           <View style={styles.subRow}>
             <Text style={styles.sub}>{restaurant.cuisineLabel}</Text>
-            {restaurant.touristSafe && <TouristSafeBadge />}
             {restaurant.isOwnBrand && <OwnBrandBadge />}
           </View>
 
