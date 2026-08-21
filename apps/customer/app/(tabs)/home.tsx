@@ -16,6 +16,7 @@ import { font, radius, shadow } from '../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { CuisinePill } from '../../src/components/CuisinePill';
 import { RestaurantCard } from '../../src/components/RestaurantCard';
+import { VerticalTiles } from '../../src/components/VerticalTiles';
 import { SkeletonRestaurantCard } from '../../src/components/SkeletonRestaurantCard';
 import { EmptyState } from '../../src/components/EmptyState';
 import { Icon } from '../../src/components/Icon';
@@ -419,6 +420,8 @@ export default function HomeTab() {
           </Pressable>
         </View>
 
+
+        <VerticalTiles />
 
         <ScrollView
           horizontal

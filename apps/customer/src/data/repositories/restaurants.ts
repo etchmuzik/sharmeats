@@ -1,5 +1,5 @@
 import { PUBLIC_RESTAURANTS } from '../mock/restaurants';
-import type { Cuisine, Restaurant, Review } from '../types';
+import type { Cuisine, Restaurant, Review, VerticalId } from '../types';
 
 // Canned review pool for mock mode — sliced deterministically per restaurant
 // so the same venue always shows the same reviews.
@@ -25,8 +25,8 @@ const delay = <T>(value: T, ms = 80): Promise<T> =>
 const publicRestaurantIds = new Set(PUBLIC_RESTAURANTS.map((restaurant) => restaurant.id));
 
 export const restaurantsRepo = {
-  async list(filter?: { cuisine?: Cuisine; query?: string }): Promise<Restaurant[]> {
-    let out = PUBLIC_RESTAURANTS;
+  async list(filter?: { cuisine?: Cuisine; query?: string; verticalId?: VerticalId }): Promise<Restaurant[]> {
+    let out = PUBLIC_RESTAURANTS.filter((r) => r.verticalId === (filter?.verticalId ?? 'food'));
     if (filter?.cuisine) {
       out = out.filter((r) => r.cuisines.includes(filter.cuisine!));
     }

@@ -1,6 +1,6 @@
 import { getSupabase } from './client';
 import { rowToRestaurant, type RestaurantRow } from './mappers';
-import type { Cuisine, Restaurant, Review } from '../types';
+import type { Cuisine, Restaurant, Review, VerticalId } from '../types';
 
 /**
  * Exactly the columns rowToRestaurant reads — nothing wider.
@@ -28,18 +28,19 @@ export const RESTAURANT_COLUMNS =
   'website, merchant_type, vertical_id';
 
 export const restaurantsRepoSupabase = {
-  async list(filter?: { cuisine?: Cuisine; query?: string }): Promise<Restaurant[]> {
+  async list(filter?: { cuisine?: Cuisine; query?: string; verticalId?: VerticalId }): Promise<Restaurant[]> {
     let q = getSupabase().from('restaurants').select(RESTAURANT_COLUMNS).eq('is_active', true);
     if (filter?.cuisine) q = q.contains('cuisines', [filter.cuisine]);
     if (filter?.query) q = q.ilike('name', `%${filter.query}%`);
     const { data, error } = await q.order('rating', { ascending: false });
     if (error) throw error;
-    // Food-only until the vertical discovery UI ships: a pilot-allowlisted
-    // account otherwise sees grocery/pharmacy merchants rendered as
-    // malformed restaurant cards. Server launch_stage still gates everyone else.
+    // Callers that predate verticals get food (home rails, browse). The
+    // vertical landing passes its own id; server launch_stage + private-access
+    // still gate which merchants any account can see at all.
+    const vertical = filter?.verticalId ?? 'food';
     return ((data ?? []) as unknown as RestaurantRow[])
       .map(rowToRestaurant)
-      .filter((r) => r.verticalId === 'food');
+      .filter((r) => r.verticalId === vertical);
   },
 
   async listFeatured(): Promise<Restaurant[]> {
@@ -49,9 +50,8 @@ export const restaurantsRepoSupabase = {
       .eq('is_active', true)
       .eq('featured', true);
     if (error) throw error;
-    // Food-only until the vertical discovery UI ships: a pilot-allowlisted
-    // account otherwise sees grocery/pharmacy merchants rendered as
-    // malformed restaurant cards. Server launch_stage still gates everyone else.
+    // The home featured carousel is a food surface; other verticals get their
+    // own merchandising when they have the supply to need it.
     return ((data ?? []) as unknown as RestaurantRow[])
       .map(rowToRestaurant)
       .filter((r) => r.verticalId === 'food');

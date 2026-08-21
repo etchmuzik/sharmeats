@@ -95,6 +95,19 @@ export interface Hotel {
  */
 export type VerticalId = 'food' | 'grocery' | 'pharmacy';
 
+/**
+ * A vertical the current account may enter, as served by the
+ * verticals_public_read policy. Names come localized from the DB (en/ar);
+ * other locales fall back to English.
+ */
+export interface Vertical {
+  id: VerticalId;
+  nameEn: string;
+  nameAr: string;
+  /** DB icon slug (utensils / shopping-cart / pill), mapped to Icon intents in the UI. */
+  icon?: string;
+}
+
 export interface Restaurant {
   id: string;
   slug: string;

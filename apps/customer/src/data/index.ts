@@ -22,6 +22,7 @@ import { rewardsRepo } from './repositories/rewards';
 import { savedOrdersRepo } from './repositories/savedOrders';
 import { supportRepo } from './repositories/support';
 import { userRepo } from './repositories/user';
+import { verticalsRepo } from './repositories/verticals';
 
 import { authRepoSupabase } from './supabase/auth';
 import { cartRepoSupabase } from './supabase/cart';
@@ -36,6 +37,7 @@ import { rewardsRepoSupabase } from './supabase/rewards';
 import { savedOrdersRepoSupabase } from './supabase/savedOrders';
 import { supportRepoSupabase } from './supabase/support';
 import { userRepoSupabase } from './supabase/user';
+import { verticalsRepoSupabase } from './supabase/verticals';
 
 const useSupabase = process.env.EXPO_PUBLIC_USE_SUPABASE === 'true';
 
@@ -54,6 +56,7 @@ export const db = useSupabase
       cart: cartRepoSupabase,
       fx: fxRepoSupabase,
       acquisition: acquisitionRepoSupabase,
+      verticals: verticalsRepoSupabase,
     }
   : {
       auth: authRepo,
@@ -69,6 +72,7 @@ export const db = useSupabase
       cart: cartRepo,
       fx: fxRepo,
       acquisition: acquisitionRepo,
+      verticals: verticalsRepo,
     };
 
 export type DB = typeof db;

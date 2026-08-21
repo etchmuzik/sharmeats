@@ -47,6 +47,8 @@ export type IconName =
   | 'help'
   | 'signout'
   | 'dish' // menu-item photo placeholder
+  | 'pill' // pharmacy vertical
+  | 'appearance' // theme selection
   | 'gift' // invite friends / referrals
   | 'share'
   | 'person'
@@ -59,6 +61,8 @@ export type IconName =
 
 const MAP: Record<IconName, keyof typeof Ionicons.glyphMap> = {
   dish: 'restaurant-outline',
+  pill: 'medkit-outline',
+  appearance: 'contrast-outline',
   location: 'location-outline',
   search: 'search-outline',
   history: 'time-outline',
