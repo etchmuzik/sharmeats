@@ -15,6 +15,7 @@ import { track } from '../../src/lib/analytics';
 import { describeReorderChanges } from '../../src/lib/reorderCheck';
 import { prepareReorder, isVerticalDenial } from '../../src/lib/prepareCart';
 import { useSession } from '../../src/store/session';
+import { useDirection } from '../../src/lib/direction';
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   placed: 'status.placed',
@@ -51,6 +52,7 @@ export default function OrdersTab() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const locale = useSession((s) => s.locale);
+  const dir = useDirection();
   const [active, setActive] = useState<Order[]>([]);
   const [past, setPast] = useState<Order[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -238,7 +240,7 @@ export default function OrdersTab() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ThemedStatusBar />
       <View style={[styles.top, { paddingTop: insets.top + 14 }]}>
-        <Text style={styles.title}>{t('tabs.orders')}</Text>
+        <Text style={[styles.title, dir.text]}>{t('tabs.orders')}</Text>
       </View>
 
       <FlatList
@@ -248,7 +250,7 @@ export default function OrdersTab() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 + insets.bottom, gap: 10 }}
         renderItem={({ item }) => {
           if (item.kind === 'header') {
-            return <Text style={styles.sectionH}>{item.title}</Text>;
+            return <Text style={[styles.sectionH, dir.text]}>{item.title}</Text>;
           }
           const o = item.order;
           const isPast = o.status === 'delivered' || o.status === 'cancelled';
@@ -260,22 +262,22 @@ export default function OrdersTab() {
                   router.push(`/order/${o.id}` as never);
                 }}
                 style={({ pressed }) => [pressed && { opacity: 0.9 }]}>
-                <View style={styles.cardTop}>
-                  <Text style={styles.r}>{o.restaurantName}</Text>
+                <View style={[styles.cardTop, dir.row]}>
+                  <Text style={[styles.r, dir.text]}>{o.restaurantName}</Text>
                   <View style={[styles.statusPill, { backgroundColor: STATUS_COLOR[o.status] + '22' }]}>
-                    <Text style={[styles.statusText, { color: STATUS_COLOR[o.status] }]}>
+                    <Text style={[styles.statusText, dir.text, { color: STATUS_COLOR[o.status] }]}>
                       {t(STATUS_LABEL[o.status])}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.meta}>
+                <Text style={[styles.meta, dir.text]}>
                   {t('orders.itemsCount', { n: o.items.length })} ·{' '}
                   {formatTime(new Date(o.placedAt), locale)} · #{o.shortCode}
                 </Text>
-                <Text style={styles.tot}>{formatEgp(o.totalEgp, locale)}</Text>
+                <Text style={[styles.tot, dir.text]}>{formatEgp(o.totalEgp, locale)}</Text>
               </Pressable>
               {isPast && (
-                <View style={styles.bottomRow}>
+                <View style={[styles.bottomRow, dir.row]}>
                   <Pressable
                     onPress={() => reorder(o)}
                     // Disabled while the menu is being revalidated so a second
@@ -285,7 +287,7 @@ export default function OrdersTab() {
                     accessibilityRole="button"
                     accessibilityLabel={t('orders.reorder')}
                     style={[styles.reorderBtn, reordering === o.id && styles.reorderBtnBusy]}>
-                    <Text style={styles.reorderText}>
+                    <Text style={[styles.reorderText, dir.text]}>
                       {reordering === o.id ? t('orders.reorderChecking') : `↻ ${t('orders.reorder')}`}
                     </Text>
                   </Pressable>

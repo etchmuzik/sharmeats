@@ -22,6 +22,7 @@ import { getReleaseInfo, formatReleaseLine } from '../src/lib/release';
 import { getPermissionDecision } from '../src/lib/push';
 import type { PermissionDecision } from '../src/lib/pushPermission';
 import { radioAccessibilityState } from '../src/lib/accessibility';
+import { useDirection } from '../src/lib/direction';
 
 // 22:00–08:00 local. Sharm dines late, so a window starting much earlier would
 // suppress offers during real ordering hours.
@@ -41,6 +42,7 @@ export default function Settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
   const locale = useSession((s) => s.locale);
   const setLocale = useSession((s) => s.setLocale);
   const currency = useSession((s) => s.currency);
@@ -164,8 +166,8 @@ export default function Settings() {
                   accessibilityRole="radio"
                   accessibilityState={radioAccessibilityState(isSel)}
                   accessibilityLabel={LOCALE_LABELS[l]}
-                  style={[styles.row, isSel && styles.rowActive]}>
-                  <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
+                  style={[styles.row, dir.row, isSel && styles.rowActive]}>
+                  <Text style={[styles.rowText, dir.text, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
                     {LOCALE_LABELS[l]}
                   </Text>
                   {isSel && <Text style={styles.check}>✓</Text>}
@@ -190,8 +192,8 @@ export default function Settings() {
                   accessibilityRole="radio"
                   accessibilityState={radioAccessibilityState(isSel)}
                   accessibilityLabel={c}
-                  style={[styles.row, isSel && styles.rowActive]}>
-                  <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
+                  style={[styles.row, dir.row, isSel && styles.rowActive]}>
+                  <Text style={[styles.rowText, dir.text, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
                     {c}
                   </Text>
                   {isSel && <Text style={styles.check}>✓</Text>}
@@ -216,8 +218,8 @@ export default function Settings() {
                   accessibilityRole="radio"
                   accessibilityState={radioAccessibilityState(isSel)}
                   accessibilityLabel={t(m.tKey)}
-                  style={[styles.row, isSel && styles.rowActive]}>
-                  <Text style={[styles.rowText, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
+                  style={[styles.row, dir.row, isSel && styles.rowActive]}>
+                  <Text style={[styles.rowText, dir.text, isSel && { color: colors.accent, fontWeight: font.weights.bold }]}>
                     {t(m.tKey)}
                   </Text>
                   {isSel && <Text style={styles.check}>✓</Text>}
@@ -225,7 +227,7 @@ export default function Settings() {
               );
             })}
           </View>
-          <Text style={[styles.prefHint, { paddingHorizontal: 10 }]}>{t('profile.appearanceHint')}</Text>
+          <Text style={[styles.prefHint, dir.text, { paddingHorizontal: 10 }]}>{t('profile.appearanceHint')}</Text>
         </View>
 
         <Pressable
@@ -236,7 +238,7 @@ export default function Settings() {
           accessibilityRole="button"
           accessibilityLabel={t('profile.allergies')}
           style={styles.card}>
-          <View style={styles.allergyRow}>
+          <View style={[styles.allergyRow, dir.row]}>
             <Text style={styles.cardTitle}>{t('profile.allergies')}</Text>
             <Text style={styles.allergyCount}>
               {allergyCount > 0 ? t('allergy.savedCount', { n: allergyCount }) : '+'}
@@ -253,8 +255,8 @@ export default function Settings() {
               anyway (package 03 slice B). */}
           {pushDecision === 'settings_only' ? (
             <View style={styles.blockedBox}>
-              <Text style={styles.blockedTitle}>{t('push.blockedTitle')}</Text>
-              <Text style={styles.prefHint}>{t('push.blockedBody')}</Text>
+              <Text style={[styles.blockedTitle, dir.text]}>{t('push.blockedTitle')}</Text>
+              <Text style={[styles.prefHint, dir.text]}>{t('push.blockedBody')}</Text>
               <Pressable
                 onPress={() => {
                   tap();
@@ -262,15 +264,15 @@ export default function Settings() {
                 }}
                 accessibilityRole="button"
               >
-                <Text style={styles.blockedLink}>{t('push.openSettings')}</Text>
+                <Text style={[styles.blockedLink, dir.text]}>{t('push.openSettings')}</Text>
               </Pressable>
             </View>
           ) : null}
 
-          <View style={[styles.prefRow, { marginTop: 10 }]}>
+          <View style={[styles.prefRow, dir.row, { marginTop: 10 }]}>
             <View style={styles.prefLabel}>
-              <Text style={styles.rowText}>{t('profile.notificationsOrderUpdates')}</Text>
-              <Text style={styles.prefHint}>{t('profile.notificationsOrderUpdatesHint')}</Text>
+              <Text style={[styles.rowText, dir.text]}>{t('profile.notificationsOrderUpdates')}</Text>
+              <Text style={[styles.prefHint, dir.text]}>{t('profile.notificationsOrderUpdatesHint')}</Text>
             </View>
             <Switch
               value={prefs.transactional}
@@ -281,10 +283,10 @@ export default function Settings() {
             />
           </View>
 
-          <View style={styles.prefRow}>
+          <View style={[styles.prefRow, dir.row]}>
             <View style={styles.prefLabel}>
-              <Text style={styles.rowText}>{t('profile.notificationsPromotions')}</Text>
-              <Text style={styles.prefHint}>{t('profile.notificationsPromotionsHint')}</Text>
+              <Text style={[styles.rowText, dir.text]}>{t('profile.notificationsPromotions')}</Text>
+              <Text style={[styles.prefHint, dir.text]}>{t('profile.notificationsPromotionsHint')}</Text>
             </View>
             <Switch
               value={prefs.marketing}
@@ -298,10 +300,10 @@ export default function Settings() {
           {/* Quiet hours only affect promotions, so offering them while
               promotions are off would be a control with nothing to control. */}
           {prefs.marketing ? (
-            <View style={styles.prefRow}>
+            <View style={[styles.prefRow, dir.row]}>
               <View style={styles.prefLabel}>
-                <Text style={styles.rowText}>{t('profile.notificationsQuietHours')}</Text>
-                <Text style={styles.prefHint}>{t('profile.notificationsQuietHoursHint')}</Text>
+                <Text style={[styles.rowText, dir.text]}>{t('profile.notificationsQuietHours')}</Text>
+                <Text style={[styles.prefHint, dir.text]}>{t('profile.notificationsQuietHoursHint')}</Text>
               </View>
               <Switch
                 value={prefs.quietHoursStart !== null}
@@ -320,7 +322,7 @@ export default function Settings() {
           ) : null}
 
           {prefs.marketing && formatQuietWindow(prefs, locale) ? (
-            <Text style={styles.quietWindow}>{formatQuietWindow(prefs, locale)}</Text>
+            <Text style={[styles.quietWindow, dir.text]}>{formatQuietWindow(prefs, locale)}</Text>
           ) : null}
         </View>
 
@@ -340,7 +342,7 @@ export default function Settings() {
           <Text style={styles.buildLine} selectable>
             {releaseLine}
           </Text>
-          <Text style={styles.prefHint}>
+          <Text style={[styles.prefHint, dir.text]}>
             {copied ? t('settings.buildInfoCopied') : t('settings.buildInfoCopyHint')}
           </Text>
         </Pressable>

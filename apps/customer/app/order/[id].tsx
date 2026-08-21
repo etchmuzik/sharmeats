@@ -12,6 +12,7 @@ import { OrderCelebration, shouldCelebrate } from '../../src/components/OrderCel
 import { font, radius, shadow } from '../../src/theme';
 import { ThemedStatusBar, makeStyles, useThemeColors } from '../../src/themeProvider';
 import { useT } from '../../src/i18n';
+import { useDirection } from '../../src/lib/direction';
 import { db } from '../../src/data';
 import { SavedOrdersCapError } from '../../src/data/repositories/savedOrders';
 import type { Order, OrderStatus, Restaurant } from '../../src/data/types';
@@ -61,6 +62,7 @@ export default function OrderTracking() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useT();
+  const dir = useDirection();
   const locale = useSession((s) => s.locale);
   const [order, setOrder] = useState<Order | null>(null);
   // 'loading' until the first fetch resolves; 'not-found' when the order is not
@@ -445,7 +447,7 @@ export default function OrderTracking() {
           )}
         </MapView>
         {driverLoc && (
-          <GlassSurface tone="light" style={styles.liveBadge}>
+          <GlassSurface tone="light" style={[styles.liveBadge, dir.row]}>
             <View style={[styles.liveDot, driverIsStale && { backgroundColor: colors.amber }]} />
             <Text style={styles.liveText}>
               {driverIsStale ? t('order.trackingReconnecting') : t('order.live')}
@@ -462,26 +464,26 @@ export default function OrderTracking() {
         contentContainerStyle={{ padding: 20, paddingBottom: 60 + insets.bottom }}>
         <View style={styles.grabber} />
 
-        <View style={styles.etaRow}>
+        <View style={[styles.etaRow, dir.row]}>
           <View style={{ flex: 1 }}>
             {isCancelled ? (
               <>
-                <Text style={styles.etaLbl}>{t('order.tracking')}</Text>
-                <Text style={[styles.etaBig, { color: colors.red }]}>
+                <Text style={[styles.etaLbl, dir.text]}>{t('order.tracking')}</Text>
+                <Text style={[styles.etaBig, { color: colors.red }, dir.text]}>
                   {t(order.status === 'rejected' ? 'status.rejected' : 'status.cancelled')}
                 </Text>
               </>
             ) : order.scheduledFor ? (
               <>
-                <Text style={styles.etaLbl}>{t('order.scheduledFor')}</Text>
-                <Text style={styles.etaBig}>
+                <Text style={[styles.etaLbl, dir.text]}>{t('order.scheduledFor')}</Text>
+                <Text style={[styles.etaBig, dir.text]}>
                   {formatTime(new Date(order.scheduledFor), locale)}
                 </Text>
               </>
             ) : (
               <>
-                <Text style={styles.etaLbl}>{t('order.arriving')}</Text>
-                <Text style={styles.etaBig}>
+                <Text style={[styles.etaLbl, dir.text]}>{t('order.arriving')}</Text>
+                <Text style={[styles.etaBig, dir.text]}>
                   {order.status === 'delivered' ? '✓' : formatNumber(remainingMin, locale)}{' '}
                   <Text style={styles.etaMin}>
                     {order.status === 'delivered' ? t('order.delivered') : t('order.min')}
@@ -490,7 +492,7 @@ export default function OrderTracking() {
               </>
             )}
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
+          <View style={{ alignItems: dir.isRtl ? 'flex-start' : 'flex-end' }}>
             {!isCancelled && (
               <View style={styles.slaChip}>
                 <Text style={styles.slaText}>{t('order.slaChip')}</Text>
@@ -501,7 +503,7 @@ export default function OrderTracking() {
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={`${t('order.copy')} ${order.shortCode}`}>
-              <Text style={styles.orderRef}>
+              <Text style={[styles.orderRef, dir.text]}>
                 #{order.shortCode}{' '}
                 <Text style={{ color: copied ? colors.green : colors.sea, fontWeight: '700' }}>
                   {copied ? t('order.copied') : t('order.copy')}
@@ -512,7 +514,7 @@ export default function OrderTracking() {
         </View>
 
         {!isCancelled && (
-          <Text style={styles.slaLine}>
+          <Text style={[styles.slaLine, dir.text]}>
             {t('order.slaLine', {
               time: formatTime(new Date(order.etaAt), locale),
               latest: latestArrivalTime,
@@ -524,8 +526,8 @@ export default function OrderTracking() {
         {/* Cancelled / rejected terminal state replaces the step timeline. */}
         {isCancelled && (
           <View style={styles.cancelledCard}>
-            <Text style={styles.cancelledTitle}>{t('order.cancelledTitle')}</Text>
-            <Text style={styles.cancelledBody}>
+            <Text style={[styles.cancelledTitle, dir.text]}>{t('order.cancelledTitle')}</Text>
+            <Text style={[styles.cancelledBody, dir.text]}>
               {t(order.status === 'rejected' ? 'order.rejectedBody' : 'order.cancelledBody')}
             </Text>
           </View>
@@ -539,11 +541,12 @@ export default function OrderTracking() {
             const histEntry = order.history.find((h) => h.status === s.key);
             const isOnTheWay = s.key === 'out_for_delivery';
             return (
-              <View key={s.key} style={styles.step}>
+              <View key={s.key} style={[styles.step, dir.row]}>
                 {i > 0 && (
                   <View
                     style={[
                       styles.connector,
+                      dir.isRtl ? styles.connectorRtl : styles.connectorLtr,
                       (status === 'done' || (i <= stepIndex && i > 0)) && { backgroundColor: colors.green },
                     ]}
                   />
@@ -558,12 +561,12 @@ export default function OrderTracking() {
                   {status === 'now' && <View style={styles.bulletNow} />}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.stTitle, status === 'pending' && { color: colors.ink3, fontWeight: font.weights.medium }]}>
+                  <Text style={[styles.stTitle, dir.text, status === 'pending' && { color: colors.ink3, fontWeight: font.weights.medium }]}>
                     {isOnTheWay
                       ? t('order.statusOnTheWay', { rider: order.rider?.name ?? t('order.unknownRider') })
                       : t(s.tKey)}
                   </Text>
-                  {histEntry && <Text style={styles.stTime}>{formatTime(new Date(histEntry.at), locale)}{histEntry.note ? ` · ${histEntry.note}` : ''}</Text>}
+                  {histEntry && <Text style={[styles.stTime, dir.text]}>{formatTime(new Date(histEntry.at), locale)}{histEntry.note ? ` · ${histEntry.note}` : ''}</Text>}
                 </View>
               </View>
             );
@@ -576,8 +579,8 @@ export default function OrderTracking() {
           !saveDismissed &&
           !hasUnresolvableMods(order.items) && (
             <View style={styles.saveCard}>
-              <View style={styles.saveHeadRow}>
-                <Text style={styles.saveTitle}>{t('order.saveOrderTitle')}</Text>
+              <View style={[styles.saveHeadRow, dir.row]}>
+                <Text style={[styles.saveTitle, dir.text]}>{t('order.saveOrderTitle')}</Text>
                 <Pressable
                   onPress={() => {
                     tap();
@@ -592,7 +595,7 @@ export default function OrderTracking() {
               <TextInput
                 value={saveName}
                 onChangeText={setSaveName}
-                style={styles.saveInput}
+                style={[styles.saveInput, dir.text]}
                 placeholder={t('order.saveOrderTitle')}
                 maxLength={40}
                 accessibilityLabel={t('order.saveOrderTitle')}
@@ -633,20 +636,20 @@ export default function OrderTracking() {
         {/* Kitchen briefing echo */}
         {((order.aggregateAllergens && order.aggregateAllergens.length > 0) || order.kitchenNotes) && (
           <View style={styles.briefingCard}>
-            <View style={styles.briefingTitleRow}>
+            <View style={[styles.briefingTitleRow, dir.row]}>
               <Icon name="receipt" size={20} color={colors.ink} />
-              <Text style={styles.briefingTitle}>{t('order.kitchenSees')}</Text>
+              <Text style={[styles.briefingTitle, dir.text]}>{t('order.kitchenSees')}</Text>
             </View>
             {order.aggregateAllergens && order.aggregateAllergens.length > 0 && (
-              <View style={styles.briefingAllergenRow}>
+              <View style={[styles.briefingAllergenRow, dir.row]}>
                 <Icon name="warning" size={20} color={colors.red} />
-                <Text style={styles.briefingAllergens}>
+                <Text style={[styles.briefingAllergens, dir.text]}>
                   {t('cart.allergensPrefix')}:{' '}
                   {order.aggregateAllergens.map((a) => t(`allergy.${a}`)).join(', ')}
                 </Text>
               </View>
             )}
-            {order.kitchenNotes && <Text style={styles.briefingNotes}>{order.kitchenNotes}</Text>}
+            {order.kitchenNotes && <Text style={[styles.briefingNotes, dir.text]}>{order.kitchenNotes}</Text>}
           </View>
         )}
 
@@ -654,19 +657,19 @@ export default function OrderTracking() {
             to their room with no phone call needed (the core trust promise). */}
         {!isCancelled && order.addressSnapshot?.kind === 'hotel' && (
           <View style={styles.handoffCard}>
-            <View style={styles.handoffHead}>
+            <View style={[styles.handoffHead, dir.row]}>
               <Icon name="hotel" size={16} color={colors.sea} />
-              <Text style={styles.handoffTitle}>
+              <Text style={[styles.handoffTitle, dir.text]}>
                 {order.addressSnapshot.hotelName ?? t('address.hotel')}
                 {order.addressSnapshot.roomNumber
                   ? ` · ${t('address.room')} ${order.addressSnapshot.roomNumber}`
                   : ''}
               </Text>
             </View>
-            <Text style={styles.handoffLine}>
+            <Text style={[styles.handoffLine, dir.text]}>
               {handoffLabel(order.addressSnapshot.handoff, t)}
             </Text>
-            <View style={styles.handoffBadge}>
+            <View style={[styles.handoffBadge, { alignSelf: dir.alignStart }]}>
               <Text style={styles.handoffBadgeText}>{t('order.noCallNeeded')}</Text>
             </View>
           </View>
@@ -676,10 +679,10 @@ export default function OrderTracking() {
             there is nothing to follow before it moves or after it lands, and
             mig 195 refuses to mint a link for a terminal order anyway. */}
         {!isCancelled && order.status !== 'delivered' && (
-          <View style={styles.shareCard}>
+          <View style={[styles.shareCard, dir.row]}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.shareTitle}>{t('order.shareTitle')}</Text>
-              <Text style={styles.shareSub}>{t('order.shareSubtitle')}</Text>
+              <Text style={[styles.shareTitle, dir.text]}>{t('order.shareTitle')}</Text>
+              <Text style={[styles.shareSub, dir.text]}>{t('order.shareSubtitle')}</Text>
             </View>
             <Pressable
               onPress={shareToken ? stopSharing : openShareSheet}
@@ -689,6 +692,7 @@ export default function OrderTracking() {
               accessibilityState={{ busy: sharing, disabled: sharing }}
               style={({ pressed }) => [
                 styles.shareBtn,
+                dir.row,
                 shareToken && styles.shareBtnOn,
                 (pressed || sharing) && { opacity: 0.7 },
               ]}>
@@ -706,26 +710,26 @@ export default function OrderTracking() {
 
         {/* Rider card */}
         {!isCancelled && order.rider && (
-          <View style={styles.riderCard}>
+          <View style={[styles.riderCard, dir.row]}>
             <Image source={{ uri: order.rider.photo }} style={styles.riderPh} />
             <View style={{ flex: 1 }}>
-              <View style={styles.riderNameRow}>
-                <Text style={styles.riderName}>{order.rider.name}</Text>
+              <View style={[styles.riderNameRow, dir.row]}>
+                <Text style={[styles.riderName, dir.text]}>{order.rider.name}</Text>
                 <Text style={styles.verified}>✓</Text>
               </View>
-              <View style={styles.riderMeta}>
-                <Text style={styles.riderMetaText}>{order.rider.vehicle}</Text>
+              <View style={[styles.riderMeta, dir.row]}>
+                <Text style={[styles.riderMetaText, dir.text]}>{order.rider.vehicle}</Text>
                 <Text style={styles.riderMetaText}>·</Text>
                 <View style={styles.plate}>
                   <Text style={styles.plateText}>{order.rider.plate}</Text>
                 </View>
                 <Text style={styles.riderMetaText}>·</Text>
-                <Text style={styles.riderMetaText}>
+                <Text style={[styles.riderMetaText, dir.text]}>
                   ★ {formatNumber(order.rider.rating ?? 5, locale)}
                 </Text>
               </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={[{ flexDirection: 'row', gap: 8 }, dir.row]}>
               <Pressable
                 onPress={() => {
                   tap();
@@ -751,22 +755,22 @@ export default function OrderTracking() {
 
         {/* Order summary */}
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>{order.restaurantName}</Text>
+          <Text style={[styles.summaryTitle, dir.text]}>{order.restaurantName}</Text>
           {order.items.map((it) => (
-            <View key={it.lineId} style={styles.summaryLine}>
+            <View key={it.lineId} style={[styles.summaryLine, dir.row]}>
               <Text style={styles.summaryQ}>{formatNumber(it.quantity, locale)}×</Text>
-              <Text style={{ flex: 1, fontSize: font.sizes.lg, color: colors.ink }}>{it.name}</Text>
+              <Text style={[{ flex: 1, fontSize: font.sizes.lg, color: colors.ink }, dir.text]}>{it.name}</Text>
             </View>
           ))}
           {/* Service fee — reads the REAL per-order value from the DB (mig 096),
               so it is truthful for this order regardless of the current config. */}
           {order.serviceFeeEgp > 0 && (
-            <View style={styles.summaryFeeRow}>
-              <Text style={styles.summaryFeeLabel}>{t('checkout.serviceFee')}</Text>
+            <View style={[styles.summaryFeeRow, dir.row]}>
+              <Text style={[styles.summaryFeeLabel, dir.text]}>{t('checkout.serviceFee')}</Text>
               <Text style={styles.summaryFeeVal}>{formatEgp(order.serviceFeeEgp, locale)}</Text>
             </View>
           )}
-          <View style={styles.summaryTotal}>
+          <View style={[styles.summaryTotal, dir.row]}>
             <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.ink }}>
               {t('checkout.total')}
             </Text>
@@ -774,7 +778,7 @@ export default function OrderTracking() {
               {formatEgp(order.totalEgp, locale)}
             </Text>
           </View>
-          <Text style={styles.summarySub}>
+          <Text style={[styles.summarySub, dir.text]}>
             {(order.paymentStatus === 'paid' ? t('order.paid') : t('order.payOnDelivery'))} ·{' '}
             {order.paymentLabel}
           </Text>
@@ -785,12 +789,12 @@ export default function OrderTracking() {
         {!isCancelled && restaurant && (
           <View style={styles.contactCard}>
             {restaurant.address && (
-              <View style={styles.contactAddressRow}>
+              <View style={[styles.contactAddressRow, dir.row]}>
                 <Icon name="location" size={18} color={colors.sea} />
-                <Text style={styles.contactAddr} numberOfLines={2}>{restaurant.address}</Text>
+                <Text style={[styles.contactAddr, dir.text]} numberOfLines={2}>{restaurant.address}</Text>
               </View>
             )}
-            <View style={styles.contactActions}>
+            <View style={[styles.contactActions, dir.row]}>
               <Pressable
                 onPress={() => {
                   tap();
@@ -798,7 +802,7 @@ export default function OrderTracking() {
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('order.messageRestaurant')}
-                style={styles.contactBtn}>
+                style={[styles.contactBtn, dir.row]}>
                 <Icon name="chat" size={18} color={colors.ink} />
                 <Text style={styles.contactBtnText}>{t('order.messageRestaurant')}</Text>
               </Pressable>
@@ -810,7 +814,7 @@ export default function OrderTracking() {
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={t('restaurant.callRestaurant')}
-                  style={styles.contactBtn}>
+                  style={[styles.contactBtn, dir.row]}>
                   <Icon name="phone" size={18} color={colors.ink} />
                   <Text style={styles.contactBtnText}>{t('restaurant.callRestaurant')}</Text>
                 </Pressable>
@@ -826,7 +830,7 @@ export default function OrderTracking() {
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={t('restaurant.viewOnMap')}
-                  style={styles.contactBtn}>
+                  style={[styles.contactBtn, dir.row]}>
                   <Icon name="compass" size={18} color={colors.ink} />
                   <Text style={styles.contactBtnText}>{t('restaurant.viewOnMap')}</Text>
                 </Pressable>
@@ -1024,7 +1028,10 @@ const useStyles = makeStyles((colors) => ({
 
   timeline: { marginTop: 18 },
   step: { flexDirection: 'row', gap: 12, paddingVertical: 6, position: 'relative' },
-  connector: { position: 'absolute', left: 10, top: -2, width: 2, height: 12, backgroundColor: colors.line },
+  connector: { position: 'absolute', top: -2, width: 2, height: 12, backgroundColor: colors.line },
+  // Bullets column hugs the reading edge, so the connector line moves with it.
+  connectorLtr: { left: 10 },
+  connectorRtl: { right: 10 },
   bullet: {
     width: 22,
     height: 22,

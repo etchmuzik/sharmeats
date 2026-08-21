@@ -496,7 +496,7 @@ export default function HomeTab() {
               data={reorderRail}
               keyExtractor={(r) => r.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingRight: 20 }}
+              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingEnd: 20 }}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => {
@@ -504,6 +504,8 @@ export default function HomeTab() {
                     track('reorder_tapped', { restaurantId: item.id });
                     router.push(`/restaurant/${item.id}` as never);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.name}
                   style={styles.reorderChip}>
                   <Image source={{ uri: item.coverImage }} style={styles.reorderImg} />
                   <View style={{ flex: 1 }}>
@@ -528,13 +530,15 @@ export default function HomeTab() {
               data={favoriteRail}
               keyExtractor={(r) => r.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingRight: 20 }}
+              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingEnd: 20 }}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => {
                     tap();
                     router.push(`/restaurant/${item.id}` as never);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.name}
                   style={styles.reorderChip}>
                   <Image source={{ uri: item.coverImage }} style={styles.reorderImg} />
                   <View style={{ flex: 1 }}>
@@ -559,7 +563,7 @@ export default function HomeTab() {
               data={offers}
               keyExtractor={(r) => r.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingRight: 20 }}
+              contentContainerStyle={{ gap: 10, paddingTop: 10, paddingEnd: 20 }}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => {
@@ -586,21 +590,32 @@ export default function HomeTab() {
         {featured.length > 0 && (
           <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
             <View style={[styles.secHead, dir.row]}>
-              <Text style={styles.secTitle}>{t(featuredKey)}</Text>
-              <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
+              <Text style={styles.secTitle} numberOfLines={1}>{t(featuredKey)}</Text>
+              <Pressable
+                onPress={() => {
+                  tap();
+                  router.push('/(tabs)/browse');
+                }}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.seeAll')}>
+                <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
+              </Pressable>
             </View>
             <FlatList
               horizontal
               data={featured}
               keyExtractor={(r) => r.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12, paddingRight: 20 }}
+              contentContainerStyle={{ gap: 12, paddingEnd: 20 }}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => {
                     tap();
                     router.push(`/restaurant/${item.id}` as never);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.name}
                   style={styles.feat}>
                   <Image source={{ uri: item.coverImage }} style={styles.featImg} />
                   <View style={styles.featOverlay} />
@@ -619,8 +634,17 @@ export default function HomeTab() {
 
         <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
           <View style={[styles.secHead, dir.row]}>
-            <Text style={styles.secTitle}>{t('home.nearby')}</Text>
-            <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
+            <Text style={styles.secTitle} numberOfLines={1}>{t('home.nearby')}</Text>
+            <Pressable
+              onPress={() => {
+                tap();
+                router.push('/(tabs)/browse');
+              }}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.seeAll')}>
+              <Text style={styles.secMore}>{t('home.seeAll')} →</Text>
+            </Pressable>
           </View>
           <View style={{ gap: 12, marginTop: 12 }}>
             {nearbyLoading && restaurants.length === 0 ? (
@@ -714,7 +738,7 @@ const useStyles = makeStyles((colors) => ({
   searchText: { flex: 1, color: colors.ink3, fontSize: font.sizes.lg },
   cuisineRow: { gap: 8, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
   secHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  secTitle: { fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.4 },
+  secTitle: { fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: colors.ink, letterSpacing: -0.4, flexShrink: 1 },
   secMore: { fontSize: font.sizes.md, color: colors.sea, fontWeight: font.weights.bold },
   // Brand sea-teal base so an unloaded/failed cover still reads as an intentional
   // branded tile (white label + overlay stay legible) rather than a black void.

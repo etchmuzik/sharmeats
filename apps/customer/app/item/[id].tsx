@@ -36,6 +36,7 @@ import { useT } from '../../src/i18n';
 import { formatEgp } from '../../src/lib/format';
 import { success, tap } from '../../src/haptics';
 import { useGoBack } from '../../src/lib/navigation';
+import { useDirection } from '../../src/lib/direction';
 import { track } from '../../src/lib/analytics';
 import { useFavoriteItem } from '../../src/lib/favorites';
 import { itemSubmissionFeedback } from '../../src/lib/itemSubmissionFeedback';
@@ -54,6 +55,7 @@ export default function ItemModal() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const locale = useSession((s) => s.locale);
+  const dir = useDirection();
   const addToCart = useCart((s) => s.add);
   const updateLine = useCart((s) => s.updateLine);
   const editingLine = useCart((s) =>
@@ -153,7 +155,12 @@ export default function ItemModal() {
     return (
       <View style={styles.loading}>
         <ThemedStatusBar />
-        <View style={[styles.loadNav, { top: insets.top + 6 }]}>
+        <View
+          style={[
+            styles.loadNav,
+            dir.isRtl ? styles.loadNavRtl : styles.loadNavLtr,
+            { top: insets.top + 6 },
+          ]}>
           <BackButton onPress={goBack} />
         </View>
         <Text style={styles.loadErrText}>{t('common.error')}</Text>
@@ -176,7 +183,12 @@ export default function ItemModal() {
     return (
       <View style={styles.loading}>
         <ThemedStatusBar />
-        <View style={[styles.loadNav, { top: insets.top + 6 }]}>
+        <View
+          style={[
+            styles.loadNav,
+            dir.isRtl ? styles.loadNavRtl : styles.loadNavLtr,
+            { top: insets.top + 6 },
+          ]}>
           <BackButton onPress={goBack} />
         </View>
         <ActivityIndicator size="large" color={colors.ink2} />
@@ -320,7 +332,7 @@ export default function ItemModal() {
             colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
             style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 110 }}
           />
-          <View style={[styles.navWrap, { top: insets.top + 6 }]}>
+          <View style={[styles.navWrap, dir.row, { top: insets.top + 6 }]}>
             <BackButton tint="light" onPress={goBack} />
             <Pressable
               onPress={() => {
@@ -339,11 +351,11 @@ export default function ItemModal() {
           </View>
         </View>
         <View style={styles.body}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.desc}>{item.description}</Text>
-          <View style={styles.metaRow}>
-            <Text style={styles.price}>{formatEgp(item.priceEgp, locale)}</Text>
-            {item.unit && <Text style={styles.unit}>/ {item.unit}</Text>}
+          <Text style={[styles.name, dir.text]}>{item.name}</Text>
+          <Text style={[styles.desc, dir.text]}>{item.description}</Text>
+          <View style={[styles.metaRow, dir.row]}>
+            <Text style={[styles.price, dir.text]}>{formatEgp(item.priceEgp, locale)}</Text>
+            {item.unit && <Text style={[styles.unit, dir.text]}>/ {item.unit}</Text>}
             {item.flags.map((f) => (
               <FlagBadge key={f} flag={f} />
             ))}
@@ -354,9 +366,9 @@ export default function ItemModal() {
               customer needs to know they must produce a prescription AT THE
               DOOR, while they can still decide not to order. */}
           {item.requiresPrescription && (
-            <View style={styles.rxNotice} accessibilityRole="alert">
+            <View style={[styles.rxNotice, { alignItems: dir.alignStart }]} accessibilityRole="alert">
               <RxBadge />
-              <Text style={styles.rxNoticeText}>{t('item.rxNote')}</Text>
+              <Text style={[styles.rxNoticeText, dir.text]}>{t('item.rxNote')}</Text>
             </View>
           )}
 
@@ -378,22 +390,26 @@ export default function ItemModal() {
               accessibilityRole="button"
               accessibilityLabel={t('item.allergiesTitle')}
               accessibilityState={{ expanded: allergyOpen }}
-              style={styles.allergySummary}>
+              style={[styles.allergySummary, dir.row]}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modTitle}>{t('item.allergiesTitle')}</Text>
-                <Text style={styles.allergySummaryText}>
+                <Text style={[styles.modTitle, dir.text]}>{t('item.allergiesTitle')}</Text>
+                <Text style={[styles.allergySummaryText, dir.text]}>
                   {allergies.length === 0
                     ? t('allergy.summaryNone')
                     : allergies.map((a) => t(`allergy.${a}`)).join(' · ')}
                 </Text>
               </View>
-              <Text style={[styles.chev, allergyOpen && { transform: [{ rotate: '90deg' }] }]}>
-                ›
+              <Text
+                style={[
+                  styles.chev,
+                  allergyOpen && { transform: [{ rotate: dir.isRtl ? '-90deg' : '90deg' }] },
+                ]}>
+                {dir.isRtl ? '‹' : '›'}
               </Text>
             </Pressable>
             {allergyOpen && (
               <View style={{ marginTop: 12 }}>
-                <Text style={styles.allergySub}>{t('item.allergiesSubtitle')}</Text>
+                <Text style={[styles.allergySub, dir.text]}>{t('item.allergiesSubtitle')}</Text>
                 <View style={{ marginTop: 10 }}>
                   <AllergyChipRow
                     selected={allergies}
@@ -410,13 +426,13 @@ export default function ItemModal() {
                   accessibilityRole="button"
                   accessibilityLabel={t('item.editAllergiesInSettings')}
                   style={{ marginTop: 10 }}>
-                  <Text style={styles.editLink}>{t('item.editAllergiesInSettings')} →</Text>
+                  <Text style={[styles.editLink, dir.text]}>{t('item.editAllergiesInSettings')} →</Text>
                 </Pressable>
               </View>
             )}
             {hasConflict && (
               <View style={styles.conflictBox}>
-                <Text style={styles.conflictTitle}>
+                <Text style={[styles.conflictTitle, dir.text]}>
                   {t('allergy.conflictWarning', {
                     allergens: conflicts.map((c) => t(`allergy.${c}`)).join(', '),
                   })}
@@ -427,7 +443,7 @@ export default function ItemModal() {
                     hitSlop={6}
                     accessibilityRole="button"
                     accessibilityLabel={t('item.addAnyway')}>
-                    <Text style={styles.bypassLink}>{t('item.addAnyway')} →</Text>
+                    <Text style={[styles.bypassLink, dir.text]}>{t('item.addAnyway')} →</Text>
                   </Pressable>
                 )}
               </View>
@@ -435,7 +451,7 @@ export default function ItemModal() {
           </View>
 
           <View style={styles.notesWrap}>
-            <Text style={styles.modTitle}>{t('item.specialInstructions')}</Text>
+            <Text style={[styles.modTitle, dir.text]}>{t('item.specialInstructions')}</Text>
             <TextInput
               value={notes}
               onChangeText={setNotes}
@@ -443,12 +459,12 @@ export default function ItemModal() {
               placeholderTextColor={colors.ink3}
               accessibilityLabel={t('item.specialInstructions')}
               multiline
-              style={styles.notes}
+              style={[styles.notes, dir.text]}
             />
           </View>
 
-          <View style={styles.qtyRow}>
-            <Text style={styles.qtyLabel}>{t('item.quantity')}</Text>
+          <View style={[styles.qtyRow, dir.row]}>
+            <Text style={[styles.qtyLabel, dir.text]}>{t('item.quantity')}</Text>
             <QuantityStepper value={qty} onChange={setQty} min={1} max={20} />
           </View>
         </View>
@@ -482,7 +498,9 @@ const useStyles = makeStyles((colors) => ({
     gap: 16,
     paddingHorizontal: 32,
   },
-  loadNav: { position: 'absolute', left: 14 },
+  loadNav: { position: 'absolute' },
+  loadNavLtr: { left: 14 },
+  loadNavRtl: { right: 14 },
   loadingText: { color: colors.ink3, fontSize: font.sizes.lg },
   loadErrText: { color: colors.ink2, fontSize: font.sizes.lg, textAlign: 'center', lineHeight: 24 },
   retryBtn: {
@@ -520,7 +538,7 @@ const useStyles = makeStyles((colors) => ({
   desc: { fontSize: font.sizes.lg, color: colors.ink2, lineHeight: 22, marginTop: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
   price: { fontSize: font.sizes['3xl'], fontWeight: font.weights.extrabold, color: colors.ink },
-  unit: { fontSize: font.sizes.lg, color: colors.ink3, marginLeft: -2 },
+  unit: { fontSize: font.sizes.lg, color: colors.ink3, marginStart: -2 },
   rxNotice: { marginTop: 14, padding: 12, borderRadius: radius.lg, backgroundColor: colors.redSoft, gap: 8, alignItems: 'flex-start' },
   rxNoticeText: { fontSize: font.sizes.md, color: colors.ink, lineHeight: 19 },
   modGroup: { marginTop: 22 },

@@ -438,7 +438,12 @@ function CartLineRow({
   );
 
   return (
-    <Swipeable ref={swipeRef} renderRightActions={renderRightActions} overshootRight={false}>
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={dir.isRtl ? undefined : renderRightActions}
+      renderLeftActions={dir.isRtl ? renderRightActions : undefined}
+      overshootRight={false}
+      overshootLeft={false}>
       <View style={styles.line}>
         <Pressable
           onPress={onTapEdit}
