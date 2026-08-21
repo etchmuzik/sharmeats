@@ -128,10 +128,20 @@ Owner: **you** (KYC + keys) → then a couple of commands.
 5. ☐ Point Paymob dashboard callbacks at the webhook URL. [§2.5]
 6. ☐ Test with a Paymob test card → order flips to `paid`. [§2.6]
 
-### B. Customer app → App Store (currently REJECTED, v1.0)
-Owner: **you** (device recording) + App Store Connect web UI.
-1. ☐ Record the order flow on a **physical iPhone** (install 1.1.0 build 60 from TestFlight). Apple requires a real device.
-2. ☐ In App Store Connect (the rejected version is editable): bump the version string to 1.1.0, attach build 60, swap the 6.9"+6.5" clean screenshots from `apps/customer/store-screenshots-clean/`, paste the App Review notes, add phone `+971581232600`, re-uncheck "Sign-in required", **Submit for Review**. [APP-REVIEW-NOTES.md §D]
+### B. Customer app → App Store — LIVE since June; ship the 1.1.0 update (CORRECTED 2026-08-21)
+The June rejection was resolved long ago and this section was two months
+stale: v1.0 approved June, 1.0.1 on 2026-07-02, **1.0.4 READY_FOR_SALE since
+2026-07-21** (ASC API-verified 2026-08-21). No recording, no rejection
+response, no screenshot swap is owed — the live listing already carries the
+review contact and demoAccountRequired=false.
+
+What IS owed, urgently: the store still serves the 1.0.4 binary, whose JS
+selects * on restaurants — **mig 218 breaks its storefront**, so any fresh
+App Store download is broken until 1.1.0 ships. The repo API key cannot
+create store versions (403 — TestFlight-scope), so this is a 5-minute ASC
+web-UI task: ☐ **YOU** — Apps → Sharm Eats → ⊕ new version **1.1.0** →
+select **build 60** → paste the release notes (Claude has them ready) →
+Save → **Add for Review → Submit**. Release type: automatic after approval.
 
 ### C. Driver app → TestFlight — ✅ DONE (verified 2026-08-20)
 1. ✅ ASC app record "Sharm Eats Driver" exists (Apple ID `6777379638`).
