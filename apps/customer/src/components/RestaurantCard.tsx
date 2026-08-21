@@ -47,10 +47,14 @@ export function RestaurantCard({
         style={[styles.cardBody, dir.row]}>
         <Image source={{ uri: restaurant.coverImage }} style={styles.ph} />
         <View style={styles.body}>
-          <View style={[styles.topRow, dir.row]}>
-            <Text style={[styles.name, dir.text, styles.nameWithHeart]} numberOfLines={2}>
-              {restaurant.name}
-            </Text>
+          {/* The name owns the full row: the closed/prayer pill lives in the
+              badge row below so a long (especially Arabic) name never loses
+              width to it. */}
+          <Text style={[styles.name, dir.text, styles.nameWithHeart]} numberOfLines={2}>
+            {restaurant.name}
+          </Text>
+          <Text style={[styles.cuisine, dir.text]}>{restaurant.cuisineLabel}</Text>
+          <View style={[styles.badgeRow, dir.row]}>
             {!open && (
               <View style={styles.closedPill}>
                 <Text style={[styles.closedText, dir.text]}>
@@ -58,9 +62,6 @@ export function RestaurantCard({
                 </Text>
               </View>
             )}
-          </View>
-          <Text style={[styles.cuisine, dir.text]}>{restaurant.cuisineLabel}</Text>
-          <View style={[styles.badgeRow, dir.row]}>
             {restaurant.isOpen24h && (
               <View style={styles.open24Pill}>
                 <Text style={styles.open24Text}>{t('restaurant.open24h')}</Text>
@@ -126,8 +127,7 @@ const useStyles = makeStyles((colors) => ({
   },
   ph: { width: 96, height: 96, borderRadius: radius.md, backgroundColor: colors.bgSoft },
   body: { flex: 1, gap: 4 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  name: { fontSize: font.sizes['3xl'], fontWeight: font.weights.bold, color: colors.ink, flex: 1 },
+  name: { fontSize: font.sizes['3xl'], fontWeight: font.weights.bold, color: colors.ink },
   nameWithHeart: { paddingEnd: 28 },
   cuisine: { fontSize: font.sizes.md, color: colors.ink2 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 2 },
