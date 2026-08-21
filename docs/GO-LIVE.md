@@ -52,12 +52,13 @@ concluding a rebuild is needed.
 - **Customer OTA published** (branch `production`, runtime 1.1.0, update group
   `72a12fcb`): ships commit `72efb7a`, which pins the storefront's restaurant
   reads to 25 explicit columns.
-- **Mig 218 (payout-column revoke) is authored but NOT applied — deliberate.**
-  Gate: any 1.1.0 binary still on pre-OTA JS calls `select('*')` on
-  `restaurants`, and PostgREST fails the whole query once a column is revoked.
-  Apply 218 only after the OTA has adoption (phones fetch it on second
-  launch). Exposure meanwhile: `commission_pct` (12/15) — every `payout_*`
-  value was NULL on 2026-08-20.
+- **Mig 218 (payout-column revoke): APPLIED 2026-08-21 ~14:45**, founder-
+  authorized over the adoption gate once the last `select('*')` device was
+  identified as the founder's own second phone (guest account, July build 52).
+  Verified live post-apply with nothing but the anon key: pinned storefront
+  select → 200, `select=*` → 401, `payout_iban` → permission denied. The
+  adoption watchdog that guarded this is retired. Any remaining pre-72efb7a
+  JS (that one phone) sees a broken storefront until updated via TestFlight.
 - **merchant-web + admin-web redeployed** at `d9a2e7d` (both had been ~3 weeks
   stale on Aug 1 builds; verified via `/version.json` after deploy — Hostinger
   deploys are async, "Request accepted" ≠ deployed, poll the manifest).
@@ -209,7 +210,7 @@ Two things that make this much less likely to matter:
 - **Public launch (card payments + App Store):** blocked on Paymob setup (A)
   and the customer App Store resubmission (B) — external/yours; the code is
   done. C (driver TestFlight) is complete.
-- **DB follow-up:** apply mig 218 once OTA `72a12fcb` has adoption.
+- **DB follow-up:** ~~apply mig 218 once the OTA has adoption~~ — applied 2026-08-21, leak closed and live-verified.
 
 ---
 
