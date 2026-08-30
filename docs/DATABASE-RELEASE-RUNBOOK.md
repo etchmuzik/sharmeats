@@ -30,6 +30,53 @@ drop trigger if exists orders_reject_non_cod_payment_trg on public.orders;
 drop function if exists public.orders_reject_non_cod_payment();
 ```
 
+## APPLIED 2026-08-30 — negotiated commission-rate read boundary (migration 220)
+
+`220_restrict_restaurant_commission_read.sql` was applied directly over the
+production pooler in one transaction, followed by `NOTIFY pgrst, 'reload
+schema'`. Source SHA-256:
+`10e4769a1fb8671255744f9e7ff5a48dd4e0d108f52dab92afda3e7a16cd0389`.
+
+The matching static admin dashboard was built from clean Git commit
+`98ab36aa9a8c856ad2ea3076c98987f15d327984` and deployed to
+`admin.sharmeats.online`. Verify that exact commit and `dirty: false` through
+`/version.json`; an accepted Hostinger upload is not sufficient evidence on its
+own.
+
+The release changes the authority boundary, not just the dashboard query:
+
+- `PUBLIC`, `anon`, and `authenticated` can no longer directly select
+  `restaurants.commission_pct`;
+- the exact `admin_onboarding_queue(text)` projection is the only client-facing
+  path for onboarding rates, and is `SECURITY DEFINER` with
+  `search_path=public, pg_temp`;
+- the queue requires stored admin role, a live verified MFA factor, and an
+  `aal2` JWT even while global migration `20260815044226` remains safely
+  deferred;
+- `founding_rate_report()` remains a separate `SECURITY DEFINER` pathway for
+  its existing dashboard, so the rate expiry report is not broken by the column
+  ACL.
+
+The pre-commit `BEGIN ... ROLLBACK` rehearsal and post-commit proof both
+confirmed the ACL/function shape, preserved authenticated access to
+`onboarding_status`, and proved that a real existing admin simulated at `aal1`
+is denied by `MFA_ENROLLMENT_REQUIRED`. PostgREST resolves the new RPC (an
+anonymous request correctly returns 401 rather than a missing-function error).
+
+**Operations gate:** production still has two admins and zero verified MFA
+factors. They must enrol through `/security` before using `/onboarding`; do not
+apply global migration `20260815044226_enforce_admin_mfa_authority.sql` until
+both are enrolled and the documented lockout check passes.
+
+Emergency compatibility rollback (only if the matching admin artifact cannot
+be served):
+
+```sql
+drop function if exists public.admin_onboarding_queue(text);
+grant select (commission_pct) on public.restaurants to authenticated;
+notify pgrst, 'reload schema';
+```
+
 ## APPLIED 2026-08-15 — the 2026-08-15 hardening tranche (6 migrations)
 
 Applied individually via the Supabase MCP `apply_migration` tool (NOT `db push`,

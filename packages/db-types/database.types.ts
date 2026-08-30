@@ -5079,6 +5079,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_onboarding_queue: {
+        Args: { p_status: string }
+        Returns: {
+          commission_pct: number
+          created_at: string
+          id: string
+          name: string
+          onboarding_rejection_reason: string
+          onboarding_status: string
+          phone: string
+          zone: string
+        }[]
+      }
       admin_resolve_user_names: {
         Args: { p_ids: string[] }
         Returns: {
