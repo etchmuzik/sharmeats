@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { hasErrorMarker, safeDisplayError } from '@/lib/displayError';
+import { loadOnboardingQueue, type OnboardingQueueRow } from '@/lib/onboardingQueue';
 import { SignOutButton } from '../SignOutButton';
 import { useToast } from '../Toast';
 import { Skeleton } from '../Skeleton';
@@ -16,15 +17,7 @@ const DOC_LABEL: Record<string, string> = {
   food_license: 'Food licence',
 };
 
-interface QueueRow {
-  id: string;
-  name: string;
-  zone: string;
-  phone: string | null;
-  created_at: string;
-  onboarding_status: 'submitted' | 'rejected';
-  onboarding_rejection_reason: string | null;
-  commission_pct: number;
+interface QueueRow extends OnboardingQueueRow {
   docs: Record<string, 'pending' | 'approved' | 'rejected' | 'missing'>;
   menuItems: number;
 }
@@ -53,18 +46,12 @@ export default function OnboardingQueuePage() {
 
   const load = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    const { data: restaurants, error } = await supabase
-      .from('restaurants')
-      .select(
-        'id, name, zone, phone, created_at, onboarding_status, onboarding_rejection_reason, commission_pct',
-      )
-      .eq('onboarding_status', filter)
-      .order('created_at', { ascending: true });
+    const { data: restaurants, error } = await loadOnboardingQueue(supabase, filter);
     if (error) {
       toast('Could not load queue', 'error');
       return;
     }
-    const list = (restaurants ?? []) as Omit<QueueRow, 'docs' | 'menuItems'>[];
+    const list = restaurants;
     const ids = list.map((r) => r.id);
 
     const [docsRes, itemsRes] = ids.length

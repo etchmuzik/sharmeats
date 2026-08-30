@@ -4,6 +4,7 @@ import { restaurantsRepo } from './restaurants';
 import { menusRepo } from './menus';
 import { serviceFeeEgp } from '../../lib/serviceFee';
 import { checkReorder } from '../../lib/reorderCheck';
+import { toOrderPaymentMethod } from '../../lib/payments';
 import type {
   Address,
   AllergyKey,
@@ -115,6 +116,11 @@ export interface CreateOrderInput {
 
 export const ordersRepo = {
   async create(input: CreateOrderInput): Promise<Order> {
+    // Keep mock mode subject to the same launch policy as the live adapter.
+    // Otherwise a stale local wallet could look safe in development and only
+    // fail (or be mislabelled) after the app switches to Supabase.
+    toOrderPaymentMethod(input.payment.kind);
+
     // The snapshot must come from the MERCHANT, exactly as mig 157's trigger
     // derives it server-side. Defaults to food only when the fixture is absent.
     const restaurantVerticalId =

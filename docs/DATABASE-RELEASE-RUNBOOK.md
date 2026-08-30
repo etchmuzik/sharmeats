@@ -1,5 +1,35 @@
 # Production database release runbook
 
+## APPLIED 2026-08-30 — cash-only payment persistence guard (migration 221)
+
+`221_enforce_server_payment_gate.sql` was applied directly over the production
+pooler in one transaction (not through `db push`; the migration histories remain
+intentionally divergent). Source SHA-256:
+`d380b15c2e0f24404d1eefdb363852e10d637ae67a624cf0f6906457060520b7`.
+
+Before commit, a fresh local schema/data backup completed and a live
+`BEGIN ... ROLLBACK` rehearsal proved all of the following without leaving a
+row change:
+
+- all 27 production orders were `cash_on_delivery`;
+- the new trigger rejected an attempted `payment_method = 'card'` update with
+  `CARD_PAYMENTS_DISABLED`;
+- the trigger function was `SECURITY DEFINER`, had
+  `search_path=public, pg_temp`, and had no `PUBLIC`, `anon`,
+  `authenticated`, or `service_role` EXECUTE grant.
+
+The same structural and behavioural checks passed after commit. This guard is
+the production cash-only authority: do not remove it merely to re-enable a UI
+option. A future card rollout needs its own reviewed migration after gateway
+intentions, webhook validation, settlement, and paid-order acceptance are live.
+
+Rollback only as part of that reviewed rollout:
+
+```sql
+drop trigger if exists orders_reject_non_cod_payment_trg on public.orders;
+drop function if exists public.orders_reject_non_cod_payment();
+```
+
 ## APPLIED 2026-08-15 — the 2026-08-15 hardening tranche (6 migrations)
 
 Applied individually via the Supabase MCP `apply_migration` tool (NOT `db push`,

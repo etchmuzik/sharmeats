@@ -9,7 +9,11 @@ import type {
   User,
   InboxMessage,
 } from '../types';
-import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
+import {
+  CASH_ON_DELIVERY_METHOD,
+  isPaymentMethodEnabled,
+  withCashOnDelivery,
+} from '../../lib/payments';
 
 /** Why an account-deletion attempt could not complete. */
 export type DeleteAccountReason = 'active_order' | 'failed';
@@ -130,9 +134,60 @@ export const userRepoSupabase = {
     const sb = getSupabase();
     const { data: { user } } = await sb.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    await sb.from('payment_methods').update({ is_default: false }).eq('user_id', user.id);
-    await sb.from('payment_methods').update({ is_default: true }).eq('id', id);
-    await sb.from('users').update({ default_payment_method_id: id }).eq('id', user.id);
+
+    // COD is a universal checkout choice rather than a required persisted row.
+    // A new customer can therefore save the picker without inventing an ID in
+    // payment_methods. Clear any hidden default first, so it cannot reappear if
+    // card rails are enabled in a later app release.
+    if (id === CASH_ON_DELIVERY_METHOD.id) {
+      const { error: clearDefaultError } = await sb
+        .from('payment_methods')
+        .update({ is_default: false })
+        .eq('user_id', user.id);
+      if (clearDefaultError) throw clearDefaultError;
+
+      const { error: clearUserDefaultError } = await sb
+        .from('users')
+        .update({ default_payment_method_id: null })
+        .eq('id', user.id);
+      if (clearUserDefaultError) throw clearUserDefaultError;
+
+      return this.listPaymentMethods();
+    }
+
+    // Verify the requested persisted method before clearing the current default.
+    // A stale wallet row must not become the selected method simply because a
+    // caller bypassed the filtered picker.
+    const { data: selected, error: selectedError } = await sb
+      .from('payment_methods')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (selectedError) throw selectedError;
+    if (!selected || !isPaymentMethodEnabled(rowToPaymentMethod(selected))) {
+      throw new Error('This payment method is not available');
+    }
+
+    const { error: clearDefaultError } = await sb
+      .from('payment_methods')
+      .update({ is_default: false })
+      .eq('user_id', user.id);
+    if (clearDefaultError) throw clearDefaultError;
+
+    const { error: setDefaultError } = await sb
+      .from('payment_methods')
+      .update({ is_default: true })
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (setDefaultError) throw setDefaultError;
+
+    const { error: setUserDefaultError } = await sb
+      .from('users')
+      .update({ default_payment_method_id: id })
+      .eq('id', user.id);
+    if (setUserDefaultError) throw setUserDefaultError;
+
     return this.listPaymentMethods();
   },
 

@@ -2,10 +2,12 @@ import type { PaymentMethod } from '../data/types';
 
 /**
  * Card payments (Paymob) are gated behind a flag while the gateway isn't yet
- * live. Until Paymob is deployed + configured, the app ships CASH-ONLY: card and
- * Apple Pay are hidden everywhere so no customer can pick a payment path that
- * can't complete. Flip EXPO_PUBLIC_PAYMENTS_CARD_ENABLED=true (and rebuild)
- * once the paymob-create-intention / paymob-webhook functions + secrets are set.
+ * live. Until Paymob is deployed + configured, the app ships CASH-ONLY: every
+ * non-COD persisted method is hidden and rejected so it cannot be mistaken for
+ * a cash order. This flag controls only the client experience: migration 221
+ * also rejects every non-COD order at the database boundary. Do not enable
+ * cards by changing this flag alone; a reviewed server-side card rollout is
+ * required after the gateway intentions, webhook, and settlement flows exist.
  */
 export const CARD_PAYMENTS_ENABLED = process.env.EXPO_PUBLIC_PAYMENTS_CARD_ENABLED === 'true';
 
@@ -33,12 +35,38 @@ export function isTrustedPaymobCheckoutUrl(value: unknown): value is string {
   }
 }
 
-const GATED_KINDS: ReadonlySet<PaymentMethod['kind']> = new Set(['card', 'apple_pay']);
+/**
+ * These are the only non-COD rails the app knows how to create an order for.
+ * Fawry, Vodafone Cash and InstaPay must remain disabled even after card
+ * payments launch: there is no server-side settlement flow for them yet.
+ */
+const IMPLEMENTED_CARD_KINDS: ReadonlySet<PaymentMethod['kind']> = new Set(['card', 'apple_pay']);
+
+/** True when this persisted kind has a complete, supported checkout flow. */
+export function isPaymentMethodKindEnabled(kind: PaymentMethod['kind']): boolean {
+  return kind === 'cash' || (CARD_PAYMENTS_ENABLED && IMPLEMENTED_CARD_KINDS.has(kind));
+}
 
 /** True if this payment method should be offered to the customer right now. */
 export function isPaymentMethodEnabled(pm: PaymentMethod): boolean {
-  if (CARD_PAYMENTS_ENABLED) return true;
-  return !GATED_KINDS.has(pm.kind);
+  return isPaymentMethodKindEnabled(pm.kind);
+}
+
+/**
+ * Convert a selected UI payment kind to the only values accepted by place_order.
+ *
+ * This is deliberately fail-closed. A stale saved wallet must never be silently
+ * converted to cash-on-delivery, because that would tell the customer one thing
+ * while placing a different order. The same guard also protects a stale client
+ * that bypasses the payment picker.
+ */
+export function toOrderPaymentMethod(
+  kind: PaymentMethod['kind'],
+): 'card' | 'cash_on_delivery' {
+  if (!isPaymentMethodKindEnabled(kind)) {
+    throw new Error('This payment method is not available');
+  }
+  return kind === 'cash' ? 'cash_on_delivery' : 'card';
 }
 
 /**

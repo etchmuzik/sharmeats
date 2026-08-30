@@ -1,6 +1,6 @@
 import type { Address, PaymentMethod, User } from '../types';
 
-// Tourist-first demo persona: a hotel guest paying by card. A resident
+// Tourist-first demo persona: a hotel guest paying cash on delivery. A resident
 // apartment address is still included (dual-market), but the default the app
 // opens with is the hotel — matching the English-first, tourist-led framing.
 export const DEFAULT_USER: User = {
@@ -9,7 +9,7 @@ export const DEFAULT_USER: User = {
   displayName: 'Guest',
   email: 'guest@example.com',
   defaultAddressId: 'a-hotel-hilton',
-  defaultPaymentMethodId: 'pm-card-visa',
+  defaultPaymentMethodId: 'pm-cash',
   preferredCurrency: 'EGP',
   locale: 'en',
   allergyProfile: [],
@@ -44,6 +44,7 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
     kind: 'cash',
     label: 'كاش عند الاستلام',
     subline: 'السائق معاه فكة',
+    isDefault: true,
   },
   {
     id: 'pm-vodafone',
@@ -68,7 +69,6 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
     kind: 'card',
     label: 'Visa ·· 4242',
     subline: 'Expires 09/27',
-    isDefault: true,
   },
   {
     id: 'pm-apple',

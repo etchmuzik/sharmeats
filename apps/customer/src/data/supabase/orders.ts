@@ -19,22 +19,15 @@
 import { getSupabase } from './client';
 import { rowToOrder } from './mappers';
 import { t } from '../../i18n';
-import { isTrustedPaymobCheckoutUrl } from '../../lib/payments';
+import { isTrustedPaymobCheckoutUrl, toOrderPaymentMethod } from '../../lib/payments';
 import type {
   CartItem,
   Order,
-  PaymentMethodKind,
   PreparedCart,
   PreparedCartIssue,
   PreparedCartLine,
 } from '../types';
 import type { CreateOrderInput } from '../repositories/orders';
-
-/** Map the app's payment kind to the order's payment_method ('card' | 'cash_on_delivery'). */
-function toPaymentMethod(kind: PaymentMethodKind): 'card' | 'cash_on_delivery' {
-  // Card-like rails go through Paymob; everything else is cash-on-delivery at MVP.
-  return kind === 'card' || kind === 'apple_pay' ? 'card' : 'cash_on_delivery';
-}
 
 /** Build the RPC p_cart jsonb from the app's CartItem[]. */
 function toCartPayload(items: CreateOrderInput['items']) {
@@ -66,7 +59,7 @@ export const ordersRepoSupabase = {
       p_restaurant_id: input.restaurantId,
       p_address_id: input.address.id,
       p_cart: toCartPayload(input.items),
-      p_payment_method: toPaymentMethod(input.payment.kind),
+      p_payment_method: toOrderPaymentMethod(input.payment.kind),
       p_tip: input.tipEgp ?? 0,
       p_kitchen_notes: input.kitchenNotes ?? null,
       p_promo_code: input.promoCode?.trim() || null,

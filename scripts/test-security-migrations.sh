@@ -61,6 +61,8 @@ test_files=(
   "supabase/tests/204_app_review_demo_financials.test.sql"
   "supabase/tests/205_promo_release_and_remainder.test.sql"
   "supabase/tests/216_realtime_driver_location_authorization.test.sql"
+  "supabase/tests/220_restrict_restaurant_commission_read.test.sql"
+  "supabase/tests/221_server_payment_gate.test.sql"
   "supabase/tests/20260815044226_enforce_admin_mfa_authority.test.sql"
   "supabase/tests/20260815044230_push_retry_state_machine.test.sql"
   "supabase/tests/20260815044234_enforce_order_modifier_invariants.test.sql"

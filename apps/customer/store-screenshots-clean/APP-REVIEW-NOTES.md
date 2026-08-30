@@ -2,8 +2,14 @@
 
 This file holds the text to paste into **App Store Connect → App Review
 Information → Notes** when resubmitting, plus a checklist of the binary/asset
-fixes that accompany it. Drafted 2026-06-05. Resubmit is on hold until two
-user-supplied items are ready (see "Still needed from you").
+fixes that accompany it. Drafted 2026-06-05 and updated for the cash-only
+launch on 2026-08-29. Resubmit is on hold until two user-supplied items are
+ready (see "Still needed from you").
+
+> **Release-state warning:** the version/build and App Store status details in
+> later historical sections must be checked in App Store Connect before use.
+> The payment wording in section A reflects the current cash-only release and
+> must not be replaced with claims about unavailable card or wallet payments.
 
 ---
 
@@ -38,9 +44,9 @@ user-supplied items are ready (see "Still needed from you").
 > • **Supabase** — our hosted backend for the restaurant catalog, menus, and
 >   order records (anonymous, RLS-protected sessions; the customer never logs
 >   into Supabase directly).
-> • **Paymob** — Egypt's licensed payment processor — to handle card payments
->   at checkout. Cash on delivery and local wallets (Fawry, Vodafone Cash) are
->   also offered. No card data is stored in the app.
+> • **Payments:** this release is **cash on delivery only**. It does not offer
+>   card payments, Fawry, Vodafone Cash, or other wallets, and it does not
+>   collect or store card data.
 > • **Unsplash** — source of placeholder food imagery only.
 > No other third-party SDKs collect user data.
 >
@@ -58,9 +64,9 @@ user-supplied items are ready (see "Still needed from you").
 > does not dispense prescription medication through the app.)
 >
 > **7. In-app purchases / subscriptions.** The app has **no in-app purchases
-> and no subscriptions** (no Apple IAP). All payment for food orders is handled
-> through the licensed external payment processor (Paymob) or cash on delivery,
-> which is permitted for physical goods/services delivered in the real world.
+> and no subscriptions** (no Apple IAP). Payment for food orders in this
+> release is cash on delivery, which is permitted for physical goods/services
+> delivered in the real world.
 >
 > A screen recording demonstrating guest access and the full order flow on a
 > physical device is attached to this submission. Please let us know if any

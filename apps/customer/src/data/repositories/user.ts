@@ -9,7 +9,11 @@ import type {
   SavedItem,
   User,
 } from '../types';
-import { isPaymentMethodEnabled, withCashOnDelivery } from '../../lib/payments';
+import {
+  CASH_ON_DELIVERY_METHOD,
+  isPaymentMethodEnabled,
+  withCashOnDelivery,
+} from '../../lib/payments';
 
 const delay = <T>(value: T, ms = 40): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -91,9 +95,19 @@ export const userRepo = {
   },
 
   async setDefaultPaymentMethod(id: string): Promise<PaymentMethod[]> {
+    if (id === CASH_ON_DELIVERY_METHOD.id) {
+      paymentMethods = paymentMethods.map((p) => ({ ...p, isDefault: false }));
+      currentUser = { ...currentUser, defaultPaymentMethodId: undefined };
+      return this.listPaymentMethods();
+    }
+
+    const selected = paymentMethods.find((p) => p.id === id);
+    if (!selected || !isPaymentMethodEnabled(selected)) {
+      throw new Error('This payment method is not available');
+    }
     paymentMethods = paymentMethods.map((p) => ({ ...p, isDefault: p.id === id }));
     currentUser = { ...currentUser, defaultPaymentMethodId: id };
-    return delay(paymentMethods);
+    return this.listPaymentMethods();
   },
 
   /** Mock push registration — no backend to deliver to, so these are no-ops. */
