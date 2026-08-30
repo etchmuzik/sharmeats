@@ -56,24 +56,24 @@ with **Internal testing** (instant, no verification gate). All assets are in
 | Purchase history | Yes | No | App functionality | Required |
 | User IDs | Yes | No | App functionality, fraud prevention | Required |
 
-- **Payment info: DO NOT declare collected** — Paymob processes cards on their
-  checkout; the app never collects/stores card data.
+- **Payment info: DO NOT declare collected** — this release is cash on
+  delivery only and the app never collects or stores card data.
 - Used for tracking/advertising? **No**.
 
 ### Government apps
 - **No**.
 
 ### Financial features
-- Declare: app facilitates food-delivery payment via **cash on delivery** and an
-  external licensed processor (Paymob). No Google Play Billing, no lending/banking.
+- Declare: app facilitates food-delivery payment via **cash on delivery**. No
+  Google Play Billing, card/wallet checkout, lending, or banking.
 
 ## C. Store listing  (Main store listing)
 
 | Field | Value | Source |
 |---|---|---|
 | App name | `Sharm Eats: Food Delivery` | — |
-| Short description (≤80) | `Food delivery in Sharm el-Sheikh — to your hotel, home, or beach. Cash or card.` | RELEASE/LISTINGS doc |
-| Full description (≤4000) | copy the block from `docs/PLAY-STORE-LISTINGS.md` §"Full description" | doc |
+| Short description (≤80) | `Food delivery in Sharm el-Sheikh — hotel, home, or beach. Cash on delivery.` | `PLAY-STORE-LISTINGS-I18N.md` |
+| Full description (≤4000) | copy the English block from `docs/PLAY-STORE-LISTINGS-I18N.md` | doc |
 | App icon (512×512) | `landing/public/brand/icon-512.png` | repo |
 | **Feature graphic (1024×500)** | `apps/customer/store-screenshots/play-feature-graphic.png` ✅ (just made) | repo |
 | Phone screenshots (2–8) | the 6 in `apps/customer/store-screenshots/iphone69-ios-statusbar/` (use the `.jpg`) | repo |

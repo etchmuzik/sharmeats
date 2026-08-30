@@ -51,10 +51,10 @@ ready (see "Still needed from you").
 > No other third-party SDKs collect user data.
 >
 > **5. Differences across regions.** There are none functionally. The app is
-> bilingual (English / Arabic, with full RTL for Arabic) and the same features
-> are available everywhere it is offered. The content (restaurants in Sharm
-> el-Sheikh) is identical regardless of the user's country; only the UI language
-> follows the device/user setting.
+> available in five languages (English, Arabic, Russian, Italian, and German),
+> with full RTL for Arabic. The same features are available everywhere it is
+> offered. The content (restaurants in Sharm el-Sheikh) is identical regardless
+> of the user's country; only the UI language follows the device/user setting.
 >
 > **6. Regulated content / industries.** Sharm Eats is not part of a regulated
 > industry. It is a standard food-and-shop delivery marketplace. It does not
@@ -73,6 +73,10 @@ ready (see "Still needed from you").
 > further detail would help. Thank you.
 
 ---
+
+> **Submission guard:** do not paste the final paragraph above until the real
+> physical-device recording in section C.1 has been attached to the App Review
+> submission. It must never claim an attachment that is not present.
 
 ## B. Accompanying binary / asset fixes (so Apple's auto-flags clear)
 

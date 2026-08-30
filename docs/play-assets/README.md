@@ -13,24 +13,13 @@ Customer phone screenshots reuse the iOS set:
 Source HTML for the feature graphics: regenerate with Chrome headless
 `--screenshot --window-size=1024,500` from the templates if edits are needed.
 
-## Driver phone screenshots — DEFERRED to submission time
+## Driver phone screenshots
 
-Not yet captured. Needed only when submitting the driver app to Play (gated on
-the $25 Google account; internal-testing track is lenient on screenshots anyway).
+Six ready-to-review driver captures exist in both App Store sizes:
 
-**Gotcha when you capture them:** the driver's `preview` EAS build profile does
-NOT bake in the Supabase backend, so a preview APK shows a "Backend not
-configured" guard screen instead of the real sign-in/jobs UI. Putting `env` in
-`eas.json`'s `preview` profile is **overridden** by the (empty) EAS-hosted
-`preview` *environment* (EAS Build resolves the named environment over the
-profile's `env` block when `appVersionSource: remote`). To get real screens:
+- `apps/driver/store-screenshots/iphone69/`
+- `apps/driver/store-screenshots/iphone65/`
 
-1. Set the vars on EAS for the environment you build:
-   `cd apps/driver && eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value https://ilqpsebcfbaoaogimhud.supabase.co --visibility plaintext`
-   (repeat for `EXPO_PUBLIC_SUPABASE_ANON_KEY`), **or** just build the
-   `production` profile (which is wired) and capture from that.
-2. Build, install on an emulator/device, sign in as the test driver
-   `ahmed.driver@sharmeats.test` (password in the password manager — this repo
-   is public), and capture: sign-in,
-   online/home, a job card, active delivery, collect-cash confirm (2–8 shots,
-   1080×2400). Drop them in a `driver-screenshots/` folder here.
+They cover online/home, an active offer, pickup navigation, location permission,
+customer navigation, and cash collection. Use 2–8 current captures for a Play
+listing, and recapture only if the released UI changes materially.

@@ -12,7 +12,8 @@ Shared facts for both apps:
 - **Privacy policy URL:** https://sharmeats.online/privacy
 - **Website:** https://sharmeats.online
 - **Category:** Food & Drink (customer) · Maps & Navigation *or* Business (driver)
-- **Default language:** English (US); add Arabic (ar) as a second listing locale later.
+- **Default language:** English (US); publish Arabic, Russian, Italian, and German
+  copies from `PLAY-STORE-LISTINGS-I18N.md` alongside it.
 - **Pricing:** Free
 - **Contains ads:** No
 - **In-app purchases:** No (all payment is cash on delivery; card via external
@@ -49,8 +50,8 @@ WHY SHARM EATS
 • Made for Sharm — real local restaurants, real delivery zones, honest ETAs.
 • For visitors and residents alike — order to a hotel (Naama Bay, Sharks Bay,
   Nabq), an apartment, or a beach club. No Egyptian SIM or local know-how needed.
-• English and Arabic — a real bilingual app with full right-to-left support, not
-  a bolted-on translation.
+• Five languages — English, Arabic, Russian, Italian, and German, with full
+  right-to-left support for Arabic.
 • Start as a guest — browse and order with no account and no sign-up. Create one
   only if you want to save addresses across devices.
 • Cash on delivery — pay the courier in cash when your order arrives. No card,
@@ -79,9 +80,8 @@ Hungry in Sharm? Order in a few taps. Sharm Eats brings the food to you.
 - **Phone screenshots:** `apps/customer/store-screenshots-clean/iphone69/` (these
   are tall portrait PNGs — Play accepts 1080×1920-ish; the 6.9" set works). Need
   **2–8**; you have 8 (home, browse, restaurant, item, cart, checkout, tracking, orders).
-- **Feature graphic (1024×500):** ⚠️ **NOT yet made** — Play requires this one
-  banner image. Can be generated from the brand (wordmark on a coastal coral/teal
-  background). Flag: this is the one missing asset.
+- **Feature graphic (1024×500):**
+  `apps/customer/store-screenshots/play-feature-graphic.png`.
 
 ### Content rating questionnaire (IARC) — expected answers
 - Violence: None · Sexual content: None · Profanity: None · Drugs/alcohol/tobacco:
@@ -100,7 +100,7 @@ Answer "Yes, this app collects/shares user data," then declare:
 | Precise location (GPS pin) | Yes | Yes (driver) | App functionality (delivery) | **Optional** (user adds pin) |
 | Purchase history (orders) | Yes | No | App functionality | Required |
 | App-account / user ID | Yes | No | App functionality, fraud prevention | — |
-| Payment info | **No** (handled by Paymob; not collected by us) | — | — | — |
+| Payment info | **No** (cash-on-delivery release; not collected by the app) | — | — | — |
 
 - **Is data encrypted in transit?** Yes.
 - **Can users request deletion?** Yes — via support@sharmeats.online.
