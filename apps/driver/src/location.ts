@@ -155,17 +155,30 @@ export async function stopStreaming(): Promise<void> {
   }
 }
 
-/** One-shot authoritative position update. */
-export async function pingOnce(status?: 'online' | 'offline' | 'on_job'): Promise<void> {
-  if (!(await requestLocationPermission())) return;
+interface PingOptions {
+  /** The caller cannot advertise availability until the server accepts this ping. */
+  requireSuccess?: boolean;
+}
+
+/** One-shot authoritative position update. Periodic beats remain best-effort by default. */
+export async function pingOnce(
+  status?: 'online' | 'offline' | 'on_job',
+  { requireSuccess = false }: PingOptions = {},
+): Promise<void> {
+  if (!(await requestLocationPermission())) {
+    if (requireSuccess) throw new Error('Location permission denied');
+    return;
+  }
   const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   try {
-    await getSupabase().rpc('driver_ping', {
+    const { error } = await getSupabase().rpc('driver_ping', {
       p_lng: pos.coords.longitude,
       p_lat: pos.coords.latitude,
       p_status: status ?? '',
     });
-  } catch {
+    if (error) throw error;
+  } catch (error) {
+    if (requireSuccess) throw error;
     // The next foreground or OS-backed beat retries within the freshness slack.
   }
 }
@@ -180,21 +193,27 @@ export function isStreaming(orderId?: string): boolean {
  * execution. The persisted marker is also read by the headless task.
  */
 async function startIdlePresence(): Promise<void> {
-  if (!heartbeat) {
-    heartbeat = setInterval(() => {
-      if (isStreaming()) return;
-      void pingOnce();
-    }, IDLE_HEARTBEAT_MS);
-  }
-
   await AsyncStorage.setItem(DRIVER_ONLINE_STORAGE_KEY, '1');
   try {
     await ensureIdleLocationTask();
-    if (!isStreaming()) await pingOnce();
+    // A running OS task only proves setup succeeded. Do not advertise the
+    // driver as available until a foreground fix reached driver_ping too.
+    if (!isStreaming()) await pingOnce(undefined, { requireSuccess: true });
+    if (!heartbeat) {
+      heartbeat = setInterval(() => {
+        if (isStreaming()) return;
+        void pingOnce();
+      }, IDLE_HEARTBEAT_MS);
+    }
   } catch (error) {
     if (heartbeat) clearInterval(heartbeat);
     heartbeat = null;
     await AsyncStorage.removeItem(DRIVER_ONLINE_STORAGE_KEY);
+    // Roll back an idle task started (or inherited) for this availability
+    // attempt, but never tear down an active delivery's tracking task.
+    if (!(await AsyncStorage.getItem(ACTIVE_ORDER_STORAGE_KEY))) {
+      await stopLocationTask().catch(() => undefined);
+    }
     throw error;
   }
 }

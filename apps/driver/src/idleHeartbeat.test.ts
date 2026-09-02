@@ -5,6 +5,8 @@ const h = vi.hoisted(() => ({
   taskStarted: false,
   startLocation: vi.fn(),
   stopLocation: vi.fn(),
+  foregroundPermission: vi.fn(),
+  backgroundPermission: vi.fn(),
   rpc: vi.fn(),
 }));
 
@@ -23,8 +25,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 vi.mock('expo-location', () => ({
   Accuracy: { Balanced: 3, Low: 1 },
   ActivityType: { AutomotiveNavigation: 1, OtherNavigation: 2 },
-  requestForegroundPermissionsAsync: vi.fn(async () => ({ status: 'granted' })),
-  requestBackgroundPermissionsAsync: vi.fn(async () => ({ status: 'granted' })),
+  requestForegroundPermissionsAsync: h.foregroundPermission,
+  requestBackgroundPermissionsAsync: h.backgroundPermission,
   getCurrentPositionAsync: vi.fn(async () => ({
     coords: { longitude: 34.3, latitude: 27.9 },
   })),
@@ -54,6 +56,7 @@ vi.mock('./i18n', () => ({
 }));
 
 import {
+  isIdleHeartbeatRunning,
   startIdleHeartbeat,
   startStreaming,
   stopIdleHeartbeat,
@@ -67,6 +70,8 @@ describe('driver idle presence', () => {
     h.taskStarted = false;
     h.startLocation.mockClear();
     h.stopLocation.mockClear();
+    h.foregroundPermission.mockReset().mockResolvedValue({ status: 'granted' });
+    h.backgroundPermission.mockReset().mockResolvedValue({ status: 'granted' });
     h.rpc.mockReset().mockResolvedValue({ error: null });
   });
 
@@ -132,5 +137,28 @@ describe('driver idle presence', () => {
       p_lat: 27.9,
       p_status: '',
     });
+  });
+
+  it('rolls back initial availability when foreground location permission is denied', async () => {
+    // A pre-existing task bypasses ensureIdleLocationTask's permission check.
+    // The initial authoritative ping still has to prove that location can be read.
+    h.taskStarted = true;
+    h.foregroundPermission.mockResolvedValue({ status: 'denied' });
+
+    await expect(startIdleHeartbeat()).rejects.toThrow('Location permission denied');
+
+    expect(h.store.has('@test/online')).toBe(false);
+    expect(isIdleHeartbeatRunning()).toBe(false);
+    expect(h.stopLocation).toHaveBeenCalledWith('test-driver-location');
+  });
+
+  it('rolls back initial availability when driver_ping returns an error response', async () => {
+    h.rpc.mockResolvedValue({ error: new Error('driver_ping rejected') });
+
+    await expect(startIdleHeartbeat()).rejects.toThrow('driver_ping rejected');
+
+    expect(h.store.has('@test/online')).toBe(false);
+    expect(isIdleHeartbeatRunning()).toBe(false);
+    expect(h.stopLocation).toHaveBeenCalledWith('test-driver-location');
   });
 });
