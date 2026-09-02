@@ -14,6 +14,7 @@ import { Icon } from '../Icon';
 import { useToast } from '../Toast';
 import { Field, NumberField, Toggle, TextArea } from './fields';
 import { MenuManager } from './MenuManager';
+import { buildAdminRestaurantDetailsPayload } from './restaurantUpdatePayload';
 
 /**
  * Full editor for one restaurant: its details form + its menu (sections/items).
@@ -61,34 +62,45 @@ export function RestaurantEditor({
     }
     setSaving(true);
     const supabase = createSupabaseBrowserClient();
-    // Writes route through an admin-gated definer RPC (mig 098): mig 081 revoked
-    // the direct table UPDATE grant down to the is_open column only, so a direct
-    // .update() of these 16 columns fails with 42501.
-    const { error } = await supabase.rpc('admin_update_restaurant', {
-      p_id: form.id,
-      p_name: form.name.trim(),
-      p_description: form.description,
-      p_cuisines: form.cuisines,
-      p_cuisine_label: form.cuisine_label,
-      p_cover_image: form.cover_image.trim(),
-      p_logo: form.logo,
-      p_zone: form.zone,
-      p_prep_time_low: form.prep_time_low,
-      p_prep_time_high: form.prep_time_high,
-      p_delivery_fee_egp: form.delivery_fee_egp,
-      p_min_order_egp: form.min_order_egp,
-      p_tourist_safe: form.tourist_safe,
-      p_is_open: form.is_open,
-      p_is_open_24h: form.is_open_24h,
-      p_featured: form.featured,
-      p_promo: form.promo,
-      p_is_active: form.is_active,
-    });
-    setSaving(false);
+    // Writes route through an admin-gated definer RPC: direct table UPDATE is
+    // deliberately narrowed, and this feature-free endpoint cannot reinterpret
+    // a stale Gold carousel value as editorial intent.
+    const { error } = await supabase.rpc(
+      'admin_update_restaurant_details',
+      buildAdminRestaurantDetailsPayload(form),
+    );
     if (error) {
+      setSaving(false);
       toast(safeDisplayError(error, { fallback: 'Could not save this restaurant. Please try again.' }), 'error');
       return;
     }
+
+    // Feature intent has its own explicit write, separate from ordinary details
+    // and from Gold eligibility.
+    if (form.featured_manual !== restaurant.featured_manual) {
+      const { error: editorialError } = await supabase.rpc(
+        'admin_set_restaurant_featured_manual',
+        {
+          p_id: form.id,
+          p_featured_manual: form.featured_manual,
+        },
+      );
+      if (editorialError) {
+        // The detail save already succeeded. Refresh before reporting the
+        // partial failure so this form never claims its toggle was persisted.
+        await onSaved();
+        setSaving(false);
+        toast(
+          safeDisplayError(editorialError, {
+            fallback: 'Restaurant details saved, but the editorial feature could not be updated. Please try again.',
+          }),
+          'error',
+        );
+        return;
+      }
+    }
+
+    setSaving(false);
     toast('Saved — live in the app now', 'success');
     await onSaved();
   };
@@ -127,9 +139,9 @@ export function RestaurantEditor({
           onChange={(v) => set('tourist_safe', v)}
         />
         <Toggle
-          label="Featured"
-          checked={form.featured ?? false}
-          onChange={(v) => set('featured', v)}
+          label="Editorial feature"
+          checked={form.featured_manual}
+          onChange={(v) => set('featured_manual', v)}
         />
       </div>
 

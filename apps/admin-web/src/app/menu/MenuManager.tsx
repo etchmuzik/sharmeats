@@ -7,6 +7,8 @@ import { ITEM_FLAGS, type ItemFlag, type MenuItem, type MenuSection } from '@/li
 import { Icon } from '../Icon';
 import { useToast } from '../Toast';
 import { Field, NumberField, TextArea } from './fields';
+import { MenuLoadError } from './MenuLoadError';
+import { finishMenuLoad, initialMenuLoadState, startMenuLoad } from './menuLoadState';
 
 /**
  * Menu manager for one restaurant: sections, each holding items. Every change
@@ -14,13 +16,13 @@ import { Field, NumberField, TextArea } from './fields';
  */
 export function MenuManager({ restaurantId }: { restaurantId: string }) {
   const { toast } = useToast();
-  const [sections, setSections] = useState<MenuSection[]>([]);
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [menu, setMenu] = useState(initialMenuLoadState);
+  const { sections, items, loading, loadError } = menu;
 
   const load = useCallback(async () => {
+    setMenu(startMenuLoad);
     const supabase = createSupabaseBrowserClient();
-    const [{ data: secs }, { data: its }] = await Promise.all([
+    const [{ data: secs, error: sectionsError }, { data: its, error: itemsError }] = await Promise.all([
       supabase
         .from('menu_sections')
         .select('id, restaurant_id, name, sort_order')
@@ -34,14 +36,23 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
         .eq('restaurant_id', restaurantId)
         .order('sort_order', { ascending: true }),
     ]);
-    setSections((secs as MenuSection[]) ?? []);
-    setItems((its as MenuItem[]) ?? []);
-    setLoading(false);
-  }, [restaurantId]);
+
+    const failed = Boolean(sectionsError || itemsError);
+    setMenu((current) =>
+      finishMenuLoad(
+        current,
+        { data: (secs as MenuSection[] | null) ?? null, error: sectionsError },
+        { data: (its as MenuItem[] | null) ?? null, error: itemsError },
+      ),
+    );
+    if (failed) {
+      toast('Could not refresh the menu. Check your connection and try again.', 'error');
+      return;
+    }
+  }, [restaurantId, toast]);
 
   useEffect(() => {
-    setLoading(true);
-    load();
+    void load();
   }, [load]);
 
   const addSection = async () => {
@@ -67,21 +78,26 @@ export function MenuManager({ restaurantId }: { restaurantId: string }) {
         </button>
       </div>
 
-      {loading ? (
+      {loading && sections.length === 0 ? (
         <div className="py-6 text-center text-sm text-ink3">Loading menu…</div>
-      ) : sections.length === 0 ? (
-        <div className="py-6 text-center text-sm text-ink3">
-          No sections yet. Add one to start building the menu.
-        </div>
       ) : (
-        sections.map((section) => (
-          <SectionBlock
-            key={section.id}
-            section={section}
-            items={items.filter((it) => it.section_id === section.id)}
-            onChanged={load}
-          />
-        ))
+        <>
+          {loadError && <MenuLoadError onRetry={() => void load()} />}
+          {!loadError && sections.length === 0 ? (
+            <div className="py-6 text-center text-sm text-ink3">
+              No sections yet. Add one to start building the menu.
+            </div>
+          ) : (
+            sections.map((section) => (
+              <SectionBlock
+                key={section.id}
+                section={section}
+                items={items.filter((it) => it.section_id === section.id)}
+                onChanged={load}
+              />
+            ))
+          )}
+        </>
       )}
     </section>
   );

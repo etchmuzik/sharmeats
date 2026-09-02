@@ -3930,6 +3930,7 @@ export type Database = {
           description: string
           distance_meters: number
           featured: boolean | null
+          featured_manual: boolean
           founding_rate_until: string | null
           fulfillment_type: string
           geo: unknown
@@ -3981,6 +3982,7 @@ export type Database = {
           description?: string
           distance_meters?: number
           featured?: boolean | null
+          featured_manual?: boolean
           founding_rate_until?: string | null
           fulfillment_type?: string
           geo?: unknown
@@ -4032,6 +4034,7 @@ export type Database = {
           description?: string
           distance_meters?: number
           featured?: boolean | null
+          featured_manual?: boolean
           founding_rate_until?: string | null
           fulfillment_type?: string
           geo?: unknown
@@ -5092,6 +5095,33 @@ export type Database = {
           zone: string
         }[]
       }
+      admin_restaurant_editor_list: {
+        Args: never
+        Returns: {
+          cover_image: string
+          cuisine_label: string
+          cuisines: Database["public"]["Enums"]["cuisine_type"][]
+          delivery_fee_egp: number
+          description: string
+          featured: boolean
+          featured_manual: boolean
+          id: string
+          is_active: boolean
+          is_open: boolean
+          is_open_24h: boolean
+          logo: string | null
+          min_order_egp: number
+          name: string
+          prep_time_high: number
+          prep_time_low: number
+          promo: string | null
+          rating: number
+          rating_count: number
+          slug: string
+          tourist_safe: boolean
+          zone: Database["public"]["Enums"]["zone_type"]
+        }[]
+      }
       admin_resolve_user_names: {
         Args: { p_ids: string[] }
         Returns: {
@@ -5126,6 +5156,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_set_restaurant_featured_manual: {
+        Args: { p_featured_manual: boolean; p_id: string }
+        Returns: undefined
+      }
       admin_test_ops_alert: { Args: never; Returns: string }
       admin_update_restaurant: {
         Args: {
@@ -5135,6 +5169,28 @@ export type Database = {
           p_delivery_fee_egp: number
           p_description: string
           p_featured: boolean
+          p_id: string
+          p_is_active: boolean
+          p_is_open: boolean
+          p_is_open_24h: boolean
+          p_logo: string
+          p_min_order_egp: number
+          p_name: string
+          p_prep_time_high: number
+          p_prep_time_low: number
+          p_promo: string
+          p_tourist_safe: boolean
+          p_zone: Database["public"]["Enums"]["zone_type"]
+        }
+        Returns: undefined
+      }
+      admin_update_restaurant_details: {
+        Args: {
+          p_cover_image: string
+          p_cuisine_label: string
+          p_cuisines: Database["public"]["Enums"]["food_cuisine_type"][]
+          p_delivery_fee_egp: number
+          p_description: string
           p_id: string
           p_is_active: boolean
           p_is_open: boolean

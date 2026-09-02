@@ -91,7 +91,10 @@ export interface Restaurant {
   tourist_safe: boolean;
   is_open: boolean;
   is_open_24h: boolean | null;
+  /** Customer-facing effective flag: editorial promotion OR Gold tier. */
   featured: boolean | null;
+  /** Admin-controlled editorial promotion; never inferred from the Gold tier. */
+  featured_manual: boolean;
   promo: string | null;
   is_active: boolean;
 }

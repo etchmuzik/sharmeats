@@ -43,12 +43,10 @@ export default function MenuPage() {
 
   const loadRestaurants = useCallback(async () => {
     const supabase = createSupabaseBrowserClient();
-    const { data, error } = await supabase
-      .from('restaurants')
-      .select(
-        'id, slug, name, description, cuisines, cuisine_label, cover_image, logo, zone, rating, rating_count, prep_time_low, prep_time_high, delivery_fee_egp, min_order_egp, tourist_safe, is_open, is_open_24h, featured, promo, is_active',
-      )
-      .order('name', { ascending: true });
+    // `featured_manual` is editorial-only. The RPC both verifies the stored
+    // admin role and returns this exact editor projection without widening the
+    // shared authenticated table grant used by customers and merchants.
+    const { data, error } = await supabase.rpc('admin_restaurant_editor_list');
     if (error) {
       toast('Could not load restaurants', 'error');
       return;
