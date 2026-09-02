@@ -83,7 +83,10 @@ export function parseRetryAttempts(value: unknown): RetryAttempt[] | null {
       !row.token.startsWith('ExponentPushToken') ||
       typeof row.attempt_no !== 'number' ||
       !Number.isInteger(row.attempt_no) ||
-      row.attempt_no < 2 ||
+      // A fresh attempt starts at #1. It normally settles in the same edge
+      // invocation, but a worker crash or failed settlement is reclaimed by
+      // claim_push_retries under that exact initial id.
+      row.attempt_no < 1 ||
       row.attempt_no > 5
     ) {
       return null;

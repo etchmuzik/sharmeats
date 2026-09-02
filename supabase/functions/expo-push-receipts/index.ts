@@ -22,6 +22,7 @@
 // "delivered" stops investigating the customer who never got their order update.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import {
+  callOpsAlert,
   chunkTicketIds,
   classifyReceipt,
   isProjectWideFailure,
@@ -208,13 +209,11 @@ Deno.serve(async (req: Request) => {
     // paging on it is how an alert channel gets muted — and then nobody notices
     // the credentials breaking, which is the failure that stops every push.
     if (projectWideCodes.size > 0) {
-      try {
-        await admin.rpc('ops_alert', {
+      await callOpsAlert(() =>
+        admin.rpc('ops_alert', {
           p_text: `[PUSH] project-wide push failure from Expo receipts: ${[...projectWideCodes].join(', ')}. Every push is likely failing — check credentials/project config.`,
-        });
-      } catch (e) {
-        console.error(`receipts: ops_alert failed: ${e}`);
-      }
+        }),
+      );
     }
 
     const summary =

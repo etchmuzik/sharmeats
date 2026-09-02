@@ -149,6 +149,32 @@ export function chunkTicketIds(ids: string[], size = RECEIPT_CHUNK_SIZE): string
 }
 
 /**
+ * Send an operator alert without letting alert delivery alter receipt settlement.
+ *
+ * Supabase represents a failed RPC as a resolved `{ error }` result, not always
+ * as a rejected promise. Observe both forms so failures remain actionable while
+ * the receipt job keeps its deliberately fail-open behavior.
+ */
+export async function callOpsAlert(
+  operation: () => PromiseLike<{ error: { message?: string } | null }>,
+  logError: (message: string) => void = console.error,
+): Promise<boolean> {
+  try {
+    const { error } = await operation();
+    if (error) {
+      logError(`receipts: ops_alert failed: ${error.message ?? 'unknown'}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    logError(
+      `receipts: ops_alert failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return false;
+  }
+}
+
+/**
  * How long to wait before asking about a ticket.
  *
  * Expo needs time to hand off to APNs/FCM; asking immediately reliably returns

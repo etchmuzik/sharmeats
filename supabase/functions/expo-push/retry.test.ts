@@ -1,5 +1,6 @@
 import { assertEquals } from 'jsr:@std/assert';
 import {
+  parseRetryAttempts,
   sendRetryAttempts,
   type RetryAttempt,
   type RetryAttemptOutcome,
@@ -24,6 +25,31 @@ function retryAttempt(overrides: Partial<RetryAttempt> = {}): RetryAttempt {
     ...overrides,
   };
 }
+
+Deno.test('retry parser accepts a reclaimed initial attempt without widening the cap', () => {
+  const parsed = parseRetryAttempts([{
+    attempt_id: '20000000-0000-0000-0000-000000000001',
+    message_id: '10000000-0000-0000-0000-000000000001',
+    event: 'order_ready',
+    order_id: null,
+    route: null,
+    vertical: 'food',
+    custom_title: null,
+    custom_body: null,
+    recipient_user_id: null,
+    token: FAILED_TOKEN,
+    attempt_no: 1,
+  }]);
+
+  assertEquals(parsed?.[0]?.attemptNo, 1);
+  assertEquals(parseRetryAttempts([{
+    attempt_id: '20000000-0000-0000-0000-000000000001',
+    message_id: '10000000-0000-0000-0000-000000000001',
+    event: 'order_ready',
+    token: FAILED_TOKEN,
+    attempt_no: 6,
+  }]), null);
+});
 
 Deno.test('retry send targets the claimed failed token and never fans out to another token', async () => {
   const requestBodies: unknown[] = [];

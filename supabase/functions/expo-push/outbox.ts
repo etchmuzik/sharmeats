@@ -168,6 +168,12 @@ export async function recordAttempts(
 ): Promise<RecordedAttempt[]> {
   if (seeds.length === 0) return [];
   try {
+    // A fresh edge invocation is itself the worker for attempt #1. Claim the
+    // rows atomically with their insert, before handing anything to Expo. If
+    // this worker dies (or an outcome cannot be persisted), the existing retry
+    // claimer reclaims this exact token/attempt instead of re-fanning the whole
+    // parent message to healthy devices.
+    const claimedAt = new Date().toISOString();
     const { data, error } = await admin
       .from('push_attempts')
       .insert(
@@ -177,7 +183,8 @@ export async function recordAttempts(
           token_snapshot: s.token,
           recipient_user_id: s.userId,
           attempt_no: 1,
-          status: 'queued',
+          status: 'processing',
+          claimed_at: claimedAt,
         })),
       )
       .select('id, token_snapshot');
@@ -230,43 +237,54 @@ export function isRetryable(code: string | null | undefined): boolean {
 }
 
 /**
- * Write per-attempt outcomes and roll the parent message up.
+ * Write per-attempt outcomes through the database's atomic settle RPC.
  *
  * `error_detail` is truncated to the column bound and must never carry the
  * notification body: a support reply or an order note in a broad operational log
- * is a privacy leak, not a debugging aid.
+ * is a privacy leak, not a debugging aid. `settle_push_attempt` also rolls the
+ * parent up from the latest attempt per token under the same lock. In particular,
+ * do not calculate and write a terminal parent state from edge memory after a
+ * partial attempt-write failure: that would strand the failed attempt or make a
+ * later reclaim re-send already accepted sibling tokens.
  */
 export async function settleAttempts(
   admin: SupabaseClient,
   messageId: string,
   outcomes: AttemptOutcome[],
+  logError: (message: string) => void = console.error,
 ): Promise<void> {
   try {
-    const now = new Date().toISOString();
-    for (const o of outcomes) {
-      if (!o.attemptId) continue;
-      await admin
-        .from('push_attempts')
-        .update({
-          expo_ticket_id: o.ticketId ?? null,
-          status: o.status,
-          error_code: o.errorCode ?? null,
-          error_detail: o.errorDetail ? o.errorDetail.slice(0, 500) : null,
-          sent_at: now,
-          // Only a retryable failure gets a next attempt; the dispatcher picks it
-          // up. First backoff is 1 minute; the dispatcher widens it per attempt.
-          next_attempt_at:
-            o.status === 'retryable_failed'
-              ? new Date(Date.now() + 60_000).toISOString()
-              : null,
-          settled_at: o.status === 'expo_accepted' ? null : now,
-        })
-        .eq('id', o.attemptId);
+    const recordedOutcomes = outcomes.filter(
+      (outcome): outcome is AttemptOutcome & { attemptId: string } => outcome.attemptId !== null,
+    );
+
+    for (const o of recordedOutcomes) {
+      const { error: attemptError } = await admin.rpc('settle_push_attempt', {
+        p_attempt_id: o.attemptId,
+        p_status: o.status,
+        p_ticket_id: o.ticketId ?? null,
+        p_error_code: o.errorCode ?? null,
+        p_error_detail: o.errorDetail ? o.errorDetail.slice(0, 500) : null,
+      });
+      if (attemptError) {
+        logError(`outbox: failed to settle attempt ${o.attemptId}: ${attemptError.message ?? 'unknown'}`);
+      }
     }
 
-    // Roll up. `complete` here means "Expo accepted every attempt" — NOT
-    // delivered, and not seen. The receipt poller later promotes attempts to
-    // provider_accepted, which is APNs/FCM acceptance and still not display.
+    // When attempt recording itself failed, delivery is deliberately fail-open
+    // and there is no exact attempt row for the RPC to settle. Preserve the
+    // older best-effort parent-only observability path in that degraded case.
+    // Do not use it when *any* row was recorded: the atomic RPC above must be
+    // the sole parent state machine for tracked sends.
+    if (recordedOutcomes.length > 0) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    // Roll up the no-attempt fallback. `complete` here means "Expo accepted
+    // every attempt" — NOT delivered, and not seen. The receipt poller later
+    // promotes attempts to provider_accepted, which is APNs/FCM acceptance and
+    // still not display.
     const accepted = outcomes.filter((o) => o.status === 'expo_accepted').length;
     const status =
       outcomes.length === 0
@@ -277,12 +295,15 @@ export async function settleAttempts(
             ? 'partly_failed'
             : 'failed';
 
-    await admin
+    const { error: messageError } = await admin
       .from('push_messages')
       .update({ status, settled_at: now })
       .eq('id', messageId);
+    if (messageError) {
+      logError(`outbox: failed to settle message ${messageId}: ${messageError.message ?? 'unknown'}`);
+    }
   } catch (e) {
-    console.error(`outbox: settleAttempts threw: ${e}`);
+    logError(`outbox: settleAttempts threw: ${e}`);
   }
 }
 

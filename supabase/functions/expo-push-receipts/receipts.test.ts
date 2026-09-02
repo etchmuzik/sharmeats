@@ -14,6 +14,7 @@
  */
 import { assert, assertEquals, assertFalse } from 'jsr:@std/assert';
 import {
+  callOpsAlert,
   chunkTicketIds,
   classifyReceipt,
   isProjectWideFailure,
@@ -131,4 +132,16 @@ Deno.test('ticket ids chunk at Expo documented 1000 per request', () => {
 
 Deno.test('chunking an empty list yields no requests', () => {
   assertEquals(chunkTicketIds([]).length, 0);
+});
+
+Deno.test('ops_alert logs a returned Supabase RPC error without failing receipt processing', async () => {
+  const logs: string[] = [];
+
+  const sent = await callOpsAlert(
+    () => Promise.resolve({ error: { message: 'connection reset' } }),
+    (message) => logs.push(message),
+  );
+
+  assertFalse(sent);
+  assertEquals(logs, ['receipts: ops_alert failed: connection reset']);
 });

@@ -12,7 +12,7 @@
  *     fine and a re-fired trigger double-sends.
  */
 import { assert, assertEquals, assertNotEquals } from 'jsr:@std/assert';
-import { idempotencyKey, isRetryable } from './outbox.ts';
+import { idempotencyKey, isRetryable, recordAttempts, settleAttempts } from './outbox.ts';
 
 Deno.test('isRetryable: permanent Expo errors are never retried', () => {
   // Per https://docs.expo.dev/push-notifications/sending-notifications/ — the
@@ -120,4 +120,62 @@ Deno.test('idempotencyKey: never embeds a timestamp', () => {
   const key = idempotencyKey({ event: 'order_accepted', orderId: 'o1' });
   assert(!/\d{4}-\d{2}-\d{2}/.test(key), `key must not contain a date: ${key}`);
   assert(!/\d{10,}/.test(key), `key must not contain an epoch timestamp: ${key}`);
+});
+
+Deno.test('recordAttempts claims fresh rows before Expo can send', async () => {
+  let inserted: Record<string, unknown>[] = [];
+  const admin = {
+    from: () => ({
+      insert: (rows: Record<string, unknown>[]) => {
+        inserted = rows;
+        return {
+          select: () => Promise.resolve({
+            data: [{ id: 'attempt-1', token_snapshot: 'ExponentPushToken[first]' }],
+            error: null,
+          }),
+        };
+      },
+    }),
+  } as unknown as Parameters<typeof recordAttempts>[0];
+
+  const attempts = await recordAttempts(admin, 'message-1', [
+    { token: 'ExponentPushToken[first]', userId: 'user-1', tokenId: 'token-1' },
+  ]);
+
+  assertEquals(attempts[0]?.attemptId, 'attempt-1');
+  assertEquals(inserted[0]?.status, 'processing');
+  assert(typeof inserted[0]?.claimed_at === 'string');
+});
+
+Deno.test('settleAttempts leaves a failed settlement in exact-token recovery', async () => {
+  const logs: string[] = [];
+  const rpcCalls: Array<{ name: string; attemptId: string }> = [];
+  const admin = {
+    rpc: (name: string, args: { p_attempt_id: string }) => {
+      rpcCalls.push({ name, attemptId: args.p_attempt_id });
+      return Promise.resolve(
+        args.p_attempt_id === 'attempt-1'
+          ? { error: { message: 'settle RPC unavailable' } }
+          : { error: null },
+      );
+    },
+  } as unknown as Parameters<typeof settleAttempts>[0];
+
+  await settleAttempts(
+    admin,
+    'message-1',
+    [
+      { attemptId: 'attempt-1', status: 'expo_accepted' },
+      { attemptId: 'attempt-2', status: 'expo_accepted' },
+    ],
+    (message) => logs.push(message),
+  );
+
+  assertEquals(rpcCalls, [
+    { name: 'settle_push_attempt', attemptId: 'attempt-1' },
+    { name: 'settle_push_attempt', attemptId: 'attempt-2' },
+  ]);
+  assertEquals(logs, [
+    'outbox: failed to settle attempt attempt-1: settle RPC unavailable',
+  ]);
 });
