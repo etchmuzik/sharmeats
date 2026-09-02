@@ -7,8 +7,7 @@ import { ThemedStatusBar, makeStyles, useThemeColors } from '../src/themeProvide
 import { useT } from '../src/i18n';
 import { tap } from '../src/haptics';
 import { Icon } from '../src/components/Icon';
-
-const SUPPORT_PHONE = '201005551234'; // Placeholder; real number set at launch.
+import { getSupportWhatsAppPhone } from '../src/lib/supportWhatsApp';
 
 /**
  * FAQ copy lives in the locale files, not here (Package 05 Slice A).
@@ -41,19 +40,21 @@ export default function Help() {
   const insets = useSafeAreaInsets();
   const t = useT();
   const { orderCode } = useLocalSearchParams<{ orderCode?: string }>();
+  const supportWhatsAppPhone = getSupportWhatsAppPhone();
 
   const openWhatsApp = async () => {
+    if (!supportWhatsAppPhone) return;
     tap();
     const msg = orderCode
       ? t('help.whatsAppOrderMessage', { orderCode })
       : t('help.whatsAppMessage');
-    const url = `whatsapp://send?phone=${SUPPORT_PHONE}&text=${encodeURIComponent(msg)}`;
+    const url = `whatsapp://send?phone=${supportWhatsAppPhone}&text=${encodeURIComponent(msg)}`;
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       Linking.openURL(url);
     } else {
       // Fallback to web WhatsApp if the app isn't installed.
-      Linking.openURL(`https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(msg)}`);
+      Linking.openURL(`https://wa.me/${supportWhatsAppPhone}?text=${encodeURIComponent(msg)}`);
     }
   };
 
@@ -69,16 +70,18 @@ export default function Help() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 + insets.bottom, gap: 16 }}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t('help.contact')}</Text>
-          <Pressable
-            onPress={openWhatsApp}
-            accessibilityRole="button"
-            accessibilityLabel={t('help.openWhatsApp')}
-            style={styles.waBtn}
-          >
-            <Icon name="chat" size={20} color={colors.onAccent} />
-            <Text style={styles.waBtnText}>{t('help.openWhatsApp')}</Text>
-            {orderCode && <Text style={styles.waBtnSub}>#{orderCode}</Text>}
-          </Pressable>
+          {supportWhatsAppPhone && (
+            <Pressable
+              onPress={openWhatsApp}
+              accessibilityRole="button"
+              accessibilityLabel={t('help.openWhatsApp')}
+              style={styles.waBtn}
+            >
+              <Icon name="chat" size={20} color={colors.onAccent} />
+              <Text style={styles.waBtnText}>{t('help.openWhatsApp')}</Text>
+              {orderCode && <Text style={styles.waBtnSub}>#{orderCode}</Text>}
+            </Pressable>
+          )}
           <View style={styles.contactLine}>
             <Icon name="send" size={18} color={colors.sea} />
             <Text style={styles.contactRow}>support@sharmeats.online</Text>
