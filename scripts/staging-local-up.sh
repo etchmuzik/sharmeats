@@ -12,7 +12,7 @@
 #      then supabase/staging-fixtures.sql (staging-only fixtures + hygiene)
 #   5. prints the Maestro env-var exports and run command
 #
-# Re-runnable: if the schema is already fully migrated (marker from mig 216)
+# Re-runnable: if the schema is already fully migrated (marker from mig 222)
 # the migration phase is skipped and only seeds + fixtures are re-applied —
 # that is also the per-run hygiene pass (cancels the fixture user's open
 # orders, empties the server cart). To rebuild from scratch:
@@ -161,22 +161,40 @@ fi
 # ----------------------------------------------------------------------------
 # 4) Apply migrations (skip if already fully migrated; refuse a half-migrated DB)
 # ----------------------------------------------------------------------------
-# Keyed to the LAST migration this script applies. It used to test for a policy
-# created by 216 — but 216 is deliberately NOT in the plan (it is unapplied in
-# production and needs a coordinated client release), so that marker could never
-# become true and every run re-applied the whole chain. private.place_order only
-# exists after 20260815044234 moved it there, which is the real end state.
-FULLY_MIGRATED=$(psql_scalar "select exists (
+# Keyed to the LAST migration this script applies. `private.place_order` is the
+# old hardening-tranche marker, but an existing local stack can have it while
+# still missing 222. Seeds and staging fixtures now name featured_manual, so
+# treating that old marker as complete makes the next replay fail before E2E.
+#
+# `orders_reject_non_cod_payment` is the immediately preceding ledger marker
+# (221). That lets a normal 221-era local stack advance safely by applying only
+# 222, while a genuinely half-migrated database still fails closed rather than
+# replaying non-idempotent history.
+HAS_221=$(psql_scalar "select exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'orders_reject_non_cod_payment')")
+HAS_222_COLUMN=$(psql_scalar "select exists (
+  select 1 from information_schema.columns
+   where table_schema = 'public' and table_name = 'restaurants'
+     and column_name = 'featured_manual')")
+HAS_222_EDITOR_RPC=$(psql_scalar "select exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'admin_restaurant_editor_list'
+     and p.pronargs = 0)")
+HAS_OLD_MARKER=$(psql_scalar "select exists (
   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private' and p.proname = 'place_order')")
 HAS_SCHEMA=$(psql_scalar "select exists (
   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'place_order')")
 
-if [ "$FULLY_MIGRATED" = "t" ]; then
-  echo "==> Schema already migrated through 216 — skipping migrations (seeds + fixtures still re-applied)."
-elif [ "$HAS_SCHEMA" = "t" ]; then
-  die "database has a PARTIAL schema (place_order exists but the 216 marker does not). \
+if [ "$HAS_222_COLUMN" = "t" ] && [ "$HAS_222_EDITOR_RPC" = "t" ]; then
+  echo "==> Schema already migrated through 222 — skipping migrations (seeds + fixtures still re-applied)."
+elif [ "$HAS_221" = "t" ] && [ "$HAS_222_COLUMN" = "f" ] && [ "$HAS_222_EDITOR_RPC" = "f" ]; then
+  echo "==> Advancing schema from 221 to 222 before replaying seeds."
+  psql_file "$MIG_DIR/222_featured_merchandising_and_trigger_acl.sql"
+elif [ "$HAS_OLD_MARKER" = "t" ] || [ "$HAS_SCHEMA" = "t" ] || [ "$HAS_222_COLUMN" = "t" ] || [ "$HAS_222_EDITOR_RPC" = "t" ]; then
+  die "database has a PARTIAL schema (migration-222 markers are inconsistent). \
 A previous run failed midway; migrations are not re-runnable. \
 Wipe with: supabase stop --no-backup   then re-run this script."
 else

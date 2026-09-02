@@ -1,9 +1,14 @@
 -- Real Sharm el-Sheikh restaurants (sourced + verified from Google Maps / TripAdvisor / Restaurant Guru).
--- Generated from supabase/data/real-restaurants.json. Idempotent via on conflict (slug).
+-- Generated from supabase/data/real-restaurants.json. `featured` is the
+-- catalog's editorial intent, so mirror it into featured_manual explicitly
+-- rather than relying on migration 222's legacy INSERT compatibility path.
 insert into public.restaurants
   (id, slug, name, description, cuisines, cuisine_label, cover_image, zone,
    rating, rating_count, tourist_safe, is_open, is_active, featured,
-   vertical_id, fulfillment_type, phone, address, website, place_id, geo)
+   vertical_id, fulfillment_type, phone, address, website, place_id, geo,
+   featured_manual)
+select v.*, v.featured
+from (
 values
   ('0d0bcac1-51e7-55a5-9f3b-9f7d212ef8ea', 'dananeer-seafood-steak-house', 'Dananeer Seafood & Steak House', 'Independent seafood & steakhouse operating since 1996; located upstairs by McDonald''s overlooking Movenpick',
    array['seafood','egyptian']::cuisine_type[], 'Seafood · Egyptian', 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=900&q=70&auto=format&fit=crop', 'naama',
@@ -210,10 +215,17 @@ values
    4.1, 172, true, true, true, false,
    'food', 'platform', '+20693600150', 'Pedestrian Road, in front of Ghazala Garden Hotel, Naama Bay, Sharm El Sheikh 8763120', null, 'https://www.tripadvisor.com/Restaurant_Review-g297555-d1488286-Reviews-Tam_Tam_Restaurant-Sharm_El_Sheikh_South_Sinai_Red_Sea_and_Sinai.html',
    st_setsrid(st_makepoint(34.327843, 27.912548), 4326)::geography)
+) as v (
+  id, slug, name, description, cuisines, cuisine_label, cover_image, zone,
+  rating, rating_count, tourist_safe, is_open, is_active, featured,
+  vertical_id, fulfillment_type, phone, address, website, place_id, geo
+)
+where true
 on conflict (slug) do update set
   name = excluded.name, description = excluded.description, cuisines = excluded.cuisines,
   cuisine_label = excluded.cuisine_label, cover_image = excluded.cover_image, zone = excluded.zone,
   rating = excluded.rating, rating_count = excluded.rating_count, tourist_safe = excluded.tourist_safe,
-  is_open = excluded.is_open, is_active = excluded.is_active, featured = excluded.featured,
+  is_open = excluded.is_open, is_active = excluded.is_active,
+  featured = excluded.featured, featured_manual = excluded.featured_manual,
   phone = excluded.phone, address = excluded.address, website = excluded.website,
   place_id = excluded.place_id, geo = excluded.geo;

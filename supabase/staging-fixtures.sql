@@ -205,7 +205,7 @@ insert into public.restaurants (
   id, slug, name, description, cuisines, cuisine_label, cover_image, zone,
   rating, rating_count, prep_time_low, prep_time_high,
   delivery_fee_egp, min_order_egp, distance_meters, tourist_safe,
-  is_open, is_open_24h, featured, is_active,
+  is_open, is_open_24h, featured, featured_manual, is_active,
   vertical_id, fulfillment_type, commission_pct, accepts_cash, accepts_card, geo
 ) values (
   'e2e00000-0000-4000-8000-000000000010',
@@ -214,7 +214,7 @@ insert into public.restaurants (
   array['egyptian']::cuisine_type[], 'E2E fixture', '', 'naama',
   5.0, 9999, 10, 15,
   25, 50, 100, true,
-  true, true, true, true,
+  true, true, true, true, true,
   'food', 'platform', 15.0, true, false,
   st_setsrid(st_makepoint(34.3305, 27.9107), 4326)::geography
 )
@@ -222,7 +222,7 @@ on conflict (id) do update set
   slug = excluded.slug, name = excluded.name, zone = excluded.zone,
   rating = excluded.rating, rating_count = excluded.rating_count,
   min_order_egp = excluded.min_order_egp, delivery_fee_egp = excluded.delivery_fee_egp,
-  is_open = true, is_open_24h = true, featured = true, is_active = true,
+  is_open = true, is_open_24h = true, featured = true, featured_manual = true, is_active = true,
   vertical_id = 'food', fulfillment_type = 'platform',
   accepts_cash = true, accepts_card = false,
   busy_until = null, busy_extra_minutes = 0,  -- NOT NULL default 0 (mig 186)
