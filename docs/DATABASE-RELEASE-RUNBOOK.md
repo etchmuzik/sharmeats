@@ -1,5 +1,80 @@
 # Production database release runbook
 
+## APPLIED 2026-09-03 — editorial "featured" split from Gold tier (migration 222)
+
+`222_featured_merchandising_and_trigger_acl.sql` was applied via the Supabase
+MCP `apply_migration` at ~04:40 EEST and is stamped in the ledger. Source
+SHA-256: `15a918da29b3f9db8b333fc06a5ca6e6d3a6104ae153abeb1a73fb962cdbfc4e`.
+Repo commit carrying the file: `584bf0c`.
+
+**It is backward compatible with the DEPLOYED admin dashboard (98ab36a), and
+the earlier "must ship together" warning was one-directional.** The
+`drop function ... admin_update_restaurant(... cuisine_type[] ...)` targets a
+pre-P07 overload that does not exist in production (confirmed before applying:
+prod already carried the `food_cuisine_type[]` identity), so it is a defensive
+no-op, and `create or replace` keeps the exact signature the live editor calls.
+Migration-first is therefore safe. **Dashboard-first is NOT**: the dashboard in
+`584bf0c` calls three RPCs that only exist after this migration. Redeploy
+admin.sharmeats.online from `584bf0c` or later whenever convenient; nothing
+breaks in the meantime.
+
+Pre-apply state (the backfill touched zero rows): featured=true on 0 rows,
+own_brand on 0 rows, Gold tier on 0 rows (bronze only), so both backfill
+UPDATEs were no-ops and the NOT VALID → VALIDATE constraint passed trivially.
+
+Transaction-wrapped rehearsal against prod (BEGIN … ROLLBACK), then the same
+checks after commit, all passed:
+
+- exactly ONE `admin_update_restaurant` overload (the PGRST202 trap);
+- `admin_update_restaurant_details`, `admin_set_restaurant_featured_manual`,
+  `admin_restaurant_editor_list` present; both sync triggers present;
+- `restaurants_own_brand_never_featured_chk` validated;
+- `featured_manual` unreadable by `anon`, `authenticated` and PUBLIC; the six
+  trigger-only definer functions unexecutable by every client role;
+- non-admin callers of the new RPCs get `NOT_AUTHORIZED`; an admin setting
+  `featured_manual=true` materializes `featured=true` and clearing it clears
+  `featured`; the editor list returns 45 rows for an admin;
+- rollback proof: after the rehearsal the column, RPCs and triggers were absent.
+
+Live-client smoke, as the roles the clients actually use: the deployed admin
+menu page's 22-column pinned read → 45 rows; a no-op save through the legacy
+`admin_update_restaurant` → ok; the 1.1.0 storefront's pinned read as `anon` →
+42 rows; `select *` on restaurants as `anon` → still `permission denied`
+(unchanged posture — `authenticated` could already read only 39 of 49 columns
+after migs 218/220, so no client that works today does `select *`). All four
+deployed `select('*')` sites are on `orders`, `driver_cash_balance` and
+`kyc_documents`, not `restaurants`.
+
+Security advisors after apply: 251 → 246 lints. `anon_security_definer_function_executable`
+21 → 17 and `authenticated_security_definer_function_executable` 135 → 134,
+from revoking the four historic trigger-only helpers; the three new admin RPCs
+appear as authenticated-executable, which is their intended shape (gate is
+inside via `auth_role()`). No ERROR-level change.
+
+**Immediate payoff, no redeploy needed:** the currently deployed editor's
+"featured" toggle now routes through the compatibility path — a deliberate
+change on a non-Gold row sets `featured_manual=true` and the trigger
+materializes `featured=true` — so the empty home carousel can be fixed from
+admin.sharmeats.online today.
+
+Not yet verified: no restaurant has actually been featured through either
+path yet; the 222 test file (`supabase/tests/222_…test.sql`) is a self-contained
+fixture for the empty local scratch DB and was NOT run — it cannot run against
+prod (it creates its own `restaurants` table and enum types).
+
+Rollback (only if the deployed editor misbehaves; the column can stay):
+
+```sql
+drop trigger if exists restaurants_sync_featured_trg on public.restaurants;
+drop trigger if exists restaurant_loyalty_sync_featured_trg on public.restaurant_loyalty;
+drop function if exists public.restaurants_sync_featured();
+drop function if exists public.restaurant_loyalty_sync_featured();
+drop function if exists public.admin_restaurant_editor_list();
+drop function if exists public.admin_set_restaurant_featured_manual(uuid, boolean);
+drop function if exists public.admin_update_restaurant_details(uuid, text, text, public.food_cuisine_type[], text, text, text, public.zone_type, integer, integer, integer, integer, boolean, boolean, boolean, text, boolean);
+```
+`admin_update_restaurant` must NOT be dropped in a rollback — the live dashboard calls it.
+
 ## APPLIED 2026-08-30 — cash-only payment persistence guard (migration 221)
 
 `221_enforce_server_payment_gate.sql` was applied directly over the production
