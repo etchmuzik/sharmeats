@@ -1,0 +1,95 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "areas": "Liefergebiete",
+    "hotels": "Lieferung ins Hotel",
+    "menus": "Restaurants",
+    "help": "So bestellst du",
+    "order": "Essen bestellen",
+    "app": "Für iPhone laden",
+    "demo": "App-Demo",
+    "languages": "Sprache",
+    "related": "Vor der Bestellung",
+    "privacy": "Datenschutz",
+    "terms": "Bedingungen",
+    "support": "Kundenservice",
+    "zone": "Liefergebiet",
+    "fee": "Grundgebühr",
+    "asof": "Grundgebühren geprüft am 24. November 2026. Den Endbetrag und mögliche Rabatte siehst du vor der Bestellung."
+  },
+  "home": {
+    "title": "Essen bestellen in Sharm el Sheikh",
+    "summary": "Entdecke Restaurants und Liefergebiete in Sharm el Sheikh. So bekommst du Essen ins Hotel, in die Ferienwohnung oder an einen Treffpunkt am Strand."
+  },
+  "areas": {
+    "title": "Liefergebiete in Sharm el Sheikh",
+    "summary": "Sharm Eats führt elf Liefergebiete. Welche Restaurants liefern können, hängt von deinem Standort und ihrem Lieferradius ab.",
+    "how": "Welche Liefergebühr gilt für meine Adresse?",
+    "answer": "Lege den Treffpunkt in der App fest, bevor du ein Restaurant auswählst. Prüfe die Gebühr beim Bestellen, besonders an Gebietsgrenzen.",
+    "map": "Ist das nächstgelegene Restaurant immer verfügbar?",
+    "mapAnswer": "Die Adresse zeigt den Standort der Küche. Öffnungszeiten, Lieferradius und dein genauer Standort entscheiden über die Verfügbarkeit."
+  },
+  "hotels": {
+    "title": "Essen ins Hotel bestellen in Sharm el Sheikh",
+    "summary": "Wähle dein Hotel in der App und frage die Rezeption, wo externe Fahrer Essen übergeben dürfen. Einfahrt und Lobby können weit auseinanderliegen.",
+    "where": "Kommt der Fahrer bis an meine Zimmertür?",
+    "handoff": "Das hängt von den Hotelregeln ab. Vereinbare ein Tor, die Lobby oder einen anderen erlaubten Treffpunkt und trage ihn vor dem Bestellen ins Hinweisfeld ein.",
+    "address": "Welche Adresse soll ich angeben?",
+    "pin": "Gib den Hotelnamen an, setze den Pin am vereinbarten Eingang und ergänze einen Orientierungspunkt. Halte dein Telefon für Rückfragen bereit.",
+    "beach": "Kann ich den Fahrer am Strand treffen?",
+    "beachAnswer": "Wähle einen öffentlich zugänglichen Treffpunkt oder den erlaubten Eingang zum Beachclub. Ein Pin im Wasser oder auf Privatgelände kann zum falschen Zugang führen."
+  },
+  "how": {
+    "title": "So bestellst du Essen in Sharm el Sheikh",
+    "summary": "Gib deine Adresse an, wähle eine verfügbare Küche und die Gerichte aus. Prüfe Liefergebühr und Gesamtpreis in ägyptischen Pfund vor der Bestellung.",
+    "guest": "Kann ich als Gast bestellen?",
+    "guestAnswer": "Du kannst in der Kunden-App als Gast bestellen. Gib eine erreichbare Nummer mit Ländervorwahl an und akzeptiere die Bedingungen beim Abschluss.",
+    "fees": "Wie viel kostet die Lieferung?",
+    "feesAnswer": "Die Grundgebühr richtet sich nach dem Gebiet. Küche, Lieferort und mögliche Angebote bestimmen den Betrag, den du vor der Bestellung siehst.",
+    "payment": "Wie bezahle ich?",
+    "paymentAnswer": "Bezahle bei der Lieferung bar in ägyptischen Pfund. Prüfe vorher die Gesamtsumme und halte den Betrag am Treffpunkt bereit.",
+    "tracking": "Wie verfolge ich meine Bestellung?",
+    "trackingAnswer": "Öffne die Bestellung in der App, um Status und voraussichtliche Ankunft zu sehen. Bei einem neuen Treffpunkt nutze den Chat oder kontaktiere den Support."
+  },
+  "order": {
+    "title": "Bei Sharm Eats bestellen",
+    "summary": "Öffne die Sharm Eats Kunden-App, setze deinen Standort und wähle aus den verfügbaren Küchen.",
+    "next": "Treffpunkt festlegen",
+    "step": "Kläre im Hotel den Eingang mit der Rezeption. Gib bei Apartments Gebäude und Eingang an.",
+    "total": "Gesamtpreis prüfen",
+    "end": "Prüfe verfügbare Gerichte, Liefergebühr und Endpreis in ägyptischen Pfund vor dem Bestellen."
+  },
+  "restaurants": {
+    "title": "Restaurants in Sharm el Sheikh nach Stadtteil",
+    "summary": "Entdecke Restaurants in den Stadtteilen und prüfe mit deiner genauen Adresse in der App, welche Küchen liefern können."
+  },
+  "demo": {
+    "title": "Sharm Eats App-Demo",
+    "summary": "Probiere die Ansichten für Kunden, Fahrer und Restaurants mit Beispieldaten aus."
+  },
+  "area": {
+    "pin": "Wo setze ich den Standort-Pin?",
+    "base": "Grundgebühr",
+    "feeNote": "Den endgültigen Betrag für deine Adresse und Bestellung siehst du in der App.",
+    "where": "Treffpunkt mit dem Fahrer",
+    "restaurants": "Restaurants im Gebiet"
+  },
+  "naama": {
+    "title": "Essenslieferung in Naama Bay",
+    "summary": "Bestelle ins Hotel, in die Ferienwohnung oder zu einem Treffpunkt in Naama Bay. Wähle an der Promenade zuerst einen zugänglichen Eingang.",
+    "pin": "Setze den Pin an den straßenseitigen Zugang. Ergänze auf der Promenade den Namen eines gut sichtbaren Geschäfts oder Hoteleingangs.",
+    "where": "Frage vor einer Übergabe in der Lobby an der Rezeption nach. Bei Wohnungen helfen Hauseingang, Etage und eine erreichbare Telefonnummer."
+  },
+  "nabq": {
+    "title": "Essenslieferung in Nabq Bay",
+    "summary": "Nutze bei Resorts in Nabq den vom Hotel bestätigten Eingang. Küchen haben unterschiedliche Lieferradien, also lege zuerst den Treffpunkt fest.",
+    "pin": "Trage den vollständigen Resortnamen und das vereinbarte Tor ein. Ein Pin mitten in der Anlage kann zum anderen Eingang führen.",
+    "where": "Kläre an der Rezeption, ob der Fahrer hineinfahren darf oder ob du ihn am Sicherheitstor triffst. Ergänze das Tor in den Hinweisen."
+  },
+  "hadaba": {
+    "title": "Essenslieferung in Hadaba, Sharm el Sheikh",
+    "summary": "Gib für Wohnungen oder Villen in Hadaba den Haus- oder Anlageneingang an. Hadaba und El-Hadaba Residential sind getrennte Liefergebiete.",
+    "pin": "Setze den Pin an den Eingang zur Straße und ergänze Hausname oder Nummer. Prüfe nahe El-Hadaba Residential das genaue Gebiet.",
+    "where": "Gib Eingang und Etage in der App an. Bei geschlossenen Wohnanlagen vereinbare einen zugänglichen Treffpunkt und halte dein Telefon bereit."
+  }
+}

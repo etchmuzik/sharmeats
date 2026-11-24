@@ -1,0 +1,180 @@
+{
+  "naama": [
+    {
+      "name": "Bus Stop Naama Bay",
+      "slug": "bus-stop-naama-bay"
+    },
+    {
+      "name": "Da Franco Naama Bay",
+      "slug": "da-franco-naama-bay"
+    },
+    {
+      "name": "Dananeer Seafood & Steak House",
+      "slug": "dananeer-seafood-steak-house"
+    },
+    {
+      "name": "Fairuz Finest Lebanese Cuisine",
+      "slug": "fairuz-finest-lebanese-cuisine"
+    },
+    {
+      "name": "Flamango Fresh Juice",
+      "slug": "flamango-fresh-juice"
+    },
+    {
+      "name": "Hard Rock Cafe Sharm El Sheikh",
+      "slug": "hard-rock-cafe-sharm-el-sheikh"
+    },
+    {
+      "name": "Julia Ice Cream Italian Gelato & China Town Restaurant",
+      "slug": "julia-ice-cream-italian-gelato-china-town-restaurant"
+    },
+    {
+      "name": "Mahony Restaurant",
+      "slug": "mahony-restaurant"
+    },
+    {
+      "name": "Pomodoro",
+      "slug": "pomodoro"
+    },
+    {
+      "name": "Tam Tam Restaurant",
+      "slug": "tam-tam-restaurant"
+    },
+    {
+      "name": "Vanilla Italian Ice Cream",
+      "slug": "vanilla-italian-ice-cream"
+    }
+  ],
+  "hadaba": [
+    {
+      "name": "Ebn Hamido Seafood Sharm",
+      "slug": "ebn-hamido-seafood-sharm"
+    },
+    {
+      "name": "El Fanar",
+      "slug": "el-fanar"
+    },
+    {
+      "name": "Fares Seafood - IL Mercato",
+      "slug": "fares-seafood-il-mercato"
+    },
+    {
+      "name": "Gelato.IT (#gelatopuntoit)",
+      "slug": "gelato-it-gelatopuntoit"
+    },
+    {
+      "name": "Onions Restaurant & Cafe",
+      "slug": "onions-restaurant-cafe"
+    },
+    {
+      "name": "Sadiki Cafe",
+      "slug": "sadiki-cafe"
+    },
+    {
+      "name": "Sala Thai Restaurant",
+      "slug": "sala-thai-restaurant"
+    },
+    {
+      "name": "Tejano's Grill House",
+      "slug": "tejano-s-grill-house"
+    }
+  ],
+  "nabq": [
+    {
+      "name": "Al Mayass Lebanese Restaurant",
+      "slug": "al-mayass-lebanese-restaurant"
+    },
+    {
+      "name": "Mazzika Cafe & Steak House",
+      "slug": "mazzika-cafe-steak-house"
+    },
+    {
+      "name": "Sanafir - Seafood Restaurant",
+      "slug": "sanafir-seafood-restaurant"
+    }
+  ],
+  "old_market": [
+    {
+      "name": "Da Mauro \"Solo Pasta & Pizza\"",
+      "slug": "da-mauro-solo-pasta-pizza"
+    },
+    {
+      "name": "El Hossieny Restaurant",
+      "slug": "el-hossieny-restaurant"
+    },
+    {
+      "name": "El Masrien Grill Restaurant",
+      "slug": "el-masrien-grill-restaurant"
+    },
+    {
+      "name": "Fares Seafood (Old Market)",
+      "slug": "fares-seafood-old-market"
+    },
+    {
+      "name": "Fisherman",
+      "slug": "fisherman"
+    },
+    {
+      "name": "Koshary Zaman (كشري زمان)",
+      "slug": "koshary-zaman"
+    },
+    {
+      "name": "My Burger",
+      "slug": "my-burger"
+    },
+    {
+      "name": "Sinai Star",
+      "slug": "sinai-star"
+    }
+  ],
+  "soho": [
+    {
+      "name": "Akuna Matata",
+      "slug": "akuna-matata"
+    },
+    {
+      "name": "Bombay",
+      "slug": "bombay"
+    },
+    {
+      "name": "Café Chino",
+      "slug": "cafe-chino"
+    },
+    {
+      "name": "Ju & Co",
+      "slug": "ju-co"
+    },
+    {
+      "name": "Koutouki",
+      "slug": "koutouki"
+    },
+    {
+      "name": "L'Entrecote Steak House",
+      "slug": "l-entrecote-steak-house"
+    }
+  ],
+  "sharks_bay": [
+    {
+      "name": "Casa Mia",
+      "slug": "casa-mia"
+    },
+    {
+      "name": "Sushi Lounge",
+      "slug": "sushi-lounge"
+    },
+    {
+      "name": "Umbi Sharks Bay Restaurant & Lounge",
+      "slug": "umbi-sharks-bay-restaurant-lounge"
+    },
+    {
+      "name": "Zen Chinese Restaurant",
+      "slug": "zen-chinese-restaurant"
+    }
+  ],
+  "hay_el_nour": [
+    {
+      "name": "Abo Ali Restaurant & Cafe",
+      "slug": "abo-ali-restaurant-cafe"
+    }
+  ]
+}

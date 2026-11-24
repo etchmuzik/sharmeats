@@ -1,0 +1,95 @@
+{
+  "nav": {
+    "home": "Home",
+    "areas": "Zone di consegna",
+    "hotels": "Consegna in hotel",
+    "menus": "Ristoranti",
+    "help": "Come ordinare",
+    "order": "Ordina da mangiare",
+    "app": "Scarica per iPhone",
+    "demo": "Anteprima app",
+    "languages": "Lingua",
+    "related": "Prima di ordinare",
+    "privacy": "Privacy",
+    "terms": "Condizioni",
+    "support": "Assistenza",
+    "zone": "Zona di consegna",
+    "fee": "Tariffa base",
+    "asof": "Tariffe base verificate il 24 novembre 2026. Il totale e gli eventuali sconti sono visibili prima della conferma."
+  },
+  "home": {
+    "title": "Cibo a domicilio a Sharm el Sheikh",
+    "summary": "Scopri i ristoranti e le zone servite a Sharm el Sheikh e come ricevere un ordine in hotel, in appartamento o vicino alla spiaggia."
+  },
+  "areas": {
+    "title": "Zone di consegna a Sharm el Sheikh",
+    "summary": "Sharm Eats comprende 11 zone. I ristoranti disponibili dipendono dal punto sulla mappa e dal raggio di consegna della cucina.",
+    "how": "Quanto costa la consegna al mio indirizzo?",
+    "answer": "Indica il punto di incontro prima di scegliere il ristorante. Controlla la tariffa al momento dell’ordine, soprattutto ai confini di zona.",
+    "map": "Il ristorante più vicino è sempre disponibile?",
+    "mapAnswer": "L’indirizzo indica dove si trova la cucina. Orario, raggio di consegna e posizione esatta determinano se puoi ordinare."
+  },
+  "hotels": {
+    "title": "Come ordinare cibo in hotel a Sharm el Sheikh",
+    "summary": "Seleziona l’hotel nell’app e chiedi alla reception dove sono ammessi i corrieri esterni. Il cancello del resort e la hall possono essere distanti.",
+    "where": "Il corriere può arrivare fino alla camera?",
+    "handoff": "Dipende dalle regole della struttura. Concorda un cancello, la hall o un altro punto autorizzato e indicalo nelle note prima di confermare.",
+    "address": "Quale indirizzo devo inserire?",
+    "pin": "Scrivi il nome dell’hotel, segna l’ingresso concordato sulla mappa e aggiungi un riferimento riconoscibile. Tieni il telefono a portata di mano.",
+    "beach": "Posso incontrare il corriere in spiaggia?",
+    "beachAnswer": "Scegli un punto accessibile al pubblico o un ingresso autorizzato dallo stabilimento. Un segnaposto in acqua o in un’area privata può portare al lato sbagliato."
+  },
+  "how": {
+    "title": "Come ordinare cibo a Sharm el Sheikh",
+    "summary": "Imposta l’indirizzo, scegli tra i ristoranti e i piatti disponibili e controlla il totale in sterline egiziane prima di confermare.",
+    "guest": "Posso ordinare come ospite?",
+    "guestAnswer": "Puoi ordinare come ospite nell’app clienti. Inserisci un numero raggiungibile con prefisso internazionale e accetta le condizioni al momento dell’ordine.",
+    "fees": "Quanto costa la consegna?",
+    "feesAnswer": "La tariffa base varia in base alla zona. La cifra finale tiene conto di cucina, indirizzo ed eventuali offerte e appare prima della conferma.",
+    "payment": "Come pago?",
+    "paymentAnswer": "Paga il corriere in contanti in sterline egiziane. Controlla il totale e prepara la cifra indicata per la consegna.",
+    "tracking": "Come seguo il mio ordine?",
+    "trackingAnswer": "Apri l’ordine nell’app per vedere lo stato e l’arrivo previsto. Se il punto di incontro cambia, contatta il corriere in chat o l’assistenza."
+  },
+  "order": {
+    "title": "Ordina con Sharm Eats",
+    "summary": "Apri l’app Sharm Eats per i clienti, indica il punto di consegna e scegli tra le cucine disponibili prima di ordinare.",
+    "next": "Scegli il punto di consegna",
+    "step": "In hotel concorda l’ingresso con la reception. In appartamento indica edificio e ingresso.",
+    "total": "Controlla il totale",
+    "end": "Verifica i piatti disponibili, la consegna e il totale in sterline egiziane prima di confermare."
+  },
+  "restaurants": {
+    "title": "Ristoranti a Sharm el Sheikh per zona",
+    "summary": "Esplora i ristoranti per quartiere e inserisci l’indirizzo esatto nell’app per controllare la disponibilità."
+  },
+  "demo": {
+    "title": "Anteprima dell’app Sharm Eats",
+    "summary": "Prova le schermate di cliente, corriere e ristorante con ordini dimostrativi."
+  },
+  "area": {
+    "pin": "Dove posizionare il segnaposto?",
+    "base": "Tariffa base",
+    "feeNote": "L’app mostra il costo finale per il tuo indirizzo e ordine.",
+    "where": "Incontro con il corriere",
+    "restaurants": "Ristoranti della zona"
+  },
+  "naama": {
+    "title": "Consegna di cibo a Naama Bay",
+    "summary": "Ordina in hotel, in appartamento o a un punto di incontro a Naama Bay. Sul lungomare scegli un ingresso accessibile prima del ristorante.",
+    "pin": "Posiziona il segnaposto all’ingresso vicino alla strada. Sul lungomare aggiungi il nome di un negozio riconoscibile o dell’ingresso dell’hotel.",
+    "where": "Chiedi alla reception prima di scegliere la hall. Per gli appartamenti aggiungi ingresso, piano e un recapito raggiungibile."
+  },
+  "nabq": {
+    "title": "Consegna di cibo a Nabq Bay",
+    "summary": "Per una consegna in un resort di Nabq usa l’ingresso indicato dall’hotel. Ogni cucina copre una parte diversa della baia.",
+    "pin": "Indica il nome completo del resort e il cancello concordato. Un segnaposto al centro del complesso può indirizzare il corriere a un’altra entrata.",
+    "where": "Chiedi se il corriere può entrare o se occorre incontrarlo alla sicurezza. Inserisci il cancello nelle note."
+  },
+  "hadaba": {
+    "title": "Consegna di cibo ad Hadaba, Sharm el Sheikh",
+    "summary": "Per un appartamento o una villa ad Hadaba indica l’ingresso dell’edificio o del complesso. Hadaba ed El-Hadaba Residential sono zone distinte.",
+    "pin": "Segna l’accesso dalla strada e aggiungi nome o numero dell’edificio. Verifica la zona esatta, soprattutto vicino a El-Hadaba Residential.",
+    "where": "Specifica ingresso e piano nell’app. In un complesso privato concorda un punto accessibile e tieni il telefono a portata di mano."
+  }
+}

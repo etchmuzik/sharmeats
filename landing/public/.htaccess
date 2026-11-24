@@ -9,9 +9,20 @@
   RewriteEngine On
   RewriteBase /
 
-  # Force HTTPS.
+  # Canonicalize only the two public website hosts. Leave other vhosts alone.
+  RewriteCond %{HTTP_HOST} ^www\.sharmeats\.online(?::[0-9]+)?$ [NC,OR]
   RewriteCond %{HTTPS} !=on
-  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  RewriteCond %{HTTP_HOST} ^(?:www\.)?sharmeats\.online(?::[0-9]+)?$ [NC]
+  RewriteRule ^ https://sharmeats.online%{REQUEST_URI} [R=301,L,NE]
+
+  # Old single-language home links now have indexed locale paths.
+  RewriteCond %{HTTP_HOST} ^sharmeats\.online(?::[0-9]+)?$ [NC]
+  RewriteCond %{QUERY_STRING} ^lang=(ar|ru|it|de)$
+  RewriteRule ^$ /%1/ [R=301,L,QSD]
+
+  # A first-party request records the link source locally. No query reaches Apple.
+  RewriteCond %{HTTP_HOST} ^sharmeats\.online(?::[0-9]+)?$ [NC]
+  RewriteRule ^go/ios/$ https://apps.apple.com/eg/app/sharm-eats/id6776864451 [R=302,L,QSD]
 
   # Serve existing files/dirs as-is.
   RewriteCond %{REQUEST_FILENAME} -f [OR]

@@ -1,0 +1,95 @@
+{
+  "nav": {
+    "home": "Home",
+    "areas": "Delivery areas",
+    "hotels": "Hotel delivery",
+    "menus": "Restaurants",
+    "help": "How to order",
+    "order": "Order food",
+    "app": "Get the iPhone app",
+    "demo": "App preview",
+    "languages": "Language",
+    "related": "Plan your delivery",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "support": "Customer support",
+    "zone": "Delivery area",
+    "fee": "Base fee",
+    "asof": "Base fees checked on 24 November 2026. Your order total and applicable discounts appear at checkout."
+  },
+  "home": {
+    "title": "Food delivery in Sharm El Sheikh",
+    "summary": "Find restaurants and delivery areas in Sharm El Sheikh. Check how to order to your hotel, apartment or beach meeting point."
+  },
+  "areas": {
+    "title": "Food delivery areas in Sharm El Sheikh",
+    "summary": "Sharm Eats lists 11 delivery zones. The restaurants that can serve you depend on your exact pin and the kitchen’s delivery radius.",
+    "how": "Which fee applies to my address?",
+    "answer": "Set the meeting point in the app before picking a kitchen. Check the fee for that order at checkout, especially near the edge of a zone.",
+    "map": "Is the nearest restaurant always available?",
+    "mapAnswer": "A restaurant’s location tells you where its kitchen is. Opening hours, delivery range and your pin determine whether you can order from it."
+  },
+  "hotels": {
+    "title": "Food delivery to hotels in Sharm El Sheikh",
+    "summary": "Set your hotel’s location in the app, then ask reception where outside couriers can hand over food. A resort’s entrance and guest lobby can be different meeting points.",
+    "where": "Can a driver come to my room?",
+    "handoff": "Room access depends on the property. Before you confirm, agree on the gate, lobby or another permitted meeting point and include it in your delivery notes.",
+    "address": "What should I enter for the address?",
+    "pin": "Enter the property name, place a pin at the agreed entrance and add the identifying landmark. Keep your contact number reachable so the driver can find you.",
+    "beach": "Can I meet my rider at the beach?",
+    "beachAnswer": "Choose a publicly accessible meeting point or the entrance your beach club approves. A pin on the water or on a private strip may lead the rider to the wrong side."
+  },
+  "how": {
+    "title": "How to order food in Sharm El Sheikh",
+    "summary": "Choose your address, check the available kitchen and menu, then review the delivery fee and total in Egyptian pounds before confirming.",
+    "guest": "Can I order as a guest?",
+    "guestAnswer": "You can order in the customer app as a guest. Enter a reachable phone number including its country code and accept the terms at checkout.",
+    "fees": "How much does delivery cost?",
+    "feesAnswer": "The base fee varies by zone. Your kitchen, location and any applicable offer determine the amount shown before you place the order.",
+    "payment": "How do I pay?",
+    "paymentAnswer": "Pay the courier in Egyptian pounds on delivery. Check the total before you confirm and have the amount ready for handoff.",
+    "tracking": "How do I follow my order?",
+    "trackingAnswer": "Open your order in the app for its status and estimated arrival. Use the in-app chat or contact support if the handoff point changes."
+  },
+  "order": {
+    "title": "Order food with Sharm Eats",
+    "summary": "Open the Sharm Eats customer app to enter your delivery pin, see available kitchens and place your order.",
+    "next": "Choose the delivery point",
+    "step": "For hotels, agree on the entrance with reception. For apartments, add the building and entrance.",
+    "total": "Check the final total",
+    "end": "Review available dishes, the delivery fee and total in EGP before you confirm."
+  },
+  "restaurants": {
+    "title": "Restaurants in Sharm El Sheikh",
+    "summary": "Browse restaurant listings by neighborhood. Enter your exact address in the customer app to check which kitchens can deliver."
+  },
+  "demo": {
+    "title": "Sharm Eats app preview",
+    "summary": "Try the customer, driver and restaurant screens with example orders. This interactive preview uses sample data."
+  },
+  "area": {
+    "pin": "Where should I put the delivery pin?",
+    "base": "Base delivery fee",
+    "feeNote": "The app shows the final fee for your address and order.",
+    "where": "Meeting your driver",
+    "restaurants": "Browse restaurants in this area"
+  },
+  "naama": {
+    "title": "Food delivery in Naama Bay",
+    "summary": "Order to a hotel, apartment or agreed pickup point in Naama Bay. On the promenade, select a reachable entrance before choosing your restaurant.",
+    "pin": "Pin the entrance nearest the road. If you are on the promenade, add the name of a visible storefront or the hotel entrance.",
+    "where": "Check with reception before choosing a lobby. Staying at a rental? Add the building entrance, floor and a reachable contact number in the app."
+  },
+  "nabq": {
+    "title": "Food delivery in Nabq Bay",
+    "summary": "For a resort delivery in Nabq, use the gate approved by your hotel. Kitchens can serve different parts of the bay, so set the actual destination first.",
+    "pin": "Use the full resort name and the agreed gate. A pin in the middle of a large resort can point the driver towards a different entrance.",
+    "where": "Ask the front desk if the driver may enter or whether you should meet at security. Add the agreed gate to delivery notes."
+  },
+  "hadaba": {
+    "title": "Food delivery in Hadaba, Sharm El Sheikh",
+    "summary": "For an apartment or villa in Hadaba, enter the building or compound entrance. Sharm Eats lists Hadaba and El-Hadaba Residential as separate zones.",
+    "pin": "Pin the street entrance and add the building name or number. Select the zone for your actual address, especially near El-Hadaba Residential.",
+    "where": "Give the entrance and floor in the app. In a gated compound, agree on an accessible meeting point and keep your phone available."
+  }
+}
