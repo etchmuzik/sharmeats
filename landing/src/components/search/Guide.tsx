@@ -225,8 +225,12 @@ export function Guide({ lang, path }: { lang: Lang; path: string }) {
           <a className="sg-button" href={appLink}>
             {c.nav.app}
           </a>
-          <a href={localized(lang, 'restaurants')}>{c.nav.menus}</a>
+          <a href="#android">{c.order.androidTitle}</a>
         </div>
+        <Answer id="android" title={c.order.androidTitle}>
+          <p>{c.order.androidHelp}</p>
+          <a href={localized(lang, 'restaurants')}>{c.order.androidMenus}</a>
+        </Answer>
         <Answer title={c.order.next}>{c.order.step}</Answer>
         <Answer title={c.order.total}>{c.order.end}</Answer>
         <a href={localized(lang, 'prototype')}>{c.nav.demo}</a>

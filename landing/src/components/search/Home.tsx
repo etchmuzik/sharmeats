@@ -3,6 +3,8 @@ import { dictionaries, locales, localeLabels, type Locale } from '@/i18n/diction
 import { localized } from './routes';
 import { homeCopy } from './homeCopy';
 import HomeFilm from './HomeFilm';
+import HomePlatformLink from './HomePlatformLink';
+import { copy } from './guideData';
 import { previewTitle } from './prototype/previewTitle';
 import HomeCoverage from './HomeCoverage';
 import './home-fonts.css';
@@ -63,7 +65,8 @@ export default function Home({ lang }: { lang: Locale }) {
             <summary aria-label={languagesLabel[lang]}>{lang.toUpperCase()} <span aria-hidden="true">⌄</span></summary>
             <LanguageLinks lang={lang}/>
           </details>
-          <a className="home-btn home-nav-app" href={installUrl}>{t.nav_cta} <span aria-hidden="true">↗</span></a>
+          <HomePlatformLink iphoneHref={installUrl} iphoneLabel={copy[lang].nav.app}
+            androidHref={path('/order/') + '#android'} androidLabel={copy[lang].order.androidNav}/>
         </div>
       </div>
     </header>
