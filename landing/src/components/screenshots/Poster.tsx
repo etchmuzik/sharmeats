@@ -1,6 +1,6 @@
 import { DeviceFrame } from "./DeviceFrame";
 import type { Shot } from "./config";
-import styles from "../../app/screenshots/screenshots.module.css";
+import styles from "../../app/(existing)/screenshots/screenshots.module.css";
 
 /**
  * One App Store poster: gradient background + gold glow + headline block +

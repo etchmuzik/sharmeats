@@ -9,9 +9,7 @@
    under `.root` so this dark surface does NOT leak into the light
    marketing homepage.
 
-   Fonts: the design's @import is dropped — Sora / Plus Jakarta
-   Sans / Cairo come from next/font (see page.tsx) and are wired
-   into --font-* below via the next/font CSS variables.
+   The page bundles Sora, Plus Jakarta Sans and Cairo with Fontsource.
 
    Structural class names that the screen JSX references by string
    (foodslot, grill, s-card, row, pad, flag, price, btn-primary…)
@@ -143,11 +141,9 @@
   --flag-tourist: #54b3c4;
   --flag-tourist-bg: rgba(14, 124, 145, 0.22);
 
-  /* ---------- TYPE FAMILIES (wired to next/font vars) ----------
-     The next/font loaders in page.tsx expose:
-       --font-sora  --font-jakarta  --font-cairo
-     Mapped here onto the design's semantic family names so every
-     var(--font-display|ui|ar|num) reference ports unchanged. */
+  --font-sora: "Sora Variable";
+  --font-jakarta: "Plus Jakarta Sans Variable";
+  --font-cairo: "Cairo Variable";
   --font-display: var(--font-sora), "Plus Jakarta Sans", system-ui, sans-serif;
   --font-ui: var(--font-jakarta), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-ar: var(--font-cairo), "Plus Jakarta Sans", system-ui, sans-serif;

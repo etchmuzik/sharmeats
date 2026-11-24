@@ -13,7 +13,7 @@ import type { CSSProperties } from "react";
  * These components are self-contained (brand hex inlined, Sora-first font
  * stack) so the logo is portable — usable on the light marketing site, in a
  * dark app header, or exported to a static file. Pass `fontFamily` to use a
- * loaded Sora (e.g. next/font's --font-sora) for pixel-exact rendering.
+ * loaded Sora (e.g. the page's --font-sora) for pixel-exact rendering.
  */
 
 // ---- Brand palette (from the Sharm Eats design system) ----
@@ -30,7 +30,7 @@ export const BRAND = {
 } as const;
 
 /** Sora-first display stack. Override with a loaded font for exact metrics. */
-const DISPLAY_STACK = '"Sora", "Plus Jakarta Sans", system-ui, sans-serif';
+const DISPLAY_STACK = 'var(--font-sora, "Sora"), "Plus Jakarta Sans", system-ui, sans-serif';
 
 const SHADOW_LG = "0 16px 40px rgba(0,0,0,.55)";
 

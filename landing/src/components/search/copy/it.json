@@ -53,11 +53,15 @@
   },
   "order": {
     "title": "Ordina con Sharm Eats",
-    "summary": "Apri l’app Sharm Eats per i clienti, indica il punto di consegna e scegli tra le cucine disponibili prima di ordinare.",
+    "summary": "Su iPhone, apri Sharm Eats per trovare le cucine disponibili al tuo indirizzo e ordinare. Su Android puoi consultare i menu dei ristoranti dal browser.",
     "next": "Scegli il punto di consegna",
     "step": "In hotel concorda l’ingresso con la reception. In appartamento indica edificio e ingresso.",
     "total": "Controlla il totale",
-    "end": "Verifica i piatti disponibili, la consegna e il totale in sterline egiziane prima di confermare."
+    "end": "Verifica i piatti disponibili, la consegna e il totale in sterline egiziane prima di confermare.",
+    "androidNav": "Menu",
+    "androidTitle": "Usi Android?",
+    "androidHelp": "Scegli una zona e apri il menu sul sito del ristorante, se disponibile. Contatta il ristorante per sapere come ordinare e se consegna al tuo indirizzo.",
+    "androidMenus": "Sfoglia i menu dei ristoranti"
   },
   "restaurants": {
     "title": "Ristoranti a Sharm el Sheikh per zona",

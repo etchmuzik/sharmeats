@@ -691,3 +691,10 @@
   text-underline-offset: 0.18em;
   font-size: 0.95rem;
 }
+
+@media(max-width:380px){
+ .home-header>.home-wrap{width:calc(100% - 1.25rem);gap:.35rem}
+ .sharm-home .home-header .home-brand{font-size:1.32rem}
+ .sharm-home .home-nav-app{padding:.6rem .7rem;gap:.3rem;font-size:.83rem}
+ .home-languages summary{padding:.5rem;min-width:2.7rem}
+}

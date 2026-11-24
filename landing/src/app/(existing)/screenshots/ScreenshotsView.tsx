@@ -15,7 +15,7 @@ const Z = 0.3;
  * awaiting searchParams breaks `output: "export"`); the query is resolved in
  * the browser instead, which is exactly when the capture tooling needs it.
  */
-export function ScreenshotsView({ fontClass }: { fontClass: string }) {
+export function ScreenshotsView() {
   const params = useSearchParams();
   const exportRaw = params.get('export');
   const exportIdx = exportRaw != null ? Number(exportRaw) : null;
@@ -24,7 +24,7 @@ export function ScreenshotsView({ fontClass }: { fontClass: string }) {
   const ipadRaw = params.get('ipad');
   const isIpad = ipadRaw === '1' || ipadRaw === 'true';
 
-  const rootClass = [styles.root, isIpad ? styles.ipad : '', fontClass].filter(Boolean).join(' ');
+  const rootClass = [styles.root, isIpad ? styles.ipad : ''].filter(Boolean).join(' ');
   const exportDims = isIpad ? { width: 2064, height: 2752 } : { width: 1320, height: 2868 };
 
   return (

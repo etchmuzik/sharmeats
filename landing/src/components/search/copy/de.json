@@ -53,11 +53,15 @@
   },
   "order": {
     "title": "Bei Sharm Eats bestellen",
-    "summary": "Öffne die Sharm Eats Kunden-App, setze deinen Standort und wähle aus den verfügbaren Küchen.",
+    "summary": "Öffne auf dem iPhone die Sharm Eats App, um Restaurants für deine Adresse zu finden und zu bestellen. Auf Android kannst du die Speisekarten im Browser ansehen.",
     "next": "Treffpunkt festlegen",
     "step": "Kläre im Hotel den Eingang mit der Rezeption. Gib bei Apartments Gebäude und Eingang an.",
     "total": "Gesamtpreis prüfen",
-    "end": "Prüfe verfügbare Gerichte, Liefergebühr und Endpreis in ägyptischen Pfund vor dem Bestellen."
+    "end": "Prüfe verfügbare Gerichte, Liefergebühr und Endpreis in ägyptischen Pfund vor dem Bestellen.",
+    "androidNav": "Speisekarten",
+    "androidTitle": "Du nutzt Android?",
+    "androidHelp": "Wähle einen Stadtteil und öffne die Speisekarte auf der Restaurantwebsite, falls sie verlinkt ist. Frag direkt beim Restaurant nach, wie du bestellen kannst und ob es an deine Adresse liefert.",
+    "androidMenus": "Speisekarten ansehen"
   },
   "restaurants": {
     "title": "Restaurants in Sharm el Sheikh nach Stadtteil",

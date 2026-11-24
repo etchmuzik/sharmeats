@@ -53,11 +53,15 @@
   },
   "order": {
     "title": "Order food with Sharm Eats",
-    "summary": "Open the Sharm Eats customer app to enter your delivery pin, see available kitchens and place your order.",
+    "summary": "On iPhone, open the Sharm Eats app to check kitchens for your location and place an order. On Android, browse restaurant menus on the web.",
     "next": "Choose the delivery point",
     "step": "For hotels, agree on the entrance with reception. For apartments, add the building and entrance.",
     "total": "Check the final total",
-    "end": "Review available dishes, the delivery fee and total in EGP before you confirm."
+    "end": "Review available dishes, the delivery fee and total in EGP before you confirm.",
+    "androidNav": "Menus",
+    "androidTitle": "Using Android?",
+    "androidHelp": "Browse restaurants by area and open a restaurant’s own menu where available. Contact the restaurant directly to check how to order and whether it delivers to your address.",
+    "androidMenus": "Browse restaurant menus"
   },
   "restaurants": {
     "title": "Restaurants in Sharm El Sheikh",
