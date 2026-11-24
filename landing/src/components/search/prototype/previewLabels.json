@@ -1,0 +1,72 @@
+{
+  "en": {
+    "kitchens": "Featured kitchens",
+    "remove": "Remove",
+    "inc": "One more",
+    "dec": "One less",
+    "zone": "Zone",
+    "min": "Minimum order EGP {min}",
+    "swap": {
+      "title": "Start a new cart from {kitchen}?",
+      "body": "Your cart has food from {current}. One delivery comes from one kitchen.",
+      "confirm": "Start new cart",
+      "cancel": "Keep current cart"
+    }
+  },
+  "ar": {
+    "kitchens": "مطابخ مميزة",
+    "remove": "إزالة",
+    "inc": "واحد إضافي",
+    "dec": "واحد أقل",
+    "zone": "المنطقة",
+    "min": "الحد الأدنى للطلب {min} ج.م",
+    "swap": {
+      "title": "ابدأ سلة جديدة من {kitchen}؟",
+      "body": "سلتك تحتوي طعاماً من {current}. التوصيل الواحد يأتي من مطبخ واحد.",
+      "confirm": "ابدأ سلة جديدة",
+      "cancel": "أبقِ السلة الحالية"
+    }
+  },
+  "ru": {
+    "kitchens": "Избранные кухни",
+    "remove": "Убрать",
+    "inc": "Ещё одну",
+    "dec": "На одну меньше",
+    "zone": "Зона",
+    "min": "Минимальный заказ {min} EGP",
+    "swap": {
+      "title": "Начать новую корзину из {kitchen}?",
+      "body": "В корзине еда из {current}. Одна доставка приходит из одной кухни.",
+      "confirm": "Новая корзина",
+      "cancel": "Оставить текущую"
+    }
+  },
+  "it": {
+    "kitchens": "Cucine in evidenza",
+    "remove": "Rimuovi",
+    "inc": "Uno in più",
+    "dec": "Uno in meno",
+    "zone": "Zona",
+    "min": "Ordine minimo {min} EGP",
+    "swap": {
+      "title": "Iniziare un nuovo carrello da {kitchen}?",
+      "body": "Nel carrello c'è cibo da {current}. Una consegna arriva da una sola cucina.",
+      "confirm": "Nuovo carrello",
+      "cancel": "Tieni il carrello"
+    }
+  },
+  "de": {
+    "kitchens": "Ausgewählte Küchen",
+    "remove": "Entfernen",
+    "inc": "Eins mehr",
+    "dec": "Eins weniger",
+    "zone": "Zone",
+    "min": "Mindestbestellung {min} EGP",
+    "swap": {
+      "title": "Neuen Warenkorb von {kitchen} starten?",
+      "body": "Im Warenkorb ist Essen von {current}. Eine Lieferung kommt aus einer Küche.",
+      "confirm": "Neuer Warenkorb",
+      "cancel": "Aktuellen behalten"
+    }
+  }
+}

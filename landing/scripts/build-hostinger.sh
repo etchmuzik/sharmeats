@@ -15,7 +15,7 @@
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-APP="src/app"
+APP="src/app/(existing)"
 QUARANTINE=".hostinger-quarantine"
 PAGES=("screenshots" "brand")
 

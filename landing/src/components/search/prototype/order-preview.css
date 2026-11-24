@@ -1,0 +1,49 @@
+.order-preview{background:#0b3a38;color:#e9d9b8;min-height:100vh;font:1rem/1.55 'Sharm Plex','Sharm Arabic',sans-serif;padding-bottom:5rem}
+.order-preview[lang=ar]{font-family:'Sharm Arabic',sans-serif}
+.op-wrap{width:min(75rem,calc(100% - 2.3rem));margin:auto}
+.op-head,.op-head>div,.op-links,.op-qty,.op-control,.op-dish,.op-cart li,.op-cart dl>div{display:flex;align-items:center}
+.op-head,.op-dish,.op-cart li,.op-cart dl>div{justify-content:space-between;gap:1.1rem}
+.op-head{min-height:4.2rem;border-bottom:1px solid #e9d9b847}
+.op-brand,.order-preview :is(h1,h2,h3,h4){font-family:'Sharm Bricolage','Sharm Arabic',sans-serif;font-weight:700;line-height:1.15}
+.op-brand{font-size:1.7rem;letter-spacing:-.08em}.op-brand span{color:#ff5a36}
+.op-head>div{gap:.75rem}.op-head a[aria-current]{color:#ffd6c7;text-decoration:underline}
+.order-preview h1{font-size:clamp(2.4rem,6vw,5.5rem);margin:clamp(2rem,6vw,4.4rem) 0 .8rem}
+.op-intro{max-width:48rem;font-size:1.18rem}
+.op-links{flex-wrap:wrap;gap:.8rem 1.65rem;margin-block:1rem 2rem}
+.op-links a,.op-remove{text-decoration:underline;text-underline-offset:.2em}
+.op-links a:first-child{color:#ffae93}
+.order-preview h2{font-size:clamp(1.65rem,3.6vw,3.5rem);margin:0}
+.order-preview .op-rail-label{font-size:1.25rem;margin-bottom:.8rem}
+.op-rail{display:flex;gap:.9rem;overflow-x:auto;scroll-snap-type:x proximity;padding:.35rem .15rem 1rem}
+.op-rail button{overflow:hidden;text-align:start;display:flex;flex-direction:column;flex:0 0 13rem;background:#072a28;border:1px solid #81988d;border-radius:14px;scroll-snap-align:start;color:inherit;cursor:pointer}
+.op-rail button[aria-pressed=true]{border:2px solid #ff866a}
+.op-rail button img,.op-monogram{width:100%;height:5.2rem;object-fit:cover}
+.op-monogram{background:#194d49;display:grid;place-items:center;color:#e9d9b8;font:700 3rem 'Sharm Bricolage',sans-serif}
+.op-rail button strong,.op-rail button>span:last-child{padding:.4rem .7rem 0}.op-rail button>span:last-child{font-size:.85rem;padding-bottom:.6rem}
+.op-columns{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(17rem,1fr);gap:clamp(1.5rem,4vw,4rem);align-items:start;margin-top:2rem}
+.op-menu>p{color:#d8c9af;margin:.45rem 0 1rem}
+.op-group{margin-top:2rem}
+.op-group h3{font-size:1rem;text-transform:uppercase;letter-spacing:.07em;color:#ffab8e}
+.op-dish{border-bottom:1px solid #e9d9b847;padding:1rem 0}
+.op-dish h4{font-size:1.19rem}.op-dish p,.op-cart p{color:#d8c9af}
+.op-control{flex-direction:column;gap:.4rem;align-items:flex-end;flex:none}
+.op-qty{gap:.55rem}
+.op-control button,.op-cart button,.op-conflict button{border:1px solid #d9cbae;border-radius:.6rem;background:#0b3a38;color:#e9d9b8;min-height:2.65rem;padding:.45rem .85rem;font-weight:600;cursor:pointer}
+.op-control button:hover,.op-cart button:hover,.op-conflict button:hover{background:#164b47}
+.op-control button:focus-visible,.order-preview :is(a,button,select):focus-visible{outline:3px solid #ffab8e;outline-offset:3px}
+.op-cart{padding:clamp(1.2rem,2.5vw,2rem);position:sticky;top:1rem;background:#072a28;border:1px solid #e9d9b847;border-radius:14px}
+.op-cart h2{font-size:1.8rem}.op-cart h2+p{margin:.4rem 0 1rem}
+.op-cart ul{margin:1rem 0;padding:0;list-style:none}
+.op-cart li,.op-cart dl>div{border-top:1px solid #e9d9b838;padding:.7rem 0;align-items:baseline}
+.op-cart b,.op-dish b,.op-cart dd{white-space:nowrap}
+.op-cart .op-remove{padding:0;border:0;display:block;min-height:1.7rem;font-weight:400;color:#dbcbb3;background:transparent}
+.op-zone{display:grid;gap:.4rem;margin-block:1rem}
+.op-zone select{background:#e9d9b8;color:#10221f;border-radius:.4rem;padding:.6rem}
+.op-cart dl{margin:1.2rem 0}.op-cart dd{margin:0;font-weight:bold}
+.op-cart dl>div:last-child{font-size:1.3rem}.op-cart button+button,.op-conflict button+button{margin-inline-start:.4rem}
+.op-cart .op-primary{background:#ff5a36;color:#10221f;border-color:transparent}
+.op-cart .op-primary:hover{background:#ff8368}.op-cart .op-primary:disabled{opacity:.55;cursor:default}
+.op-conflict{background:#e9d9b8;color:#10221f;border-radius:.6rem;padding:1rem;margin-block:1rem}
+.op-conflict p{margin:.4rem 0 .7rem}
+.op-finished{display:block;max-width:40rem}
+@media(max-width:740px){.op-columns{grid-template-columns:1fr}.op-cart{position:static}.op-rail button{flex-basis:11rem}.op-qty button{padding:.4rem .6rem}.op-head>div{gap:.5rem}.op-cart .op-primary{margin-bottom:.5rem}}

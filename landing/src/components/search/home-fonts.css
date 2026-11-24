@@ -1,0 +1,27 @@
+@font-face {
+  font-family: 'Sharm Bricolage';
+  src: url('/home-media/bricolage-grotesque-latin-200_800-normal.woff2')
+    format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sharm Plex';
+  src: url('/home-media/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sharm Arabic';
+  src: url('/home-media/ibm-plex-sans-arabic-arabic-400-normal.woff2')
+    format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sharm Arabic';
+  src: url('/home-media/ibm-plex-sans-arabic-arabic-600-normal.woff2')
+    format('woff2');
+  font-weight: 600 800;
+  font-display: swap;
+}

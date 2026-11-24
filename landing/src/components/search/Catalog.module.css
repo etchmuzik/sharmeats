@@ -1,0 +1,140 @@
+.catalog {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: clamp(2rem, 6vw, 5rem) clamp(1.1rem, 4vw, 3rem);
+  color: #163d38;
+  font-family: 'Sharm Plex', 'Sharm Arabic', Arial, sans-serif;
+  line-height: 1.5;
+}
+.catalog h1,
+.catalog h2 {
+  font-family: 'Sharm Bricolage', 'Sharm Arabic', Arial, sans-serif;
+  color: #123e38;
+}
+.catalog h1 {
+  font-size: clamp(2.5rem, 6.5vw, 5.75rem);
+  line-height: 1.04;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  max-width: 14ch;
+  margin: 0;
+}
+.catalog[dir='rtl'] h1 {
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+.intro p {
+  max-width: 62ch;
+  font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+  margin: 1.1rem 0;
+}
+.catalog a {
+  color: #174d46;
+  text-underline-offset: 0.2em;
+  text-decoration: underline;
+}
+.catalog a:hover {
+  color: #923d25;
+}
+.catalog a:focus-visible {
+  outline: 3px solid #a94b2f;
+  outline-offset: 3px;
+  border-radius: 0.15rem;
+}
+.actions,
+.jump,
+.areaHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.2rem;
+}
+.actions {
+  margin: 1.5rem 0 2.35rem;
+}
+.catalog .app {
+  display: inline-block;
+  border-radius: 0.5rem;
+  background: #164d46;
+  color: white;
+  padding: 0.8rem 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.catalog .app:hover {
+  background: #0c352f;
+  color: white;
+}
+.jump {
+  gap: 0.45rem;
+  margin-block-end: 2rem;
+}
+.jump a {
+  border: 1px solid #9aafa6;
+  padding: 0.65rem 0.9rem;
+  border-radius: 2rem;
+  font-size: 0.93rem;
+  text-decoration: none;
+}
+.area {
+  border-top: 1px solid #b8c9c1;
+  padding: 1.6rem 0 1.9rem;
+  scroll-margin-block-start: 6rem;
+}
+.areaHead {
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+.area h2 {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 650;
+  margin: 0;
+}
+.entries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 0.55rem 1.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.entries li {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.1rem;
+  border-inline-start: 2px solid #c4775b;
+  padding-inline-start: 0.75rem;
+}
+.menu,
+.date {
+  font-size: 0.88rem;
+}
+.date {
+  color: #45615a;
+}
+.catalog > a:first-child + header {
+  margin-top: 1.5rem;
+}
+.guide {
+  padding-block: 1.25rem;
+  max-width: 68ch;
+  border-top: 1px solid #b8c9c1;
+}
+.guide h2 {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 650;
+}
+.guide p {
+  margin: 0.65rem 0;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
