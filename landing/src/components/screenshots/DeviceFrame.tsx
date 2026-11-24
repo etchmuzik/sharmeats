@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import styles from "../../app/screenshots/screenshots.module.css";
+import styles from "../../app/(existing)/screenshots/screenshots.module.css";
 
 /**
  * The dark iPhone bezel. Ported from the design's
