@@ -1,20 +1,6 @@
 import type { Metadata } from 'next';
-import { Urbanist, Tajawal } from 'next/font/google';
 import '../globals.css';
-
-// Landing v2 typefaces (Claude Design handoff): Urbanist for Latin scripts,
-// Tajawal as the Arabic companion — stacked so RTL copy falls through to
-// Tajawal automatically, exactly like the design's --body stack.
-const urbanist = Urbanist({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-urbanist',
-});
-const tajawal = Tajawal({
-  subsets: ['arabic'],
-  weight: ['400', '500', '700', '800'],
-  variable: '--font-tajawal',
-});
+import '@/components/search/home-fonts.css';
 
 const SITE_URL = 'https://sharmeats.online';
 // Mirrors APP_STORE_URL and the footer Instagram link in page.tsx (a client
@@ -77,7 +63,7 @@ const structuredData = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${urbanist.variable} ${tajawal.variable}`}>
+    <html lang="en" className="sharm-site-documents">
       <body>
         <script
           type="application/ld+json"

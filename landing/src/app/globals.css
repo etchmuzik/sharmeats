@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Keep static policy and tracking pages on bundled, offline-buildable fonts. */
+.sharm-site-documents {
+  --font-urbanist: 'Sharm Plex';
+  --font-tajawal: 'Sharm Arabic';
+}
+
 :root {
   color-scheme: light;
 }
