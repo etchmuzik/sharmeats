@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Sora, Plus_Jakarta_Sans } from "next/font/google";
+import "@fontsource-variable/sora/wght.css";
+import "@fontsource-variable/plus-jakarta-sans/wght.css";
 import { StackedTile, StackedRow, FINISHES, BRAND } from "@/components/brand/SharmLogo";
 import styles from "./brand.module.css";
 
@@ -12,15 +13,8 @@ import styles from "./brand.module.css";
  *
  * Dark theme is fully scoped to `.root` (brand.module.css) so it does not
  * affect the light marketing homepage. Sora powers the wordmark via
- * next/font (self-hosted) for pixel-exact letterforms.
+ * locally bundled font files.
  */
-
-const sora = Sora({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-sora" });
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-jakarta",
-});
 
 export const metadata: Metadata = {
   title: "Sharm Eats — Brand & logo",
@@ -30,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function BrandPage() {
   return (
-    <div className={`${styles.root} ${sora.variable} ${jakarta.variable}`}>
+    <div className={styles.root}>
       <div className={styles.page}>
         {/* ---- intro ---- */}
         <div className={styles.intro}>

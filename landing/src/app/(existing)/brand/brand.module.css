@@ -25,6 +25,8 @@
   --hairline: rgba(255, 255, 255, 0.07);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --font-sora: "Sora Variable";
+  --font-jakarta: "Plus Jakarta Sans Variable";
   --font-display: var(--font-sora), "Plus Jakarta Sans", system-ui, sans-serif;
   --font-ui: var(--font-jakarta), system-ui, -apple-system, "Segoe UI", sans-serif;
 
