@@ -173,10 +173,10 @@ jobs:
           # full mirror keeps the older hashes available for cached pages.
           # Remove only the retired Google owner file from this web root.
           lftp -u "$FTP_USERNAME","$FTP_PASSWORD" \
-               -e "$LFTP_TLS set cmd:fail-exit true;
-                   mirror -R --verbose --parallel=4 landing/out/_next/static/ $FTP_SERVER_DIR/_next/static;
-                   mirror -R --verbose --parallel=4 landing/out/ $FTP_SERVER_DIR;
-                   rm -f $FTP_SERVER_DIR/googleda182c5be78ac75d.html;
+               -e "$LFTP_TLS set cmd:fail-exit true; \
+                   mirror -R --verbose --parallel=4 landing/out/_next/static/ $FTP_SERVER_DIR/_next/static; \
+                   mirror -R --verbose --parallel=4 landing/out/ $FTP_SERVER_DIR; \
+                   rm -f $FTP_SERVER_DIR/googleda182c5be78ac75d.html; \
                    quit" \
                "$FTP_HOST"
 
